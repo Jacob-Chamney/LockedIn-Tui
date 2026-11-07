@@ -7,6 +7,23 @@ patch with the number of bugs fixed, and the major changes only by decision.
 
 ## [Unreleased]
 
+## [1.4.4] - 2026-11-07
+
+### Added
+
+- Starting a lock-in session now offers a choice between writing assignment
+  instructions and browsing for a PDF, DOCX or text file. A file is copied into
+  the session, its text is extracted into `prompt.md`, and its provenance is
+  recorded in `meta.json`.
+
+### Fixed
+
+- Assignment steps and headings wrap to the reader width with a hanging indent.
+  The reader clips its body to the pane, keeps the footer visible, and always
+  keeps the selected step on-screen.
+- The Explorer now separates the active session from the session library with a
+  divider and a `SESSIONS` heading.
+
 ## [1.3.2] - 2026-11-07
 
 ### Added
