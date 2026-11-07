@@ -1,0 +1,82 @@
+name: Bug report
+description: Something in a released binary does not work as documented
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Do **not** paste API keys, tokens, note
+        contents or other personal data. Redact logs first.
+
+        Security problems belong in the Security tab, not here. See SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: LockedIn version
+      description: The output of `lockedin --version`.
+      placeholder: lockedin 1.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Platform
+      options:
+        - Linux x64 (glibc)
+        - Linux x64 (musl)
+        - Linux arm64 (glibc)
+        - Linux arm64 (musl)
+        - macOS arm64
+        - macOS x64
+        - Windows x64
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: terminal
+    attributes:
+      label: Terminal
+      description: The terminal and version, for example Ghostty 1.2 or Windows Terminal.
+      placeholder: Ghostty 1.2
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The smallest sequence that shows the problem. Include keys you pressed.
+      placeholder: |
+        1. Start with an empty workspace
+        2. Press ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: What happened instead. A screenshot is welcome if it contains no personal data.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or error output
+      description: Redacted output from the terminal or the data directory logs, if relevant.
+      render: text
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Before submitting
+      options:
+        - label: I removed API keys, tokens, personal notes and other private data.
+          required: true
+        - label: I checked that this is not a security vulnerability (those go to the Security tab).
+          required: true
