@@ -28,7 +28,9 @@ local.
 
 Choose the files and notes a session may use. Lock-in builds steps and answers
 from those sources, labels earlier history, and keeps the session's progress in
-Markdown.
+Markdown. PDF and DOCX sources are extracted to text, and Session settings can
+load a PDF, DOCX or text file as the assignment instructions and edit them in
+place.
 
 ### Learning goals, curricula and lessons
 
@@ -86,13 +88,13 @@ package.
 
 | Platform | Artifact | Status |
 |---|---|---|
-| Linux x64 (glibc) | `lockedin-1.0.0-bun-linux-x64` | verified |
-| Linux x64 (musl / Alpine) | `lockedin-1.0.0-bun-linux-x64-musl` | verified in Alpine |
-| Linux arm64 (glibc) | `lockedin-1.0.0-bun-linux-arm64` | verified |
-| Linux arm64 (musl) | `lockedin-1.0.0-bun-linux-arm64-musl` | verified in Alpine |
-| macOS arm64 (Apple Silicon) | `lockedin-1.0.0-bun-darwin-arm64` | verified |
-| macOS x64 (Intel) | `lockedin-1.0.0-bun-darwin-x64` | verified |
-| Windows x64 | `lockedin-1.0.0-bun-windows-x64.exe` | verified |
+| Linux x64 (glibc) | `lockedin-1.3.2-bun-linux-x64` | verified |
+| Linux x64 (musl / Alpine) | `lockedin-1.3.2-bun-linux-x64-musl` | verified in Alpine |
+| Linux arm64 (glibc) | `lockedin-1.3.2-bun-linux-arm64` | verified |
+| Linux arm64 (musl) | `lockedin-1.3.2-bun-linux-arm64-musl` | verified in Alpine |
+| macOS arm64 (Apple Silicon) | `lockedin-1.3.2-bun-darwin-arm64` | verified |
+| macOS x64 (Intel) | `lockedin-1.3.2-bun-darwin-x64` | verified |
+| Windows x64 | `lockedin-1.3.2-bun-windows-x64.exe` | verified |
 
 `verified` means release CI launched the binary and painted its first screen on
 native hardware, or inside an Alpine container on the matching architecture for
@@ -114,7 +116,7 @@ bypass the checksum step.
 ### Linux (glibc, x64)
 
 ```bash
-VERSION=1.0.0
+VERSION=1.3.2
 BASE="https://github.com/Jacob-Chamney/LockedIn-Tui/releases/download/v$VERSION"
 curl -fsSL -o "lockedin-$VERSION-bun-linux-x64" \
   "$BASE/lockedin-$VERSION-bun-linux-x64"
@@ -128,7 +130,7 @@ install -m 0755 "lockedin-$VERSION-bun-linux-x64" ~/.local/bin/lockedin
 ### macOS (Apple Silicon)
 
 ```bash
-VERSION=1.0.0
+VERSION=1.3.2
 BASE="https://github.com/Jacob-Chamney/LockedIn-Tui/releases/download/v$VERSION"
 curl -fsSL -o "lockedin-$VERSION-bun-darwin-arm64" \
   "$BASE/lockedin-$VERSION-bun-darwin-arm64"
@@ -142,7 +144,7 @@ install -m 0755 "lockedin-$VERSION-bun-darwin-arm64" ~/.local/bin/lockedin
 ### Windows (PowerShell, x64)
 
 ```powershell
-$VERSION = "1.0.0"
+$VERSION = "1.3.2"
 $BASE = "https://github.com/Jacob-Chamney/LockedIn-Tui/releases/download/v$VERSION"
 Invoke-WebRequest "$BASE/lockedin-$VERSION-bun-windows-x64.exe" -OutFile lockedin.exe
 Invoke-WebRequest "$BASE/SHA256SUMS" -OutFile SHA256SUMS
