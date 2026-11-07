@@ -197,11 +197,17 @@ What comes next is in [`ROADMAP.md`](ROADMAP.md).
 
 ## License
 
-MIT. See [`LICENSE`](LICENSE). The binary embeds Bun, OpenTUI and other
-libraries; their notices are in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
+MIT. See [`LICENSE`](LICENSE). The application source is not published; the
+released binaries are distributed under the MIT License, with the required
+copyright and permission notice in `LICENSE`. The binary embeds Bun, OpenTUI and
+other libraries; their notices are in
+[`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
 
 ---
 
 Bugs and feature requests: [Issues](https://github.com/Jacob-Chamney/LockedIn-Tui/issues).
 Questions and ideas: [Discussions](https://github.com/Jacob-Chamney/LockedIn-Tui/discussions).
 Security reports: see [`SECURITY.md`](SECURITY.md).
+
+Pull requests are disabled; this repository distributes binaries and does not
+accept code contributions.
