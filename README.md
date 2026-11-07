@@ -56,6 +56,28 @@ study into a game you have to feed.
 
 ## Install
 
+### Quick install
+
+```bash
+curl -fsSL https://github.com/Jacob-Chamney/LockedIn-Tui/releases/latest/download/install.sh | sh
+```
+
+The installer detects Linux or macOS, x64 or arm64, and glibc or musl. It
+downloads the matching artifact, verifies it against `SHA256SUMS`, and installs
+`~/.local/bin/lockedin`. Prefer to read it first?
+
+```bash
+curl -fsSLO https://github.com/Jacob-Chamney/LockedIn-Tui/releases/latest/download/install.sh
+less install.sh
+sh install.sh
+```
+
+Pin a release with `LOCKEDIN_VERSION=1.0.0`; choose another directory with
+`LOCKEDIN_INSTALL_DIR=/usr/local/bin`. The script never uses `sudo` and never
+edits your shell profile.
+
+### Manual install
+
 Download the binary for your machine from the
 [latest release](https://github.com/Jacob-Chamney/LockedIn-Tui/releases/latest).
 There is no runtime, no package manager and no `node_modules`. The binary uses

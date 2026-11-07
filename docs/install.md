@@ -42,9 +42,31 @@ apk add libstdc++
 
 On Windows, use the `.exe` file.
 
-## 2. Download and verify
+## 2. Install
 
-### Linux
+### Quick install
+
+```bash
+curl -fsSL https://github.com/Jacob-Chamney/LockedIn-Tui/releases/latest/download/install.sh | sh
+```
+
+The installer detects Linux or macOS, x64 or arm64, and glibc or musl. It
+verifies the download against `SHA256SUMS` and installs `~/.local/bin/lockedin`.
+Use `LOCKEDIN_VERSION=1.0.0` to pin a release and
+`LOCKEDIN_INSTALL_DIR=/usr/local/bin` to choose a directory. It never uses
+`sudo` and never edits a shell profile.
+
+To inspect the script before running it:
+
+```bash
+curl -fsSLO https://github.com/Jacob-Chamney/LockedIn-Tui/releases/latest/download/install.sh
+less install.sh
+sh install.sh
+```
+
+### Manual download and verify
+
+#### Linux
 
 ```bash
 VERSION=1.0.0
@@ -64,7 +86,7 @@ If `~/.local/bin` is not on `PATH`, add it to your shell profile. On macOS, add
 `sha256sum -c SHA256SUMS` after downloading only that artifact, or install
 `coreutils`.
 
-### macOS
+#### macOS
 
 ```bash
 VERSION=1.0.0
@@ -82,7 +104,7 @@ install -m 0755 "$ARTIFACT" ~/.local/bin/lockedin
 `shasum -c -` reads the checksum line from standard input, so the file name in
 `SHA256SUMS` must match the downloaded name.
 
-### Windows
+#### Windows
 
 ```powershell
 $VERSION = "1.0.0"
