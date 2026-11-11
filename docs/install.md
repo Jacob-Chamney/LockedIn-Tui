@@ -1,4 +1,4 @@
-# Installing LockedIn-Tui 1.5.0
+# Installing LockedIn-Tui 1.5.1
 
 LockedIn-Tui ships as one compiled binary per platform. Bun, SQLite/FTS5 and
 the terminal renderer are inside the file; there is no runtime, no installer and
@@ -9,13 +9,13 @@ standard `libstdc++` package.
 
 | Platform | Artifact | Status |
 |---|---|---|
-| Linux x64 (glibc) | `lockedin-1.5.0-bun-linux-x64` | verified in CI |
-| Linux x64 (musl / Alpine) | `lockedin-1.5.0-bun-linux-x64-musl` | verified in Alpine |
-| Linux arm64 (glibc) | `lockedin-1.5.0-bun-linux-arm64` | verified in CI |
-| Linux arm64 (musl) | `lockedin-1.5.0-bun-linux-arm64-musl` | verified in Alpine |
-| macOS arm64 | `lockedin-1.5.0-bun-darwin-arm64` | verified in CI |
-| macOS x64 | `lockedin-1.5.0-bun-darwin-x64` | verified in CI |
-| Windows x64 | `lockedin-1.5.0-bun-windows-x64.exe` | verified in CI (ConPTY) |
+| Linux x64 (glibc) | `lockedin-1.5.1-bun-linux-x64` | verified in CI |
+| Linux x64 (musl / Alpine) | `lockedin-1.5.1-bun-linux-x64-musl` | verified in Alpine |
+| Linux arm64 (glibc) | `lockedin-1.5.1-bun-linux-arm64` | verified in CI |
+| Linux arm64 (musl) | `lockedin-1.5.1-bun-linux-arm64-musl` | verified in Alpine |
+| macOS arm64 | `lockedin-1.5.1-bun-darwin-arm64` | verified in CI |
+| macOS x64 | `lockedin-1.5.1-bun-darwin-x64` | verified in CI |
+| Windows x64 | `lockedin-1.5.1-bun-windows-x64.exe` | verified in CI (ConPTY) |
 
 The 1.0 binaries are **not code-signed**. Verify the checksum before running
 them. macOS may quarantine a browser download; Windows SmartScreen may show
@@ -69,7 +69,7 @@ sh install.sh
 #### Linux
 
 ```bash
-VERSION=1.5.0
+VERSION=1.5.1
 BASE="https://github.com/Jacob-Chamney/LockedIn-Tui/releases/download/v$VERSION"
 ARTIFACT="lockedin-$VERSION-bun-linux-x64"   # replace with your target
 
@@ -89,7 +89,7 @@ If `~/.local/bin` is not on `PATH`, add it to your shell profile. On macOS, add
 #### macOS
 
 ```bash
-VERSION=1.5.0
+VERSION=1.5.1
 BASE="https://github.com/Jacob-Chamney/LockedIn-Tui/releases/download/v$VERSION"
 ARTIFACT="lockedin-$VERSION-bun-darwin-arm64"   # or -darwin-x64
 
@@ -107,7 +107,7 @@ install -m 0755 "$ARTIFACT" ~/.local/bin/lockedin
 #### Windows
 
 ```powershell
-$VERSION = "1.5.0"
+$VERSION = "1.5.1"
 $BASE = "https://github.com/Jacob-Chamney/LockedIn-Tui/releases/download/v$VERSION"
 Invoke-WebRequest "$BASE/lockedin-$VERSION-bun-windows-x64.exe" -OutFile lockedin.exe
 Invoke-WebRequest "$BASE/SHA256SUMS" -OutFile SHA256SUMS
@@ -184,7 +184,7 @@ can install it manually with the commands above.
 Replace the binary; nothing else changes.
 
 ```bash
-VERSION=1.5.0
+VERSION=1.5.1
 BASE="https://github.com/Jacob-Chamney/LockedIn-Tui/releases/download/v$VERSION"
 ARTIFACT="lockedin-$VERSION-bun-linux-x64"
 

@@ -7,6 +7,15 @@ patch with the number of bugs fixed, and the major changes only by decision.
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-11-11
+
+### Fixed
+
+- Chat bubble corners no longer collapse into a floating square when the
+  terminal uses the cell fallback: only the outer quarter cell is cut now, so
+  the bubble reads as rounded. Image-capable terminals keep the raster cap even
+  when the pixel-size reply is missing, including when the window is small.
+
 ## [1.5.0] - 2026-11-11
 
 ### Added
