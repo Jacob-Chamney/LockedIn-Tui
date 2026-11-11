@@ -142,7 +142,7 @@ The type declarations of these packages are embedded into Bun's binary. `bun bui
 
 ## Bundled npm packages
 
-The lockfile's production closure has 208 packages.
+The lockfile's production closure has 253 packages.
 Identical license texts are reproduced once and list every package they
 cover.
 
@@ -24134,10 +24134,10 @@ authorization of the copyright holder.
 ```
 ```
 
-### 17. @opentui/core@0.8.1, @opentui/solid@0.8.1
+### 17. @opentui/core@0.8.4, @opentui/solid@0.8.4
 
-- `@opentui/core@0.8.1` — MIT
-- `@opentui/solid@0.8.1` — MIT
+- `@opentui/core@0.8.4` — MIT
+- `@opentui/solid@0.8.4` — MIT
 
 License files: LICENSE
 
@@ -24168,15 +24168,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 18. @opentui/core-darwin-arm64@0.8.1, @opentui/core-darwin-x64@0.8.1, @opentui/core-linux-arm64@0.8.1, @opentui/core-linux-arm64-musl@0.8.1, @opentui/core-linux-x64@0.8.1, @opentui/core-linux-x64-musl@0.8.1, @opentui/core-win32-x64@0.8.1
+### 18. @opentui/core-darwin-arm64@0.8.4, @opentui/core-darwin-x64@0.8.4, @opentui/core-linux-arm64@0.8.4, @opentui/core-linux-arm64-musl@0.8.4, @opentui/core-linux-x64@0.8.4, @opentui/core-linux-x64-musl@0.8.4, @opentui/core-win32-x64@0.8.4
 
-- `@opentui/core-darwin-arm64@0.8.1` — MIT AND LGPL-2.1-or-later
-- `@opentui/core-darwin-x64@0.8.1` — MIT AND LGPL-2.1-or-later
-- `@opentui/core-linux-arm64@0.8.1` — MIT AND LGPL-2.1-or-later
-- `@opentui/core-linux-arm64-musl@0.8.1` — MIT AND LGPL-2.1-or-later
-- `@opentui/core-linux-x64@0.8.1` — MIT AND LGPL-2.1-or-later
-- `@opentui/core-linux-x64-musl@0.8.1` — MIT AND LGPL-2.1-or-later
-- `@opentui/core-win32-x64@0.8.1` — MIT AND LGPL-2.1-or-later
+- `@opentui/core-darwin-arm64@0.8.4` — MIT AND LGPL-2.1-or-later
+- `@opentui/core-darwin-x64@0.8.4` — MIT AND LGPL-2.1-or-later
+- `@opentui/core-linux-arm64@0.8.4` — MIT AND LGPL-2.1-or-later
+- `@opentui/core-linux-arm64-musl@0.8.4` — MIT AND LGPL-2.1-or-later
+- `@opentui/core-linux-x64@0.8.4` — MIT AND LGPL-2.1-or-later
+- `@opentui/core-linux-x64-musl@0.8.4` — MIT AND LGPL-2.1-or-later
+- `@opentui/core-win32-x64@0.8.4` — MIT AND LGPL-2.1-or-later
 
 License files: LICENSE, LICENSE-FFMPEG, LICENSE-GHOSTTY, LICENSE-LCMS2, LICENSE-LIBWEBP, LICENSE-STB, LICENSE-WUFFS, LICENSE-ZLIB
 
@@ -25140,7 +25140,81 @@ Copyright notice:
   jloup@gzip.org          madler@alumni.caltech.edu
 ```
 
-### 19. @standard-schema/spec@1.1.0
+### 19. @shikijs/core@4.6.0, @shikijs/engine-javascript@4.6.0, @shikijs/engine-oniguruma@4.6.0, @shikijs/langs@4.6.0, @shikijs/primitive@4.6.0, @shikijs/themes@4.6.0, @shikijs/types@4.6.0, shiki@4.6.0
+
+- `@shikijs/core@4.6.0` — MIT
+- `@shikijs/engine-javascript@4.6.0` — MIT
+- `@shikijs/engine-oniguruma@4.6.0` — MIT
+- `@shikijs/langs@4.6.0` — MIT
+- `@shikijs/primitive@4.6.0` — MIT
+- `@shikijs/themes@4.6.0` — MIT
+- `@shikijs/types@4.6.0` — MIT
+- `shiki@4.6.0` — MIT
+
+License files: LICENSE
+
+```text
+LICENSE
+-------
+
+MIT License
+
+Copyright (c) 2021 Pine Wu
+Copyright (c) 2023 Anthony Fu <https://github.com/antfu>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### 20. @shikijs/vscode-textmate@10.1.0
+
+- `@shikijs/vscode-textmate@10.1.0` — MIT
+
+License files: LICENSE.md
+
+```text
+LICENSE.md
+----------
+
+The MIT License (MIT)
+
+Copyright (c) Microsoft Corporation
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### 21. @standard-schema/spec@1.1.0
 
 - `@standard-schema/spec@1.1.0` — MIT
 
@@ -25173,7 +25247,69 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 20. @vercel/oidc@3.2.0
+### 22. @types/hast@3.0.5, @types/mdast@4.0.4, @types/unist@3.0.3
+
+- `@types/hast@3.0.5` — MIT
+- `@types/mdast@4.0.4` — MIT
+- `@types/unist@3.0.3` — MIT
+
+License files: LICENSE
+
+```text
+LICENSE
+-------
+
+MIT License
+
+    Copyright (c) Microsoft Corporation.
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE
+```
+
+### 23. @ungap/structured-clone@1.4.0
+
+- `@ungap/structured-clone@1.4.0` — ISC
+
+License files: LICENSE
+
+```text
+LICENSE
+-------
+
+ISC License
+
+Copyright (c) 2021, Andrea Giammarchi, @WebReflection
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+```
+
+### 24. @vercel/oidc@3.2.0
 
 - `@vercel/oidc@3.2.0` — Apache-2.0
 
@@ -25386,7 +25522,7 @@ Apache License
    limitations under the License.
 ```
 
-### 21. @workflow/serde@4.1.0
+### 25. @workflow/serde@4.1.0
 
 - `@workflow/serde@4.1.0` — Apache-2.0
 
@@ -25401,7 +25537,7 @@ Apache License 2.0
 See the LICENSE file in the root of this repository.
 ```
 
-### 22. accepts@2.0.0, mime-types@3.0.2
+### 26. accepts@2.0.0, mime-types@3.0.2
 
 - `accepts@2.0.0` — MIT
 - `mime-types@3.0.2` — MIT
@@ -25437,7 +25573,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 23. ajv@8.20.0
+### 27. ajv@8.20.0
 
 - `ajv@8.20.0` — MIT
 
@@ -25470,7 +25606,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 24. ajv-formats@3.0.1
+### 28. ajv-formats@3.0.1
 
 - `ajv-formats@3.0.1` — MIT
 
@@ -25503,7 +25639,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 25. babel-plugin-jsx-dom-expressions@0.40.11
+### 29. babel-plugin-jsx-dom-expressions@0.40.11
 
 - `babel-plugin-jsx-dom-expressions@0.40.11` — MIT
 
@@ -25536,7 +25672,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 26. babel-plugin-module-resolver@5.0.2
+### 30. babel-plugin-module-resolver@5.0.2
 
 - `babel-plugin-module-resolver@5.0.2` — MIT
 
@@ -25569,7 +25705,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 27. babel-preset-solid@1.9.16, solid-js@1.9.18
+### 31. babel-preset-solid@1.9.16, solid-js@1.9.18
 
 - `babel-preset-solid@1.9.16` — MIT
 - `solid-js@1.9.18` — MIT
@@ -25603,7 +25739,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 28. balanced-match@4.0.4
+### 32. balanced-match@4.0.4
 
 - `balanced-match@4.0.4` — MIT
 
@@ -25638,7 +25774,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 29. baseline-browser-mapping@2.11.34
+### 33. baseline-browser-mapping@2.11.34
 
 - `baseline-browser-mapping@2.11.34` — Apache-2.0
 
@@ -25851,7 +25987,7 @@ Apache License
    limitations under the License.
 ```
 
-### 30. body-parser@2.4.0, type-is@2.1.0
+### 34. body-parser@2.4.0, type-is@2.1.0
 
 - `body-parser@2.4.0` — MIT
 - `type-is@2.1.0` — MIT
@@ -25887,7 +26023,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 31. brace-expansion@5.0.12
+### 35. brace-expansion@5.0.12
 
 - `brace-expansion@5.0.12` — MIT
 
@@ -25922,7 +26058,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 32. browserslist@4.29.5
+### 36. browserslist@4.29.5
 
 - `browserslist@4.29.5` — MIT
 
@@ -25954,7 +26090,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 33. bun-ffi-structs@0.3.1
+### 37. bun-ffi-structs@0.3.1
 
 - `bun-ffi-structs@0.3.1` — MIT
 
@@ -25973,7 +26109,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 34. bytes@3.1.2
+### 38. bytes@3.1.2
 
 - `bytes@3.1.2` — MIT
 
@@ -26008,7 +26144,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 35. call-bind-apply-helpers@1.0.2, call-bound@1.0.4, es-define-property@1.0.1, es-errors@1.3.0, es-object-atoms@1.1.2, side-channel-list@1.0.1, side-channel-map@1.0.1
+### 39. call-bind-apply-helpers@1.0.2, call-bound@1.0.4, es-define-property@1.0.1, es-errors@1.3.0, es-object-atoms@1.1.2, side-channel-list@1.0.1, side-channel-map@1.0.1
 
 - `call-bind-apply-helpers@1.0.2` — MIT
 - `call-bound@1.0.4` — MIT
@@ -26047,7 +26183,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 36. caniuse-lite@1.0.30001820
+### 40. caniuse-lite@1.0.30001820
 
 - `caniuse-lite@1.0.30001820` — CC-BY-4.0
 
@@ -26454,7 +26590,7 @@ public licenses.
 Creative Commons may be contacted at creativecommons.org.
 ```
 
-### 37. content-disposition@2.0.1, forwarded@0.2.0, media-typer@1.1.1, vary@1.1.2
+### 41. content-disposition@2.0.1, forwarded@0.2.0, media-typer@1.1.1, vary@1.1.2
 
 - `content-disposition@2.0.1` — MIT
 - `forwarded@0.2.0` — MIT
@@ -26491,7 +26627,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 38. content-type@1.0.5
+### 42. content-type@1.0.5
 
 - `content-type@1.0.5` — MIT
 
@@ -26525,7 +26661,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 39. convert-source-map@2.0.0
+### 43. convert-source-map@2.0.0
 
 - `convert-source-map@2.0.0` — MIT
 
@@ -26560,7 +26696,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 40. cookie@0.7.2
+### 44. cookie@0.7.2
 
 - `cookie@0.7.2` — MIT
 
@@ -26595,7 +26731,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 41. cookie-signature@1.2.2
+### 45. cookie-signature@1.2.2
 
 - `cookie-signature@1.2.2` — MIT
 
@@ -26629,7 +26765,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 42. cors@2.8.6
+### 46. cors@2.8.6
 
 - `cors@2.8.6` — MIT
 
@@ -26663,7 +26799,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 43. cross-spawn@7.0.6
+### 47. cross-spawn@7.0.6
 
 - `cross-spawn@7.0.6` — MIT
 
@@ -26696,7 +26832,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 44. csstype@3.2.3
+### 48. csstype@3.2.3
 
 - `csstype@3.2.3` — MIT
 
@@ -26727,7 +26863,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 45. debug@4.4.3
+### 49. debug@4.4.3
 
 - `debug@4.4.3` — MIT
 
@@ -26758,7 +26894,7 @@ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN 
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 46. depd@2.0.0
+### 50. depd@2.0.0
 
 - `depd@2.0.0` — MIT
 
@@ -26792,7 +26928,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 47. diff@9.0.0
+### 51. diff@9.0.0
 
 - `diff@9.0.0` — BSD-3-Clause
 
@@ -26833,7 +26969,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 48. dunder-proto@1.0.1, math-intrinsics@1.1.0
+### 52. dunder-proto@1.0.1, math-intrinsics@1.1.0
 
 - `dunder-proto@1.0.1` — MIT
 - `math-intrinsics@1.1.0` — MIT
@@ -26867,7 +27003,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 49. ee-first@1.1.1
+### 53. ee-first@1.1.1
 
 - `ee-first@1.1.1` — MIT
 
@@ -26900,7 +27036,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 50. electron-to-chromium@1.5.472
+### 54. electron-to-chromium@1.5.472
 
 - `electron-to-chromium@1.5.472` — ISC
 
@@ -26917,7 +27053,7 @@ Permission to use, copy, modify, and/or distribute this software for any purpose
 THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
 
-### 51. emoji-regex@10.6.0, jsesc@3.1.0
+### 55. emoji-regex@10.6.0, jsesc@3.1.0
 
 - `emoji-regex@10.6.0` — MIT
 - `jsesc@3.1.0` — MIT
@@ -26950,7 +27086,7 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 52. encodeurl@2.0.1
+### 56. encodeurl@2.0.1
 
 - `encodeurl@2.0.1` — MIT
 
@@ -26984,7 +27120,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 53. entities@7.0.1
+### 57. entities@7.0.1
 
 - `entities@7.0.1` — BSD-2-Clause
 
@@ -27007,7 +27143,7 @@ THIS IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRE
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 54. escape-html@1.0.3
+### 58. escape-html@1.0.3
 
 - `escape-html@1.0.3` — MIT
 
@@ -27043,7 +27179,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 55. etag@1.8.1, proxy-addr@2.0.8
+### 59. etag@1.8.1, proxy-addr@2.0.8
 
 - `etag@1.8.1` — MIT
 - `proxy-addr@2.0.8` — MIT
@@ -27078,7 +27214,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 56. eventsource@3.0.7
+### 60. eventsource@3.0.7
 
 - `eventsource@3.0.7` — MIT
 
@@ -27112,7 +27248,7 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 57. eventsource-parser@3.1.1
+### 61. eventsource-parser@3.1.1
 
 - `eventsource-parser@3.1.1` — MIT
 
@@ -27145,7 +27281,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 58. express@5.3.0
+### 62. express@5.3.0
 
 - `express@5.3.0` — MIT
 
@@ -27181,7 +27317,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 59. fast-deep-equal@3.1.3, json-schema-traverse@1.0.0
+### 63. fast-deep-equal@3.1.3, json-schema-traverse@1.0.0
 
 - `fast-deep-equal@3.1.3` — MIT
 - `json-schema-traverse@1.0.0` — MIT
@@ -27215,7 +27351,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 60. fast-uri@3.1.9
+### 64. fast-uri@3.1.9
 
 - `fast-uri@3.1.9` — BSD-3-Clause
 
@@ -27257,7 +27393,7 @@ The complete list of contributors can be found at:
 - https://github.com/garycourt/uri-js/graphs/contributors
 ```
 
-### 61. fflate@0.8.3
+### 65. fflate@0.8.3
 
 - `fflate@0.8.3` — MIT
 
@@ -27290,7 +27426,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 62. finalhandler@2.1.1
+### 66. finalhandler@2.1.1
 
 - `finalhandler@2.1.1` — MIT
 
@@ -27324,7 +27460,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 63. find-babel-config@2.1.2
+### 67. find-babel-config@2.1.2
 
 - `find-babel-config@2.1.2` — MIT
 
@@ -27357,7 +27493,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 64. fresh@2.0.0
+### 68. fresh@2.0.0
 
 - `fresh@2.0.0` — MIT
 
@@ -27392,7 +27528,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 65. function-bind@1.1.2
+### 69. function-bind@1.1.2
 
 - `function-bind@1.1.2` — MIT
 
@@ -27423,7 +27559,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 66. gensync@1.0.0-beta.2
+### 70. gensync@1.0.0-beta.2
 
 - `gensync@1.0.0-beta.2` — MIT
 
@@ -27442,7 +27578,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 67. get-intrinsic@1.3.0
+### 71. get-intrinsic@1.3.0
 
 - `get-intrinsic@1.3.0` — MIT
 
@@ -27475,7 +27611,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 68. get-proto@1.0.1
+### 72. get-proto@1.0.1
 
 - `get-proto@1.0.1` — MIT
 
@@ -27508,7 +27644,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 69. glob@14.0.4
+### 73. glob@14.0.4
 
 - `glob@14.0.4` — BlueOak-1.0.0
 
@@ -27583,7 +27719,7 @@ will be liable to anyone for any damages related to this
 software or this license, under any kind of legal claim.***
 ```
 
-### 70. gopd@1.2.0
+### 74. gopd@1.2.0
 
 - `gopd@1.2.0` — MIT
 
@@ -27616,7 +27752,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 71. has-symbols@1.1.0
+### 75. has-symbols@1.1.0
 
 - `has-symbols@1.1.0` — MIT
 
@@ -27649,7 +27785,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 72. hasown@2.0.4
+### 76. hasown@2.0.4
 
 - `hasown@2.0.4` — MIT
 
@@ -27682,7 +27818,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 73. hono@4.13.16
+### 77. hono@4.13.16
 
 - `hono@4.13.16` — MIT
 
@@ -27715,7 +27851,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 74. html-entities@2.3.3
+### 78. html-entities@2.3.3
 
 - `html-entities@2.3.3` — MIT
 
@@ -27746,7 +27882,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 75. http-errors@2.0.1
+### 79. http-errors@2.0.1
 
 - `http-errors@2.0.1` — MIT
 
@@ -27780,7 +27916,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 76. iconv-lite@0.7.3
+### 80. iconv-lite@0.7.3
 
 - `iconv-lite@0.7.3` — MIT
 
@@ -27812,7 +27948,7 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 77. inherits@2.0.4
+### 81. inherits@2.0.4
 
 - `inherits@2.0.4` — ISC
 
@@ -27839,7 +27975,7 @@ OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ```
 
-### 78. ip-address@10.7.5
+### 82. ip-address@10.7.5
 
 - `ip-address@10.7.5` — MIT
 
@@ -27870,7 +28006,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 79. ipaddr.js@1.9.1
+### 83. ipaddr.js@1.9.1
 
 - `ipaddr.js@1.9.1` — MIT
 
@@ -27901,7 +28037,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 80. is-core-module@2.17.0
+### 84. is-core-module@2.17.0
 
 - `is-core-module@2.17.0` — MIT
 
@@ -27933,7 +28069,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 81. is-promise@4.0.0
+### 85. is-promise@4.0.0
 
 - `is-promise@4.0.0` — MIT
 
@@ -27964,7 +28100,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 82. isexe@2.0.0, lru-cache@5.1.1, once@1.4.0, semver@6.3.1, which@2.0.2, wrappy@1.0.2, yallist@3.1.1
+### 86. isexe@2.0.0, lru-cache@5.1.1, once@1.4.0, semver@6.3.1, which@2.0.2, wrappy@1.0.2, yallist@3.1.1
 
 - `isexe@2.0.0` — ISC
 - `lru-cache@5.1.1` — ISC
@@ -27997,7 +28133,7 @@ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
 IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
 
-### 83. jose@6.2.14
+### 87. jose@6.2.14
 
 - `jose@6.2.14` — MIT
 
@@ -28030,7 +28166,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 84. js-tokens@4.0.0
+### 88. js-tokens@4.0.0
 
 - `js-tokens@4.0.0` — MIT
 
@@ -28063,7 +28199,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 85. json-schema@0.4.0
+### 89. json-schema@0.4.0
 
 - `json-schema@0.4.0` — (AFL-2.1 OR BSD-3-Clause)
 
@@ -28270,7 +28406,7 @@ modification. This license may not be modified without the express written
 permission of its copyright owner.
 ```
 
-### 86. json-schema-typed@8.0.2
+### 90. json-schema-typed@8.0.2
 
 - `json-schema-typed@8.0.2` — BSD-2-Clause
 
@@ -28339,7 +28475,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 87. json5@2.2.3
+### 91. json5@2.2.3
 
 - `json5@2.2.3` — MIT
 
@@ -28374,7 +28510,7 @@ SOFTWARE.
 [others]: https://github.com/json5/json5/contributors
 ```
 
-### 88. marked@17.0.1
+### 92. marked@17.0.1
 
 - `marked@17.0.1` — MIT
 
@@ -28430,7 +28566,7 @@ Redistribution and use in source and binary forms, with or without modification,
 This software is provided by the copyright holders and contributors “as is” and any express or implied warranties, including, but not limited to, the implied warranties of merchantability and fitness for a particular purpose are disclaimed. In no event shall the copyright owner or contributors be liable for any direct, indirect, incidental, special, exemplary, or consequential damages (including, but not limited to, procurement of substitute goods or services; loss of use, data, or profits; or business interruption) however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence or otherwise) arising in any way out of the use of this software, even if advised of the possibility of such damage.
 ```
 
-### 89. mime-db@1.54.0
+### 93. mime-db@1.54.0
 
 - `mime-db@1.54.0` — MIT
 
@@ -28465,7 +28601,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 90. minimatch@11.0.5
+### 94. minimatch@11.0.5
 
 - `minimatch@11.0.5` — BlueOak-1.0.0
 
@@ -28532,7 +28668,7 @@ will be liable to anyone for any damages related to this
 software or this license, under any kind of legal claim._**
 ```
 
-### 91. negotiator@1.1.0
+### 95. negotiator@1.1.0
 
 - `negotiator@1.1.0` — MIT
 
@@ -28568,7 +28704,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 92. node-releases@2.0.63
+### 96. node-releases@2.0.63
 
 - `node-releases@2.0.63` — MIT
 
@@ -28601,7 +28737,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 93. object-inspect@1.13.4
+### 97. object-inspect@1.13.4
 
 - `object-inspect@1.13.4` — MIT
 
@@ -28634,7 +28770,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 94. on-finished@2.4.2
+### 98. on-finished@2.4.2
 
 - `on-finished@2.4.2` — MIT
 
@@ -28669,7 +28805,73 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 95. parse5@7.3.0
+### 99. oniguruma-parser@0.12.2
+
+- `oniguruma-parser@0.12.2` — MIT
+
+License files: LICENSE
+
+```text
+LICENSE
+-------
+
+MIT License
+
+Copyright (c) 2025-2026 Steven Levithan
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### 100. oniguruma-to-es@4.3.6
+
+- `oniguruma-to-es@4.3.6` — MIT
+
+License files: LICENSE
+
+```text
+LICENSE
+-------
+
+MIT License
+
+Copyright (c) 2024-2026 Steven Levithan
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### 101. parse5@7.3.0
 
 - `parse5@7.3.0` — MIT
 
@@ -28700,7 +28902,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 96. parseurl@1.3.3
+### 102. parseurl@1.3.3
 
 - `parseurl@1.3.3` — MIT
 
@@ -28735,7 +28937,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 97. path-parse@1.0.7
+### 103. path-parse@1.0.7
 
 - `path-parse@1.0.7` — MIT
 
@@ -28768,7 +28970,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 98. path-to-regexp@8.4.2
+### 104. path-to-regexp@8.4.2
 
 - `path-to-regexp@8.4.2` — MIT
 
@@ -28801,7 +29003,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 99. picocolors@1.1.1
+### 105. picocolors@1.1.1
 
 - `picocolors@1.1.1` — ISC
 
@@ -28828,7 +29030,7 @@ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
 
-### 100. pkce-challenge@5.0.1
+### 106. pkce-challenge@5.0.1
 
 - `pkce-challenge@5.0.1` — MIT
 
@@ -28861,7 +29063,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 101. qs@6.17.1
+### 107. qs@6.17.1
 
 - `qs@6.17.1` — BSD-3-Clause
 
@@ -28902,7 +29104,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 102. range-parser@1.3.0
+### 108. range-parser@1.3.0
 
 - `range-parser@1.3.0` — MIT
 
@@ -28937,7 +29139,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 103. raw-body@3.0.2
+### 109. raw-body@3.0.2
 
 - `raw-body@3.0.2` — MIT
 
@@ -28971,7 +29173,74 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 104. reselect@4.1.8
+### 110. regex@6.1.0, regex-recursion@6.0.2
+
+- `regex@6.1.0` — MIT
+- `regex-recursion@6.0.2` — MIT
+
+License files: LICENSE
+
+```text
+LICENSE
+-------
+
+MIT License
+
+Copyright (c) 2025 Steven Levithan
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### 111. regex-utilities@2.3.0
+
+- `regex-utilities@2.3.0` — MIT
+
+License files: LICENSE
+
+```text
+LICENSE
+-------
+
+MIT License
+
+Copyright (c) 2024 Steven Levithan
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### 112. reselect@4.1.8
 
 - `reselect@4.1.8` — MIT
 
@@ -29004,7 +29273,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 105. resolve@1.22.13
+### 113. resolve@1.22.13
 
 - `resolve@1.22.13` — MIT
 
@@ -29037,7 +29306,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 106. router@2.2.0
+### 114. router@2.2.0
 
 - `router@2.2.0` — MIT
 
@@ -29072,7 +29341,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 107. s-js@0.4.9
+### 115. s-js@0.4.9
 
 - `s-js@0.4.9` — MIT
 
@@ -29105,7 +29374,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 108. safer-buffer@2.1.2
+### 116. safer-buffer@2.1.2
 
 - `safer-buffer@2.1.2` — MIT
 
@@ -29138,7 +29407,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 109. send@1.2.1
+### 117. send@1.2.1
 
 - `send@1.2.1` — MIT
 
@@ -29173,7 +29442,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 110. seroval@1.6.12, seroval-plugins@1.6.12
+### 118. seroval@1.6.12, seroval-plugins@1.6.12
 
 - `seroval@1.6.12` — MIT
 - `seroval-plugins@1.6.12` — MIT
@@ -29193,7 +29462,7 @@ The above copyright notice and this permission notice (including the next paragr
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 111. serve-static@2.2.1
+### 119. serve-static@2.2.1
 
 - `serve-static@2.2.1` — MIT
 
@@ -29230,7 +29499,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 112. setprototypeof@1.2.0
+### 120. setprototypeof@1.2.0
 
 - `setprototypeof@1.2.0` — ISC
 
@@ -29255,7 +29524,7 @@ OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
 
-### 113. side-channel@1.1.1, side-channel-weakmap@1.0.2
+### 121. side-channel@1.1.1, side-channel-weakmap@1.0.2
 
 - `side-channel@1.1.1` — MIT
 - `side-channel-weakmap@1.0.2` — MIT
@@ -29289,7 +29558,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 114. smol-toml@1.9.1
+### 122. smol-toml@1.9.1
 
 - `smol-toml@1.9.1` — BSD-3-Clause
 
@@ -29325,7 +29594,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 115. statuses@2.0.2
+### 123. statuses@2.0.2
 
 - `statuses@2.0.2` — MIT
 
@@ -29359,7 +29628,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 116. supports-preserve-symlinks-flag@1.0.0
+### 124. supports-preserve-symlinks-flag@1.0.0
 
 - `supports-preserve-symlinks-flag@1.0.0` — MIT
 
@@ -29392,7 +29661,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 117. toidentifier@1.0.1
+### 125. toidentifier@1.0.1
 
 - `toidentifier@1.0.1` — MIT
 
@@ -29425,7 +29694,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 118. undici@7.30.1
+### 126. undici@7.30.1
 
 - `undici@7.30.1` — MIT
 
@@ -29458,7 +29727,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 119. unpipe@1.0.0
+### 127. unpipe@1.0.0
 
 - `unpipe@1.0.0` — MIT
 
@@ -29492,7 +29761,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 120. update-browserslist-db@1.3.4
+### 128. update-browserslist-db@1.3.4
 
 - `update-browserslist-db@1.3.4` — MIT
 
@@ -29524,7 +29793,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 121. zod@4.6.7
+### 129. zod@4.6.7
 
 - `zod@4.6.7` — MIT
 
@@ -29557,7 +29826,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 122. zod-to-json-schema@3.25.2
+### 130. zod-to-json-schema@3.25.2
 
 - `zod-to-json-schema@3.25.2` — ISC
 
@@ -29593,12 +29862,27 @@ here so the notice is explicit rather than silently missing.
 - `@ai-sdk/provider-utils@5.0.72` — Apache-2.0
 - `@modelcontextprotocol/sdk@1.32.2` — see license files
 - `ansi-regex@6.5.0` — MIT
+- `ccount@2.0.1` — MIT
+- `character-entities-html4@2.1.0` — MIT
+- `character-entities-legacy@3.0.0` — MIT
+- `comma-separated-tokens@2.0.3` — MIT
+- `dequal@2.0.3` — MIT
+- `devlop@1.1.0` — MIT
 - `escalade@3.2.0` — MIT
 - `express-rate-limit@8.7.2` — MIT
 - `find-up@3.0.0` — MIT
 - `get-east-asian-width@1.7.0` — MIT
+- `hast-util-to-html@9.0.6` — MIT
+- `hast-util-whitespace@3.0.0` — MIT
+- `html-void-elements@3.0.0` — MIT
 - `locate-path@3.0.0` — MIT
+- `mdast-util-to-hast@13.2.1` — MIT
 - `merge-descriptors@2.0.0` — MIT
+- `micromark-util-character@2.1.1` — MIT
+- `micromark-util-encode@2.0.1` — MIT
+- `micromark-util-sanitize-uri@2.0.1` — MIT
+- `micromark-util-symbol@2.0.1` — MIT
+- `micromark-util-types@2.0.3` — MIT
 - `ms@2.1.3` — MIT
 - `object-assign@4.1.1` — MIT
 - `p-limit@2.3.0` — MIT
@@ -29607,9 +29891,21 @@ here so the notice is explicit rather than silently missing.
 - `path-exists@3.0.0` — MIT
 - `path-key@3.1.1` — MIT
 - `pkg-up@3.1.0` — MIT
+- `property-information@7.2.0` — MIT
 - `require-from-string@2.0.2` — MIT
 - `shebang-command@2.0.0` — MIT
 - `shebang-regex@3.0.0` — MIT
+- `space-separated-tokens@2.0.2` — MIT
 - `string-width@7.2.0` — MIT
+- `stringify-entities@4.0.4` — MIT
 - `strip-ansi@7.2.0` — MIT
+- `trim-lines@3.0.1` — MIT
+- `unist-util-is@6.0.1` — MIT
+- `unist-util-position@5.0.0` — MIT
+- `unist-util-stringify-position@4.0.0` — MIT
+- `unist-util-visit@5.2.0` — MIT
+- `unist-util-visit-parents@6.1.0` — MIT
+- `vfile@6.0.3` — MIT
+- `vfile-message@4.0.4` — MIT
+- `zwitch@2.0.4` — MIT
 

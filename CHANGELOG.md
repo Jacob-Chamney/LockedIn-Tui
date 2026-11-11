@@ -7,6 +7,48 @@ patch with the number of bugs fixed, and the major changes only by decision.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-11
+
+### Added
+
+- A dedicated Chat settings window opened from Settings for response style
+  (brief, normal, detailed) and tutor policy (direct, guided, socratic), with a
+  live style line below the composer.
+- Rounded chat bubbles with distinct user and assistant backgrounds, `you` /
+  `locked in` labels, streaming and truncated replies. While a reply is in
+  flight the bubble says `Thinking…` with a quiet pulse; `LOCKEDIN_REDUCED_MOTION=1`
+  holds it still. The corners are drawn as
+  opaque cap images on terminals that support them, so the fill reaches a real
+  curve; anywhere else they fall back to cell chamfers.
+- `:clear` empties the Chill transcript and its local history. A reply that is
+  still streaming has to be stopped first.
+- Syntax highlighting for around 340 languages, bundled with the app: no
+  parser downloads and no per-platform grammar. Code follows the active theme.
+- `:help`, `:next`, `:park`, `:questions`, `:calibrate`, `:contract`,
+  `:contradictions`, `:check`, `:mistake` and `:rate` chat commands.
+- Session learning files for parked questions, starting level, done-when
+  contracts, source-conflict reports, attempt reviews, misconceptions and
+  confidence ratings.
+- Steps record the instructions and source hashes that produced them. Edited
+  inputs mark the plan stale instead of silently leaving an old plan in place.
+- Step generation now extracts concrete requirements, rejects generic
+  standalone steps and performs one refinement pass when a plan is too broad.
+
+### Changed
+
+- Chat commands use `:` consistently: `:learning-web`, `:regenerate-steps` and
+  the session learning commands. `/` is no longer the command prefix. Response
+  style and tutor policy moved to the Chat settings window.
+- A final answer over the total token budget is kept. The provider output
+  ceiling is the hard length guard; a length stop keeps the partial answer and
+  marks it truncated.
+
+### Fixed
+
+- Step regeneration accepts JSON wrapped in Markdown fences, trailing commas
+  and literal newlines inside strings. A truncated or incomplete response now
+  says so and asks for a retry instead of reporting a generic parse failure.
+
 ## [1.4.4] - 2026-11-07
 
 ### Added
@@ -32,7 +74,7 @@ patch with the number of bugs fixed, and the major changes only by decision.
   PDF, DOCX or text file as the instructions, and re-extract the copied
   original. The original file is kept in the session and its provenance is
   recorded in `meta.json`.
-- `/regenerate-steps` in a lock-in chat rebuilds the steps from the session
+- `:regenerate-steps` in a lock-in chat rebuilds the steps from the session
   sources without sending a model message or writing to the chat history.
 
 ### Fixed
