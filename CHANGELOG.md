@@ -7,6 +7,33 @@ patch with the number of bugs fixed, and the major changes only by decision.
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-11
+
+### Added
+
+- A short startup splash: a theme-coloured ASCII code field fades in, assembles
+  a padlock with one hinged leg, slides the other leg shut and fades out before
+  the app mounts. The field shimmers while the lock is on screen.
+  `Esc`/`Enter`/`Space` skips it; `LOCKEDIN_REDUCED_MOTION=1` or
+  `LOCKEDIN_NO_SPLASH=1` disables it.
+- A multifunctional file finder for sources, gathered skill material and
+  assignment instructions. Search is ranked and debounced, defaults to the
+  home directory (`Ctrl+F` switches to the current folder), includes folders,
+  and pins a typed path above the matches. The highlighted file previews below
+  the list, and `Tab` opens a selection pane where `d` removes a mark.
+
+### Fixed
+
+- `A` marks the folder under the cursor; it previously reviewed instead, so
+  recursive folder marking was unreachable. Enter on a source now goes to the
+  review step instead of skipping it, and a single-file picker chooses its file
+  immediately.
+- Finder navigation, marking and removal now keep the live result marks in
+  sync; a search that finishes after you open a folder or reveal a file no
+  longer repaints the old view.
+- The finder preview keeps empty text files and text whose byte cap lands
+  inside a multi-byte character as text, not binary.
+
 ## [1.5.1] - 2026-11-11
 
 ### Fixed
