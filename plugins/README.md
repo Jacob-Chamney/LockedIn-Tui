@@ -12,7 +12,7 @@ plugins/
 Build one from a source plugin:
 
 ```sh
-bun run plugin:build src/ui/effects/examples/scene-window
+bun run plugin:build src/ui/plugins/examples/scene-window
 ```
 
 The app scans this folder (and a `plugins/` folder beside the executable) at
