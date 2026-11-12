@@ -40,13 +40,13 @@
 <!-- Paste the exact commands and the result. -->
 
 ```sh
-./scripts/check.sh
+bun run check
 ```
 
 Result:
 
 ```text
-# e.g. 1722 pass, 0 fail; bounds ok
+# e.g. 2030 pass, 0 fail; startup within budget
 ```
 
 If this fixes a bug, describe the failing case that now passes. If this adds UI,
