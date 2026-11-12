@@ -59,7 +59,7 @@ import { initialArchive, move as moveArchiveState, type ArchiveState } from "../
 import type { ActivityRecord } from "../services/work/activity";
 import { runProjectExport } from "./actions/work";
 import { archiveProject as archiveProjectRecord, createProject as createProjectRecord, createAgentFromTemplate, createProjectAgent, deleteProject as deleteProjectRecord, loadAgentTemplates, loadProjectAgents, loadProjects, loadWorkHome, setProjectDefaultAgent, setProjectMode, type WorkHomeData, makeAgentId, makeProjectId, projectTools, updateProjectAgent } from "./actions/projects";
-import { pruneNotices, type Notice, type NoticeLevel } from "../ui/shell/notice-stack";
+import { NOTICE_FADE_MS, NOTICE_MS, NOTICE_TICK_MS, pruneNotices, type Notice, type NoticeLevel } from "../ui/shell/notice-stack";
 import type { UpdateBadge } from "../ui/shell/layout";
 
 /**
@@ -4173,12 +4173,36 @@ export function App(props: {
     }
     }, 100)
     onCleanup(() => clearTimeout(later))
-    const timer = setInterval(() => {
+    // Notices repaint at 20 Hz only while a bubble is fading; outside the
+    // fade window a slower tick is enough to prune and keep the clock moving.
+    let noticeTimer: ReturnType<typeof setTimeout> | null = null
+    const tickNotices = () => {
+      noticeTimer = null
       const now = Date.now()
       setNowMs(now)
-      setNotices((list) => pruneNotices(list, now))
-    }, 500)
-    onCleanup(() => clearInterval(timer))
+      const list = notices()
+      const next = pruneNotices(list, now)
+      if (next.length !== list.length) setNotices(next)
+      if (next.length === 0) return
+      const fading = next.some(
+        (notice) => now - notice.at >= NOTICE_MS - NOTICE_FADE_MS,
+      )
+      noticeTimer = setTimeout(tickNotices, fading ? NOTICE_TICK_MS : 100)
+    }
+    const startNoticeTimer = () => {
+      if (noticeTimer !== null) return
+      noticeTimer = setTimeout(tickNotices, NOTICE_TICK_MS)
+    }
+    const stopNoticeTimer = () => {
+      if (noticeTimer === null) return
+      clearTimeout(noticeTimer)
+      noticeTimer = null
+    }
+    createEffect(() => {
+      if (notices().length > 0) startNoticeTimer()
+      else stopNoticeTimer()
+    })
+    onCleanup(stopNoticeTimer)
   })
 
   /** Plugin actions registered with the one key table for this session. */

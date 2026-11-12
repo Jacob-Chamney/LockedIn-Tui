@@ -24,6 +24,8 @@ export type Notice = {
 /** How long a notice lives, and how long its fade lasts. */
 export const NOTICE_MS = 10_000
 export const NOTICE_FADE_MS = 1_000
+/** Repaint cadence while a bubble is fading; the shell slows down outside it. */
+export const NOTICE_TICK_MS = 50
 
 /** Widest a bubble grows before the text wraps. */
 export const NOTICE_MAX_WIDTH = 52
@@ -39,7 +41,7 @@ export function noticeOpacity(notice: Notice, now: number): number {
   const age = now - notice.at
   if (age >= NOTICE_MS) return 0
   const remaining = NOTICE_MS - age
-  return remaining >= NOTICE_FADE_MS ? 1 : Math.max(0.1, remaining / NOTICE_FADE_MS)
+  return remaining >= NOTICE_FADE_MS ? 1 : Math.max(0, remaining / NOTICE_FADE_MS)
 }
 
 export function noticeGlyph(level: NoticeLevel): string {
