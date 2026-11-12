@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "name": "Fixer",
+  "role": "implementer",
+  "instructions": "Fix the failing test.",
+  "model": "",
+  "max_tool_calls": 10,
+  "allowed_tools": ["list_files", "read_file"],
+  "allow_write": true,
+  "allow_command": true
+}

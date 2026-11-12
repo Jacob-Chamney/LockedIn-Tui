@@ -1,0 +1,52 @@
+{
+  "name": "lockedin-tui",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A keyboard-first terminal workspace for learning and focused work.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Jacob-Chamney/LockedIn-Tui.git"
+  },
+  "homepage": "https://github.com/Jacob-Chamney/LockedIn-Tui",
+  "bugs": {
+    "url": "https://github.com/Jacob-Chamney/LockedIn-Tui/issues"
+  },
+  "scripts": {
+    "start": "bun run src/index.tsx",
+    "dev": "bun --watch src/index.tsx",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test --parallel --no-isolate",
+    "test:unit": "bun test --parallel --no-isolate tests/unit tests/contract tests/integration tests/invariant",
+    "test:ui": "bun test --parallel --no-isolate tests/ui tests/e2e tests/smoke.test.tsx",
+    "test:changed": "bun test --parallel --no-isolate --changed",
+    "test:branch": "bun test --parallel --no-isolate --changed=dev",
+    "test:watch": "bun test --watch",
+    "test:serial": "bun test --max-concurrency=1",
+    "check": "bun run scripts/check.ts",
+    "check:ci": "bun run scripts/check.ts --ci",
+    "build": "bun run scripts/build.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "3.0.82",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@napi-rs/keyring": "2.1.2",
+    "@opentui/core": "0.8.4",
+    "@opentui/solid": "0.8.4",
+    "ai": "7.0.159",
+    "fflate": "^0.8.3",
+    "shiki": "^4.6.0",
+    "smol-toml": "^1.9.1",
+    "solid-js": "^1.9.12",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.0"
+  },
+  "overrides": {
+    "glob": "^14.0.2",
+    "minimatch": "^11.0.1"
+  },
+  "license": "AGPL-3.0-only"
+}

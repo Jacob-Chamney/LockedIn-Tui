@@ -1,0 +1,12 @@
+{
+  "note": "Skill session rows for UI tests; no secrets or real paths.",
+  "goals": [
+    { "id": "g1", "name": "Assembly basics", "stage": { "done": 3, "total": 6 }, "lastOpened": "2026-11-01", "chats": 2, "archived": false },
+    { "id": "g2", "name": "Kernel debugging", "stage": { "done": 1, "total": 4 }, "lastOpened": "2026-10-27", "chats": 1, "archived": true },
+    { "id": "g3", "name": "Broken goal", "stage": { "done": 0, "total": 0 }, "lastOpened": "2026-10-20", "chats": 0, "archived": false, "broken": "curriculum.md missing" }
+  ],
+  "chats": [
+    { "id": "c1", "title": "registers", "lastUsed": "2026-11-01", "messages": 12 },
+    { "id": "c2", "title": "stack frames", "lastUsed": "2026-10-31", "messages": 5 }
+  ]
+}

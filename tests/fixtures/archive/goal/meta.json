@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "id": "assembly-basics-a1b2c3",
+  "name": "Assembly basics",
+  "statement": "Read disassembly output confidently",
+  "level": "beginner",
+  "time_budget": "6 weeks",
+  "created": "2026-11-01T09:00:00Z",
+  "tags": ["assembly", "systems"],
+  "stages": [],
+  "sources": [],
+  "chats": ["chat-1"]
+}

@@ -1,0 +1,9 @@
+# Legacy LockedIn v0.7 configuration.
+# Fixture only: fictional values, no real settings, no secrets.
+
+[ui]
+username = "fixture-user"
+theme = "crimson"
+
+[models]
+chat = "fixture/provider-model"

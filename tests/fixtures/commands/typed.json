@@ -1,0 +1,6 @@
+{
+  "note": "Command-bar inputs used by tests; no secrets, no machine paths.",
+  "known": ["sessions", "goal", "archive", "themes", "keybinds", "lock-in"],
+  "aliases": { "goal": "goals", "skills": "goals", "session": "sessions", "theme": "themes", "keys": "keybinds" },
+  "unknown": ["sesions", "nope", "space x"]
+}

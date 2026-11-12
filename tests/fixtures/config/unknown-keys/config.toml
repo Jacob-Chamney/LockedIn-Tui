@@ -1,0 +1,71 @@
+# Personal config — comments and unknown tables must survive a patch.
+[ui]
+username = "friend"
+username_color = ""
+theme = "lockedin"            # crimson by default
+nudge_intensity = "balanced"
+hide_hints = false
+mouse = false
+chill_history_limit = 20
+excerpt_chars = 400
+
+[ui.custom_theme]
+primary = "#d64550"
+
+[ui.keybinds]
+navigator = "space+e"
+
+[ui.fixed_keybinds]
+normal = "escape"
+insert = "i"
+down = "j"
+up = "k"
+help = "?"
+command = ":"
+quit = "ctrl+q"
+
+[ui.direct_keybinds]
+search = "/"
+commands = ":"
+help = "?"
+
+[models]
+chat = ""
+generation = ""
+base_url = ""
+max_tool_calls = 8
+max_tokens_per_request = 16000
+
+[usage]
+budget = 0
+period = "day"
+warn_at = 0.8
+pause_at_limit = false
+
+[storage]
+max_items_per_side = 25
+max_mb_per_side = 500
+
+[archive]
+backend = "folder"
+folder = ""
+
+[archive.github]
+repo = ""
+branch = "main"
+consent = false
+token_ref = "lockedin/github-token"
+
+[plugins]
+enabled = false
+depth = "standard"
+
+[decision_layer]
+enabled = false
+model = ""
+
+# From a build this binary does not know about. Keep it.
+[experimental_search]
+rerank = true
+model = "local-1b"
+weights = { title = 3.0, body = 1.0 }

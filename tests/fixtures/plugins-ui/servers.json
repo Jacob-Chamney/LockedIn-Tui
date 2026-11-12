@@ -1,0 +1,8 @@
+{
+  "note": "Plugin server fixture; fake credentials only.",
+  "servers": [
+    { "name": "web-search", "transport": "stdio", "enabled": true, "status": "connected", "tools": [{ "name": "search", "write": false }] },
+    { "name": "notes", "transport": "stdio", "enabled": true, "status": "connected", "tools": [{ "name": "read_note", "write": false }, { "name": "write_note", "write": true }] },
+    { "name": "broken", "transport": "stdio", "enabled": false, "status": { "failed": "missing dependency" }, "tools": [] }
+  ]
+}

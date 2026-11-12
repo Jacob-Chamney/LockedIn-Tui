@@ -1,6 +1,6 @@
 # Third-party notices
 
-LockedIn-Tui is released under the MIT License; see `LICENSE` in this
+LockedIn-Tui is released under the GNU Affero General Public License v3.0; see `LICENSE` in this
 directory. The compiled artifact embeds the Bun runtime, the
 production JavaScript packages below, and the native OpenTUI and keyring
 packages for its platform. Their notices are reproduced here.

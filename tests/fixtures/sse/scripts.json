@@ -1,0 +1,47 @@
+{
+  "normal": {
+    "chunks": [
+      { "reasoning": "Let me think. " },
+      { "reasoning": "The answer is 4." },
+      { "text": "Two plus " },
+      { "text": "two is four." }
+    ],
+    "usage": [11, 7]
+  },
+  "tool": {
+    "chunks": [
+      { "text": "Checking." },
+      { "toolCall": { "name": "read_note", "arguments": { "path": "concepts/a.md" } } }
+    ],
+    "usage": [20, 9],
+    "finish": "tool_calls"
+  },
+  "afterTool": {
+    "chunks": [{ "text": "The note says hi." }],
+    "usage": [30, 6]
+  },
+  "toolLoop": {
+    "chunks": [{ "toolCall": { "name": "read_note", "arguments": { "path": "a.md" } } }],
+    "usage": [10, 5],
+    "finish": "tool_calls"
+  },
+  "tokens": {
+    "chunks": [{ "text": "Short answer." }],
+    "usage": [900, 400]
+  },
+  "truncated": {
+    "chunks": [{ "text": "This answer stops at the output ceiling." }],
+    "usage": [900, 4096],
+    "finish": "length"
+  },
+  "invalidInput": {
+    "chunks": [{ "toolCall": { "name": "read_note", "arguments": { "wrong": true } } }],
+    "usage": [5, 2],
+    "finish": "tool_calls"
+  },
+  "slow": {
+    "chunks": [{ "text": "tok " }],
+    "repeat": 200,
+    "usage": [5, 200]
+  }
+}

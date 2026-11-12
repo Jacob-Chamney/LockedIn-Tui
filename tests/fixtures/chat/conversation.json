@@ -1,0 +1,15 @@
+{
+  "note": "Text-only conversation fixture; no secrets, no personal paths.",
+  "username": "friend",
+  "messages": [
+    { "role": "user", "text": "How does the energy balance close?" },
+    {
+      "role": "assistant",
+      "text": "The boundary conditions fix the integral limits.",
+      "reasoning": "Check the limits first.",
+      "reasoningMs": 4200,
+      "durationMs": 6100,
+      "usage": { "input": 812, "output": 340, "total": 1200, "costMicroUsd": 3000 }
+    }
+  ]
+}

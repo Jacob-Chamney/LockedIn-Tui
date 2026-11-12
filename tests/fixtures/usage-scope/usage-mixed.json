@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "runs": [
+    { "model": "openai/gpt-4.1-mini", "input": 1000, "output": 500, "costMicroUsd": 1200, "at": "2026-11-01T09:00:00.000Z", "failed": false, "scope": "school" },
+    { "model": "anthropic/claude-sonnet-4-5", "input": 200, "output": 100, "costMicroUsd": 2100, "at": "2026-11-01T10:00:00.000Z", "failed": false, "scope": "skills" },
+    { "model": "openai/gpt-4.1-mini", "input": 300, "output": 150, "costMicroUsd": 360, "at": "2026-11-01T11:00:00.000Z", "failed": true, "scope": "work" },
+    { "model": "openai/gpt-4.1-mini", "input": 999, "output": 999, "costMicroUsd": 499, "at": "2026-10-30T08:00:00.000Z", "failed": false }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "ui": {
+    "theme": "custom",
+    "custom_theme": {
+      "background": "#101010",
+      "surface": "#181818",
+      "panel": "#202020",
+      "foreground": "#F0F0F0",
+      "muted": "#A0A0A0",
+      "primary": "#D9534F",
+      "secondary": "#9AA3AD",
+      "accent": "#FF6B6B",
+      "success": "#7FA37A",
+      "warning": "#D8B26A",
+      "error": "#FF5C5C",
+      "line": "#30363C"
+    }
+  }
+}

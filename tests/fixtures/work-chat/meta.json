@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "id": "work-chat-fixture-1a2b3c",
+  "name": "Work chat fixture",
+  "root": "/projects/work-chat-fixture",
+  "instructions": "Read only. Keep answers short.",
+  "default_agent": "reviewer-1a2b3c",
+  "agents": [
+    {
+      "id": "reviewer-1a2b3c",
+      "name": "Reviewer",
+      "role": "reviewer",
+      "instructions": "Review only.",
+      "model": "fixture/model",
+      "max_tool_calls": 4,
+      "allowed_tools": ["list_files", "read_file", "search_files"],
+      "allow_write": false,
+      "allow_command": false,
+      "template": ""
+    }
+  ],
+  "tasks": [],
+  "created": "2026-11-01T09:00:00Z",
+  "last_opened_at": "2026-11-01T10:30:00Z"
+}

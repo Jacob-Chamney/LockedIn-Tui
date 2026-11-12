@@ -1,0 +1,17 @@
+{
+  "note": "Session home fixture; text only, no secrets or real paths.",
+  "name": "Physics — Unit 4",
+  "created": "2026-11-01",
+  "sources": [
+    { "name": "lecture-4.md", "originalPath": "/learn/lecture-4.md", "hash": "sha256:a" },
+    { "name": "formula-sheet.md", "originalPath": "/learn/formula-sheet.md", "hash": "sha256:b" }
+  ],
+  "documents": [
+    { "kind": "steps", "text": "Read lecture-4.md and derive the balance" },
+    { "kind": "chat", "text": "the lecture-4.md section covers it" }
+  ],
+  "steps": { "exists": true, "done": 3, "total": 8 },
+  "studyGuide": "ready",
+  "flashcards": "build",
+  "history": [{ "title": "Energy balances", "why": "same topic last term" }]
+}

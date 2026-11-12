@@ -1,0 +1,1 @@
+A plain folder a user already had. No workspace.json, so it must not be adopted.

@@ -1,0 +1,76 @@
+{
+  "machine": {
+    "os": "Linux x64 (container)",
+    "cpu": "container CPU, shared",
+    "ramGb": 8,
+    "bun": "1.4.4"
+  },
+  "budgets": [
+    {
+      "metric": "index rebuild, 5,000 notes",
+      "budget": "<= 3000 ms",
+      "measured": "64 ms (budget 3000)",
+      "source": "bun test tests/release/performance.test.ts (prints [perf] line)"
+    },
+    {
+      "metric": "incremental refresh, 10 edited / 2 added / 1 deleted",
+      "budget": "<= 100 ms",
+      "measured": "13.8 ms (budget 100; samples 16.2/13.8)",
+      "source": "bun test tests/release/performance.test.ts (prints [perf] line)"
+    },
+    {
+      "metric": "compiled-artifact first frame, cold empty workspace",
+      "budget": "<= 150 ms",
+      "measured": "145 / 146 / 145 ms (compiled 1.0.0 artifact, 3 clean-dir runs)",
+      "source": "scripts/release.ts"
+    },
+    {
+      "metric": "compiled-artifact first frame, 5k-note index",
+      "budget": "<= 400 ms",
+      "measured": "145 / 152 / 154 ms (median 152; 5,000 notes, compiled 1.0.0 artifact)",
+      "source": "bun run scripts/measure-5k.ts --binary=<release-artifact>"
+    },
+    {
+      "metric": "scroll, 1k-message chat, 200x60 (render-side)",
+      "budget": ">= 55 fps",
+      "measured": "0.51 ms/frame avg, median 0.44 ms, worst 2.29 ms (~1960 fps render-side)",
+      "source": "tests/release/interaction-performance.test.tsx"
+    },
+    {
+      "metric": "streaming repaint, 200x60 (render-side)",
+      "budget": ">= 30 updates/s",
+      "measured": "1.19 ms/update avg, median 1.00 ms, worst 7.57 ms (~840 updates/s render-side)",
+      "source": "tests/release/interaction-performance.test.tsx"
+    },
+    {
+      "metric": "memory, normal session",
+      "budget": "<= 150 MB",
+      "measured": "78.5 MB RSS (release binary, pty)",
+      "source": "manual release measurement, 2026-11-06"
+    },
+    {
+      "metric": "binary/install size",
+      "budget": "target <= 120 MB",
+      "measured": "127,629,488 B = 121.7 MiB (target 120 MB; accepted in ADR 0005)",
+      "source": "scripts/release.ts / stat"
+    }
+  ],
+  "notMeasured": [
+    {
+      "metric": "keystroke latency (input-to-paint, real TTY)",
+      "owner": "tui-shell",
+      "reason": "presentation latency is a terminal property; the headless harness cannot measure it"
+    },
+    {
+      "metric": "terminal presentation rate (actual scroll/stream FPS in Ghostty/tmux)",
+      "owner": "tui-shell / release packet",
+      "reason": "needs a real TTY and frame timing; the render-side budgets are recorded separately"
+    },
+    {
+      "metric": "macOS, Windows, arm64 and musl terminal smoke tests",
+      "owner": "release packet",
+      "reason": "built by CI but not launched on their real platforms; only Linux x64 was executed here"
+    }
+  ],
+  "adrNotes": []
+}

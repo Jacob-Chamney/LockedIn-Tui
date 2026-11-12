@@ -1,0 +1,105 @@
+name: Bug report
+description: Something is broken or behaves differently from the documented design.
+title: "[bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. Please do not paste API keys, tokens, private note bodies or unredacted home paths.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: One or two sentences. What did you do, and what went wrong?
+      placeholder: Opening a lock-in session from Recent crashes the buffer.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact keys or commands, in order.
+      placeholder: |
+        1. Start with `bun run start`
+        2. Press `space h`
+        3. Select a session and press Enter
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      placeholder: The session opens as its own buffer and the reader shows the last chapter.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Include the exact error line or a short frame excerpt. Redact local paths and keys.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Chat / composer
+        - Lock-in sessions
+        - Skill sessions / reader
+        - Work / projects / agents
+        - Settings / providers / models
+        - Archive / sources
+        - Storage / config / index
+        - LLM / streaming / usage
+        - Keys / navigation / layout
+        - Docs / tests / packaging
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, terminal, Bun version, and the app version or commit.
+      placeholder: Linux (Fedora 42), kitty, Bun 1.4.4, dev@260d19e
+    validations:
+      required: true
+
+  - type: textarea
+    id: checks
+    attributes:
+      label: Checks already run
+      description: Paste the result of `./scripts/check.sh` or the failing test command.
+      render: shell
+      placeholder: |
+        ./scripts/check.sh
+        # passes typecheck, fails tests/ui/example.test.tsx
+    validations:
+      required: false
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Optional. A text frame, screenshot, short recording, or the smallest fixture that reproduces it.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Before submitting
+      options:
+        - label: I removed API keys, tokens and keychain values.
+          required: true
+        - label: I redacted private note bodies and personal paths.
+          required: true
+        - label: I checked that this is not already covered by an existing issue.
+          required: true

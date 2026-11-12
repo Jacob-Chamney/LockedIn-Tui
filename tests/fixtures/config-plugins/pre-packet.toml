@@ -1,0 +1,7 @@
+# Written before plugins.servers and plugins.policy existed.
+[plugins]
+enabled = false
+depth = "standard"
+
+[ui]
+username = "friend"

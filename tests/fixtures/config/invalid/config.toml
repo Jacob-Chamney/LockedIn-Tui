@@ -1,0 +1,7 @@
+# One invalid value: nothing may be rewritten.
+[ui]
+username = "friend"
+nudge_intensity = "extreme"
+
+[models]
+max_tool_calls = -1

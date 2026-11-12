@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "id": "my-app-4f2a1c",
+  "name": "My app",
+  "root": "/projects/example-app",
+  "instructions": "Prefer small diffs.",
+  "default_agent": "reviewer-9ab12c",
+  "agents": [
+    {
+      "id": "reviewer-9ab12c",
+      "name": "Reviewer",
+      "role": "reviewer",
+      "instructions": "Review only.",
+      "model": "",
+      "max_tool_calls": 8,
+      "allowed_tools": ["list_files", "read_file", "search_files"],
+      "allow_write": false,
+      "allow_command": false,
+      "template": ""
+    },
+    {
+      "id": "implementer-1c2d3e",
+      "name": "Implementer",
+      "role": "implementer",
+      "instructions": "Make the smallest change that works.",
+      "model": "",
+      "max_tool_calls": 12,
+      "allowed_tools": ["list_files", "read_file", "search_files"],
+      "allow_write": true,
+      "allow_command": false,
+      "template": ""
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "title": "Summarise the repository layout",
+      "agent_id": "reviewer-9ab12c",
+      "status": "pending"
+    }
+  ],
+  "created": "2026-11-01T09:00:00Z",
+  "last_opened_at": "2026-11-01T10:30:00Z"
+}

@@ -1,0 +1,20 @@
+title: project notes
+
+alpha: old value
+stable 01
+stable 02
+stable 03
+stable 04
+beta: old value
+stable 06
+stable 07
+stable 08
+stable 09
+gamma: old value
+stable 11
+stable 12
+stable 13
+stable 14
+delta: old value
+stable 16
+stable 17

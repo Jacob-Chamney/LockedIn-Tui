@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "id": "work-chat-fixture-1a2b3c",
+  "name": "Work chat fixture without an agent",
+  "root": "/projects/work-chat-fixture",
+  "instructions": "",
+  "default_agent": "",
+  "agents": [],
+  "tasks": [],
+  "mode": "swarm",
+  "created": "2026-11-01T09:00:00Z",
+  "last_opened_at": "2026-11-01T10:30:00Z"
+}

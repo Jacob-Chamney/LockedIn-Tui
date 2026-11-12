@@ -1,0 +1,20 @@
+{
+  "notes": [
+    "Expected verdicts for tests/contract/plugins.test.ts. 'allow' means the call is sent;",
+    "'approval-required' means nothing is sent; 'deny' means refused (nothing sent)."
+  ],
+  "matrix": [
+    { "mode": "chill", "tool": "read", "enabled": true, "explicit": false, "approval": null, "expect": "allow" },
+    { "mode": "chill", "tool": "write", "enabled": true, "explicit": false, "approval": null, "expect": "approval-required" },
+    { "mode": "chill", "tool": "write", "enabled": true, "explicit": false, "approval": false, "expect": "deny" },
+    { "mode": "chill", "tool": "write", "enabled": true, "explicit": false, "approval": true, "expect": "allow" },
+    { "mode": "chill", "tool": "read", "enabled": false, "explicit": true, "approval": null, "expect": "deny" },
+    { "mode": "lockin", "tool": "read", "enabled": true, "explicit": false, "approval": null, "expect": "deny" },
+    { "mode": "lockin", "tool": "read", "enabled": true, "explicit": true, "approval": null, "expect": "allow" },
+    { "mode": "lockin", "tool": "write", "enabled": true, "explicit": true, "approval": null, "expect": "approval-required" },
+    { "mode": "skill", "tool": "read", "enabled": true, "explicit": false, "approval": null, "expect": "allow" },
+    { "mode": "work", "tool": "read", "enabled": true, "explicit": false, "approval": null, "expect": "allow" },
+    { "mode": "flashcards", "tool": "read", "enabled": true, "explicit": true, "approval": null, "expect": "deny" },
+    { "mode": "study-guide", "tool": "read", "enabled": true, "explicit": true, "approval": null, "expect": "deny" }
+  ]
+}

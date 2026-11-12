@@ -1,0 +1,28 @@
+{
+  "note": "Deck and guide fixtures; text only, no secrets.",
+  "deck": {
+    "id": "d1",
+    "name": "Physics — Unit 4",
+    "built": true,
+    "cards": [
+      { "id": "c1", "question": "What does the learning rate control?", "answer": "The step size of each update.", "missed": false, "known": true },
+      { "id": "c2", "question": "Which limit does a boundary condition fix?", "answer": "The integral limits.", "missed": true, "known": false },
+      { "id": "c3", "question": "Name the two energies in the balance.", "answer": "Kinetic and potential.", "missed": false, "known": false,
+        "choices": [
+          { "text": "Kinetic and potential.", "correct": true },
+          { "text": "Thermal and elastic.", "correct": false },
+          { "text": "Magnetic and electric.", "correct": false }
+        ] }
+    ]
+  },
+  "guide": {
+    "id": "g1",
+    "name": "Physics — Unit 4",
+    "built": true,
+    "sections": [
+      { "id": "s1", "title": "Energy balance", "question": "Why does the balance close?", "reviewed": true },
+      { "id": "s2", "title": "Boundary conditions", "question": "What fixes the limits?", "reviewed": false }
+    ]
+  },
+  "answers": { "s1": "Because the boundary conditions fix the integral limits.", "s2": "The boundary conditions do." }
+}

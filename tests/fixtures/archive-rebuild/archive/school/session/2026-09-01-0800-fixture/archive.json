@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "side": "school",
+  "kind": "session",
+  "id": "2026-09-01-0800-fixture",
+  "title": "Fixture item",
+  "tags": ["fixture"],
+  "archived_at": "2026-09-01T08:10:00.000Z",
+  "files": 1,
+  "bytes": 12
+}

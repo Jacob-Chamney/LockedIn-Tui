@@ -1,8 +1,11 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Questions and ideas
-    url: https://github.com/Jacob-Chamney/LockedIn-Tui/discussions
-    about: Ask a question, share a setup, or suggest a feature in Discussions.
-  - name: Security report
-    url: https://github.com/Jacob-Chamney/LockedIn-Tui/security/advisories/new
-    about: Report a vulnerability privately. Do not open a public issue.
+  - name: Build and run
+    url: https://github.com/Jacob-Chamney/LockedIn-Tui/blob/main/README.md
+    about: Requirements, build commands and the current release channel.
+  - name: Contributing
+    url: https://github.com/Jacob-Chamney/LockedIn-Tui/blob/main/CONTRIBUTING.md
+    about: PR workflow, DCO sign-off and the full verification gate.
+  - name: Security policy
+    url: https://github.com/Jacob-Chamney/LockedIn-Tui/security/policy
+    about: Report vulnerabilities privately; do not open a public issue.

@@ -1,0 +1,8 @@
+{
+  "note": "Archive index fixture for the two separated lists; no secrets.",
+  "rows": [
+    { "id": "s1", "side": "school", "name": "Physics — Unit 4", "date": "2026-10-01", "sizeBytes": 18422, "backend": "github" },
+    { "id": "s2", "side": "school", "name": "Chemistry — Bonding", "date": "2026-09-20", "sizeBytes": 900, "backend": "folder" },
+    { "id": "k1", "side": "skills", "name": "Assembly basics", "date": "2026-10-12", "sizeBytes": 2048000, "backend": "github", "failed": "push timed out" }
+  ]
+}

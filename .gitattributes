@@ -1,0 +1,15 @@
+# Keep text files LF in every checkout. Windows contributors get consistent
+# fixtures and source without a CRLF conversion changing byte-level tests.
+* text=auto eol=lf
+
+# Binary assets must never be normalised.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.db binary
+*.exe binary
+*.wasm binary

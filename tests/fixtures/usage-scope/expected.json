@@ -1,0 +1,9 @@
+{
+  "windowStart": "2026-11-01T00:00:00.000Z",
+  "scopes": {
+    "school": { "runs": 1, "input": 1000, "output": 500, "costMicroUsd": 1200 },
+    "skills": { "runs": 1, "input": 200, "output": 100, "costMicroUsd": 2100 },
+    "work": { "runs": 1, "input": 300, "output": 150, "costMicroUsd": 360, "failed": 1 }
+  },
+  "all": { "runs": 4, "input": 2499, "output": 1749, "costMicroUsd": 4159 }
+}

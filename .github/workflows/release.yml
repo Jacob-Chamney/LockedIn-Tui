@@ -1,0 +1,202 @@
+name: Release
+
+# Build the TUI channel on every target it ships.
+#
+# Publishing is deliberately manual and two-step: a run may assemble a draft
+# release, but a human must review and publish it. Pushing a tag does not run
+# this workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      draft_release:
+        description: "Create a draft GitHub release from the built TUI assets"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64
+            os: ubuntu-24.04
+            target: bun-linux-x64
+            smoke: native
+          - name: linux-x64-musl
+            os: ubuntu-24.04
+            target: bun-linux-x64-musl
+            smoke: alpine
+          - name: linux-arm64
+            os: ubuntu-24.04-arm
+            target: bun-linux-arm64
+            smoke: native
+          - name: linux-arm64-musl
+            os: ubuntu-24.04-arm
+            target: bun-linux-arm64-musl
+            smoke: alpine
+          - name: windows-x64
+            os: windows-latest
+            target: bun-windows-x64
+            smoke: version
+          - name: macos-arm64
+            os: macos-15
+            target: bun-darwin-arm64
+            smoke: native
+          - name: macos-x64
+            os: macos-15-intel
+            target: bun-darwin-x64
+            smoke: native
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Cache Bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: echo "version=$(bun -e 'console.log((await Bun.file("package.json").json()).version)')" >> "$GITHUB_OUTPUT"
+
+      - name: Install (all platform packages)
+        run: bun install --frozen-lockfile --os='*' --cpu='*' --libc='*'
+
+      - name: Build ${{ matrix.target }}
+        run: bun run scripts/build.ts --target=${{ matrix.target }} --outdir=dist --version=${{ steps.version.outputs.version }}
+
+      # The updater matches assets by name, and the name carries the version.
+      - name: Name the release asset
+        shell: bash
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          if [ -f "dist/lockedin-${{ matrix.target }}.exe" ]; then
+            mv "dist/lockedin-${{ matrix.target }}.exe" "dist/lockedin-${version}-${{ matrix.target }}.exe"
+          else
+            mv "dist/lockedin-${{ matrix.target }}" "dist/lockedin-${version}-${{ matrix.target }}"
+          fi
+
+      - name: Smoke test (native)
+        if: matrix.smoke == 'native'
+        shell: bash
+        run: |
+          artifact="dist/lockedin-${{ steps.version.outputs.version }}-${{ matrix.target }}"
+          work="$RUNNER_TEMP/lockedin-smoke"
+          mkdir -p "$work"
+          cp "$artifact" "$work/lockedin"
+          chmod +x "$work/lockedin"
+          # Run outside the repository: a compiled core still reads bunfig.toml
+          # from its working directory, and the dev preload is not packaged.
+          cd "$work"
+          ./lockedin --version | grep -F "lockedin ${{ steps.version.outputs.version }}"
+          ./lockedin --help >/dev/null
+
+      - name: Smoke test (version only)
+        if: matrix.smoke == 'version'
+        shell: pwsh
+        run: |
+          $artifact = "dist/lockedin-${{ steps.version.outputs.version }}-${{ matrix.target }}.exe"
+          $work = Join-Path $env:RUNNER_TEMP "lockedin-smoke"
+          New-Item -ItemType Directory -Force $work | Out-Null
+          Copy-Item $artifact (Join-Path $work "lockedin.exe")
+          Push-Location $work
+          & .\lockedin.exe --version | Select-String -SimpleMatch "lockedin ${{ steps.version.outputs.version }}"
+          & .\lockedin.exe --help | Out-Null
+          Pop-Location
+
+      - name: Smoke test (musl under Alpine)
+        if: matrix.smoke == 'alpine'
+        run: ./scripts/smoke-alpine.sh "dist/lockedin-${{ steps.version.outputs.version }}-${{ matrix.target }}" "${{ steps.version.outputs.version }}"
+
+      - name: Upload channel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tui-${{ matrix.name }}
+          path: dist/lockedin-*
+          if-no-files-found: error
+          retention-days: 7
+
+  assemble:
+    name: assemble the release
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download every target
+        uses: actions/download-artifact@v4
+        with:
+          pattern: tui-*
+          merge-multiple: true
+          path: dist
+
+      - name: Checksums and listing
+        run: |
+          cd dist
+          find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Upload assembled release
+        uses: actions/upload-artifact@v4
+        with:
+          name: lockedin-tui
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  draft-release:
+    name: draft release (manual review)
+    if: ${{ inputs.draft_release }}
+    needs: assemble
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download assembled release
+        uses: actions/download-artifact@v4
+        with:
+          name: lockedin-tui
+          path: dist
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: echo "version=$(bun -e 'console.log((await Bun.file("package.json").json()).version)')" >> "$GITHUB_OUTPUT"
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" dist/* \
+            --draft \
+            --title "LockedIn-Tui ${{ steps.version.outputs.version }}" \
+            --generate-notes \
+            --repo "${{ github.repository }}"
+          echo "Draft created. Review the assets and publish manually."

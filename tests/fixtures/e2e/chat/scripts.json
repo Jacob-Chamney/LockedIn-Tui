@@ -1,0 +1,18 @@
+{
+  "normal": {
+    "chunks": [{ "text": "Boundary conditions set " }, { "text": "the integral limits." }],
+    "usage": [812, 340],
+    "finish": "stop"
+  },
+  "reasoning": {
+    "chunks": [{ "reasoning": "think first " }, { "text": "Reasoned answer." }],
+    "usage": [120, 30],
+    "finish": "stop"
+  },
+  "slow": {
+    "chunks": [{ "text": "one " }, { "text": "two " }, { "text": "three " }],
+    "usage": [50, 10],
+    "finish": "stop",
+    "repeat": 6
+  }
+}

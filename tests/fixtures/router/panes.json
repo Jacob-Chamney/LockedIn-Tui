@@ -1,0 +1,19 @@
+{
+  "note": "Pane id -> a string its component renders. Plugins is mounted from Settings, not a top-level action.",
+  "panes": {
+    "manager": "SESSIONS",
+    "skills": "SKILL SESSIONS",
+    "work": "no project chat is open",
+    "providers": "PROVIDERS",
+    "models": "MODELS",
+    "sources": "SOURCES",
+    "reader": "STEPS",
+    "stats": "lockedin / stats",
+    "archive": "ARCHIVE",
+    "settings": "SETTINGS",
+    "task-centre": "TASK CENTRE",
+    "activity": "ACTIVITY",
+    "achievements": "ACHIEVEMENTS",
+    "knowledge": "KNOWLEDGE"
+  }
+}

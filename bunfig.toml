@@ -1,0 +1,12 @@
+# The OpenTUI Solid preload registers the JSX transform.
+#
+# It belongs at the top level as well as under `[test]`: `bun run src/index.tsx`
+# is how the app starts, and the README's step 2 is a top-level preload. Without
+# it `{expr}` children compile to static strings and reactivity silently does
+# nothing — the same S1 finding L1 that the test entry already records.
+preload = ["@opentui/solid/preload"]
+
+[test]
+# Every UI test needs the Solid JSX transform. Without it, `{expr}` children are
+# compiled to static strings and reactivity silently does nothing (S1 finding L1).
+preload = ["@opentui/solid/preload"]

@@ -1,0 +1,25 @@
+{
+  "tableVersion": 1,
+  "asOf": "2026-11-01",
+  "model": "openai/gpt-4.1-mini",
+  "unknownModel": "unknown/model-x",
+  "loopbackBaseUrl": "http://127.0.0.1:11434/v1",
+  "expected": {
+    "singleStep": {
+      "input": 1000,
+      "output": 500,
+      "costMicroUsd": 1200,
+      "label": "$0.0012"
+    },
+    "toolLoopSteps": [
+      { "input": 1000, "output": 500 },
+      { "input": 2000, "output": 1000 }
+    ],
+    "toolLoopCostMicroUsd": 3600,
+    "freeCostMicroUsd": 0
+  },
+  "notes": [
+    "Hand-computed: 1000 tok * $0.40/M = 400 micro-USD, 500 tok * $1.60/M = 800 micro-USD.",
+    "Tool loop: +2000 * 0.4 = 800 and +1000 * 1.6 = 1600, total 3600 micro-USD = $0.0036."
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "name": "Doc reviewer",
+  "role": "reviewer",
+  "instructions": "Read the diff and list only the blocking problems, with file paths.",
+  "model": "",
+  "max_tool_calls": 6,
+  "allowed_tools": ["list_files", "read_file", "search_files"],
+  "allow_write": false,
+  "allow_command": false
+}

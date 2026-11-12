@@ -1,0 +1,8 @@
+{
+  "note": "Session rows for UI tests; no secrets, no real paths.",
+  "rows": [
+    { "id": "2026-11-01-1430-physics", "name": "Physics — Unit 4", "date": "2026-11-01", "sources": 4, "steps": { "done": 3, "total": 8 }, "archived": false, "inboundLinks": 2 },
+    { "id": "2026-10-28-0900-chem", "name": "Chemistry — Bonding", "date": "2026-10-28", "sources": 2, "steps": { "done": 8, "total": 8 }, "archived": true },
+    { "id": "2026-10-20-1200-broken", "name": "History — Source", "date": "2026-10-20", "sources": 0, "steps": { "done": 0, "total": 0 }, "archived": false, "broken": "sources folder missing" }
+  ]
+}

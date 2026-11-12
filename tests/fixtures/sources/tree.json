@@ -1,0 +1,25 @@
+{
+  "note": "Logical tree for picker UI tests; the UI never touches the filesystem.",
+  "entries": [
+    {
+      "name": "lecture-4.md",
+      "kind": "file",
+      "selectable": true
+    },
+    {
+      "name": "unit-4",
+      "kind": "directory",
+      "selectable": true
+    },
+    {
+      "name": "diagram.png",
+      "kind": "file",
+      "selectable": true
+    },
+    {
+      "name": "archive.zip",
+      "kind": "file",
+      "selectable": true
+    }
+  ]
+}

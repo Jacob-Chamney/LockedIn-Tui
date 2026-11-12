@@ -1,0 +1,13 @@
+# Fixture: a workflow that asks for a write token. The audit must reject it.
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check
+        run: ./scripts/check.sh

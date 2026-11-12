@@ -1,0 +1,14 @@
+{
+  "note": "Lesson fixture; text only, no secrets.",
+  "goal": "read disassembly output confidently",
+  "stage": "stage-2 · control flow",
+  "status": "ready",
+  "sources": [
+    { "name": "Intel SDM §3.4", "url": "https://example.invalid/sdm", "excerpt": "The first three arguments arrive in registers." }
+  ],
+  "includeSolution": true,
+  "checkpoints": [
+    { "id": "c1", "text": "Name the convention", "done": true },
+    { "id": "c2", "text": "Trace one call", "done": false }
+  ]
+}

@@ -1,0 +1,11 @@
+[
+  { "argv": "ls; rm -rf /", "error": "argv-shape" },
+  { "argv": [], "error": "argv-shape" },
+  { "argv": ["ls", "&&", "rm", "-rf", "/"], "error": "argv-token", "token": "&&" },
+  { "argv": ["ls", "|", "wc"], "error": "argv-token", "token": "|" },
+  { "argv": ["echo", "$(whoami)"], "error": "argv-token", "token": "$(whoami)" },
+  { "argv": ["ls", ">", "out.txt"], "error": "argv-token", "token": ">" },
+  { "argv": ["ls", "*.ts"], "error": "argv-token", "token": "*.ts" },
+  { "argv": ["sh", "-c", "ls"], "error": "argv-token", "token": "-c" },
+  { "argv": ["cmd.exe", "/c", "dir"], "error": "argv-token", "token": "/c" }
+]

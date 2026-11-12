@@ -1,0 +1,13 @@
+{
+  "ui": {
+    "keybinds": {
+      "chat": "space+z",
+      "nope": "space+q",
+      "work-swarms": "space+r"
+    },
+    "fixed_keybinds": {
+      "help": "f1",
+      "quit": "alt+q"
+    }
+  }
+}

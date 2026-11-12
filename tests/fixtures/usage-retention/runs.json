@@ -1,0 +1,13 @@
+{
+  "notes": [
+    "Offsets are days before a fixed local clock (1 Nov 2026, 15:00).",
+    "89 is inside the 90-day window, 91 is outside it."
+  ],
+  "runs": [
+    { "daysAgo": 91, "model": "openai/gpt-4.1-mini", "input": 900, "output": 900, "costMicroUsd": 1800, "failed": false, "scope": "school" },
+    { "daysAgo": 89, "model": "openai/gpt-4.1-mini", "input": 1000, "output": 500, "costMicroUsd": 1200, "failed": false, "scope": "school" },
+    { "daysAgo": 40, "model": "anthropic/claude-sonnet-4-5", "input": 200, "output": 100, "costMicroUsd": 2100, "failed": true, "scope": "skills" },
+    { "daysAgo": 5, "model": "unknown/model-x", "input": 10, "output": 10, "costMicroUsd": null, "failed": false, "scope": "work" },
+    { "daysAgo": 0, "model": "openai/gpt-4.1-mini", "input": 100, "output": 50, "costMicroUsd": 120, "failed": false, "scope": "work" }
+  ]
+}

@@ -1,0 +1,37 @@
+# dependencies and build output
+node_modules/
+.venv/
+dist/
+build/
+target/
+out/
+*.tsbuildinfo
+
+# spikes keep their own deps out of the repo
+spikes/*/node_modules/
+spikes/*/target/
+spikes/*/dist/
+
+# local environment and secrets
+.env
+.env.*
+!.env.example
+*.local
+*.pem
+*.key
+
+# logs and crash output
+*.log
+core
+core.*
+
+# editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+
+# local verification artifacts
+reports/local/
+
+# ephemeral swarm locks
+.locks/

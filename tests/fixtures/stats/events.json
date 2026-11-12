@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "events": [
+    { "kind": "step-toggled", "at": "2026-11-01T09:05:00.000Z", "scope": "school" },
+    { "kind": "step-toggled", "at": "2026-11-01T09:06:00.000Z", "scope": "school" },
+    { "kind": "card-known", "at": "2026-11-01T09:10:00.000Z", "scope": "school" },
+    { "kind": "card-missed", "at": "2026-11-01T09:11:00.000Z", "scope": "school" },
+    { "kind": "lesson-completed", "at": "2026-11-01T10:00:00.000Z", "scope": "skills" },
+    { "kind": "tool-call", "at": "2026-11-01T10:01:00.000Z", "scope": "school", "name": "read_note" },
+    { "kind": "tool-call", "at": "2026-11-01T10:02:00.000Z", "scope": "school", "name": "read_note" },
+    { "kind": "tool-call", "at": "2026-11-01T10:03:00.000Z", "scope": "school", "name": "search_files" },
+    { "kind": "step-toggled", "at": "2026-09-01T08:00:00.000Z", "scope": "school" }
+  ]
+}

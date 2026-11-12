@@ -1,0 +1,144 @@
+{
+  "note": "Stats summary fixture; exact numbers, no secrets.",
+  "range": "30d",
+  "scope": "all",
+  "overview": {
+    "runs": 12,
+    "failed": 2,
+    "input": 18240,
+    "output": 6110
+  },
+  "costMicroUsd": 128400,
+  "costLabel": "$0.1284",
+  "models": [
+    {
+      "model": "openai/gpt-4.1-mini",
+      "runs": 9,
+      "input": 14000,
+      "output": 4900,
+      "costMicroUsd": 128400
+    },
+    {
+      "model": "local/llama",
+      "runs": 3,
+      "input": 4240,
+      "output": 1210,
+      "costMicroUsd": null
+    }
+  ],
+  "tools": [
+    {
+      "name": "read_file",
+      "calls": 7
+    },
+    {
+      "name": "search_files",
+      "calls": 2
+    }
+  ],
+  "learning": {
+    "steps": 5,
+    "cardsKnown": 4,
+    "cardsMissed": 2,
+    "lessons": 1
+  },
+  "diagnostic": null,
+  "activity": [
+    {
+      "date": "2026-01-05",
+      "runs": 2,
+      "tokens": 3200
+    },
+    {
+      "date": "2026-01-06",
+      "runs": 1,
+      "tokens": 800
+    },
+    {
+      "date": "2026-01-07",
+      "runs": 3,
+      "tokens": 1200
+    },
+    {
+      "date": "2026-01-08",
+      "runs": 1,
+      "tokens": 400
+    },
+    {
+      "date": "2026-01-09",
+      "runs": 2,
+      "tokens": 700
+    },
+    {
+      "date": "2026-01-10",
+      "runs": 1,
+      "tokens": 300
+    },
+    {
+      "date": "2026-01-11",
+      "runs": 1,
+      "tokens": 200
+    },
+    {
+      "date": "2026-01-12",
+      "runs": 1,
+      "tokens": 250
+    },
+    {
+      "date": "2026-01-13",
+      "runs": 1,
+      "tokens": 260
+    },
+    {
+      "date": "2026-01-14",
+      "runs": 1,
+      "tokens": 270
+    },
+    {
+      "date": "2026-01-15",
+      "runs": 1,
+      "tokens": 280
+    },
+    {
+      "date": "2026-01-16",
+      "runs": 1,
+      "tokens": 290
+    },
+    {
+      "date": "2026-01-17",
+      "runs": 1,
+      "tokens": 300
+    },
+    {
+      "date": "2026-01-18",
+      "runs": 1,
+      "tokens": 310
+    },
+    {
+      "date": "2026-10-20",
+      "runs": 4,
+      "tokens": 2100
+    },
+    {
+      "date": "2026-10-21",
+      "runs": 2,
+      "tokens": 900
+    },
+    {
+      "date": "2026-11-01",
+      "runs": 2,
+      "tokens": 1800
+    },
+    {
+      "date": "2026-11-02",
+      "runs": 1,
+      "tokens": 600
+    }
+  ],
+  "bestStreak": 14,
+  "activeDays": 18,
+  "period": {
+    "from": "2026-01-05",
+    "to": "2026-11-02"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "notes": [
+    "Cost is computed through src/llm/pricing: openai/gpt-4.1-mini is $0.40/M in",
+    "and $1.60/M out, so 1000 in + 500 out = 400 + 800 = 1200 micro-USD.",
+    "unknown/model-x has no price and must be written as costMicroUsd: null."
+  ],
+  "model": "openai/gpt-4.1-mini",
+  "input": 1000,
+  "output": 500,
+  "costMicroUsd": 1200,
+  "unpricedModel": "unknown/model-x"
+}

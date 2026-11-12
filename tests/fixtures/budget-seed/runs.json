@@ -1,0 +1,17 @@
+{
+  "notes": [
+    "Offsets are milliseconds from the local start of the budget day, so the",
+    "fixture means the same thing in any timezone. -1 is one millisecond before",
+    "the boundary; 0 is exactly on it."
+  ],
+  "day": [
+    { "offsetMs": -1, "model": "openai/gpt-4.1-mini", "input": 100, "output": 100, "costMicroUsd": 1000, "failed": false, "scope": "school" },
+    { "offsetMs": 0, "model": "openai/gpt-4.1-mini", "input": 1000, "output": 500, "costMicroUsd": 1200, "failed": false, "scope": "school" },
+    { "offsetMs": 3600000, "model": "anthropic/claude-sonnet-4-5", "input": 200, "output": 100, "costMicroUsd": 2100, "failed": true, "scope": "skills" },
+    { "offsetMs": 7200000, "model": "unknown/model-x", "input": 10, "output": 10, "costMicroUsd": null, "failed": false, "scope": "work" }
+  ],
+  "expectedDay": { "spentMicroUsd": 3300, "unpriced": 1, "runs": 3 },
+  "month": [
+    { "offsetMs": -86400000, "model": "openai/gpt-4.1-mini", "input": 1, "output": 1, "costMicroUsd": 999, "failed": false, "scope": "school" }
+  ]
+}

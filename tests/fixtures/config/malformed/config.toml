@@ -1,0 +1,3 @@
+# Broken on purpose: the table header is never closed.
+[ui
+username = "friend"

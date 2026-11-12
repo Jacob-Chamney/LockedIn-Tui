@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "id": "2026-11-02-0900-chem-bonding",
+  "name": "Chemistry — Bonding",
+  "created": "2026-11-02T09:00:00Z",
+  "prompt": "Explain covalent bonding.",
+  "steps": false,
+  "sources": [
+    {
+      "original_path": "/fixture/input/bonding.md",
+      "stored_path": "sources/bonding.md",
+      "name": "bonding.md",
+      "hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "kind": "markdown"
+    }
+  ],
+  "archived": false
+}
