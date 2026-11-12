@@ -3,6 +3,12 @@
 LockedIn-Tui is a keyboard-first workspace built with Bun, TypeScript,
 Solid and OpenTUI.
 
+## Documentation
+
+User documentation lives in the [Wiki](https://github.com/Jacob-Chamney/LockedIn-Tui/wiki).
+Keep install, keyboard and provider guidance there; the repository README stays
+focused on building and running the source.
+
 ## Before you start
 
 - Open an issue for behaviour changes or large features.
