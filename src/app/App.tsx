@@ -34,7 +34,6 @@ import { effectDebug } from "../ui/plugins/debug";
 import { CustomParticleHost } from "../ui/plugins/particle-host";
 import { bundledPluginRoots, particlePathsFromEnv, pluginDirsFromConfig, loadParticleFiles, loadPlugins, scanPluginDirs, watchPlugins } from "../ui/plugins/loader";
 import { copyToClipboard } from "../ui/plugins/clipboard";
-import { legacyPluginEnv } from "../ui/plugins/env";
 import { SandboxWorkerPlugin } from "../ui/plugins/sandbox/client";
 import type { SceneState } from "../ui/plugins/scene/model";
 import { dirty as sessionSettingsDirty, initialSessionSettings, move as moveSessionSettings, selectedRow as selectedSessionSettingsRow, type SessionSettingsState } from "../ui/features/session-settings/session-settings-model";
@@ -4304,11 +4303,6 @@ export function App(props: {
       for (const error of errors) effectDebug(`load error: ${error}`)
     }
     const palette = () => resolveTheme(theme(), customTheme()).palette
-
-    const legacyEnv = legacyPluginEnv(process.env)
-    if (legacyEnv.length > 0) {
-      notify(`legacy ${legacyEnv.join(", ")} · use LOCKEDIN_PLUGINS*`, "warn")
-    }
 
     // Pointer targets are resolved from the painted scene; grants decide
     // whether the terminal is put into mouse-reporting mode.

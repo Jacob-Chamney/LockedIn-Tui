@@ -11,12 +11,6 @@ import { crimson } from "../../src/ui/theme/palettes"
 import type { SceneHost } from "../../src/ui/plugins/app-plugins"
 
 test("effects are opt-in and reduced motion wins", () => {
-  expect(resolvePluginOptions({ LOCKEDIN_EFFECTS: "1" })).toEqual({
-    enabled: true,
-    trail: true,
-    particles: true,
-    layer: "under",
-  })
   expect(resolvePluginOptions({ LOCKEDIN_PLUGINS: "1" })).toEqual({
     enabled: true,
     trail: true,
