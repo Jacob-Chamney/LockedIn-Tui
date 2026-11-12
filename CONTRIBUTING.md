@@ -40,6 +40,8 @@ The sign-off certifies the Developer Certificate of Origin:
   copying their chrome.
 - A feature includes its failure, cancelled and empty states.
 - Tests must fail if the behaviour is removed. No network in unit tests.
+- When a UI change alters a screen shown in the README, refresh the matching
+  image in `assets/screenshots/` in the same pull request.
 
 ## Licence
 

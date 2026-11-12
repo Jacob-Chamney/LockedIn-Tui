@@ -9,17 +9,44 @@ workspace on your machine.
 
 ## Features
 
-- **Chat and lock-in sessions** with your configured model provider.
-- **Skill sessions and a reader** with goals, sources and generated study
-  material.
-- **Work projects and agents** with review queues, change sets and project
-  memory.
-- **Archive and sources** with a local index, search and export.
-- **Usage and budgets** with provider cost tracking.
-- **Keyboard-first navigation** with a discoverable leader keymap.
-- **Terminal images** for achievements and visual content when the terminal
-  supports Kitty graphics or Sixel.
-- **MCP plugins** with per-command policy and approval for write tools.
+### Chat and lock-in sessions
+
+![Chat with a model provider](assets/screenshots/chat.png)
+
+Chat with your configured model, with Markdown, syntax highlighting and
+per-conversation usage. A lock-in session binds the conversation to a goal and
+its sources so the work stays on the material you chose.
+
+### Skill sessions and reader
+
+![Skill session reader](assets/screenshots/course.png)
+
+Turn a goal into chapters, lessons and practical work. The reader tracks
+completion, and generated study material is built from the sources you added.
+
+### Knowledge reference
+
+![Knowledge reference](assets/screenshots/knowledge.png)
+
+Keep notes, topics and references in one navigable tree, searchable from the
+keyboard and available beside your sessions.
+
+### Achievements
+
+<p align="center"><img src="assets/screenshots/achievements.png" alt="Achievement map" width="640"></p>
+
+A map of milestones that unlocks as you use the workspace, with a detail panel
+and sharing for completed achievements.
+
+### Lock-in sessions
+
+![Lock-in session manager](assets/screenshots/manager-sessions.png)
+
+Find, archive, export or delete lock-in sessions from one keyboard-driven list.
+
+Also included: work projects and agents, archive and source indexing, usage
+budgets, themes, MCP plugins, and terminal image support where the terminal
+allows it.
 
 ## Install
 
@@ -79,6 +106,7 @@ Layout:
 src/        application code
 tests/      unit, contract, integration, invariant, UI and end-to-end tests
 scripts/    build, check and performance tooling
+assets/     screenshots used by the README
 licenses/   third-party licence texts
 ```
 
