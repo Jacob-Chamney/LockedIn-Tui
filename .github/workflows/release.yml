@@ -199,6 +199,6 @@ jobs:
           gh release create "v${{ steps.version.outputs.version }}" dist/* \
             --draft \
             --title "LockedIn-Tui ${{ steps.version.outputs.version }}" \
-            --generate-notes \
+            --notes "Terminal-only LockedIn-Tui release. Source, tests and build scripts are in this repository under AGPL-3.0-only." \
             --repo "${{ github.repository }}"
           echo "Draft created. Review the assets and publish manually."
