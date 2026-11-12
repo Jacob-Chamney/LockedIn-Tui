@@ -7,7 +7,7 @@ A keyboard-first terminal workspace for learning and focused work. It runs
 inside your terminal, uses the terminal's own GPU rendering, and keeps your
 workspace on your machine.
 
-[Documentation](https://github.com/Jacob-Chamney/LockedIn-Tui/wiki) · [Releases](https://github.com/Jacob-Chamney/LockedIn-Tui/releases)
+[Documentation](https://github.com/Jacob-Chamney/LockedIn-Tui/wiki) · [Releases](https://github.com/Jacob-Chamney/LockedIn-Tui/releases) · [Changelog](CHANGELOG.md)
 
 ## Features
 

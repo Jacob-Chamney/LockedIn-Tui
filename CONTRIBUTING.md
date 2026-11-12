@@ -42,10 +42,31 @@ The sign-off certifies the Developer Certificate of Origin:
    and any user-visible impact. Do not push directly to `main`; the branch is
    protected and the gate must pass before merge.
 
+**Every change to `main` lands through a pull request**, including maintainer
+and automation changes. The protection rule requires the Linux, Windows and
+first-frame checks, so a local pass is not a substitute for CI.
+
 `main` is the integration branch. A merged contribution is not a release; it is
 included in the next UTC-dated release. Releases are tags cut from `main`
 (`2026.11.12`), not separate branches. There is no `next` or release branch to
 target.
+
+## Changelog and credit
+
+The public [CHANGELOG.md](CHANGELOG.md) and the wiki **Releases** page are built
+from merged pull requests. One PR should normally produce one entry.
+
+- Use a clear, user-facing PR title; it becomes the changelog line.
+- Add or extend the `Unreleased` section of `CHANGELOG.md` for any user-visible
+  behaviour, including fixes and breaking changes.
+- Keep the change focused. Unrelated refactors belong in another PR.
+- Preserve authorship. Squash or rebase merges keep the PR author as the commit
+  author; add `Co-authored-by: Name <email>` trailers for paired work. Do not
+  rewrite or drop another contributor's attribution.
+- Name contributors in the release notes when a PR is largely theirs.
+
+Release notes are assembled from the merged PR titles and `CHANGELOG.md`; they
+are not reconstructed later from memory.
 
 ## Code expectations
 
