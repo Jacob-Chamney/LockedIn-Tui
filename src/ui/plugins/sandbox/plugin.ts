@@ -19,7 +19,7 @@ import {
 } from "./limits"
 import {
   checkSystemAgainstManifest,
-  type EffectManifest,
+  type PluginManifest,
   type SystemDescription,
 } from "./manifest"
 import { Sandbox, SandboxFailure, loadQuickJS, type SandboxError } from "./runtime"
@@ -66,8 +66,8 @@ export function safeGlyph(value: unknown): string {
   return first
 }
 
-export class SandboxedEffect {
-  readonly manifest: EffectManifest
+export class SandboxedPlugin {
+  readonly manifest: PluginManifest
   readonly description: SystemDescription
   readonly layer: TextLayer
   readonly capacity: number
@@ -109,7 +109,7 @@ export class SandboxedEffect {
     commandFn: QuickJSHandle,
     activateFn: QuickJSHandle,
     deactivateFn: QuickJSHandle,
-    manifest: EffectManifest,
+    manifest: PluginManifest,
     description: SystemDescription,
   ) {
     this.sandbox = sandbox
@@ -152,10 +152,10 @@ export class SandboxedEffect {
 
   static async create(
     bundle: string,
-    manifest: EffectManifest,
+    manifest: PluginManifest,
     limits: SandboxLimits = DEFAULT_SANDBOX_LIMITS,
     store: PluginStoreData = {},
-  ): Promise<SandboxedEffect> {
+  ): Promise<SandboxedPlugin> {
     if (bundle.length > MAX_BUNDLE_BYTES) {
       throw new Error(`effect bundle is ${bundle.length} bytes; the limit is ${MAX_BUNDLE_BYTES}`)
     }
@@ -198,7 +198,7 @@ export class SandboxedEffect {
       storeArg.dispose()
       JSON.parse(String(vm.dump(result)))
 
-      const instance = new SandboxedEffect(
+      const instance = new SandboxedPlugin(
         sandbox,
         frame,
         compose,
@@ -532,3 +532,6 @@ function disposeAll(handles: Array<QuickJSHandle | null>): void {
 }
 
 
+
+/** @deprecated use SandboxedPlugin. */
+export { SandboxedPlugin as SandboxedEffect }

@@ -3,9 +3,9 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { bundleEffectEntry } from "../../src/ui/effects/loader"
-import type { EffectManifest } from "../../src/ui/effects/sandbox/manifest"
-import { SandboxWorkerEffect } from "../../src/ui/effects/sandbox/client"
+import { bundlePluginEntry } from "../../src/ui/plugins/loader"
+import type { PluginManifest } from "../../src/ui/plugins/sandbox/manifest"
+import { SandboxWorkerPlugin } from "../../src/ui/plugins/sandbox/client"
 import { crimson } from "../../src/ui/theme/palettes"
 
 const dirs: string[] = []
@@ -19,10 +19,10 @@ async function bundle(source: string): Promise<string> {
   dirs.push(dir)
   const entry = join(dir, "effect.ts")
   await writeFile(entry, source)
-  return bundleEffectEntry(entry)
+  return bundlePluginEntry(entry)
 }
 
-function manifest(): EffectManifest {
+function manifest(): PluginManifest {
   return {
     manifestVersion: 1,
     id: "sandbox.worker",
@@ -81,7 +81,7 @@ function waitFor(check: () => boolean, timeout = 4000): Promise<void> {
 }
 
 test("a sandboxed effect runs in a worker and returns particles", async () => {
-  const effect = await SandboxWorkerEffect.create({
+  const effect = await SandboxWorkerPlugin.create({
     bundle: await bundle(BASIC),
     manifest: manifest(),
     palette: crimson,
@@ -103,7 +103,7 @@ test("a sandboxed effect runs in a worker and returns particles", async () => {
 })
 
 test("a hung worker is terminated and quarantined", async () => {
-  const effect = await SandboxWorkerEffect.create({
+  const effect = await SandboxWorkerPlugin.create({
     bundle: await bundle(BASIC.replace('step(ctx, out, count) {', 'step(ctx, out, count) { while (true) {}')),
     manifest: manifest(),
     palette: crimson,
@@ -123,7 +123,7 @@ test("a hung worker is terminated and quarantined", async () => {
 }, 10_000)
 
 test("a bundle that fails to load rejects instead of starting", async () => {
-  const error = await SandboxWorkerEffect.create({
+  const error = await SandboxWorkerPlugin.create({
     bundle: await bundle(`export default { id: "sandbox.worker", spawnOn: ["send"] }`),
     manifest: manifest(),
     palette: crimson,
@@ -134,7 +134,7 @@ test("a bundle that fails to load rejects instead of starting", async () => {
   expect(String(error)).toContain("trigger")
 })
 
-function sceneManifest(): EffectManifest {
+function sceneManifest(): PluginManifest {
   return {
     manifestVersion: 1,
     id: "sandbox.worker",
@@ -162,7 +162,7 @@ export default {
 `
 
 test("a sandboxed scene returns nodes that the host sanitises", async () => {
-  const effect = await SandboxWorkerEffect.create({
+  const effect = await SandboxWorkerPlugin.create({
     bundle: await bundle(SCENE),
     manifest: sceneManifest(),
     palette: crimson,
@@ -182,7 +182,7 @@ test("a sandboxed scene returns nodes that the host sanitises", async () => {
 })
 
 test("absolute nodes reach the host when the manifest grants them", async () => {
-  const effect = await SandboxWorkerEffect.create({
+  const effect = await SandboxWorkerPlugin.create({
     bundle: await bundle(`
       export default {
         id: "sandbox.worker",
@@ -208,7 +208,7 @@ test("absolute nodes reach the host when the manifest grants them", async () => 
 })
 
 test("a command round-trips through the worker", async () => {
-  const effect = await SandboxWorkerEffect.create({
+  const effect = await SandboxWorkerPlugin.create({
     bundle: await bundle(`
       export default {
         id: "sandbox.worker",
@@ -239,7 +239,7 @@ test("a command round-trips through the worker", async () => {
 })
 
 test("pointer commands mark their result and stay quiet", async () => {
-  const effect = await SandboxWorkerEffect.create({
+  const effect = await SandboxWorkerPlugin.create({
     bundle: await bundle(`
       export default {
         id: "sandbox.worker",
@@ -307,7 +307,7 @@ test("pointer commands mark their result and stay quiet", async () => {
 })
 
 test("the worker reports the name assigned in code", async () => {
-  const effect = await SandboxWorkerEffect.create({
+  const effect = await SandboxWorkerPlugin.create({
     bundle: await bundle(`export default { id: "sandbox.worker", name: "Code name" }`),
     manifest: manifest(),
     palette: crimson,
@@ -320,7 +320,7 @@ test("the worker reports the name assigned in code", async () => {
 })
 
 test("store writes come back to the host", async () => {
-  const effect = await SandboxWorkerEffect.create({
+  const effect = await SandboxWorkerPlugin.create({
     bundle: await bundle(`
       export default {
         id: "sandbox.worker",
@@ -347,7 +347,7 @@ test("store writes come back to the host", async () => {
 })
 
 test("deactivate writes are flushed on dispose", async () => {
-  const effect = await SandboxWorkerEffect.create({
+  const effect = await SandboxWorkerPlugin.create({
     bundle: await bundle(`
       export default {
         id: "sandbox.worker",

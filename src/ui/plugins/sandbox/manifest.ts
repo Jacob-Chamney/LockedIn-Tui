@@ -57,7 +57,7 @@ export type CommandPermission = {
   keys?: string
 }
 
-export type EffectManifest = {
+export type PluginManifest = {
   manifestVersion: 1
   /** Stable id; must match the exported system id. */
   id: string
@@ -81,7 +81,7 @@ export type EffectManifest = {
 }
 
 export type ManifestCheck =
-  | { ok: true; manifest: EffectManifest }
+  | { ok: true; manifest: PluginManifest }
   | { ok: false; errors: string[] }
 
 const ID = /^[a-z0-9][a-z0-9._-]{0,63}$/
@@ -270,7 +270,7 @@ export function parseManifest(input: unknown): ManifestCheck {
   }
 
   if (errors.length > 0) return { ok: false, errors }
-  return { ok: true, manifest: input as unknown as EffectManifest }
+  return { ok: true, manifest: input as unknown as PluginManifest }
 }
 
 /** What the effect declared about itself inside the sandbox. */
@@ -293,7 +293,7 @@ export type SystemDescription = Pick<
  * keeps them as small as the manifest allows.
  */
 export function checkSystemAgainstManifest(
-  manifest: EffectManifest,
+  manifest: PluginManifest,
   system: SystemDescription,
 ): string[] {
   const errors: string[] = []
@@ -326,3 +326,6 @@ export function checkSystemAgainstManifest(
   }
   return errors
 }
+
+/** @deprecated use PluginManifest (kept for the 1.0 SDK surface). */
+export type EffectManifest = PluginManifest

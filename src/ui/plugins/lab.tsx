@@ -1,7 +1,7 @@
 /**
  * Dev-only effects lab.
  *
- *   bun run src/ui/effects/lab.tsx
+ *   bun run src/ui/plugins/lab.tsx
  *
  * A synthetic cursor moves across the empty canvas, leaving a trail and
  * emitting particles. Keys: 1 fire, 2 snow, 3 sparks, space burst, c trail,

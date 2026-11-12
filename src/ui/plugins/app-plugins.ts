@@ -17,13 +17,13 @@ import { effectDebug } from "./debug"
 import embers from "./examples/embers"
 import fireflies from "./examples/fireflies"
 import sparks from "./examples/sparks"
-import { CustomParticleHost, type EffectHost } from "./host"
+import { CustomParticleHost, type ParticleHost } from "./particle-host"
 import { paintParticles, paintTrail, type TextLayer } from "./paint"
 import { paintScene, type SceneHitRegion } from "./scene/paint"
 import { clearSceneImageCache, type SceneImages } from "./scene/image"
 import type { SceneNode, SceneState } from "./scene/model"
 
-export type EffectsOptions = {
+export type PluginOptions = {
   enabled: boolean
   trail: boolean
   particles: boolean
@@ -31,9 +31,9 @@ export type EffectsOptions = {
 }
 
 /** A running host plus the id the app reports for it. */
-export type EffectHostEntry = {
+export type ParticleHostEntry = {
   id: string
-  host: EffectHost
+  host: ParticleHost
 }
 
 /** A sandboxed plugin that emits scene nodes. */
@@ -71,12 +71,12 @@ export type SceneHostEntry = {
   host: SceneHost
 }
 
-/** Hosts, systems and state a caller can hand to `createAppEffects`. */
-export type EffectSetup = {
+/** Hosts, systems and state a caller can hand to `createAppPlugins`. */
+export type PluginSetup = {
   /** Trusted in-process systems, in addition to the selected examples. */
   systems?: readonly ParticleSystem[]
   /** Already-built particle hosts, including sandboxed workers. */
-  hosts?: readonly EffectHostEntry[]
+  hosts?: readonly ParticleHostEntry[]
   /** Sandboxed scene hosts. */
   scenes?: readonly SceneHostEntry[]
   /** Read-only projection handed to scene plugins. */
@@ -125,9 +125,9 @@ export function selectSystems(
   return examples.filter((system) => wanted.has(system.id) || wanted.has(system.id.split(".").pop() ?? ""))
 }
 
-export function resolveEffectsOptions(
+export function resolvePluginOptions(
   env: Record<string, string | undefined> = process.env,
-): EffectsOptions {
+): PluginOptions {
   const reduced = env.LOCKEDIN_REDUCED_MOTION === "1"
   const kinds = reduced ? { trail: false, particles: false } : effectKinds(env.LOCKEDIN_EFFECTS)
   const requested = env.LOCKEDIN_EFFECTS_LAYER as TextLayer | undefined
@@ -159,11 +159,11 @@ export function findComposerCursor(buffer: OptimizedBuffer): { x: number; y: num
   return null
 }
 
-export class AppEffects {
+export class AppPlugins {
   private readonly renderer: CliRenderer
   private readonly palette: () => ThemePalette
-  private readonly options: EffectsOptions
-  private hosts: EffectHostEntry[]
+  private readonly options: PluginOptions
+  private hosts: ParticleHostEntry[]
   private scenes: SceneHostEntry[]
   private readonly state: () => SceneState
   private readonly trail = new CursorTrail(0.7, 96)
@@ -181,8 +181,8 @@ export class AppEffects {
   constructor(
     renderer: CliRenderer,
     palette: () => ThemePalette,
-    options: EffectsOptions,
-    hosts: EffectHostEntry[] = [],
+    options: PluginOptions,
+    hosts: ParticleHostEntry[] = [],
     scenes: SceneHostEntry[] = [],
     state: () => SceneState = () => ({ width: 1, height: 1 }),
   ) {
@@ -339,7 +339,7 @@ export class AppEffects {
    * Swap every running host, disposing the old ones. The dev file watcher uses
    * this after a reload; sandboxed workers are terminated here.
    */
-  setHosts(hosts: EffectHostEntry[]): void {
+  setHosts(hosts: ParticleHostEntry[]): void {
     for (const { host } of this.hosts) {
       host.clear()
       host.dispose?.()
@@ -489,15 +489,15 @@ export class AppEffects {
   }
 }
 
-export function createAppEffects(
+export function createAppPlugins(
   renderer: CliRenderer,
   palette: () => ThemePalette,
   env: Record<string, string | undefined> = process.env,
-  setup: EffectSetup = {},
-): AppEffects | null {
-  const options = resolveEffectsOptions(env)
+  setup: PluginSetup = {},
+): AppPlugins | null {
+  const options = resolvePluginOptions(env)
   if (!options.enabled) return null
-  const hosts: EffectHostEntry[] = []
+  const hosts: ParticleHostEntry[] = []
   if (options.particles) {
     for (const system of [...selectSystems(env), ...(setup.systems ?? [])]) {
       const check = validateParticleSystem(system)
@@ -509,7 +509,7 @@ export function createAppEffects(
     }
     hosts.push(...(setup.hosts ?? []))
   }
-  return new AppEffects(
+  return new AppPlugins(
     renderer,
     palette,
     options,

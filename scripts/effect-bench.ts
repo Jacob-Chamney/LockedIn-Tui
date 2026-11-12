@@ -11,10 +11,10 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { bundleEffectEntry } from "../src/ui/effects/loader"
-import { SandboxedEffect } from "../src/ui/effects/sandbox/effect"
-import { loadQuickJS } from "../src/ui/effects/sandbox/runtime"
-import type { EffectManifest } from "../src/ui/effects/sandbox/manifest"
+import { bundlePluginEntry } from "../src/ui/plugins/loader"
+import { SandboxedPlugin } from "../src/ui/plugins/sandbox/plugin"
+import { loadQuickJS } from "../src/ui/plugins/sandbox/runtime"
+import type { PluginManifest } from "../src/ui/plugins/sandbox/manifest"
 
 const SOURCE = `
 export default {
@@ -47,7 +47,7 @@ export default {
 }
 `
 
-const MANIFEST: EffectManifest = {
+const MANIFEST: PluginManifest = {
   manifestVersion: 1,
   id: "bench.effect",
   name: "Bench",
@@ -84,9 +84,9 @@ try {
   await loadQuickJS()
   const wasm = performance.now() - t0
 
-  const bundle = await bundleEffectEntry(entry)
+  const bundle = await bundlePluginEntry(entry)
   const t1 = performance.now()
-  const effect = await SandboxedEffect.create(bundle, MANIFEST)
+  const effect = await SandboxedPlugin.create(bundle, MANIFEST)
   const load = performance.now() - t1
 
   effect.resize(200, 60)

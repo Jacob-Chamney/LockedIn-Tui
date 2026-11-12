@@ -7,9 +7,9 @@ import { onMount } from "solid-js"
 import { testRender, useRenderer } from "@opentui/solid"
 
 import { crimson } from "../../src/ui/theme/palettes"
-import { CursorTrail } from "../../src/ui/effects/cursor"
-import { paintCursor, paintParticles, paintTrail } from "../../src/ui/effects/paint"
-import type { Particle } from "../../src/ui/effects/particles"
+import { CursorTrail } from "../../src/ui/plugins/cursor"
+import { paintCursor, paintParticles, paintTrail } from "../../src/ui/plugins/paint"
+import type { Particle } from "../../src/ui/plugins/particles"
 
 test("effects paint on empty cells and preserve text", async () => {
   const particle: Particle = {

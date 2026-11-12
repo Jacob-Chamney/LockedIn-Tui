@@ -10,11 +10,11 @@ import { RGBA } from "@opentui/core"
 
 import type { ThemePalette } from "../../theme"
 import type { ParticleEvent } from "../api"
-import type { EffectHost } from "../host"
+import type { ParticleHost } from "../particle-host"
 import type { Particle } from "../particles"
 import type { TextLayer } from "../paint"
 import { DEFAULT_SANDBOX_LIMITS, type SandboxLimits } from "./limits"
-import type { EffectManifest } from "./manifest"
+import type { PluginManifest } from "./manifest"
 import type { ComposeInput, FrameInput, WireParticle, WorkerIn, WorkerOut } from "./protocol"
 import type { PluginStoreData } from "../plugin-state"
 import { collectFocusIds, DEFAULT_SCENE_BUDGET, sanitizeScene, type SceneNode, type SceneState } from "../scene/model"
@@ -34,7 +34,7 @@ type PendingScene = {
 
 export type SandboxWorkerOptions = {
   bundle: string
-  manifest: EffectManifest
+  manifest: PluginManifest
   palette: ThemePalette
   limits?: SandboxLimits
   /** Persistent state loaded by the host. */
@@ -83,8 +83,8 @@ function toParticles(wire: readonly WireParticle[], palette: ThemePalette): Part
   }))
 }
 
-export class SandboxWorkerEffect implements EffectHost {
-  readonly manifest: EffectManifest
+export class SandboxWorkerPlugin implements ParticleHost {
+  readonly manifest: PluginManifest
   layer: TextLayer = "around"
   hasParticles = true
   hasScene = false
@@ -136,7 +136,7 @@ export class SandboxWorkerEffect implements EffectHost {
   private output: Particle[] = []
   private count = 0
 
-  private constructor(worker: Worker, manifest: EffectManifest, limits: SandboxLimits, palette: ThemePalette) {
+  private constructor(worker: Worker, manifest: PluginManifest, limits: SandboxLimits, palette: ThemePalette) {
     this.worker = worker
     this.manifest = manifest
     this.hasPointer = manifest.permissions.pointer !== undefined
@@ -147,10 +147,10 @@ export class SandboxWorkerEffect implements EffectHost {
     worker.onerror = (event) => this.fail(String(event.message ?? "worker error"))
   }
 
-  static create(options: SandboxWorkerOptions): Promise<SandboxWorkerEffect> {
+  static create(options: SandboxWorkerOptions): Promise<SandboxWorkerPlugin> {
     const limits = options.limits ?? DEFAULT_SANDBOX_LIMITS
     const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" })
-    const effect = new SandboxWorkerEffect(worker, options.manifest, limits, options.palette)
+    const effect = new SandboxWorkerPlugin(worker, options.manifest, limits, options.palette)
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         effect.dispose()
@@ -482,3 +482,6 @@ export class SandboxWorkerEffect implements EffectHost {
     }
   }
 }
+
+/** @deprecated use SandboxWorkerPlugin. */
+export { SandboxWorkerPlugin as SandboxWorkerEffect }

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test"
 
-import { validateParticleSystem } from "../../src/ui/effects/api"
-import { CustomParticleHost } from "../../src/ui/effects/host"
-import { EffectRegistry } from "../../src/ui/effects/registry"
+import { validateParticleSystem } from "../../src/ui/plugins/api"
+import { CustomParticleHost } from "../../src/ui/plugins/particle-host"
+import { ParticleRegistry } from "../../src/ui/plugins/registry"
 import { crimson } from "../../src/ui/theme/palettes"
 
 function system(overrides: Record<string, unknown> = {}) {
@@ -60,7 +60,7 @@ describe("particle system validation", () => {
 
 describe("effect registry", () => {
   test("adds, lists and removes systems", () => {
-    const registry = new EffectRegistry()
+    const registry = new ParticleRegistry()
     expect(registry.add(system()).ok).toBe(true)
     expect(registry.add(system({ id: "user.second" })).ok).toBe(true)
     expect(registry.list().map((entry) => entry.id)).toEqual(["user.example", "user.second"])
@@ -71,7 +71,7 @@ describe("effect registry", () => {
   })
 
   test("a duplicate id is rejected", () => {
-    const registry = new EffectRegistry()
+    const registry = new ParticleRegistry()
     registry.add(system())
     const again = registry.add(system())
     expect(again.ok).toBe(false)
@@ -79,7 +79,7 @@ describe("effect registry", () => {
   })
 
   test("an invalid system never enters the registry", () => {
-    const registry = new EffectRegistry()
+    const registry = new ParticleRegistry()
     expect(registry.add({ id: "" }).ok).toBe(false)
     expect(registry.size).toBe(0)
   })
@@ -93,7 +93,7 @@ describe("host failure containment", () => {
           throw new Error("boom")
         },
       }),
-    } as unknown as import("../../src/ui/effects/api").ParticleSystem)
+    } as unknown as import("../../src/ui/plugins/api").ParticleSystem)
     host.setCursor(4, 4)
     for (let index = 0; index < 6; index++) host.update(1 / 60)
     expect(host.failed).toBe(true)
@@ -110,7 +110,7 @@ describe("host failure containment", () => {
           throw new Error("no slot")
         },
       }),
-    } as unknown as import("../../src/ui/effects/api").ParticleSystem)
+    } as unknown as import("../../src/ui/plugins/api").ParticleSystem)
     host.setCursor(4, 4)
     host.update(1 / 60)
     expect(host.lastError).toBe("no slot")
@@ -136,7 +136,7 @@ test("keypress and send events reach systems that subscribe", () => {
       out.seed[index] = 0.5
       return true
     },
-  } as unknown as import("../../src/ui/effects/api").ParticleSystem)
+  } as unknown as import("../../src/ui/plugins/api").ParticleSystem)
   host.event({ kind: "keypress", name: "a" })
   host.update(1 / 60)
   expect(host.particleCount).toBe(1)

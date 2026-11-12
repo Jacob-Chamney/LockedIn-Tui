@@ -4,8 +4,8 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import { buildPlugin } from "../../scripts/plugin-build"
-import { loadEffectPlugins } from "../../src/ui/effects/loader"
-import { SandboxedEffect } from "../../src/ui/effects/sandbox/effect"
+import { loadPlugins } from "../../src/ui/plugins/loader"
+import { SandboxedPlugin } from "../../src/ui/plugins/sandbox/plugin"
 
 const dirs: string[] = []
 
@@ -60,9 +60,9 @@ test("a source plugin packages into a loadable .lockedin directory", async () =>
   expect(packaged.entry).toBe("plugin.js")
   expect(await Bun.file(join(built.dir, "plugin.js")).exists()).toBe(true)
 
-  const loaded = await loadEffectPlugins([built.dir])
+  const loaded = await loadPlugins([built.dir])
   expect(loaded.errors).toEqual([])
-  const effect = await SandboxedEffect.create(loaded.plugins[0]!.bundle, loaded.plugins[0]!.manifest)
+  const effect = await SandboxedPlugin.create(loaded.plugins[0]!.bundle, loaded.plugins[0]!.manifest)
   try {
     const scene = effect.compose({ state: { width: 40, height: 12 }, time: 1 }) as { nodes: unknown[] }
     expect(scene.nodes).toHaveLength(1)

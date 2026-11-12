@@ -28,8 +28,8 @@ const VIEW: View = {
   tutorPolicy: "direct",
   pluginServers: ["notes", "filesystem"],
   hideHints: false,
-  effectPluginDirs: [],
-  disabledEffectPlugins: [],
+  pluginDirsFromConfig: [],
+  disabledPlugins: [],
 }
 
 async function mount(width: number, height: number, view: View = VIEW, state = settings.initialSettingsState) {

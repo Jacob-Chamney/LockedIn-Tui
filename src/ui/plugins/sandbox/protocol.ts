@@ -6,7 +6,7 @@
 import type { ParticleEvent, ParticleSystem } from "../api"
 import type { TextLayer } from "../paint"
 import type { SandboxLimits } from "./limits"
-import type { EffectManifest } from "./manifest"
+import type { PluginManifest } from "./manifest"
 import type { SceneState } from "../scene/model"
 import type { PluginStoreData } from "../plugin-state"
 
@@ -28,7 +28,7 @@ export type WireParticle = {
 export type LoadMessage = {
   type: "load"
   bundle: string
-  manifest: EffectManifest
+  manifest: PluginManifest
   limits: SandboxLimits
   /** Persistent plugin state loaded by the host. */
   store?: PluginStoreData

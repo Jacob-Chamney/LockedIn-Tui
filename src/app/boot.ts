@@ -777,8 +777,8 @@ export function settingsViewFrom(config: Config, dataDir: string): SettingsView 
     historyLimit: config.ui.chill_history_limit,
     pluginServers: Object.keys(config.plugins.servers),
     hideHints: config.ui.hide_hints,
-    effectPluginDirs: config.ui.effects.dirs,
-    disabledEffectPlugins: config.ui.effects.disabled,
+    pluginDirsFromConfig: config.ui.effects.dirs,
+    disabledPlugins: config.ui.effects.disabled,
   }
 }
 

@@ -19,7 +19,7 @@ import { KeymapRegistry, generatedRows, parseBinding, type Action, type KeymapRe
 import { resolveKey, resolveLeaderKey } from "../ui/keymap/resolve";
 import { filterCommands } from "../ui/shell/commands";
 import { initialPluginManager, movePluginCursor, renamePluginItem, togglePluginItem } from "../ui/settings/plugin-manager";
-import { PluginStateStore } from "../ui/effects/plugin-state";
+import { PluginStateStore } from "../ui/plugins/plugin-state";
 import { applyConfig } from "../ui/keymap/persist";
 import { emptySettingsView } from "../ui/settings";
 import type { SettingsView } from "../ui/settings";
@@ -29,13 +29,13 @@ import { initialActivity } from "../ui/work/activity";
 import { moveTheme, themeEntries } from "../ui/settings/themes";
 import type { PanelRow } from "../ui/panels/panel-list";
 import { AGENT_MODELS, AGENT_PERMISSIONS, AGENT_FIELDS, initialAgentSettings, type AgentField } from "../ui/features/agents/agent-settings-panel";
-import { createAppEffects, resolveEffectsOptions, type EffectHostEntry, type SceneHostEntry } from "../ui/effects/app-effects";
-import { effectDebug } from "../ui/effects/debug";
-import { CustomParticleHost } from "../ui/effects/host";
-import { bundledPluginRoots, effectPathsFromEnv, effectPluginDirs, loadEffectFiles, loadEffectPlugins, scanPluginDirs, watchEffectSources } from "../ui/effects/loader";
-import { copyToClipboard } from "../ui/effects/clipboard";
-import { SandboxWorkerEffect } from "../ui/effects/sandbox/client";
-import type { SceneState } from "../ui/effects/scene/model";
+import { createAppPlugins, resolvePluginOptions, type ParticleHostEntry, type SceneHostEntry } from "../ui/plugins/app-plugins";
+import { effectDebug } from "../ui/plugins/debug";
+import { CustomParticleHost } from "../ui/plugins/particle-host";
+import { bundledPluginRoots, particlePathsFromEnv, pluginDirsFromConfig, loadParticleFiles, loadPlugins, scanPluginDirs, watchPlugins } from "../ui/plugins/loader";
+import { copyToClipboard } from "../ui/plugins/clipboard";
+import { SandboxWorkerPlugin } from "../ui/plugins/sandbox/client";
+import type { SceneState } from "../ui/plugins/scene/model";
 import { dirty as sessionSettingsDirty, initialSessionSettings, move as moveSessionSettings, selectedRow as selectedSessionSettingsRow, type SessionSettingsState } from "../ui/features/session-settings/session-settings-model";
 import { chatSettingRows, nextChatSetting, type ChatSettingsRow } from "../ui/features/chat-settings/chat-settings-panel";
 import type { SwarmSummary } from "../ui/shell/explorer";
@@ -324,9 +324,9 @@ export function App(props: {
   const renderer = useRenderer()
   const dims = useTerminalDimensions()
   /** Dev-only effects layer; null unless LOCKEDIN_EFFECTS is set. */
-  let appEffects: import("../ui/effects/app-effects").AppEffects | null = null
+  let appEffects: import("../ui/plugins/app-plugins").AppPlugins | null = null
   /** Reloads the sandboxed hosts after the settings switch changes. */
-  let reloadEffectHosts: (() => void) | null = null
+  let reloadParticleHosts: (() => void) | null = null
   /** Plugin roots for the manager; set once the effects layer mounts. */
   let pluginRoots: (() => Promise<string[]>) | null = null
   const [pluginManager, setPluginManager] = createSignal(initialPluginManager)
@@ -4203,8 +4203,8 @@ export function App(props: {
     update({ ...current(), pane: "plugin-manager", mode: "normal", overlay: null })
     setPluginManager({ ...initialPluginManager, mode: "plugins", loading: true })
     const roots = pluginRoots ? await pluginRoots() : []
-    const loaded = await loadEffectPlugins(roots)
-    const disabled = new Set(settingsView()?.disabledEffectPlugins ?? [])
+    const loaded = await loadPlugins(roots)
+    const disabled = new Set(settingsView()?.disabledPlugins ?? [])
     setPluginManager({
       ...initialPluginManager,
       cursor: 0,
@@ -4224,7 +4224,7 @@ export function App(props: {
     // the sandbox and disposed immediately; the display name is all we keep.
     for (const plugin of loaded.plugins) {
       try {
-        const host = await SandboxWorkerEffect.create({
+        const host = await SandboxWorkerPlugin.create({
           bundle: plugin.bundle,
           manifest: plugin.manifest,
           palette,
@@ -4254,7 +4254,7 @@ export function App(props: {
     const state = pluginManager()
     const item = state.items[state.cursor]
     if (!item) return
-    const disabled = new Set(settingsView()?.disabledEffectPlugins ?? [])
+    const disabled = new Set(settingsView()?.disabledPlugins ?? [])
     if (item.enabled) disabled.add(item.id)
     else disabled.delete(item.id)
     const next = [...disabled].sort()
@@ -4273,9 +4273,9 @@ export function App(props: {
       }))
       return
     }
-    setSettingsView((view) => (view ? { ...view, disabledEffectPlugins: next } : view))
+    setSettingsView((view) => (view ? { ...view, disabledPlugins: next } : view))
     setPluginManager((current) => togglePluginItem(current, item.id))
-    reloadEffectHosts?.()
+    reloadParticleHosts?.()
     notify(`${item.name}: ${item.enabled ? "disabled" : "enabled"}`)
   }
 
@@ -4329,28 +4329,28 @@ export function App(props: {
      * directories (manifest + entry) run in a sandboxed worker.
      */
     const buildHosts = async (pluginDirs: readonly string[]): Promise<{
-      particles: EffectHostEntry[]
+      particles: ParticleHostEntry[]
       scenes: SceneHostEntry[]
       actions: Action[]
     }> => {
-      const paths = await effectPathsFromEnv()
-      const loaded = paths.length > 0 ? await loadEffectFiles(paths) : { systems: [], errors: [] }
+      const paths = await particlePathsFromEnv()
+      const loaded = paths.length > 0 ? await loadParticleFiles(paths) : { systems: [], errors: [] }
       report(loaded.errors)
-      const particles: EffectHostEntry[] = loaded.systems.map((entry) => ({
+      const particles: ParticleHostEntry[] = loaded.systems.map((entry) => ({
         id: entry.system.id,
         host: new CustomParticleHost(1, 1, palette(), entry.system),
       }))
       const scenes: SceneHostEntry[] = []
       const actions: Action[] = []
-      const plugins = await loadEffectPlugins(pluginDirs)
+      const plugins = await loadPlugins(pluginDirs)
       report(plugins.errors)
-      const disabled = new Set(settingsView()?.disabledEffectPlugins ?? [])
+      const disabled = new Set(settingsView()?.disabledPlugins ?? [])
       for (const plugin of plugins.plugins) {
         if (disabled.has(plugin.manifest.id)) continue
         const id = plugin.manifest.id
         try {
           const store = pluginState ? await pluginState.load(id) : {}
-          const host = await SandboxWorkerEffect.create({
+          const host = await SandboxWorkerPlugin.create({
             bundle: plugin.bundle,
             manifest: plugin.manifest,
             palette: palette(),
@@ -4412,17 +4412,17 @@ export function App(props: {
     /** Plugin roots: env folders for the dev harness, plus config folders when mounted. */
     const configDirs = (): readonly string[] => {
       const view = settingsView()
-      return view?.effectPluginDirs ?? []
+      return view?.pluginDirsFromConfig ?? []
     }
 
     void (async () => {
-      const options = resolveEffectsOptions()
-      const userEffects = options.enabled && options.particles
-      const envDirs = userEffects ? await effectPluginDirs() : []
+      const options = resolvePluginOptions()
+      const userPlugins = options.enabled && options.particles
+      const envDirs = userPlugins ? await pluginDirsFromConfig() : []
       const pluginDirs = async (): Promise<string[]> => [
         ...new Set([
           ...envDirs,
-          ...(userEffects
+          ...(userPlugins
             ? [
                 ...(await scanPluginDirs(configDirs())),
                 ...(await scanPluginDirs(bundledPluginRoots())),
@@ -4430,7 +4430,7 @@ export function App(props: {
             : []),
         ]),
       ]
-      const hosts = userEffects
+      const hosts = userPlugins
         ? await buildHosts(await pluginDirs())
         : { particles: [], scenes: [], actions: [] }
       setPluginErrors({})
@@ -4439,14 +4439,14 @@ export function App(props: {
         for (const entry of hosts.scenes) entry.host.dispose?.()
         return
       }
-      appEffects = createAppEffects(renderer, palette, process.env, {
+      appEffects = createAppPlugins(renderer, palette, process.env, {
         hosts: hosts.particles,
         scenes: hosts.scenes,
         state: sceneState,
       })
       appEffects?.start()
       mountPluginActions(hosts.actions)
-      if (!userEffects) return
+      if (!userPlugins) return
 
       const reload = async () => {
         void pluginState?.flush()
@@ -4463,12 +4463,12 @@ export function App(props: {
       }
 
       pluginRoots = pluginDirs
-      reloadEffectHosts = () => {
+      reloadParticleHosts = () => {
         void reload()
       }
 
       // Editing an effect file, manifest or entry swaps the running hosts.
-      unwatch = watchEffectSources(process.env, () => {
+      unwatch = watchPlugins(process.env, () => {
         void reload()
       }, 120, [...envDirs, ...configDirs(), ...bundledPluginRoots()])
     })()
@@ -4476,7 +4476,7 @@ export function App(props: {
       stopped = true
       void pluginState?.flush()
       pluginRoots = null
-      reloadEffectHosts = null
+      reloadParticleHosts = null
       unwatch?.()
       unwatch = null
       renderer.root.onMouseDown = undefined

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 
-import { copyToClipboard, osc52 } from "../../src/ui/effects/clipboard"
-import { MAX_CLIPBOARD_CHARS } from "../../src/ui/effects/sandbox/limits"
+import { copyToClipboard, osc52 } from "../../src/ui/plugins/clipboard"
+import { MAX_CLIPBOARD_CHARS } from "../../src/ui/plugins/sandbox/limits"
 
 test("osc52 encodes text for the terminal clipboard", () => {
   expect(osc52("hi")).toBe("\u001b]52;c;aGk=\u0007")

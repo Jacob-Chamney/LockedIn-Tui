@@ -12,9 +12,9 @@ import {
   SCAFFOLD_TEMPLATES,
   type ScaffoldTemplate,
 } from "../../scripts/plugin-new"
-import { loadEffectPlugins } from "../../src/ui/effects/loader"
-import { SandboxedEffect } from "../../src/ui/effects/sandbox/effect"
-import type { SceneNode } from "../../src/ui/effects/scene/model"
+import { loadPlugins } from "../../src/ui/plugins/loader"
+import { SandboxedPlugin } from "../../src/ui/plugins/sandbox/plugin"
+import type { SceneNode } from "../../src/ui/plugins/scene/model"
 
 const dirs: string[] = []
 
@@ -61,12 +61,12 @@ for (const template of SCAFFOLD_TEMPLATES) {
     expect(manifest.permissions.scene.anchors).toContain("top-left")
     expect(manifest.permissions.commands.length).toBe(template === "kpi" ? 1 : 2)
 
-    const loaded = await loadEffectPlugins([created.dir])
+    const loaded = await loadPlugins([created.dir])
     expect(loaded.errors).toEqual([])
     const plugin = loaded.plugins[0]!
     expect(plugin.manifest.id).toBe(id)
 
-    const effect = await SandboxedEffect.create(plugin.bundle, plugin.manifest)
+    const effect = await SandboxedPlugin.create(plugin.bundle, plugin.manifest)
     try {
       const scene = effect.compose({
         state: { width: 110, height: 40, focusedWindow: template === "kpi" ? "detail" : null },
@@ -120,10 +120,10 @@ for (const template of SCAFFOLD_TEMPLATES) {
       await Bun.file(join(built.dir, "manifest.json")).text(),
     ) as { entry: string }
     expect(packagedManifest.entry).toBe("plugin.js")
-    const packaged = await loadEffectPlugins([built.dir])
+    const packaged = await loadPlugins([built.dir])
     expect(packaged.errors).toEqual([])
     expect(packaged.plugins[0]!.manifest.id).toBe(id)
-    const packagedEffect = await SandboxedEffect.create(
+    const packagedEffect = await SandboxedPlugin.create(
       packaged.plugins[0]!.bundle,
       packaged.plugins[0]!.manifest,
     )

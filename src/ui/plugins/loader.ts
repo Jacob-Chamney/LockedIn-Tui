@@ -7,7 +7,7 @@
  * A file exports a system as its default export (or a named `system`). The
  * loader validates it with `validateParticleSystem` and re-imports it when the
  * modification time changes, so editing an effect and restarting is enough.
- * `watchEffectSources` reports edits while the app is running.
+ * `watchPlugins` reports edits while the app is running.
  *
  * This runs the file in-process. That is acceptable for a dev harness; the
  * sandboxed host is what will run community effects.
@@ -21,7 +21,7 @@ import { pathToFileURL } from "node:url"
 import { validateParticleSystem, type ParticleSystem } from "./api"
 import { effectDebug } from "./debug"
 import { MAX_BUNDLE_BYTES } from "./sandbox/limits"
-import { parseManifest, type EffectManifest } from "./sandbox/manifest"
+import { parseManifest, type PluginManifest } from "./sandbox/manifest"
 
 export type LoadedSystem = {
   path: string
@@ -49,7 +49,7 @@ export function effectFilesFromEnv(
 }
 
 /** Files from `LOCKEDIN_EFFECTS_FILE`, or every `.ts` in `LOCKEDIN_EFFECTS_DIR`. */
-export async function effectPathsFromEnv(
+export async function particlePathsFromEnv(
   env: Record<string, string | undefined> = process.env,
 ): Promise<string[]> {
   const files = effectFilesFromEnv(env)
@@ -77,7 +77,7 @@ let builds = 0
  * imported by a unique name. Bundling also resolves the file's own relative
  * imports from its real location.
  */
-export async function loadEffectFile(path: string): Promise<LoadedSystem | { error: string }> {
+export async function loadParticleFile(path: string): Promise<LoadedSystem | { error: string }> {
   try {
     await stat(path)
   } catch {
@@ -114,11 +114,11 @@ export async function loadEffectFile(path: string): Promise<LoadedSystem | { err
 }
 
 /** Load every selected file, keeping the good ones and reporting the rest. */
-export async function loadEffectFiles(paths: readonly string[]): Promise<LoadResult> {
+export async function loadParticleFiles(paths: readonly string[]): Promise<LoadResult> {
   const systems: LoadedSystem[] = []
   const errors: string[] = []
   for (const path of paths) {
-    const result = await loadEffectFile(path)
+    const result = await loadParticleFile(path)
     if ("error" in result) errors.push(result.error)
     else systems.push(result)
   }
@@ -132,7 +132,7 @@ export async function loadEffectFiles(paths: readonly string[]): Promise<LoadRes
  *
  * Returns a function that stops the watchers.
  */
-export function watchEffectSources(
+export function watchPlugins(
   env: Record<string, string | undefined> = process.env,
   onChange: () => void,
   delay = 120,
@@ -191,7 +191,7 @@ export function watchEffectSources(
 /** A sandboxed plugin directory: manifest plus compiled entry bundle. */
 export type PluginSource = {
   dir: string
-  manifest: EffectManifest
+  manifest: PluginManifest
   bundle: string
 }
 
@@ -220,7 +220,7 @@ async function isFile(path: string): Promise<boolean> {
  * Plugin directories from `LOCKEDIN_EFFECTS_PLUGIN` (one) or every subdirectory
  * of `LOCKEDIN_EFFECTS_DIR` that has a `manifest.json`.
  */
-export async function effectPluginDirs(
+export async function pluginDirsFromConfig(
   env: Record<string, string | undefined> = process.env,
 ): Promise<string[]> {
   const single = env.LOCKEDIN_EFFECTS_PLUGIN?.trim()
@@ -284,7 +284,7 @@ export function bundledPluginRoots(
 }
 
 /** Compile a plugin entry to one CommonJS bundle for the sandbox. */
-export async function bundleEffectEntry(entry: string): Promise<string> {
+export async function bundlePluginEntry(entry: string): Promise<string> {
   const out = join(tmpdir(), "lockedin-effect-build", `${process.pid}-${builds++}`)
   await mkdir(out, { recursive: true })
   try {
@@ -323,7 +323,7 @@ export async function bundleEffectEntry(entry: string): Promise<string> {
 }
 
 /** Read manifests and build each plugin entry. Good plugins load, bad ones report. */
-export async function loadEffectPlugins(dirs: readonly string[]): Promise<PluginLoadResult> {
+export async function loadPlugins(dirs: readonly string[]): Promise<PluginLoadResult> {
   const plugins: PluginSource[] = []
   const errors: string[] = []
   for (const dir of dirs) {
@@ -348,7 +348,7 @@ export async function loadEffectPlugins(dirs: readonly string[]): Promise<Plugin
       const bundled = /\.(js|mjs)$/.test(entry)
       const bundle = bundled
         ? await Bun.file(entry).text()
-        : await bundleEffectEntry(entry)
+        : await bundlePluginEntry(entry)
       if (bundled && /\brequire\s*\(/.test(bundle)) {
         errors.push(`${dir}: the packaged bundle must be self-contained`)
         continue
@@ -366,6 +366,6 @@ export async function loadEffectPlugins(dirs: readonly string[]): Promise<Plugin
 }
 
 /** True when a path is a plugin directory (has a manifest) or a plain effect file. */
-export async function isEffectPlugin(path: string): Promise<boolean> {
+export async function isPluginDir(path: string): Promise<boolean> {
   return (await isDirectory(path)) && (await isFile(join(path, "manifest.json")))
 }

@@ -2,8 +2,8 @@ import { expect, test } from "bun:test"
 import { RGBA, type OptimizedBuffer } from "@opentui/core"
 
 import { crimson } from "../../src/ui/theme/palettes"
-import { paintScene } from "../../src/ui/effects/scene/paint"
-import { rasterizeShapeImage } from "../../src/ui/effects/scene/image"
+import { paintScene } from "../../src/ui/plugins/scene/paint"
+import { rasterizeShapeImage } from "../../src/ui/plugins/scene/image"
 import {
   collectFocusIds,
   DEFAULT_SCENE_BUDGET,
@@ -12,7 +12,7 @@ import {
   sanitizeScene,
   sanitizeSceneText,
   type SceneNode,
-} from "../../src/ui/effects/scene/model"
+} from "../../src/ui/plugins/scene/model"
 
 type Cell = { char: string; fg: RGBA; bg: RGBA }
 
@@ -892,7 +892,7 @@ test("text without a bg keeps the panel behind it and an explicit bg wins", () =
 
 test("painting collects hit regions with their enclosing window", () => {
   const { buffer } = mockBuffer(30, 12)
-  const hits: import("../../src/ui/effects/scene/paint").SceneHitRegion[] = []
+  const hits: import("../../src/ui/plugins/scene/paint").SceneHitRegion[] = []
   paintScene(
     buffer,
     [

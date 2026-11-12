@@ -8,7 +8,7 @@ import {
   PluginStateStore,
   sanitizeStore,
   storeBytes,
-} from "../../src/ui/effects/plugin-state"
+} from "../../src/ui/plugins/plugin-state"
 
 const dirs: string[] = []
 

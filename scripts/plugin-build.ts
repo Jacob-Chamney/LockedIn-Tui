@@ -1,7 +1,7 @@
 /**
  * Package a source plugin as a `.lockedin` directory.
  *
- *   bun run plugin:build src/ui/effects/examples/scene-window
+ *   bun run plugin:build src/ui/plugins/examples/scene-window
  *   bun run plugin:build path/to/plugin --out plugins
  *
  * The output is `<out>/<manifest id>.lockedin/` with a normalised
@@ -11,13 +11,13 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { join, resolve, sep } from "node:path"
 
-import { bundleEffectEntry } from "../src/ui/effects/loader"
-import { MAX_BUNDLE_BYTES } from "../src/ui/effects/sandbox/limits"
-import { SandboxedEffect } from "../src/ui/effects/sandbox/effect"
-import { parseManifest, type EffectManifest } from "../src/ui/effects/sandbox/manifest"
+import { bundlePluginEntry } from "../src/ui/plugins/loader"
+import { MAX_BUNDLE_BYTES } from "../src/ui/plugins/sandbox/limits"
+import { SandboxedPlugin } from "../src/ui/plugins/sandbox/plugin"
+import { parseManifest, type PluginManifest } from "../src/ui/plugins/sandbox/manifest"
 
 export type PluginBuildResult =
-  | { ok: true; dir: string; manifest: EffectManifest; bytes: number }
+  | { ok: true; dir: string; manifest: PluginManifest; bytes: number }
   | { ok: false; error: string }
 
 export async function buildPlugin(sourceDir: string, outRoot = "plugins"): Promise<PluginBuildResult> {
@@ -33,7 +33,7 @@ export async function buildPlugin(sourceDir: string, outRoot = "plugins"): Promi
       return { ok: false, error: "entry must stay inside the plugin directory" }
     }
     const prebuilt = /\.(js|mjs)$/.test(entry)
-    const bundle = prebuilt ? await Bun.file(entry).text() : await bundleEffectEntry(entry)
+    const bundle = prebuilt ? await Bun.file(entry).text() : await bundlePluginEntry(entry)
     if (/\brequire\s*\(/.test(bundle)) {
       return { ok: false, error: "the bundle must be self-contained: require() is not available" }
     }
@@ -45,7 +45,7 @@ export async function buildPlugin(sourceDir: string, outRoot = "plugins"): Promi
     }
 
     // Prove the package loads under the same limits the app uses.
-    const effect = await SandboxedEffect.create(bundle, manifest)
+    const effect = await SandboxedPlugin.create(bundle, manifest)
     effect.dispose()
 
     const output = join(resolve(outRoot), `${manifest.id}.lockedin`)

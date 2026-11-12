@@ -6,7 +6,7 @@
  * in `.lockedin` and is marked in the row and the detail column.
  *
  * Starter templates and the shipped examples live in the repository tooling
- * (`plugin:new`, `src/ui/effects/examples`), not in the packaged app.
+ * (`plugin:new`, `src/ui/plugins/examples`), not in the packaged app.
  */
 import type { ThemePalette } from "../theme"
 import { ListRow } from "../panels/list-row"

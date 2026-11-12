@@ -15,9 +15,9 @@ import { join } from "node:path"
 
 import { buildPlugin } from "./plugin-build"
 import { scaffoldPlugin, SCAFFOLD_TEMPLATES } from "./plugin-new"
-import { loadEffectPlugins } from "../src/ui/effects/loader"
-import { SandboxedEffect } from "../src/ui/effects/sandbox/effect"
-import { collectFocusIds, type SceneNode } from "../src/ui/effects/scene/model"
+import { loadPlugins } from "../src/ui/plugins/loader"
+import { SandboxedPlugin } from "../src/ui/plugins/sandbox/plugin"
+import { collectFocusIds, type SceneNode } from "../src/ui/plugins/scene/model"
 
 type Row = { name: string; ok: boolean; detail: string }
 
@@ -37,13 +37,13 @@ async function inspect(name: string, source: string): Promise<void> {
     rows.push({ name, ok: false, detail: "package entry is not plugin.js" })
     return
   }
-  const loaded = await loadEffectPlugins([built.dir])
+  const loaded = await loadPlugins([built.dir])
   if (loaded.errors.length > 0 || !loaded.plugins[0]) {
     rows.push({ name, ok: false, detail: loaded.errors[0] ?? "package did not load" })
     return
   }
   const plugin = loaded.plugins[0]
-  const effect = await SandboxedEffect.create(plugin.bundle, plugin.manifest)
+  const effect = await SandboxedPlugin.create(plugin.bundle, plugin.manifest)
   const problems: string[] = []
   try {
     const scene = effect.compose({
@@ -88,7 +88,7 @@ async function inspect(name: string, source: string): Promise<void> {
 }
 
 try {
-  const examplesDir = join(import.meta.dir, "..", "src", "ui", "effects", "examples")
+  const examplesDir = join(import.meta.dir, "..", "src", "ui", "plugins", "examples")
   const examples = (await readdir(examplesDir, { withFileTypes: true }))
     .filter((entry) => entry.isDirectory() && entry.name.startsWith("scene-"))
     .map((entry) => entry.name)
