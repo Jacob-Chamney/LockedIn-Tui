@@ -123,6 +123,16 @@ describe("checking", () => {
     expect(result).toEqual({ kind: "current", current: "1.2.0", latest: "1.2.0" })
   })
 
+  test("the old 1.6.0 release is not an update after the version reset", async () => {
+    const result = await checkForUpdate({
+      current: "1.0.0",
+      platform: "linux",
+      arch: "x64",
+      fetch: responder({ [API]: () => release("1.6.0") }),
+    })
+    expect(result).toEqual({ kind: "current", current: "1.0.0", latest: "1.6.0" })
+  })
+
   test("a missing release, server error or missing asset is unavailable, not a failure", async () => {
     const missing = await checkForUpdate({
       current: "1.0.0",
