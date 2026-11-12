@@ -304,6 +304,87 @@ export function window(options: WindowOptions): SceneGroup {
   }
 }
 
+export type CardTone = "info" | "success" | "warning" | "error" | "neutral"
+
+export type CardOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  width: number
+  title?: string
+  titleAlign?: "left" | "center" | "right"
+  borderStyle?: "rounded" | "single" | "double"
+  /** One row per string. */
+  lines?: readonly string[]
+  /** Extra nodes; their heights are measured too. */
+  body?: WindowSlots
+  footer?: WindowSlots
+  tone?: CardTone
+  padding?: number
+  gap?: number
+  bg?: string
+  fg?: string
+}
+
+/**
+ * A compact message card: framed window, optional title and a stack of lines.
+ *
+ * Height is computed from the content, so callers do not do layout arithmetic:
+ *
+ *   card({ anchor: "top-right", x: 2, y: 2, width: 32,
+ *          title: "saved", lines: ["3 notes updated"], tone: "success" })
+ */
+export function card(options: CardOptions): SceneGroup {
+  const padding = Math.max(0, options.padding ?? 1)
+  const gap = Math.max(0, options.gap ?? 1)
+  const lines = options.lines ?? []
+  const body = slotNodes(options.body)
+  const footer = slotNodes(options.footer)
+  const textRows = lines.map<SceneNode>((text, index) => ({
+    kind: "text",
+    anchor: "top-left",
+    x: 0,
+    y: index,
+    text,
+    fg: options.fg ?? "foreground",
+  }))
+  const bodyRows = Math.max(
+    lines.length,
+    ...body.map((node) => node.y + sceneHeight(node)),
+    0,
+  )
+  const footerRows = footer.reduce(
+    (total, node, index) => total + sceneHeight(node) + (index > 0 ? gap : 0),
+    0,
+  )
+  const height =
+    2 +
+    padding * 2 +
+    bodyRows +
+    (footer.length > 0 ? gap + footerRows : 0)
+  const tone: CardTone = options.tone ?? "info"
+  const borderColor =
+    tone === "neutral" || tone === "info" ? "line" : tone
+
+  return window({
+    anchor: options.anchor,
+    x: options.x,
+    y: options.y,
+    width: options.width,
+    height: Math.max(3, height),
+    title: options.title,
+    titleAlign: options.titleAlign,
+    borderStyle: options.borderStyle,
+    borderColor,
+    padding,
+    gap,
+    bg: options.bg,
+    fg: options.fg,
+    body: [...textRows, ...body],
+    footer: footer.length > 0 ? footer : undefined,
+  })
+}
+
 export type DashboardPanel = {
   /** The window contents; the grid owns its anchor, position and size. */
   window: Omit<WindowOptions, "anchor" | "x" | "y" | "width" | "height">
