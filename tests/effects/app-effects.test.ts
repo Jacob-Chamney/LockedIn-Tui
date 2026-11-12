@@ -17,8 +17,14 @@ test("effects are opt-in and reduced motion wins", () => {
     particles: true,
     layer: "under",
   })
+  expect(resolvePluginOptions({ LOCKEDIN_PLUGINS: "1" })).toEqual({
+    enabled: true,
+    trail: true,
+    particles: true,
+    layer: "under",
+  })
   expect(resolvePluginOptions({}).enabled).toBe(false)
-  expect(resolvePluginOptions({ LOCKEDIN_EFFECTS: "1", LOCKEDIN_REDUCED_MOTION: "1" })).toEqual({
+  expect(resolvePluginOptions({ LOCKEDIN_PLUGINS: "1", LOCKEDIN_REDUCED_MOTION: "1" })).toEqual({
     enabled: false,
     trail: false,
     particles: false,
@@ -27,21 +33,21 @@ test("effects are opt-in and reduced motion wins", () => {
 })
 
 test("the trail and the particles can be enabled separately", () => {
-  expect(resolvePluginOptions({ LOCKEDIN_EFFECTS: "trail" })).toEqual({
+  expect(resolvePluginOptions({ LOCKEDIN_PLUGINS: "trail" })).toEqual({
     enabled: true,
     trail: true,
     particles: false,
     layer: "under",
   })
-  expect(resolvePluginOptions({ LOCKEDIN_EFFECTS: "particles" }).particles).toBe(true)
-  expect(resolvePluginOptions({ LOCKEDIN_EFFECTS: "fireflies" }).trail).toBe(false)
-  expect(resolvePluginOptions({ LOCKEDIN_EFFECTS: "nope" }).enabled).toBe(false)
+  expect(resolvePluginOptions({ LOCKEDIN_PLUGINS: "particles" }).particles).toBe(true)
+  expect(resolvePluginOptions({ LOCKEDIN_PLUGINS: "fireflies" }).trail).toBe(false)
+  expect(resolvePluginOptions({ LOCKEDIN_PLUGINS: "nope" }).enabled).toBe(false)
 })
 
 test("the text layer can be selected, with a safe fallback", () => {
-  expect(resolvePluginOptions({ LOCKEDIN_EFFECTS: "1", LOCKEDIN_EFFECTS_LAYER: "around" }).layer).toBe("around")
-  expect(resolvePluginOptions({ LOCKEDIN_EFFECTS: "1", LOCKEDIN_EFFECTS_LAYER: "over" }).layer).toBe("over")
-  expect(resolvePluginOptions({ LOCKEDIN_EFFECTS: "1", LOCKEDIN_EFFECTS_LAYER: "nope" }).layer).toBe("under")
+  expect(resolvePluginOptions({ LOCKEDIN_PLUGINS: "1", LOCKEDIN_PLUGINS_LAYER: "around" }).layer).toBe("around")
+  expect(resolvePluginOptions({ LOCKEDIN_PLUGINS: "1", LOCKEDIN_PLUGINS_LAYER: "over" }).layer).toBe("over")
+  expect(resolvePluginOptions({ LOCKEDIN_PLUGINS: "1", LOCKEDIN_PLUGINS_LAYER: "nope" }).layer).toBe("under")
 })
 
 function frame(lines: string[][]): import("@opentui/core").OptimizedBuffer {
@@ -78,14 +84,14 @@ test("examples are selected by short name, id, or all", () => {
     "example.sparks",
     "user.own",
   ])
-  expect(selectSystems({ LOCKEDIN_EFFECTS_SYSTEMS: "sparks,user.own" }, systems).map((s) => s.id)).toEqual([
+  expect(selectSystems({ LOCKEDIN_PLUGINS_SYSTEMS: "sparks,user.own" }, systems).map((s) => s.id)).toEqual([
     "example.sparks",
     "user.own",
   ])
-  expect(selectSystems({ LOCKEDIN_EFFECTS_SYSTEMS: "example.sparks" }, systems).map((s) => s.id)).toEqual([
+  expect(selectSystems({ LOCKEDIN_PLUGINS_SYSTEMS: "example.sparks" }, systems).map((s) => s.id)).toEqual([
     "example.sparks",
   ])
-  expect(selectSystems({ LOCKEDIN_EFFECTS_SYSTEMS: "nope" }, systems)).toEqual([])
+  expect(selectSystems({ LOCKEDIN_PLUGINS_SYSTEMS: "nope" }, systems)).toEqual([])
 })
 
 function fakeRenderer(): import("@opentui/core").CliRenderer {
@@ -141,7 +147,7 @@ test("an invalid in-process system is not mounted", () => {
   const running = createAppPlugins(
     fakeRenderer(),
     () => crimson,
-    { LOCKEDIN_EFFECTS: "particles" },
+    { LOCKEDIN_PLUGINS: "particles" },
     { systems: [{ id: "has spaces" }] as unknown as import("../../src/ui/plugins/api").ParticleSystem[] },
   )
   expect(running?.systemIds).not.toContain("has spaces")
@@ -152,7 +158,7 @@ test("createAppPlugins appends loaded systems and sandbox hosts to the examples"
   const running = createAppPlugins(
     fakeRenderer(),
     () => crimson,
-    { LOCKEDIN_EFFECTS: "particles" },
+    { LOCKEDIN_PLUGINS: "particles" },
     {
       systems: [{ id: "user.loaded" }] as unknown as import("../../src/ui/plugins/api").ParticleSystem[],
       hosts: [{ id: "plugin.sandboxed", host: sandbox }],

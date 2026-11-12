@@ -1,7 +1,7 @@
 /**
  * App wiring for the rendering effects.
  *
- * Installed after the first frame and only while `LOCKEDIN_EFFECTS` is set.
+ * Installed after the first frame and only while `LOCKEDIN_PLUGINS` is set.
  * The app draws its own composer cursor as a glyph, not as the terminal
  * cursor, so the layer finds the cursor cell in the rendered buffer, fills the
  * cells between the old and new position, and fades them out. Particle systems
@@ -22,6 +22,7 @@ import { paintParticles, paintTrail, type TextLayer } from "./paint"
 import { paintScene, type SceneHitRegion } from "./scene/paint"
 import { clearSceneImageCache, type SceneImages } from "./scene/image"
 import type { SceneNode, SceneState } from "./scene/model"
+import { pluginEnvValue } from "./env"
 
 export type PluginOptions = {
   enabled: boolean
@@ -112,14 +113,14 @@ function effectKinds(value: string | undefined): { trail: boolean; particles: bo
 }
 
 /**
- * `LOCKEDIN_EFFECTS_SYSTEMS` selects examples by short name (`sparks`) or full
+ * `LOCKEDIN_PLUGINS_SYSTEMS` selects examples by short name (`sparks`) or full
  * id (`example.sparks`); `all` (the default) runs every example.
  */
 export function selectSystems(
   env: Record<string, string | undefined> = process.env,
   examples: readonly ParticleSystem[] = EXAMPLES,
 ): ParticleSystem[] {
-  const raw = env.LOCKEDIN_EFFECTS_SYSTEMS?.trim()
+  const raw = pluginEnvValue(env, "systems")?.trim()
   if (!raw || raw === "all") return [...examples]
   const wanted = new Set(raw.split(",").map((name) => name.trim()).filter(Boolean))
   return examples.filter((system) => wanted.has(system.id) || wanted.has(system.id.split(".").pop() ?? ""))
@@ -129,8 +130,8 @@ export function resolvePluginOptions(
   env: Record<string, string | undefined> = process.env,
 ): PluginOptions {
   const reduced = env.LOCKEDIN_REDUCED_MOTION === "1"
-  const kinds = reduced ? { trail: false, particles: false } : effectKinds(env.LOCKEDIN_EFFECTS)
-  const requested = env.LOCKEDIN_EFFECTS_LAYER as TextLayer | undefined
+  const kinds = reduced ? { trail: false, particles: false } : effectKinds(pluginEnvValue(env, "enabled"))
+  const requested = pluginEnvValue(env, "layer") as TextLayer | undefined
   const layer = requested && LAYERS.includes(requested) ? requested : "under"
   return { ...kinds, enabled: kinds.trail || kinds.particles, layer }
 }

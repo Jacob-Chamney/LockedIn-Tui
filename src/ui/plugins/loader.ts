@@ -1,8 +1,8 @@
 /**
  * Dev-only loader for user effect files.
  *
- *   LOCKEDIN_EFFECTS_FILE=~/my-effect.ts bun run start
- *   LOCKEDIN_EFFECTS_DIR=~/effects    bun run start
+ *   LOCKEDIN_PLUGINS_FILE=~/my-plugin.ts bun run start
+ *   LOCKEDIN_PLUGINS_DIR=~/plugins       bun run start
  *
  * A file exports a system as its default export (or a named `system`). The
  * loader validates it with `validateParticleSystem` and re-imports it when the
@@ -22,6 +22,7 @@ import { validateParticleSystem, type ParticleSystem } from "./api"
 import { effectDebug } from "./debug"
 import { MAX_BUNDLE_BYTES } from "./sandbox/limits"
 import { parseManifest, type PluginManifest } from "./sandbox/manifest"
+import { pluginEnvValue } from "./env"
 
 export type LoadedSystem = {
   path: string
@@ -37,24 +38,24 @@ function expand(path: string, env: Record<string, string | undefined>): string {
   return resolve(path.replace(/^~(?=\/)/, env.HOME ?? "~"))
 }
 
-/** Paths from `LOCKEDIN_EFFECTS_FILE`, expanded and made absolute. */
+/** Paths from `LOCKEDIN_PLUGINS_FILE`, expanded and made absolute. */
 export function effectFilesFromEnv(
   env: Record<string, string | undefined> = process.env,
 ): string[] {
-  return (env.LOCKEDIN_EFFECTS_FILE ?? "")
+  return (pluginEnvValue(env, "file") ?? "")
     .split(",")
     .map((path) => path.trim())
     .filter(Boolean)
     .map((path) => expand(path, env))
 }
 
-/** Files from `LOCKEDIN_EFFECTS_FILE`, or every `.ts` in `LOCKEDIN_EFFECTS_DIR`. */
+/** Files from `LOCKEDIN_PLUGINS_FILE`, or every `.ts` in `LOCKEDIN_PLUGINS_DIR`. */
 export async function particlePathsFromEnv(
   env: Record<string, string | undefined> = process.env,
 ): Promise<string[]> {
   const files = effectFilesFromEnv(env)
   if (files.length > 0) return files
-  const dir = env.LOCKEDIN_EFFECTS_DIR?.trim()
+  const dir = pluginEnvValue(env, "dir")?.trim()
   if (!dir) return []
   const root = expand(dir, env)
   try {
@@ -140,7 +141,7 @@ export function watchPlugins(
 ): () => void {
   const roots = new Map<string, Set<string> | null>()
   for (const dir of extraDirs) roots.set(resolve(dir), null)
-  const dir = env.LOCKEDIN_EFFECTS_DIR?.trim()
+  const dir = pluginEnvValue(env, "dir")?.trim()
   if (dir) {
     roots.set(expand(dir, env), null)
   } else {
@@ -217,15 +218,15 @@ async function isFile(path: string): Promise<boolean> {
 }
 
 /**
- * Plugin directories from `LOCKEDIN_EFFECTS_PLUGIN` (one) or every subdirectory
- * of `LOCKEDIN_EFFECTS_DIR` that has a `manifest.json`.
+ * Plugin directories from `LOCKEDIN_PLUGIN` (one) or every subdirectory of
+ * `LOCKEDIN_PLUGINS_DIR` that has a `manifest.json`.
  */
 export async function pluginDirsFromConfig(
   env: Record<string, string | undefined> = process.env,
 ): Promise<string[]> {
-  const single = env.LOCKEDIN_EFFECTS_PLUGIN?.trim()
+  const single = pluginEnvValue(env, "plugin")?.trim()
   if (single) return [expand(single, env)]
-  const dir = env.LOCKEDIN_EFFECTS_DIR?.trim()
+  const dir = pluginEnvValue(env, "dir")?.trim()
   if (!dir) return []
   const root = expand(dir, env)
   try {

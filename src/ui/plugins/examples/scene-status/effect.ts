@@ -3,7 +3,7 @@
  * absolutely placed box.
  *
  * Copy this directory, change the manifest id and the nodes, and point
- * LOCKEDIN_EFFECTS_DIR at it. The host validates every node and paints it;
+ * LOCKEDIN_PLUGINS_DIR at it. The host validates every node and paints it;
  * the plugin never receives the terminal buffer.
  */
 let visible = true

@@ -42,8 +42,39 @@ export type ConfigMigration = {
   apply(document: TomlDocument): TomlDocument
 }
 
-/** Forward-only, versioned. Empty in v1: no factory config has shipped yet. */
-export const CONFIG_MIGRATIONS: readonly ConfigMigration[] = []
+/**
+ * v2 moves the UI plugin list from `[ui.effects]` to `[ui.plugins]`.
+ *
+ * `ui.effects` was the development name; the loader, SDK and docs now say
+ * plugin. Existing values are copied once and the old table is removed.
+ */
+const migrateUiPlugins: ConfigMigration = {
+  to: 2,
+  apply(document) {
+    const ui = document.ui
+    if (!ui || typeof ui !== "object" || Array.isArray(ui)) return document
+    const table = ui as Record<string, unknown>
+    const legacy = table.effects
+    if (!legacy || typeof legacy !== "object" || Array.isArray(legacy)) return document
+    const old = legacy as Record<string, unknown>
+    const current =
+      table.plugins && typeof table.plugins === "object" && !Array.isArray(table.plugins)
+        ? (table.plugins as Record<string, unknown>)
+        : {}
+    table.plugins = {
+      ...current,
+      ...(current.dirs === undefined && old.dirs !== undefined ? { dirs: old.dirs } : {}),
+      ...(current.disabled === undefined && old.disabled !== undefined
+        ? { disabled: old.disabled }
+        : {}),
+    }
+    delete table.effects
+    return document
+  },
+}
+
+/** Forward-only, versioned. */
+export const CONFIG_MIGRATIONS: readonly ConfigMigration[] = [migrateUiPlugins]
 
 export type LoadOptions = {
   /** Override for tests and for the first real migration. */
@@ -403,8 +434,9 @@ export async function loadConfig(
           ),
         )
       }
-      // Missing file → documented defaults, written atomically.
-      const document = defaultDocument()
+      // Missing file → documented defaults, written atomically with the
+      // current schema version so a later load does not migrate it.
+      const document = { ...defaultDocument(), schema_version: CONFIG_VERSION }
       const written = await writeAtomic(file, serializeDocument(document))
       if (!written.ok) return written
       return build(document, file, true, false)

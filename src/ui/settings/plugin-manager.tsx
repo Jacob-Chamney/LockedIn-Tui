@@ -126,7 +126,7 @@ export function PluginManagerPane(props: {
       ) : null}
       {!props.state.loading && props.state.items.length === 0 ? (
         <text fg={palette().muted} wrapMode="none">
-          no plugins found in ui.effects.dirs
+          no plugins found in ui.plugins.dirs
         </text>
       ) : null}
       {visible().map((item) => (
