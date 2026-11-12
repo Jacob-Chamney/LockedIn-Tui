@@ -12,6 +12,24 @@
 - 
 - 
 
+## Changelog
+
+<!-- One line for the next release, written for users. Required for user-visible changes. -->
+
+- [ ] I added this change to `CHANGELOG.md` under `Unreleased` (or this is docs/internal only)
+
+Changelog line:
+
+```text
+
+```
+
+## Credit
+
+<!-- Add co-authors for paired work. Never remove someone else's attribution. -->
+
+Co-authored-by:
+
 ## Type of change
 
 - [ ] Bug fix
@@ -84,3 +102,4 @@ Keep generated artifacts and local screenshots out of the commit.
 - [ ] I added or updated tests for the behaviour.
 - [ ] I updated the README or contribution notes when necessary.
 - [ ] I did not include unrelated refactors in this PR.
+- [ ] Attribution is preserved (author, co-author trailers, contributor names).
