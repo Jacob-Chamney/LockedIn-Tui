@@ -22,8 +22,8 @@ test("an error renders as a rounded bubble with the message", async () => {
   try {
     await setup.flush()
     const frame = setup.captureCharFrame()
-    expect(frame).toContain("╭")
-    expect(frame).toContain("╮")
+    expect(frame).toContain("▘")
+    expect(frame).toContain("▝")
     expect(frame).toContain("×")
     expect(frame).toContain("model request failed")
   } finally {
