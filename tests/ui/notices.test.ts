@@ -13,6 +13,8 @@ describe("notice lifetime", () => {
     expect(noticeOpacity(notice(0), NOTICE_MS - NOTICE_FADE_MS)).toBe(1)
     expect(noticeOpacity(notice(0), NOTICE_MS - NOTICE_FADE_MS / 2)).toBeGreaterThan(0)
     expect(noticeOpacity(notice(0), NOTICE_MS - NOTICE_FADE_MS / 2)).toBeLessThan(1)
+    // Fades all the way to zero instead of jumping from a visible floor.
+    expect(noticeOpacity(notice(0), NOTICE_MS - 1)).toBeLessThan(0.02)
     expect(noticeOpacity(notice(0), NOTICE_MS)).toBe(0)
   })
 
