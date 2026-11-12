@@ -15,7 +15,7 @@ import {
   type Command,
   type GateView,
   type ServerRow,
-} from "./plugins-model"
+} from "./mcp-model"
 
 const COMMANDS: Command[] = ["chill", "lockin", "flashcards", "study-guide", "skill"]
 
@@ -76,7 +76,7 @@ export function PluginList(props: {
   )
 }
 
-export function PluginsPanel(props: {
+export function McpPanel(props: {
   theme: ThemePalette
   width: number
   height: number
@@ -91,7 +91,7 @@ export function PluginsPanel(props: {
       theme={palette()}
       width={props.width}
       height={props.height}
-      title="Plugins"
+      title="MCP servers"
       meta={`${props.servers.filter((s) => s.enabled).length} of ${props.servers.length} enabled`}
       detail="MCP servers, the tools each one may call, and the policy that gates them."
       hints={footerHints().split(" · ")}

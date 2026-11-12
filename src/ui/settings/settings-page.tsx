@@ -155,12 +155,12 @@ export function settingsGroups(view: SettingsView): SettingsGroup[] {
       id: "plugins",
       title: "PLUGINS",
       rows: [
-        { id: "servers", label: "Servers", value: view.pluginServers.length === 0 ? "none configured" : `${view.pluginServers.length} configured`, hint: "MCP servers available; enable them per command in Plugins.", edit: "none" },
+        { id: "servers", label: "MCP servers", value: view.pluginServers.length === 0 ? "none configured" : `${view.pluginServers.length} configured`, hint: "MCP servers available; enable them per command in MCP servers.", edit: "none" },
         {
           id: "manage-plugins",
-          label: "Plugin manager",
+          label: "UI plugins",
           value: "open",
-          hint: "list discovered effect plugins; Space enables or disables one.",
+          hint: "list sandboxed UI/effect plugins; Space enables or disables one.",
           edit: "none",
         },
       ],

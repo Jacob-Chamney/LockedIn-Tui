@@ -5,7 +5,7 @@
  */
 import { describe, expect, test } from "bun:test"
 
-const { decidePolicy } = await import("../../src/plugins/policy")
+const { decidePolicy } = await import("../../src/mcp/policy")
 
 const readOnly = { readOnly: true }
 

@@ -4,8 +4,8 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
 const { testRender } = await import("@opentui/solid")
-const plugins = await import("../../src/ui/features/plugins")
-type ServerRow = import("../../src/ui/features/plugins").ServerRow
+const plugins = await import("../../src/ui/features/mcp")
+type ServerRow = import("../../src/ui/features/mcp").ServerRow
 const { crimson } = await import("../../src/ui/theme")
 
 const FIXTURE = JSON.parse(readFileSync(join(import.meta.dir, "../fixtures/plugins-ui/servers.json"), "utf8"))
@@ -18,7 +18,7 @@ async function mount(
 ) {
   const setup = await testRender(
     () => (
-      <plugins.PluginsPanel
+      <plugins.McpPanel
         theme={crimson}
         width={width}
         height={height}
@@ -224,10 +224,10 @@ describe("layout and keys", () => {
   })
 
   test("the surface performs no IO and spawns nothing", () => {
-    for (const name of ["plugins-panel.tsx", "plugins-model.ts"]) {
-      const source = readFileSync(join(import.meta.dir, "../../src/ui/features/plugins", name), "utf8")
+    for (const name of ["mcp-panel.tsx", "mcp-model.ts"]) {
+      const source = readFileSync(join(import.meta.dir, "../../src/ui/features/mcp", name), "utf8")
       expect(source).not.toMatch(/writeFile\(|spawn\(|exec\(|rename\(|unlink\(/)
-      expect(source).not.toContain("src/plugins/stdio")
+      expect(source).not.toContain("src/mcp/stdio")
     }
   })
 })

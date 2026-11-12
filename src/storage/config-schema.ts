@@ -49,7 +49,7 @@ export type BindingMap = Record<string, string>
 export type PluginTransport = "stdio"
 export const PLUGIN_TRANSPORTS: readonly PluginTransport[] = ["stdio"]
 
-export type PluginServerConfig = {
+export type McpServerConfig = {
   transport: PluginTransport
   command: string
   args: string[]
@@ -146,7 +146,7 @@ export type Config = {
     enabled: boolean
     depth: string
     /** Keyed by server name; empty until one is configured. */
-    servers: Record<string, PluginServerConfig>
+    servers: Record<string, McpServerConfig>
     /** Keyed by command, then by server name. */
     policy: PluginPolicy
   }
@@ -425,7 +425,7 @@ function asStringArray(path: string, value: unknown): Result<string[], ConfigIss
 }
 
 /** One `plugins.servers.<name>` row. Unknown fields are preserved. */
-function validatePluginServer(name: string, value: unknown): Result<PluginServerConfig, ConfigIssue> {
+function validatePluginServer(name: string, value: unknown): Result<McpServerConfig, ConfigIssue> {
   const path = `plugins.servers.${name}`
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name)) {
     return err(issue(path, `“${name}” is not a valid server name.`, "Use letters, digits, dot, dash or underscore."))
@@ -463,12 +463,12 @@ function validatePluginServer(name: string, value: unknown): Result<PluginServer
   return ok({ transport: transport.value, command: command.value, args: args.value, enabled: enabled.value })
 }
 
-function validatePluginServers(value: unknown): Result<Record<string, PluginServerConfig>, ConfigIssue> {
+function validatePluginServers(value: unknown): Result<Record<string, McpServerConfig>, ConfigIssue> {
   const path = "plugins.servers"
   if (!isTable(value)) {
     return err(issue(path, `${path} must be a table of servers.`, "Add [plugins.servers.<name>] sections, or leave it out."))
   }
-  const servers: Record<string, PluginServerConfig> = {}
+  const servers: Record<string, McpServerConfig> = {}
   for (const [name, server] of Object.entries(value)) {
     const validated = validatePluginServer(name, server)
     if (!validated.ok) return validated

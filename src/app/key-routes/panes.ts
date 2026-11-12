@@ -56,7 +56,7 @@ export type PaneKeyDeps = {
   ) => void
   setDefaultAgentForProject: (projectId: string, agentId: string) => Promise<void>
   reviewItems: () => import("../../domain/review").ReviewItem[]
-  pluginRows: () => import("../../ui/features/plugins/plugins-model").ServerRow[]
+  pluginRows: () => import("../../ui/features/mcp/mcp-model").ServerRow[]
   pluginCursor: () => number
   setPluginCursor: (value: number | ((cursor: number) => number)) => void
   connectPlugin: (id: string) => Promise<void>

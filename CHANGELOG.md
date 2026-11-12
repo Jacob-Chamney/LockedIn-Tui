@@ -14,6 +14,12 @@ requests merge.
 
 ## Unreleased
 
+### Changed
+
+- Settings now separates **MCP servers** from **UI plugins**, and the plugin
+  manager is labelled **UI plugins**. The underlying MCP modules are named
+  `src/mcp` / `features/mcp` instead of `plugins`.
+
 ### Removed
 
 - The in-app template and example galleries are no longer part of the packaged

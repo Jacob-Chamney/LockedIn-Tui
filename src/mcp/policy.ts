@@ -13,7 +13,7 @@
  * It also fails closed — a tool whose annotations are missing is treated as
  * write-capable and needs an approval.
  */
-import type { Approval, PluginError, PluginMode, PluginResult, PluginTool } from "./types"
+import type { Approval, PluginError, PluginMode, PluginResult, McpTool } from "./types"
 
 export type PolicyVerdict =
   | { kind: "allow" }
@@ -47,7 +47,7 @@ export function coreServersFor(mode: PluginMode): readonly string[] {
   return mode === "skill" || mode === "work" ? ["web-search"] : []
 }
 
-export function decidePolicy(mode: PluginMode, tool: Pick<PluginTool, "readOnly">, context: PolicyContext): PolicyVerdict {
+export function decidePolicy(mode: PluginMode, tool: Pick<McpTool, "readOnly">, context: PolicyContext): PolicyVerdict {
   if (mode === "flashcards" || mode === "study-guide") {
     return deny(
       "This output is built only from the session sources; plugins are disabled.",
@@ -85,7 +85,7 @@ export function decidePolicy(mode: PluginMode, tool: Pick<PluginTool, "readOnly"
 }
 
 /** Convenience for callers that only need the boolean. */
-export function isAllowed(mode: PluginMode, tool: Pick<PluginTool, "readOnly">, context: PolicyContext): PluginResult<true> {
+export function isAllowed(mode: PluginMode, tool: Pick<McpTool, "readOnly">, context: PolicyContext): PluginResult<true> {
   const verdict = decidePolicy(mode, tool, context)
   if (verdict.kind === "allow") return { ok: true, value: true }
   return { ok: false, error: verdict.error }

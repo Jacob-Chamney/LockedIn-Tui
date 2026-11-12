@@ -26,13 +26,13 @@ import type { AchievementMetrics } from "../domain/achievements"
 import type { AchievementView } from "../ui/achievements/achievements"
 import type { PickerState } from "../services/lockin/picker"
 import type { PickerView } from "../ui/features/sources/sources-model"
-import type { ServerRow } from "../ui/features/plugins/plugins-model"
+import type { ServerRow } from "../ui/features/mcp/mcp-model"
 import type { ThemeId, ThemePalette } from "../ui/theme"
 
 import { resolveTheme } from "../ui/theme"
 import { ArchivePanel } from "../ui/features/archive"
 import { ActivityPane } from "../ui/work/activity"
-import { PluginsPanel } from "../ui/features/plugins"
+import { McpPanel } from "../ui/features/mcp"
 import { SessionsPanel } from "../ui/features/sessions"
 import { SkillsPanel } from "../ui/features/skills"
 import { SourcesPanel } from "../ui/features/sources"
@@ -364,7 +364,7 @@ const RENDERERS: Partial<Record<PaneId, PaneRenderer>> = {
     />
   ),
   plugins: (deps, width, height, palette) => (
-    <PluginsPanel
+    <McpPanel
       theme={palette}
       width={width}
       height={height}

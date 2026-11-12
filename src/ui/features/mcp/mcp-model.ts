@@ -1,7 +1,7 @@
 /**
  * Plugin settings and policy surface — pure model.
  *
- * The host and the decision engine belong to `src/plugins/policy.ts`; this
+ * The host and the decision engine belong to `src/mcp/policy.ts`; this
  * module only renders the matrix, builds the config patch an enable/disable
  * would write, and states what the permission gate is asking. It never runs a
  * package manager, never spawns a process and never writes config itself.
@@ -10,14 +10,14 @@ import { parseBinding, type Binding } from "../../keymap/registry"
 
 export type ServerStatus = "connected" | "stopped" | { failed: string }
 
-export type PluginToolRow = { name: string; write: boolean }
+export type McpToolRow = { name: string; write: boolean }
 
 export type ServerRow = {
   name: string
   transport: "stdio"
   enabled: boolean
   status: ServerStatus
-  tools: PluginToolRow[]
+  tools: McpToolRow[]
 }
 
 export type Command = "chill" | "lockin" | "flashcards" | "study-guide" | "skill"
@@ -56,7 +56,7 @@ export function serverLine(server: ServerRow): string {
   return `${server.enabled ? "◉" : "○"} ${server.name}  ${server.transport}  ${statusLabel(server)}  ${server.tools.length} tool${server.tools.length === 1 ? "" : "s"}`
 }
 
-export function toolLine(tool: PluginToolRow): string {
+export function toolLine(tool: McpToolRow): string {
   return `${tool.write ? "!" : " "} ${tool.name}${tool.write ? "  write-capable" : "  read-only"}`
 }
 
