@@ -4,24 +4,13 @@
  * The list is data; the shell owns discovery, persistence and mounting. Space
  * flips one plugin, Esc returns to Settings. A bundled plugin's directory ends
  * in `.lockedin` and is marked in the row and the detail column.
+ *
+ * Starter templates and the shipped examples live in the repository tooling
+ * (`plugin:new`, `src/ui/effects/examples`), not in the packaged app.
  */
 import type { ThemePalette } from "../theme"
 import { ListRow } from "../panels/list-row"
 import { TwoColumnSurface } from "../panels/two-column"
-import {
-  exampleRowLabel,
-  moveExampleCursor,
-  PLUGIN_EXAMPLES,
-  selectedExample,
-} from "./plugin-examples"
-import {
-  moveTemplateCursor,
-  PLUGIN_TEMPLATES,
-  selectedTemplate,
-  templateRowLabel,
-} from "./plugin-templates"
-
-export type PluginManagerMode = "plugins" | "templates" | "examples"
 
 export type PluginManagerItem = {
   id: string
@@ -40,10 +29,6 @@ export type PluginManagerState = {
   items: PluginManagerItem[]
   loading: boolean
   notice?: string | null
-  /** `templates`/`examples` show a gallery instead of discovered plugins. */
-  mode: PluginManagerMode
-  templateCursor: number
-  exampleCursor: number
 }
 
 export const initialPluginManager: PluginManagerState = {
@@ -51,9 +36,6 @@ export const initialPluginManager: PluginManagerState = {
   items: [],
   loading: false,
   notice: null,
-  mode: "plugins",
-  templateCursor: 0,
-  exampleCursor: 0,
 }
 
 export function clampPluginCursor(state: PluginManagerState): PluginManagerState {
@@ -71,31 +53,6 @@ export function togglePluginItem(state: PluginManagerState, id: string): PluginM
     ...state,
     items: state.items.map((item) => (item.id === id ? { ...item, enabled: !item.enabled } : item)),
   }
-}
-
-export function togglePluginManagerMode(state: PluginManagerState): PluginManagerState {
-  return { ...state, mode: state.mode === "plugins" ? "templates" : "plugins" }
-}
-
-export function setPluginManagerMode(
-  state: PluginManagerState,
-  mode: PluginManagerMode,
-): PluginManagerState {
-  return { ...state, mode }
-}
-
-export function moveTemplateManagerCursor(
-  state: PluginManagerState,
-  delta: number,
-): PluginManagerState {
-  return { ...state, templateCursor: moveTemplateCursor(state.templateCursor, delta) }
-}
-
-export function moveExampleManagerCursor(
-  state: PluginManagerState,
-  delta: number,
-): PluginManagerState {
-  return { ...state, exampleCursor: moveExampleCursor(state.exampleCursor, delta) }
 }
 
 /** Replace a row's code name once the sandbox reports it. */
@@ -125,8 +82,6 @@ export function PluginManagerPane(props: {
   state: PluginManagerState
 }) {
   const palette = () => props.theme
-  const templates = () => props.state.mode === "templates"
-  const examples = () => props.state.mode === "examples"
   const maxVisible = () => Math.max(4, props.height - 2)
   const start = () =>
     Math.max(
@@ -138,7 +93,6 @@ export function PluginManagerPane(props: {
     )
   const visible = () => props.state.items.slice(start(), start() + maxVisible())
   const current = () => props.state.items[props.state.cursor]
-  const template = () => selectedTemplate(props.state.templateCursor)
 
   return (
     <TwoColumnSurface
@@ -146,99 +100,45 @@ export function PluginManagerPane(props: {
       width={props.width}
       height={props.height}
       focused={props.focused}
-      title={
-        templates() ? "Plugin templates" : examples() ? "Shipped examples" : "Plugin manager"
-      }
-      meta={
-        templates()
-          ? `${PLUGIN_TEMPLATES.length} starter layouts`
-          : examples()
-            ? `${PLUGIN_EXAMPLES.length} bundled examples`
-            : props.state.loading
-              ? "discovering…"
-              : `${props.state.items.length} discovered`
-      }
-      hints={
-        templates()
-          ? ["j/k move · Enter copy · e examples · Esc back"]
-          : examples()
-            ? ["j/k move · Enter copy · t templates · Esc back"]
-            : ["j/k move · Space enable · t templates · e examples · Esc back"]
-      }
+      title="Plugin manager"
+      meta={props.state.loading ? "discovering…" : `${props.state.items.length} discovered`}
+      hints={["j/k move · Space enable · Esc back"]}
       notice={props.state.notice}
       detail={
-        templates()
+        current()
           ? {
-              title: template().label,
-              meta: template().id,
-              body: template().description,
-              footer: template().command,
+              title: current()!.name,
+              meta: current()!.enabled ? "enabled" : "disabled",
+              body:
+                current()!.error ??
+                (current()!.bundled
+                  ? "bundled with LockedIn; the folder name ends in .lockedin"
+                  : "discovered from your effect plugin folders"),
+              footer: `id: ${current()!.id}`,
             }
-          : examples()
-            ? {
-                title: selectedExample(props.state.exampleCursor).name,
-                meta: selectedExample(props.state.exampleCursor).id,
-                body: selectedExample(props.state.exampleCursor).description,
-                footer: selectedExample(props.state.exampleCursor).command,
-              }
-            : current()
-              ? {
-                  title: current()!.name,
-                  meta: current()!.enabled ? "enabled" : "disabled",
-                  body:
-                    current()!.error ??
-                    (current()!.bundled
-                      ? "bundled with LockedIn; the folder name ends in .lockedin"
-                      : "discovered from your effect plugin folders"),
-                  footer: `id: ${current()!.id}`,
-                }
-              : undefined
+          : undefined
       }
     >
-      {examples() ? (
-        PLUGIN_EXAMPLES.map((entry, index) => (
-          <ListRow
-            theme={palette()}
-            selected={index === props.state.exampleCursor}
-            label={exampleRowLabel(entry)}
-            value=""
-            labelWidth={Math.max(24, Math.floor(props.width * 0.45))}
-          />
-        ))
-      ) : templates() ? (
-        PLUGIN_TEMPLATES.map((entry, index) => (
-          <ListRow
-            theme={palette()}
-            selected={index === props.state.templateCursor}
-            label={templateRowLabel(entry)}
-            value=""
-            labelWidth={Math.max(24, Math.floor(props.width * 0.45))}
-          />
-        ))
-      ) : (
-        <>
-          {props.state.loading && props.state.items.length === 0 ? (
-            <text fg={palette().muted} wrapMode="none">
-              discovering plugins…
-            </text>
-          ) : null}
-          {!props.state.loading && props.state.items.length === 0 ? (
-            <text fg={palette().muted} wrapMode="none">
-              no plugins found in ui.effects.dirs
-            </text>
-          ) : null}
-          {visible().map((item) => (
-            <ListRow
-              theme={palette()}
-              selected={props.state.items[props.state.cursor]?.id === item.id}
-              label={pluginRowLabel(item)}
-              value={item.bundled ? "bundled" : item.error ? "error" : ""}
-              labelWidth={Math.max(24, Math.floor(props.width * 0.45))}
-              tone={item.error ? "error" : undefined}
-            />
-          ))}
-        </>
-      )}
+      {props.state.loading && props.state.items.length === 0 ? (
+        <text fg={palette().muted} wrapMode="none">
+          discovering plugins…
+        </text>
+      ) : null}
+      {!props.state.loading && props.state.items.length === 0 ? (
+        <text fg={palette().muted} wrapMode="none">
+          no plugins found in ui.effects.dirs
+        </text>
+      ) : null}
+      {visible().map((item) => (
+        <ListRow
+          theme={palette()}
+          selected={props.state.items[props.state.cursor]?.id === item.id}
+          label={pluginRowLabel(item)}
+          value={item.bundled ? "bundled" : item.error ? "error" : ""}
+          labelWidth={Math.max(24, Math.floor(props.width * 0.45))}
+          tone={item.error ? "error" : undefined}
+        />
+      ))}
     </TwoColumnSurface>
   )
 }

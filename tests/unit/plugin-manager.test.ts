@@ -5,18 +5,8 @@ import {
   movePluginCursor,
   pluginRowLabel,
   renamePluginItem,
-  moveExampleManagerCursor,
-  moveTemplateManagerCursor,
-  setPluginManagerMode,
   togglePluginItem,
-  togglePluginManagerMode,
 } from "../../src/ui/settings/plugin-manager"
-import { PLUGIN_EXAMPLES, selectedExample } from "../../src/ui/settings/plugin-examples"
-import {
-  PLUGIN_TEMPLATES,
-  selectedTemplate,
-  templateRowLabel,
-} from "../../src/ui/settings/plugin-templates"
 
 const items = [
   { id: "lab.orbit", name: "Orbit", manifestName: "Orbit", bundled: false, enabled: true },
@@ -55,31 +45,4 @@ test("the name reported by the plugin replaces the manifest name", () => {
   expect(blank.items[1]!.name).toBe("Snow")
 })
 
-test("the manager switches to the template gallery and clamps its cursor", () => {
-  const state = { ...initialPluginManager, items }
-  const templates = togglePluginManagerMode(state)
-  expect(templates.mode).toBe("templates")
-  expect(togglePluginManagerMode(templates).mode).toBe("plugins")
 
-  expect(moveTemplateManagerCursor(templates, 1).templateCursor).toBe(1)
-  expect(moveTemplateManagerCursor(templates, 9).templateCursor).toBe(PLUGIN_TEMPLATES.length - 1)
-  expect(moveTemplateManagerCursor(templates, -9).templateCursor).toBe(0)
-  expect(selectedTemplate(templates.templateCursor).id).toBe("sidebar-main")
-  expect(templateRowLabel(PLUGIN_TEMPLATES[1])).toContain("KPI strip")
-  for (const template of PLUGIN_TEMPLATES) {
-    expect(template.command).toContain("bun run plugin:new")
-    expect(template.description.length).toBeGreaterThan(20)
-  }
-})
-
-test("the manager can show the shipped examples gallery", () => {
-  const state = { ...initialPluginManager, items }
-  const examples = setPluginManagerMode(state, "examples")
-  expect(examples.mode).toBe("examples")
-  expect(moveExampleManagerCursor(examples, 1).exampleCursor).toBe(1)
-  expect(moveExampleManagerCursor(examples, 99).exampleCursor).toBe(PLUGIN_EXAMPLES.length - 1)
-  expect(moveExampleManagerCursor(examples, -99).exampleCursor).toBe(0)
-  expect(selectedExample(examples.exampleCursor).id).toBe("example.scene-window")
-  expect(setPluginManagerMode(examples, "templates").mode).toBe("templates")
-  expect(setPluginManagerMode(examples, "plugins").mode).toBe("plugins")
-})

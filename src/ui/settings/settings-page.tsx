@@ -163,20 +163,6 @@ export function settingsGroups(view: SettingsView): SettingsGroup[] {
           hint: "list discovered effect plugins; Space enables or disables one.",
           edit: "none",
         },
-        {
-          id: "plugin-templates",
-          label: "Template gallery",
-          value: "open",
-          hint: "starter layouts for new plugins; Enter copies the scaffold command.",
-          edit: "none",
-        },
-        {
-          id: "plugin-examples",
-          label: "Example gallery",
-          value: "open",
-          hint: "the shipped example plugins; Enter copies the package command.",
-          edit: "none",
-        },
       ],
     },
   ]

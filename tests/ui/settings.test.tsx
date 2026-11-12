@@ -88,7 +88,7 @@ describe("rows and groups", () => {
     try {
       const frame = lines(setup).join("\n")
       for (const header of ["USER", "MODELS", "USAGE", "STORAGE", "PLUGINS"]) expect(frame).toContain(header)
-      expect(settings.flatRows(settings.settingsGroups(settings.emptySettingsView()))).toHaveLength(20)
+      expect(settings.flatRows(settings.settingsGroups(settings.emptySettingsView()))).toHaveLength(18)
       expect(frame).toContain("no limit")
       expect(frame).toContain("none configured")
     } finally {

@@ -18,9 +18,7 @@ import { createDefaultActions, type Dispatcher } from "../ui/keymap/defaults";
 import { KeymapRegistry, generatedRows, parseBinding, type Action, type KeymapRegistry as Registry, type Scope } from "../ui/keymap/registry";
 import { resolveKey, resolveLeaderKey } from "../ui/keymap/resolve";
 import { filterCommands } from "../ui/shell/commands";
-import { initialPluginManager, moveExampleManagerCursor, movePluginCursor, moveTemplateManagerCursor, renamePluginItem, setPluginManagerMode as setManagerMode, togglePluginItem } from "../ui/settings/plugin-manager";
-import { selectedTemplate } from "../ui/settings/plugin-templates";
-import { selectedExample } from "../ui/settings/plugin-examples";
+import { initialPluginManager, movePluginCursor, renamePluginItem, togglePluginItem } from "../ui/settings/plugin-manager";
 import { PluginStateStore } from "../ui/effects/plugin-state";
 import { applyConfig } from "../ui/keymap/persist";
 import { emptySettingsView } from "../ui/settings";
@@ -3775,16 +3773,8 @@ export function App(props: {
         dispatch,
         notify,
         openPluginManager: () => void openPluginManager(),
-        openPluginTemplates,
-        openPluginExamples,
         movePluginManager,
         togglePluginManager: () => void togglePluginManager(),
-        pluginManagerMode: () => pluginManager().mode,
-        setPluginManagerMode,
-        moveTemplateManager,
-        copyTemplateManager,
-        moveExampleManager,
-        copyExampleManager,
       })
     ) {
       return
@@ -4258,42 +4248,6 @@ export function App(props: {
 
   function movePluginManager(delta: number): void {
     setPluginManager((state) => movePluginCursor(state, delta))
-  }
-
-  function openPluginTemplates(): void {
-    update({ ...current(), pane: "plugin-manager", mode: "normal", overlay: null })
-    setPluginManager((state) => ({ ...state, mode: "templates", loading: false }))
-  }
-
-  function openPluginExamples(): void {
-    update({ ...current(), pane: "plugin-manager", mode: "normal", overlay: null })
-    setPluginManager((state) => ({ ...state, mode: "examples", loading: false }))
-  }
-
-  function setPluginManagerMode(mode: "plugins" | "templates" | "examples"): void {
-    setPluginManager((state) => setManagerMode(state, mode))
-  }
-
-  function moveTemplateManager(delta: number): void {
-    setPluginManager((state) => moveTemplateManagerCursor(state, delta))
-  }
-
-  function copyTemplateManager(): void {
-    const template = selectedTemplate(pluginManager().templateCursor)
-    if (!template) return
-    if (copyToClipboard(template.command)) notify(`copied: ${template.command}`, "info")
-    else notify("clipboard is unavailable", "error")
-  }
-
-  function moveExampleManager(delta: number): void {
-    setPluginManager((state) => moveExampleManagerCursor(state, delta))
-  }
-
-  function copyExampleManager(): void {
-    const example = selectedExample(pluginManager().exampleCursor)
-    if (!example) return
-    if (copyToClipboard(example.command)) notify(`copied: ${example.command}`, "info")
-    else notify("clipboard is unavailable", "error")
   }
 
   async function togglePluginManager(): Promise<void> {

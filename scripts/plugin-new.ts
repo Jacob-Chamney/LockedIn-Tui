@@ -10,20 +10,14 @@
 import { access, mkdir, writeFile } from "node:fs/promises"
 import { join, resolve } from "node:path"
 
-import {
-  PLUGIN_TEMPLATES,
-  type TemplateId,
-} from "../src/ui/settings/plugin-templates"
+export const SCAFFOLD_TEMPLATES = ["sidebar-main", "kpi", "table"] as const
+export type ScaffoldTemplate = (typeof SCAFFOLD_TEMPLATES)[number]
 
-export type ScaffoldTemplate = TemplateId
-
-export const SCAFFOLD_TEMPLATES: readonly ScaffoldTemplate[] = PLUGIN_TEMPLATES.map(
-  (template) => template.id,
-)
-
-export const SCAFFOLD_INFO = Object.fromEntries(
-  PLUGIN_TEMPLATES.map((template) => [template.id, template.description]),
-) as Record<ScaffoldTemplate, string>
+export const SCAFFOLD_INFO: Record<ScaffoldTemplate, string> = {
+  "sidebar-main": "fixed sidebar + session table with focus ids and row commands",
+  kpi: "three-card KPI strip above a detail window with a refresh command",
+  table: "table window with a row/column cursor and pointer hits",
+}
 
 /** One line per template, for `plugin:new --list` and docs. */
 export function scaffoldListing(): string[] {
