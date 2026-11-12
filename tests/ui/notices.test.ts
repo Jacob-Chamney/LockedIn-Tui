@@ -31,7 +31,7 @@ describe("notice bubble", () => {
 
   test("fits short messages and wraps at the cap", () => {
     expect(noticeWidth("hi", 60)).toBe(NOTICE_MIN_WIDTH)
-    expect(noticeWidth("a".repeat(20), 60)).toBe(26)
+    expect(noticeWidth("a".repeat(20), 60)).toBe(24)
     expect(noticeWidth("a".repeat(200), 60)).toBe(NOTICE_MAX_WIDTH)
     expect(noticeWidth("a".repeat(200), 30)).toBe(30)
   })

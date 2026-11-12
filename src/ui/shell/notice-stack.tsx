@@ -9,6 +9,7 @@
  * row in a shared panel.
  */
 import type { ThemePalette } from "../theme"
+import { Bubble, useAfterFirstFrame, useCellSize } from "../chat/bubble"
 
 export type NoticeLevel = "info" | "warn" | "error"
 
@@ -45,21 +46,35 @@ export function noticeGlyph(level: NoticeLevel): string {
   return level === "error" ? "×" : level === "warn" ? "!" : "·"
 }
 
-/** Bubble width: icon + padding + borders, clamped to the available column. */
+/** Bubble width: icon + gap + padding, clamped to the available column. */
 export function noticeWidth(text: string, available: number): number {
   const max = Math.max(1, Math.min(NOTICE_MAX_WIDTH, available))
   const min = Math.min(NOTICE_MIN_WIDTH, max)
-  const wanted = text.length + 6
+  const wanted = text.length + 4
   return Math.max(min, Math.min(max, wanted))
+}
+
+/** The fill of the bubble: saturated for error/warn, panel for info. */
+export function noticeFill(level: NoticeLevel, palette: ThemePalette): string {
+  return level === "error"
+    ? palette.error
+    : level === "warn"
+      ? palette.warning
+      : palette.panel
+}
+
+/** Text on the fill; saturated fills use the background as ink. */
+export function noticeInk(level: NoticeLevel, palette: ThemePalette): string {
+  return level === "info" ? palette.foreground : palette.background
 }
 
 export function NoticeStack(props: { theme: ThemePalette; width: number; notices: Notice[]; now: number; rightOffset?: number }) {
   const palette = () => props.theme
+  const cell = useCellSize()
+  const ready = useAfterFirstFrame()
   const available = () => Math.max(1, Math.min(NOTICE_MAX_WIDTH, Math.floor(props.width * 0.5)))
   const left = () =>
     Math.max(1, props.width - available() - 2 - (props.rightOffset ?? 0))
-  const colour = (level: NoticeLevel) =>
-    level === "error" ? palette().error : level === "warn" ? palette().warning : palette().primary
 
   return (
     <box
@@ -72,21 +87,25 @@ export function NoticeStack(props: { theme: ThemePalette; width: number; notices
       gap={1}
     >
       {props.notices.slice(-4).map((notice) => (
-        <box
-          width={noticeWidth(notice.text, available())}
-          flexDirection="row"
-          gap={1}
-          border={["left", "right", "top", "bottom"]}
-          borderStyle="rounded"
-          borderColor={colour(notice.level)}
-          backgroundColor={palette().panel}
-          paddingX={1}
-          opacity={noticeOpacity(notice, props.now)}
-        >
-          <text fg={colour(notice.level)}>{noticeGlyph(notice.level)}</text>
-          <text fg={palette().foreground} wrapMode="word" flexGrow={1}>
-            {notice.text}
-          </text>
+        <box opacity={noticeOpacity(notice, props.now)}>
+          <Bubble
+            width={noticeWidth(notice.text, available())}
+            fill={noticeFill(notice.level, palette())}
+            background={palette().background}
+            cell={cell()}
+            ready={ready()}
+          >
+            <box flexDirection="row" gap={1}>
+              <text fg={noticeInk(notice.level, palette())}>{noticeGlyph(notice.level)}</text>
+              <text
+                fg={noticeInk(notice.level, palette())}
+                wrapMode="word"
+                flexGrow={1}
+              >
+                {notice.text}
+              </text>
+            </box>
+          </Bubble>
         </box>
       ))}
     </box>

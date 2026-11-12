@@ -16,8 +16,9 @@ requests merge.
 
 ### Changed
 
-- Notices now render as individual rounded bubbles with the message inside and
-  a level glyph; error bubbles use the error border and fade like the rest.
+- Notices now use the chat bubble caps: a filled, rounded pill with the level
+  glyph and message inside. Errors use the error fill, warnings the warning
+  fill, and info the panel fill; all keep the existing fade.
 - Settings now separates **MCP servers** from **UI plugins**, and the plugin
   manager is labelled **UI plugins**. The underlying MCP modules are named
   `src/mcp` / `features/mcp` instead of `plugins`.
