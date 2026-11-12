@@ -22,12 +22,20 @@ function service(overrides: Partial<UpdateService> = {}): UpdateService {
   }
 }
 
-async function mount(service: UpdateService | undefined, initial: Record<string, unknown> = {}) {
+async function mount(
+  service: UpdateService | undefined,
+  initial: Record<string, unknown> = {},
+  restart?: (prepare: () => void) => { ok: boolean; message?: string },
+) {
   return renderApp({
     width: 120,
     height: 36,
     app: () => (
-      <App update={service ? async () => service : undefined} initial={initial as never} />
+      <App
+        update={service ? async () => service : undefined}
+        restart={restart}
+        initial={initial as never}
+      />
     ),
   })
 }
@@ -76,6 +84,29 @@ describe(":update", () => {
       await ui.waitUntil(() => ui.frame().includes("restart for 2026.12.01"))
       expect(installed).toBe(true)
       expect(ui.frame()).toContain("updated to 2026.12.01")
+    } finally {
+      await ui.dispose()
+    }
+  })
+
+  test("restarts in place after installing", async () => {
+    let restarted = false
+    const ui = await mount(
+      service(),
+      { overlay: "command", mode: "insert", commandQuery: "update" },
+      (prepare) => {
+        expect(typeof prepare).toBe("function")
+        restarted = true
+        return { ok: true }
+      },
+    )
+    try {
+      await ui.waitUntil(() => ui.frame().includes(":update"))
+      await ui.press("enter")
+      await ui.waitUntil(() => ui.frame().includes("restarting"))
+      expect(ui.frame()).toContain("restarting")
+      await ui.waitUntil(() => restarted)
+      expect(restarted).toBe(true)
     } finally {
       await ui.dispose()
     }

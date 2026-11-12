@@ -11,6 +11,7 @@ import { resolveTheme, type ThemeId, type ThemePalette } from "./ui/theme"
 import { resolveKittyImageTransport } from "./ui/achievements/image-transport"
 
 import { App } from "./app/App"
+import { relaunch } from "./services/relaunch"
 import { boot, bootFailureLine } from "./app/boot"
 import { parseCli, USAGE } from "./cli"
 import { APP_VERSION, RELEASE_BUILD } from "./version"
@@ -61,6 +62,11 @@ if (!booted.ok) {
           createChat={createChat}
           createGithubArchive={createGithubArchive}
           pluginRuntime={pluginRuntime}
+          restart={
+            RELEASE_BUILD
+              ? (prepare) => relaunch({ prepare })
+              : undefined
+          }
           update={
             RELEASE_BUILD
               ? async () => {
@@ -74,6 +80,10 @@ if (!booted.ok) {
           usageStore={usageStore}
           chatScope={scope}
           settings={settings}
+          keybinds={{
+            keybinds: booted.value.config.ui.keybinds,
+            fixed_keybinds: booted.value.config.ui.fixed_keybinds,
+          }}
           workspace={workspace}
           onUsageError={(message: string) => console.error(`usage: ${message}`)}
           onThemeChange={(id: string) => patchConfig(booted.value.workspace.paths, { ui: { theme: id } })}

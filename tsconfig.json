@@ -12,13 +12,20 @@
       "bun"
     ],
     "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "noUnusedParameters": true,
+    "baseUrl": ".",
+    "paths": {
+      "@lockedin/sdk": [
+        "./sdk/index.ts"
+      ]
+    }
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
     "tests/**/*.ts",
     "tests/**/*.tsx",
-    "swarm/**/*.ts"
+    "swarm/**/*.ts",
+    "sdk/**/*.ts"
   ]
 }

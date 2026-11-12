@@ -11,13 +11,18 @@
 import { useKeyboard, usePaste, useRenderer, useTerminalDimensions } from "@opentui/solid";
 import { decodePasteBytes, type TextareaRenderable } from "@opentui/core";
 import { createEffect, createMemo, createSignal, on, onCleanup, onMount, untrack } from "solid-js";
-import { dirname, parse, resolve, sep } from "node:path";
+import { basename, dirname, join, parse, resolve, sep } from "node:path";
 import { homedir } from "node:os";
 import { TaskRegistry } from "../domain/tasks";
 import { createDefaultActions, type Dispatcher } from "../ui/keymap/defaults";
-import { KeymapRegistry, generatedRows, type KeymapRegistry as Registry, type Scope } from "../ui/keymap/registry";
+import { KeymapRegistry, generatedRows, parseBinding, type Action, type KeymapRegistry as Registry, type Scope } from "../ui/keymap/registry";
 import { resolveKey, resolveLeaderKey } from "../ui/keymap/resolve";
 import { filterCommands } from "../ui/shell/commands";
+import { initialPluginManager, moveExampleManagerCursor, movePluginCursor, moveTemplateManagerCursor, renamePluginItem, setPluginManagerMode as setManagerMode, togglePluginItem } from "../ui/settings/plugin-manager";
+import { selectedTemplate } from "../ui/settings/plugin-templates";
+import { selectedExample } from "../ui/settings/plugin-examples";
+import { PluginStateStore } from "../ui/effects/plugin-state";
+import { applyConfig } from "../ui/keymap/persist";
 import { emptySettingsView } from "../ui/settings";
 import type { SettingsView } from "../ui/settings";
 import { initialSessions, move as moveManager } from "../ui/features/sessions";
@@ -26,6 +31,13 @@ import { initialActivity } from "../ui/work/activity";
 import { moveTheme, themeEntries } from "../ui/settings/themes";
 import type { PanelRow } from "../ui/panels/panel-list";
 import { AGENT_MODELS, AGENT_PERMISSIONS, AGENT_FIELDS, initialAgentSettings, type AgentField } from "../ui/features/agents/agent-settings-panel";
+import { createAppEffects, resolveEffectsOptions, type EffectHostEntry, type SceneHostEntry } from "../ui/effects/app-effects";
+import { effectDebug } from "../ui/effects/debug";
+import { CustomParticleHost } from "../ui/effects/host";
+import { bundledPluginRoots, effectPathsFromEnv, effectPluginDirs, loadEffectFiles, loadEffectPlugins, scanPluginDirs, watchEffectSources } from "../ui/effects/loader";
+import { copyToClipboard } from "../ui/effects/clipboard";
+import { SandboxWorkerEffect } from "../ui/effects/sandbox/client";
+import type { SceneState } from "../ui/effects/scene/model";
 import { dirty as sessionSettingsDirty, initialSessionSettings, move as moveSessionSettings, selectedRow as selectedSessionSettingsRow, type SessionSettingsState } from "../ui/features/session-settings/session-settings-model";
 import { chatSettingRows, nextChatSetting, type ChatSettingsRow } from "../ui/features/chat-settings/chat-settings-panel";
 import type { SwarmSummary } from "../ui/shell/explorer";
@@ -302,10 +314,31 @@ export function App(props: {
   onUsageError?: (message: string) => void
   /** Creates the release updater on demand; absent in source and test shells. */
   update?: () => Promise<UpdateService>
+  /** Runs the post-update restart; `prepare` restores the terminal first. */
+  restart?: (prepare: () => void) => { ok: boolean; message?: string }
+  /** Saved keybind maps from config, applied to the registry on start. */
+  keybinds?: {
+    keybinds: Record<string, string>
+    fixed_keybinds: Record<string, string>
+  }
   api?: (api: ShellApi) => void
 }) {
   const renderer = useRenderer()
   const dims = useTerminalDimensions()
+  /** Dev-only effects layer; null unless LOCKEDIN_EFFECTS is set. */
+  let appEffects: import("../ui/effects/app-effects").AppEffects | null = null
+  /** Reloads the sandboxed hosts after the settings switch changes. */
+  let reloadEffectHosts: (() => void) | null = null
+  /** Plugin roots for the manager; set once the effects layer mounts. */
+  let pluginRoots: (() => Promise<string[]>) | null = null
+  const [pluginManager, setPluginManager] = createSignal(initialPluginManager)
+  /** Runtime failures keyed by plugin id, shown in the manager. */
+  const [pluginErrors, setPluginErrors] = createSignal<Record<string, string>>({})
+  /** Per-plugin persistent state; in-memory only when no data dir is known. */
+  const pluginState = props.settings?.dataDir
+    ? new PluginStateStore(join(props.settings.dataDir, "plugins"))
+    : null
+
 
   const intents: string[] = []
   // Handlers are the app's effect seam: they record the intent and never call
@@ -314,6 +347,7 @@ export function App(props: {
     intents.push(id)
   }
   const registry = new KeymapRegistry(createDefaultActions(dispatcher))
+  if (props.keybinds) applyConfig(registry, { ui: props.keybinds })
 
   const started = (): ShellState => {
     const base = { ...initialShellState, ...props.initial }
@@ -343,7 +377,8 @@ export function App(props: {
   const [helpPage, setHelpPage] = createSignal(0)
 
   /** Only bindings that can do something here are listed. */
-  const usableRows = (scope: Scope) => generatedRows(registry, scope).filter((row) => actionIsUsable(row.id))
+  const usableRows = (scope: Scope) =>
+    generatedRows(registry, scope).filter((row) => row.group === "plugin" || actionIsUsable(row.id))
   /**
    * What the leader offers *here*.
    *
@@ -436,7 +471,7 @@ export function App(props: {
   /** The leader list: the rows that apply in this context, in registry order. */
   const leaderRows = () => {
     const wanted = new Set(leaderIds())
-    return shellRows().filter((row) => wanted.has(row.id))
+    return shellRows().filter((row) => wanted.has(row.id) || row.group === "plugin")
   }
 
   /** The help overlay lists every row the shell can run, from every side. */
@@ -2501,12 +2536,19 @@ export function App(props: {
     // otherwise usable (new lock-in, tasks, review) must still run. `reader` is
     // the exception: without a course it has no content to show.
     if (id === "reader") return leaderIds().includes(id)
+    if (action.group === "plugin") return true
     return leaderIds().includes(id) || actionIsUsable(id)
   }
 
   function dispatch(id: string) {
     if (id === "quit") {
       renderer.destroy()
+      return
+    }
+    if (id === "plugin-focus-next" || id === "plugin-focus-prev") {
+      const target = appEffects?.cycleFocus(id === "plugin-focus-next" ? 1 : -1) ?? null
+      if (target) notify(`plugin window: ${target.split("/").slice(1).join("/")}`)
+      else notify("no focusable plugin windows", "warn")
       return
     }
     if (id === "plugins") {
@@ -3170,6 +3212,7 @@ export function App(props: {
   useKeyboard((event) => {
     if (event.eventType === "release") return
     const press = normalisePress(event)
+    appEffects?.keypress(press.name)
     // Quit is global: prompts, choosers, insert mode and overlays must not
     // swallow the one chord that always leaves the app.
     if (press.ctrl && press.name === "q") {
@@ -3265,6 +3308,7 @@ export function App(props: {
         chatTasks,
         command: chatCommandFor,
         notify,
+        onSend: () => appEffects?.send(),
       })
     ) {
       return
@@ -3730,6 +3774,17 @@ export function App(props: {
         resolveLeader,
         dispatch,
         notify,
+        openPluginManager: () => void openPluginManager(),
+        openPluginTemplates,
+        openPluginExamples,
+        movePluginManager,
+        togglePluginManager: () => void togglePluginManager(),
+        pluginManagerMode: () => pluginManager().mode,
+        setPluginManagerMode,
+        moveTemplateManager,
+        copyTemplateManager,
+        moveExampleManager,
+        copyExampleManager,
       })
     ) {
       return
@@ -3982,6 +4037,7 @@ export function App(props: {
     workActive: activeBuffer().kind === "project" || activeBuffer().kind === "agent",
     pluginRows: pluginRows(),
     pluginCursor: pluginCursor(),
+    pluginManager: pluginManager(),
     modelsScreen: models.screen(),
   })
 
@@ -4135,9 +4191,349 @@ export function App(props: {
     onCleanup(() => clearInterval(timer))
   })
 
+  /** Plugin actions registered with the one key table for this session. */
+  let pluginActionIds: string[] = []
+
+  /** Swap dynamically registered plugin actions after a load or reload. */
+  function mountPluginActions(actions: readonly Action[]): void {
+    for (const id of pluginActionIds) registry.unregister(id)
+    pluginActionIds = []
+    for (const action of actions) {
+      const result = registry.register(action)
+      if (result.ok) pluginActionIds.push(action.id)
+      else effectDebug(`plugin command ${action.id}: ${result.message}`)
+    }
+    // Saved overrides for plugin ids could not apply before registration.
+    if (props.keybinds) applyConfig(registry, { ui: props.keybinds })
+    renderer.requestRender()
+  }
+
+  /** Open the effect plugin manager and inspect every discovered plugin. */
+  async function openPluginManager(): Promise<void> {
+    update({ ...current(), pane: "plugin-manager", mode: "normal", overlay: null })
+    setPluginManager({ ...initialPluginManager, mode: "plugins", loading: true })
+    const roots = pluginRoots ? await pluginRoots() : []
+    const loaded = await loadEffectPlugins(roots)
+    const disabled = new Set(settingsView()?.disabledEffectPlugins ?? [])
+    setPluginManager({
+      ...initialPluginManager,
+      cursor: 0,
+      loading: false,
+      notice: loaded.errors[0] ?? null,
+      items: loaded.plugins.map((plugin) => ({
+        id: plugin.manifest.id,
+        name: plugin.manifest.name,
+        manifestName: plugin.manifest.name,
+        bundled: basename(plugin.dir).endsWith(".lockedin"),
+        enabled: !disabled.has(plugin.manifest.id),
+        error: pluginErrors()[plugin.manifest.id],
+      })),
+    })
+    const palette = resolveTheme(theme(), customTheme()).palette
+    // Read the name the code assigns. A disabled plugin is still inspected in
+    // the sandbox and disposed immediately; the display name is all we keep.
+    for (const plugin of loaded.plugins) {
+      try {
+        const host = await SandboxWorkerEffect.create({
+          bundle: plugin.bundle,
+          manifest: plugin.manifest,
+          palette,
+        })
+        const name = host.pluginName
+        const error = host.failed ? (host.lastError ?? "plugin failed to load") : undefined
+        host.dispose()
+        setPluginManager((state) => renamePluginItem(state, plugin.manifest.id, name, error))
+      } catch (error) {
+        setPluginManager((state) =>
+          renamePluginItem(
+            state,
+            plugin.manifest.id,
+            plugin.manifest.name,
+            String(error instanceof Error ? error.message : error).slice(0, 120),
+          ),
+        )
+      }
+    }
+  }
+
+  function movePluginManager(delta: number): void {
+    setPluginManager((state) => movePluginCursor(state, delta))
+  }
+
+  function openPluginTemplates(): void {
+    update({ ...current(), pane: "plugin-manager", mode: "normal", overlay: null })
+    setPluginManager((state) => ({ ...state, mode: "templates", loading: false }))
+  }
+
+  function openPluginExamples(): void {
+    update({ ...current(), pane: "plugin-manager", mode: "normal", overlay: null })
+    setPluginManager((state) => ({ ...state, mode: "examples", loading: false }))
+  }
+
+  function setPluginManagerMode(mode: "plugins" | "templates" | "examples"): void {
+    setPluginManager((state) => setManagerMode(state, mode))
+  }
+
+  function moveTemplateManager(delta: number): void {
+    setPluginManager((state) => moveTemplateManagerCursor(state, delta))
+  }
+
+  function copyTemplateManager(): void {
+    const template = selectedTemplate(pluginManager().templateCursor)
+    if (!template) return
+    if (copyToClipboard(template.command)) notify(`copied: ${template.command}`, "info")
+    else notify("clipboard is unavailable", "error")
+  }
+
+  function moveExampleManager(delta: number): void {
+    setPluginManager((state) => moveExampleManagerCursor(state, delta))
+  }
+
+  function copyExampleManager(): void {
+    const example = selectedExample(pluginManager().exampleCursor)
+    if (!example) return
+    if (copyToClipboard(example.command)) notify(`copied: ${example.command}`, "info")
+    else notify("clipboard is unavailable", "error")
+  }
+
+  async function togglePluginManager(): Promise<void> {
+    const state = pluginManager()
+    const item = state.items[state.cursor]
+    if (!item) return
+    const disabled = new Set(settingsView()?.disabledEffectPlugins ?? [])
+    if (item.enabled) disabled.add(item.id)
+    else disabled.delete(item.id)
+    const next = [...disabled].sort()
+    const patch: Record<string, unknown> = { "ui.effects.disabled": next }
+    try {
+      const saved = await props.onConfigPatch?.(nestedPatch(patch))
+      if (saved && typeof saved === "object" && "ok" in saved && saved.ok === false) {
+        const error = (saved as { error?: { message?: string } }).error
+        setPluginManager((current) => ({ ...current, notice: error?.message ?? "the plugin setting could not be saved" }))
+        return
+      }
+    } catch (error) {
+      setPluginManager((current) => ({
+        ...current,
+        notice: String(error instanceof Error ? error.message : error).slice(0, 120),
+      }))
+      return
+    }
+    setSettingsView((view) => (view ? { ...view, disabledEffectPlugins: next } : view))
+    setPluginManager((current) => togglePluginItem(current, item.id))
+    reloadEffectHosts?.()
+    notify(`${item.name}: ${item.enabled ? "disabled" : "enabled"}`)
+  }
+
+  /** Read-only state handed to sandboxed scene and command plugins. */
+  function sceneState(): SceneState {
+    return {
+      mode: view().mode,
+      pane: view().pane,
+      focus: view().focus,
+      focused: view().focus === view().pane,
+      width: dims().width,
+      height: dims().height,
+    }
+  }
+
   /** The palette in force; the picker applies and persists it. */
   const [theme, setTheme] = createSignal<ThemeId>(props.theme ?? "lockedin")
   const [customTheme, setCustomTheme] = createSignal<Partial<ThemePalette> | null>(props.custom ?? null)
+
+  // Dev-only effects. Off unless LOCKEDIN_EFFECTS is set; reduced motion wins.
+  onMount(() => {
+    let stopped = false
+    let unwatch: (() => void) | null = null
+    const report = (errors: readonly string[]) => {
+      for (const error of errors) effectDebug(`load error: ${error}`)
+    }
+    const palette = () => resolveTheme(theme(), customTheme()).palette
+
+    // Pointer targets are resolved from the painted scene; grants decide
+    // whether the terminal is put into mouse-reporting mode.
+    renderer.root.onMouseDown = (event) => {
+      if (event.button !== 0) return
+      appEffects?.pointer("press", event.x, event.y)
+      appEffects?.pointer("click", event.x, event.y)
+    }
+    renderer.root.onMouseMove = (event) => {
+      appEffects?.pointer("hover", event.x, event.y)
+    }
+    renderer.root.onMouseDrag = (event) => {
+      appEffects?.pointer("move", event.x, event.y)
+    }
+    renderer.root.onMouseUp = (event) => {
+      if (event.button === 0) appEffects?.pointer("release", event.x, event.y)
+    }
+    renderer.root.onMouseScroll = (event) => {
+      if (event.scroll) appEffects?.pointer("wheel", event.x, event.y, event.scroll)
+    }
+
+    /**
+     * First-party systems and plain user files stay in-process; plugin
+     * directories (manifest + entry) run in a sandboxed worker.
+     */
+    const buildHosts = async (pluginDirs: readonly string[]): Promise<{
+      particles: EffectHostEntry[]
+      scenes: SceneHostEntry[]
+      actions: Action[]
+    }> => {
+      const paths = await effectPathsFromEnv()
+      const loaded = paths.length > 0 ? await loadEffectFiles(paths) : { systems: [], errors: [] }
+      report(loaded.errors)
+      const particles: EffectHostEntry[] = loaded.systems.map((entry) => ({
+        id: entry.system.id,
+        host: new CustomParticleHost(1, 1, palette(), entry.system),
+      }))
+      const scenes: SceneHostEntry[] = []
+      const actions: Action[] = []
+      const plugins = await loadEffectPlugins(pluginDirs)
+      report(plugins.errors)
+      const disabled = new Set(settingsView()?.disabledEffectPlugins ?? [])
+      for (const plugin of plugins.plugins) {
+        if (disabled.has(plugin.manifest.id)) continue
+        const id = plugin.manifest.id
+        try {
+          const store = pluginState ? await pluginState.load(id) : {}
+          const host = await SandboxWorkerEffect.create({
+            bundle: plugin.bundle,
+            manifest: plugin.manifest,
+            palette: palette(),
+            store,
+          })
+          host.onStoreChange = (data) => pluginState?.schedule(id, data)
+          host.onFailure = (message) => {
+            setPluginErrors((map) => ({ ...map, [id]: message }))
+            notify(`${host.pluginName}: ${message}`, "error")
+            setPluginManager((state) =>
+              state.items.some((item) => item.id === id)
+                ? renamePluginItem(state, id, host.pluginName, message)
+                : state,
+            )
+          }
+          if (host.hasParticles) particles.push({ id: plugin.manifest.id, host })
+          if (host.hasScene) scenes.push({ id: plugin.manifest.id, host })
+          for (const command of plugin.manifest.permissions.commands ?? []) {
+            if (!host.commandIds.includes(command.id)) continue
+            const parsed = command.keys ? parseBinding(command.keys) : null
+            const binding = parsed !== null && !("reason" in parsed) ? parsed : undefined
+            host.onCommandResult = (result) => {
+              let message = result.message
+              let ok = result.ok
+              if (result.copy !== undefined) {
+                if (plugin.manifest.permissions.clipboard === true && copyToClipboard(result.copy)) {
+                  message = message ? `${message} · copied` : "copied to clipboard"
+                } else {
+                  message = "clipboard is unavailable"
+                  ok = false
+                }
+              }
+              if (message) notify(message, ok ? "info" : "error")
+              else if (!result.pointer) {
+                notify(ok ? command.title : `${command.title} failed`, ok ? "info" : "error")
+              }
+            }
+            actions.push({
+              id: command.id,
+              label: command.title,
+              group: "plugin",
+              scope: "global",
+              ...(binding ? { defaultBinding: binding } : {}),
+              run: () => {
+                if (current().overlay === "command") {
+                  update({ ...current(), overlay: null, leaderPending: false, mode: "normal" })
+                }
+                host.command(command.id, sceneState())
+              },
+            })
+          }
+        } catch (error) {
+          report([`${plugin.dir}: ${error instanceof Error ? error.message : String(error)}`])
+        }
+      }
+      return { particles, scenes, actions }
+    }
+
+    /** Plugin roots: env folders for the dev harness, plus config folders when mounted. */
+    const configDirs = (): readonly string[] => {
+      const view = settingsView()
+      return view?.effectPluginDirs ?? []
+    }
+
+    void (async () => {
+      const options = resolveEffectsOptions()
+      const userEffects = options.enabled && options.particles
+      const envDirs = userEffects ? await effectPluginDirs() : []
+      const pluginDirs = async (): Promise<string[]> => [
+        ...new Set([
+          ...envDirs,
+          ...(userEffects
+            ? [
+                ...(await scanPluginDirs(configDirs())),
+                ...(await scanPluginDirs(bundledPluginRoots())),
+              ]
+            : []),
+        ]),
+      ]
+      const hosts = userEffects
+        ? await buildHosts(await pluginDirs())
+        : { particles: [], scenes: [], actions: [] }
+      setPluginErrors({})
+      if (stopped) {
+        for (const entry of hosts.particles) entry.host.dispose?.()
+        for (const entry of hosts.scenes) entry.host.dispose?.()
+        return
+      }
+      appEffects = createAppEffects(renderer, palette, process.env, {
+        hosts: hosts.particles,
+        scenes: hosts.scenes,
+        state: sceneState,
+      })
+      appEffects?.start()
+      mountPluginActions(hosts.actions)
+      if (!userEffects) return
+
+      const reload = async () => {
+        void pluginState?.flush()
+        const next = await buildHosts(await pluginDirs())
+        if (stopped) {
+          for (const entry of next.particles) entry.host.dispose?.()
+          for (const entry of next.scenes) entry.host.dispose?.()
+          return
+        }
+        appEffects?.setHosts(next.particles)
+        appEffects?.setSceneHosts(next.scenes)
+        mountPluginActions(next.actions)
+        effectDebug(`reloaded ${next.particles.length + next.scenes.length} host(s)`)
+      }
+
+      pluginRoots = pluginDirs
+      reloadEffectHosts = () => {
+        void reload()
+      }
+
+      // Editing an effect file, manifest or entry swaps the running hosts.
+      unwatch = watchEffectSources(process.env, () => {
+        void reload()
+      }, 120, [...envDirs, ...configDirs(), ...bundledPluginRoots()])
+    })()
+    onCleanup(() => {
+      stopped = true
+      void pluginState?.flush()
+      pluginRoots = null
+      reloadEffectHosts = null
+      unwatch?.()
+      unwatch = null
+      renderer.root.onMouseDown = undefined
+      renderer.root.onMouseMove = undefined
+      renderer.root.onMouseDrag = undefined
+      renderer.root.onMouseUp = undefined
+      renderer.root.onMouseScroll = undefined
+      appEffects?.stop()
+      appEffects = null
+    })
+  })
   const [themesState, setThemesState] = createSignal({
     // Open on the palette in force, not at the top of an alphabetical list.
     cursor: Math.max(
@@ -4238,6 +4634,13 @@ export function App(props: {
     return info ? { version: info.version, state: "available" } : null
   }
 
+  /** Set while the post-update restart is pending. */
+  let restartTimer: ReturnType<typeof setTimeout> | null = null
+  onCleanup(() => {
+    if (restartTimer) clearTimeout(restartTimer)
+    restartTimer = null
+  })
+
   /** `:update`: check, download, verify and replace the running binary. */
   async function runUpdate() {
     if (!props.update) {
@@ -4275,7 +4678,18 @@ export function App(props: {
       if (result.kind === "updated") {
         setUpdateInfo({ ...info, version: result.version })
         setUpdatePhase("restart")
-        notify(`updated to ${result.version} · restart LockedIn`, "info")
+        const restart = props.restart
+        if (!restart) {
+          notify(`updated to ${result.version} · restart LockedIn`, "info")
+          return
+        }
+        notify(`updated to ${result.version} · restarting…`, "info")
+        // Let the notice paint before the process is replaced.
+        restartTimer = setTimeout(() => {
+          restartTimer = null
+          const outcome = restart(() => renderer.destroy())
+          if (!outcome.ok) notify(outcome.message ?? "restart LockedIn to run the new version", "warn")
+        }, 700)
         return
       }
       setUpdatePhase("idle")

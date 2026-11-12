@@ -100,7 +100,7 @@ describe("keymap invariants", () => {
 
   test("P1-KM-04 rebind moves the binding: old key stops working", () => {
     const registry = fresh()
-    const target = registry.actions().find((current) => current.defaultBinding.kind === "leader")!
+    const target = registry.actions().find((current) => current.defaultBinding?.kind === "leader")!
     const oldKey = registry.bindingFor(target.id) as { kind: "leader"; key: string }
 
     // Pick a leader key nobody uses in that scope.
