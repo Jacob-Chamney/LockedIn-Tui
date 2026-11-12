@@ -42,6 +42,11 @@ The sign-off certifies the Developer Certificate of Origin:
    and any user-visible impact. Do not push directly to `main`; the branch is
    protected and the gate must pass before merge.
 
+`main` is the integration branch. A merged contribution is not a release; it is
+included in the next UTC-dated release. Releases are tags cut from `main`
+(`2026.11.12`), not separate branches. There is no `next` or release branch to
+target.
+
 ## Code expectations
 
 - TypeScript is strict. Domain and service modules never import UI or app code.
