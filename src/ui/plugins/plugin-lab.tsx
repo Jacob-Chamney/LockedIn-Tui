@@ -1,7 +1,7 @@
 /**
  * Dev-only demo runner for the particle-system API.
  *
- *   bun run src/ui/effects/plugin-lab.tsx
+ *   bun run src/ui/plugins/plugin-lab.tsx
  *
  * The demo plugin lives in `examples/fireflies.ts` and is the code shown on the
  * wiki. The host owns the buffer and rendering; the plugin only spawns, steps
@@ -14,7 +14,7 @@ import { crimson } from "../theme/palettes"
 import type { ThemePalette } from "../theme"
 import { CursorSpring, CursorTrail } from "./cursor"
 import fireflies from "./examples/fireflies"
-import { CustomParticleHost } from "./host"
+import { CustomParticleHost } from "./particle-host"
 import { paintCursor, paintParticles, paintTrail } from "./paint"
 
 class DemoLab {

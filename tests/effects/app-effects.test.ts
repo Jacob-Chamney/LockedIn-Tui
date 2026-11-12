@@ -1,24 +1,24 @@
 import { expect, test } from "bun:test"
 
 import {
-  AppEffects,
-  createAppEffects,
+  AppPlugins,
+  createAppPlugins,
   findComposerCursor,
-  resolveEffectsOptions,
+  resolvePluginOptions,
   selectSystems,
-} from "../../src/ui/effects/app-effects"
+} from "../../src/ui/plugins/app-plugins"
 import { crimson } from "../../src/ui/theme/palettes"
-import type { SceneHost } from "../../src/ui/effects/app-effects"
+import type { SceneHost } from "../../src/ui/plugins/app-plugins"
 
 test("effects are opt-in and reduced motion wins", () => {
-  expect(resolveEffectsOptions({ LOCKEDIN_EFFECTS: "1" })).toEqual({
+  expect(resolvePluginOptions({ LOCKEDIN_EFFECTS: "1" })).toEqual({
     enabled: true,
     trail: true,
     particles: true,
     layer: "under",
   })
-  expect(resolveEffectsOptions({}).enabled).toBe(false)
-  expect(resolveEffectsOptions({ LOCKEDIN_EFFECTS: "1", LOCKEDIN_REDUCED_MOTION: "1" })).toEqual({
+  expect(resolvePluginOptions({}).enabled).toBe(false)
+  expect(resolvePluginOptions({ LOCKEDIN_EFFECTS: "1", LOCKEDIN_REDUCED_MOTION: "1" })).toEqual({
     enabled: false,
     trail: false,
     particles: false,
@@ -27,21 +27,21 @@ test("effects are opt-in and reduced motion wins", () => {
 })
 
 test("the trail and the particles can be enabled separately", () => {
-  expect(resolveEffectsOptions({ LOCKEDIN_EFFECTS: "trail" })).toEqual({
+  expect(resolvePluginOptions({ LOCKEDIN_EFFECTS: "trail" })).toEqual({
     enabled: true,
     trail: true,
     particles: false,
     layer: "under",
   })
-  expect(resolveEffectsOptions({ LOCKEDIN_EFFECTS: "particles" }).particles).toBe(true)
-  expect(resolveEffectsOptions({ LOCKEDIN_EFFECTS: "fireflies" }).trail).toBe(false)
-  expect(resolveEffectsOptions({ LOCKEDIN_EFFECTS: "nope" }).enabled).toBe(false)
+  expect(resolvePluginOptions({ LOCKEDIN_EFFECTS: "particles" }).particles).toBe(true)
+  expect(resolvePluginOptions({ LOCKEDIN_EFFECTS: "fireflies" }).trail).toBe(false)
+  expect(resolvePluginOptions({ LOCKEDIN_EFFECTS: "nope" }).enabled).toBe(false)
 })
 
 test("the text layer can be selected, with a safe fallback", () => {
-  expect(resolveEffectsOptions({ LOCKEDIN_EFFECTS: "1", LOCKEDIN_EFFECTS_LAYER: "around" }).layer).toBe("around")
-  expect(resolveEffectsOptions({ LOCKEDIN_EFFECTS: "1", LOCKEDIN_EFFECTS_LAYER: "over" }).layer).toBe("over")
-  expect(resolveEffectsOptions({ LOCKEDIN_EFFECTS: "1", LOCKEDIN_EFFECTS_LAYER: "nope" }).layer).toBe("under")
+  expect(resolvePluginOptions({ LOCKEDIN_EFFECTS: "1", LOCKEDIN_EFFECTS_LAYER: "around" }).layer).toBe("around")
+  expect(resolvePluginOptions({ LOCKEDIN_EFFECTS: "1", LOCKEDIN_EFFECTS_LAYER: "over" }).layer).toBe("over")
+  expect(resolvePluginOptions({ LOCKEDIN_EFFECTS: "1", LOCKEDIN_EFFECTS_LAYER: "nope" }).layer).toBe("under")
 })
 
 function frame(lines: string[][]): import("@opentui/core").OptimizedBuffer {
@@ -72,7 +72,7 @@ test("examples are selected by short name, id, or all", () => {
     { id: "example.fireflies" },
     { id: "example.sparks" },
     { id: "user.own" },
-  ] as unknown as import("../../src/ui/effects/api").ParticleSystem[]
+  ] as unknown as import("../../src/ui/plugins/api").ParticleSystem[]
   expect(selectSystems({}, systems).map((s) => s.id)).toEqual([
     "example.fireflies",
     "example.sparks",
@@ -99,7 +99,7 @@ function fakeRenderer(): import("@opentui/core").CliRenderer {
   } as unknown as import("@opentui/core").CliRenderer
 }
 
-function fakeHost(): import("../../src/ui/effects/host").EffectHost & { disposed: number } {
+function fakeHost(): import("../../src/ui/plugins/particle-host").ParticleHost & { disposed: number } {
   return {
     layer: "around",
     particleCount: 0,
@@ -116,8 +116,8 @@ function fakeHost(): import("../../src/ui/effects/host").EffectHost & { disposed
   }
 }
 
-function effects(hosts: Array<{ id: string; host: import("../../src/ui/effects/host").EffectHost }> = []): AppEffects {
-  return new AppEffects(
+function effects(hosts: Array<{ id: string; host: import("../../src/ui/plugins/particle-host").ParticleHost }> = []): AppPlugins {
+  return new AppPlugins(
     fakeRenderer(),
     () => crimson,
     { enabled: true, trail: false, particles: true, layer: "around" },
@@ -138,23 +138,23 @@ test("replacing hosts swaps what is mounted and disposes the old one", () => {
 })
 
 test("an invalid in-process system is not mounted", () => {
-  const running = createAppEffects(
+  const running = createAppPlugins(
     fakeRenderer(),
     () => crimson,
     { LOCKEDIN_EFFECTS: "particles" },
-    { systems: [{ id: "has spaces" }] as unknown as import("../../src/ui/effects/api").ParticleSystem[] },
+    { systems: [{ id: "has spaces" }] as unknown as import("../../src/ui/plugins/api").ParticleSystem[] },
   )
   expect(running?.systemIds).not.toContain("has spaces")
 })
 
-test("createAppEffects appends loaded systems and sandbox hosts to the examples", () => {
+test("createAppPlugins appends loaded systems and sandbox hosts to the examples", () => {
   const sandbox = fakeHost()
-  const running = createAppEffects(
+  const running = createAppPlugins(
     fakeRenderer(),
     () => crimson,
     { LOCKEDIN_EFFECTS: "particles" },
     {
-      systems: [{ id: "user.loaded" }] as unknown as import("../../src/ui/effects/api").ParticleSystem[],
+      systems: [{ id: "user.loaded" }] as unknown as import("../../src/ui/plugins/api").ParticleSystem[],
       hosts: [{ id: "plugin.sandboxed", host: sandbox }],
     },
   )
@@ -163,7 +163,7 @@ test("createAppEffects appends loaded systems and sandbox hosts to the examples"
   expect(running?.systemIds).toContain("plugin.sandboxed")
 })
 
-function fakeScene(ids: string[] = []): import("../../src/ui/effects/app-effects").SceneHost & { disposed: number } {
+function fakeScene(ids: string[] = []): import("../../src/ui/plugins/app-plugins").SceneHost & { disposed: number } {
   return {
     hasScene: true,
     fps: 4,
@@ -181,7 +181,7 @@ function fakeScene(ids: string[] = []): import("../../src/ui/effects/app-effects
 
 test("scene hosts are swapped and disposed", () => {
   const first = fakeScene()
-  const running = new AppEffects(
+  const running = new AppPlugins(
     fakeRenderer(),
     () => crimson,
     { enabled: true, trail: false, particles: true, layer: "around" },
@@ -199,7 +199,7 @@ test("scene hosts are swapped and disposed", () => {
 test("plugin window focus cycles across hosts and is exposed per host", () => {
   const first = fakeScene(["main", "inner"])
   const second = fakeScene(["queue"])
-  const running = new AppEffects(
+  const running = new AppPlugins(
     fakeRenderer(),
     () => crimson,
     { enabled: true, trail: false, particles: true, layer: "around" },
@@ -262,7 +262,7 @@ test("pointer events route to the topmost plugin cell and dedupe hover", () => {
       calls.push({ type, target })
     },
   } as unknown as SceneHost
-  const running = new AppEffects(
+  const running = new AppPlugins(
     renderer,
     () => crimson,
     { enabled: true, trail: false, particles: false, layer: "under" },
@@ -357,7 +357,7 @@ test("drag grants suppress click and route press/move/release", () => {
       calls.push({ type, target })
     },
   } as unknown as SceneHost
-  const running = new AppEffects(
+  const running = new AppPlugins(
     renderer,
     () => crimson,
     { enabled: true, trail: false, particles: false, layer: "under" },

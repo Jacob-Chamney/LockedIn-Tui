@@ -3,9 +3,9 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { effectPluginDirs, loadEffectPlugins } from "../../src/ui/effects/loader"
-import { SandboxedEffect } from "../../src/ui/effects/sandbox/effect"
-import { DEFAULT_SANDBOX_LIMITS } from "../../src/ui/effects/sandbox/limits"
+import { pluginDirsFromConfig, loadPlugins } from "../../src/ui/plugins/loader"
+import { SandboxedPlugin } from "../../src/ui/plugins/sandbox/plugin"
+import { DEFAULT_SANDBOX_LIMITS } from "../../src/ui/plugins/sandbox/limits"
 
 const dirs: string[] = []
 
@@ -68,16 +68,16 @@ async function pluginDir(files: Record<string, string>, name = "orbit"): Promise
 
 test("a plugin directory is discovered and its entry bundled", async () => {
   const root = await pluginDir({ "manifest.json": JSON.stringify(manifest()), "effect.ts": EFFECT })
-  const dirs = await effectPluginDirs({ LOCKEDIN_EFFECTS_DIR: root })
+  const dirs = await pluginDirsFromConfig({ LOCKEDIN_EFFECTS_DIR: root })
   expect(dirs).toHaveLength(1)
-  const loaded = await loadEffectPlugins(dirs)
+  const loaded = await loadPlugins(dirs)
   expect(loaded.errors).toEqual([])
   expect(loaded.plugins).toHaveLength(1)
   const plugin = loaded.plugins[0]!
   expect(plugin.manifest.id).toBe("lab.orbit")
   expect(plugin.bundle).toContain("lab.orbit")
 
-  const effect = await SandboxedEffect.create(plugin.bundle, plugin.manifest, DEFAULT_SANDBOX_LIMITS)
+  const effect = await SandboxedPlugin.create(plugin.bundle, plugin.manifest, DEFAULT_SANDBOX_LIMITS)
   try {
     effect.resize(40, 12)
     effect.setCursor(4, 4)
@@ -94,7 +94,7 @@ test("a manifest with a missing permission is rejected", async () => {
     "manifest.json": JSON.stringify(manifest({ permissions: {} })),
     "effect.ts": EFFECT,
   })
-  const loaded = await loadEffectPlugins(await effectPluginDirs({ LOCKEDIN_EFFECTS_DIR: root }))
+  const loaded = await loadPlugins(await pluginDirsFromConfig({ LOCKEDIN_EFFECTS_DIR: root }))
   expect(loaded.plugins).toEqual([])
   expect(loaded.errors[0]).toContain("permissions.particles")
 })
@@ -105,7 +105,7 @@ test("an entry outside the plugin directory is rejected", async () => {
     "effect.ts": EFFECT,
   })
   await writeFile(join(root, "escape.ts"), EFFECT)
-  const loaded = await loadEffectPlugins(await effectPluginDirs({ LOCKEDIN_EFFECTS_DIR: root }))
+  const loaded = await loadPlugins(await pluginDirsFromConfig({ LOCKEDIN_EFFECTS_DIR: root }))
   expect(loaded.plugins).toEqual([])
   expect(loaded.errors[0]).toContain("entry")
 })
@@ -115,12 +115,12 @@ test("an effect that imports a Node builtin fails to build", async () => {
     "manifest.json": JSON.stringify(manifest()),
     "effect.ts": `import { readFileSync } from "node:fs"\n${EFFECT.replace('return true', 'readFileSync("/etc/passwd"); return true')}`,
   })
-  const loaded = await loadEffectPlugins(await effectPluginDirs({ LOCKEDIN_EFFECTS_DIR: root }))
+  const loaded = await loadPlugins(await pluginDirsFromConfig({ LOCKEDIN_EFFECTS_DIR: root }))
   expect(loaded.plugins).toEqual([])
   expect(loaded.errors.join(" ").toLowerCase()).toContain("self-contained")
 })
 
 test("a plugin directory needs a manifest", async () => {
   const root = await pluginDir({ "effect.ts": EFFECT })
-  expect(await effectPluginDirs({ LOCKEDIN_EFFECTS_DIR: root })).toEqual([])
+  expect(await pluginDirsFromConfig({ LOCKEDIN_EFFECTS_DIR: root })).toEqual([])
 })

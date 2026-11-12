@@ -1,17 +1,17 @@
 import { expect, test } from "bun:test"
 
-import { loadEffectPlugins } from "../../src/ui/effects/loader"
-import { SandboxedEffect } from "../../src/ui/effects/sandbox/effect"
+import { loadPlugins } from "../../src/ui/plugins/loader"
+import { SandboxedPlugin } from "../../src/ui/plugins/sandbox/plugin"
 import {
   collectFocusIds,
   DEFAULT_SCENE_BUDGET,
   sanitizeScene,
   type SceneGroup,
   type SceneNode,
-} from "../../src/ui/effects/scene/model"
+} from "../../src/ui/plugins/scene/model"
 
 test("the window example exposes persisted scroll commands", async () => {
-  const loaded = await loadEffectPlugins(["src/ui/effects/examples/scene-window"])
+  const loaded = await loadPlugins(["src/ui/plugins/examples/scene-window"])
   expect(loaded.errors).toEqual([])
   const plugin = loaded.plugins[0]!
   expect(plugin.manifest.permissions.commands?.map((command) => command.id)).toEqual([
@@ -21,7 +21,7 @@ test("the window example exposes persisted scroll commands", async () => {
   expect(plugin.manifest.permissions.scene?.fps).toBe(30)
   expect(plugin.manifest.permissions.state).toContain("focused")
 
-  const effect = await SandboxedEffect.create(plugin.bundle, plugin.manifest)
+  const effect = await SandboxedPlugin.create(plugin.bundle, plugin.manifest)
   try {
     const state = { width: 100, height: 40, focused: true }
     expect(effect.runCommand("focus-scroll-down", { state, time: 1 })).toMatchObject({ ok: true })
@@ -47,10 +47,10 @@ test("the packaged window example loads with its commands", async () => {
   const { buildPlugin } = await import("../../scripts/plugin-build")
   const dir = await Bun.$`mktemp -d`.text()
   try {
-    const built = await buildPlugin("src/ui/effects/examples/scene-window", `${dir.trim()}/out`)
+    const built = await buildPlugin("src/ui/plugins/examples/scene-window", `${dir.trim()}/out`)
     expect(built.ok).toBe(true)
     if (!built.ok) return
-    const loaded = await loadEffectPlugins([built.dir])
+    const loaded = await loadPlugins([built.dir])
     expect(loaded.errors).toEqual([])
     expect(loaded.plugins[0]!.manifest.entry).toBe("plugin.js")
     expect(loaded.plugins[0]!.manifest.permissions.commands).toHaveLength(2)
@@ -70,9 +70,9 @@ function findGroup(nodes: readonly SceneNode[], id: string): SceneGroup | undefi
 }
 
 test("the example exposes two focusable windows and styles the focused one", async () => {
-  const loaded = await loadEffectPlugins(["src/ui/effects/examples/scene-window"])
+  const loaded = await loadPlugins(["src/ui/plugins/examples/scene-window"])
   const plugin = loaded.plugins[0]!
-  const effect = await SandboxedEffect.create(plugin.bundle, plugin.manifest)
+  const effect = await SandboxedPlugin.create(plugin.bundle, plugin.manifest)
   try {
     const compose = (focusedWindow: string) => {
       const scene = effect.compose({

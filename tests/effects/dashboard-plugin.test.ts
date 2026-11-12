@@ -1,14 +1,14 @@
 import { expect, test } from "bun:test"
 
-import { loadEffectPlugins } from "../../src/ui/effects/loader"
-import { SandboxedEffect } from "../../src/ui/effects/sandbox/effect"
-import { collectFocusIds, type SceneGroup, type SceneNode } from "../../src/ui/effects/scene/model"
+import { loadPlugins } from "../../src/ui/plugins/loader"
+import { SandboxedPlugin } from "../../src/ui/plugins/sandbox/plugin"
+import { collectFocusIds, type SceneGroup, type SceneNode } from "../../src/ui/plugins/scene/model"
 
 async function example() {
-  const loaded = await loadEffectPlugins(["src/ui/effects/examples/scene-dashboard"])
+  const loaded = await loadPlugins(["src/ui/plugins/examples/scene-dashboard"])
   expect(loaded.errors).toEqual([])
   const plugin = loaded.plugins[0]!
-  const effect = await SandboxedEffect.create(plugin.bundle, plugin.manifest)
+  const effect = await SandboxedPlugin.create(plugin.bundle, plugin.manifest)
   const compose = (time: number, focusedWindow?: string) =>
     effect.compose({
       state: { width: 110, height: 40, focusedWindow },
@@ -120,13 +120,13 @@ test("the packaged dashboard loads with both panels", async () => {
   const { buildPlugin } = await import("../../scripts/plugin-build")
   const dir = (await Bun.$`mktemp -d`.text()).trim()
   try {
-    const built = await buildPlugin("src/ui/effects/examples/scene-dashboard", `${dir}/out`)
+    const built = await buildPlugin("src/ui/plugins/examples/scene-dashboard", `${dir}/out`)
     expect(built.ok).toBe(true)
     if (!built.ok) return
-    const loaded = await loadEffectPlugins([built.dir])
+    const loaded = await loadPlugins([built.dir])
     expect(loaded.errors).toEqual([])
     expect(loaded.plugins[0]!.manifest.entry).toBe("plugin.js")
-    const effect = await SandboxedEffect.create(
+    const effect = await SandboxedPlugin.create(
       loaded.plugins[0]!.bundle,
       loaded.plugins[0]!.manifest,
     )

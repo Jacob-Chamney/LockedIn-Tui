@@ -7,14 +7,14 @@
  */
 import { validateParticleSystem, type ParticleSystem, type SystemCheck } from "./api"
 
-export type EffectEntry = {
+export type ParticleEntry = {
   id: string
   system: ParticleSystem
   enabled: boolean
 }
 
-export class EffectRegistry {
-  private entries = new Map<string, EffectEntry>()
+export class ParticleRegistry {
+  private entries = new Map<string, ParticleEntry>()
 
   get size(): number {
     return this.entries.size
@@ -35,15 +35,15 @@ export class EffectRegistry {
     return this.entries.delete(id)
   }
 
-  get(id: string): EffectEntry | undefined {
+  get(id: string): ParticleEntry | undefined {
     return this.entries.get(id)
   }
 
-  list(): EffectEntry[] {
+  list(): ParticleEntry[] {
     return [...this.entries.values()]
   }
 
-  enabled(): EffectEntry[] {
+  enabled(): ParticleEntry[] {
     return this.list().filter((entry) => entry.enabled)
   }
 

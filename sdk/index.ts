@@ -1,5 +1,5 @@
 /**
- * `@lockedin/sdk` — the typed surface for effect and scene plugins.
+ * `@lockedin/sdk` — the typed surface for UI plugins.
  *
  * Imports are type-only, so a bundled plugin carries only the identity
  * helpers below. The host still validates manifests and every node at load.
@@ -9,8 +9,8 @@ import type {
   ParticleEvent,
   ParticleSpawnTrigger,
   ParticleStyle,
-} from "../src/ui/effects/api"
-import type { TextLayer } from "../src/ui/effects/paint"
+} from "../src/ui/plugins/api"
+import type { TextLayer } from "../src/ui/plugins/paint"
 import type {
   SceneClip,
   SceneGroup,
@@ -18,18 +18,20 @@ import type {
   ScenePosition,
   SceneState,
   SceneText,
-} from "../src/ui/effects/scene/model"
+} from "../src/ui/plugins/scene/model"
 import type {
   CommandPermission,
   EffectManifest,
   ParticlePermission,
+  PluginManifest,
   ScenePermission,
-} from "../src/ui/effects/sandbox/manifest"
+} from "../src/ui/plugins/sandbox/manifest"
 import type { ThemePalette } from "../src/ui/theme"
 
 export type {
   CommandPermission,
   EffectManifest,
+  PluginManifest,
   ParticleBuffer,
   ParticleEvent,
   ParticlePermission,
@@ -1176,6 +1178,6 @@ export function defineParticleSystem<T extends PluginDefinition>(system: T): T {
 }
 
 /** Identity helper for manifest files. */
-export function defineManifest<T extends EffectManifest>(manifest: T): T {
+export function defineManifest<T extends PluginManifest>(manifest: T): T {
   return manifest
 }

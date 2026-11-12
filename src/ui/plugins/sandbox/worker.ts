@@ -5,10 +5,10 @@
  * QuickJS heap only blocks this thread, and the host can terminate it. QuickJS
  * remains the security boundary — the worker has no host objects either way.
  */
-import { SandboxedEffect } from "./effect"
+import { SandboxedPlugin } from "./plugin"
 import type { FrameInput, WireParticle, WorkerIn, WorkerOut } from "./protocol"
 
-let effect: SandboxedEffect | null = null
+let effect: SandboxedPlugin | null = null
 
 /** Bun's worker scope; the DOM typings do not describe a dedicated worker. */
 const scope = self as unknown as {
@@ -55,7 +55,7 @@ scope.onmessage = async (event: MessageEvent<WorkerIn>) => {
   if (message.type === "load") {
     try {
       effect?.dispose()
-      effect = await SandboxedEffect.create(
+      effect = await SandboxedPlugin.create(
         message.bundle,
         message.manifest,
         message.limits,

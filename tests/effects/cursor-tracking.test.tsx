@@ -4,8 +4,8 @@ import { onMount } from "solid-js"
 import { testRender, useRenderer } from "@opentui/solid"
 
 import { crimson } from "../../src/ui/theme/palettes"
-import { paintParticles } from "../../src/ui/effects/paint"
-import type { Particle } from "../../src/ui/effects/particles"
+import { paintParticles } from "../../src/ui/plugins/paint"
+import type { Particle } from "../../src/ui/plugins/particles"
 
 function marker(x: number, y: number): Particle {
   return { x, y, vx: 0, vy: 0, age: 0, life: 1, seed: 0, glyph: "@", mode: "fire" }

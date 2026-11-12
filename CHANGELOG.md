@@ -19,6 +19,10 @@ requests merge.
 - Settings now separates **MCP servers** from **UI plugins**, and the plugin
   manager is labelled **UI plugins**. The underlying MCP modules are named
   `src/mcp` / `features/mcp` instead of `plugins`.
+- The UI plugin runtime moved to `src/ui/plugins`; `PluginManifest`,
+  `SandboxedPlugin` and `SandboxWorkerPlugin` are the primary names.
+  `EffectManifest`, `SandboxedEffect` and `SandboxWorkerEffect` remain as
+  deprecated aliases for the released SDK.
 
 ### Removed
 

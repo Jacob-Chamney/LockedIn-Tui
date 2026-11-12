@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 
-import { CursorSpring, CursorTrail } from "../../src/ui/effects/cursor"
-import { ParticleField } from "../../src/ui/effects/particles"
+import { CursorSpring, CursorTrail } from "../../src/ui/plugins/cursor"
+import { ParticleField } from "../../src/ui/plugins/particles"
 
 function seeded(seed = 1): () => number {
   let state = seed >>> 0

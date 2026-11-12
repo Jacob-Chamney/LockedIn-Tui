@@ -3,12 +3,12 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import type { EffectManifest, ParticlePermission, ScenePermission } from "../../src/ui/effects/sandbox/manifest"
-import { parseManifest } from "../../src/ui/effects/sandbox/manifest"
-import { bundleEffectEntry } from "../../src/ui/effects/loader"
-import { MAX_BUNDLE_BYTES } from "../../src/ui/effects/sandbox/limits"
-import { SandboxedEffect } from "../../src/ui/effects/sandbox/effect"
-import { Sandbox, loadQuickJS } from "../../src/ui/effects/sandbox/runtime"
+import type { PluginManifest, ParticlePermission, ScenePermission } from "../../src/ui/plugins/sandbox/manifest"
+import { parseManifest } from "../../src/ui/plugins/sandbox/manifest"
+import { bundlePluginEntry } from "../../src/ui/plugins/loader"
+import { MAX_BUNDLE_BYTES } from "../../src/ui/plugins/sandbox/limits"
+import { SandboxedPlugin } from "../../src/ui/plugins/sandbox/plugin"
+import { Sandbox, loadQuickJS } from "../../src/ui/plugins/sandbox/runtime"
 
 const dirs: string[] = []
 
@@ -27,7 +27,7 @@ function permissions(overrides: Partial<ParticlePermission> = {}): ParticlePermi
   }
 }
 
-function manifest(id = "sandbox.test", overrides: Partial<ParticlePermission> = {}): EffectManifest {
+function manifest(id = "sandbox.test", overrides: Partial<ParticlePermission> = {}): PluginManifest {
   return {
     manifestVersion: 1,
     id,
@@ -44,12 +44,12 @@ async function bundle(source: string): Promise<string> {
   dirs.push(dir)
   const entry = join(dir, "effect.ts")
   await writeFile(entry, source)
-  return bundleEffectEntry(entry)
+  return bundlePluginEntry(entry)
 }
 
 async function boot(source: string, overrides: Partial<ParticlePermission> = {}, id = "sandbox.test") {
   const code = await bundle(source)
-  return SandboxedEffect.create(code, manifest(id, overrides))
+  return SandboxedPlugin.create(code, manifest(id, overrides))
 }
 
 const BASIC = `
@@ -180,7 +180,7 @@ describe("sandbox containment", () => {
   test("a load-time infinite loop is interrupted", async () => {
     const code = await bundle(`while (true) {}\nexport default { id: "sandbox.test" }`)
     const started = Date.now()
-    const error = await SandboxedEffect.create(code, manifest(), {
+    const error = await SandboxedPlugin.create(code, manifest(), {
       memoryBytes: 16 * 1024 * 1024,
       stackBytes: 512 * 1024,
       loadTimeoutMs: 80,
@@ -241,7 +241,7 @@ describe("sandbox containment", () => {
   })
 
   test("an oversized bundle is rejected before evaluation", async () => {
-    const error = await SandboxedEffect.create("x".repeat(MAX_BUNDLE_BYTES + 1), manifest())
+    const error = await SandboxedPlugin.create("x".repeat(MAX_BUNDLE_BYTES + 1), manifest())
       .then(() => null)
       .catch((value: Error) => value)
     expect(error).toBeInstanceOf(Error)
@@ -261,7 +261,7 @@ export default {
 }
 `
 
-function sceneManifest(scene: Partial<ScenePermission> = {}): EffectManifest {
+function sceneManifest(scene: Partial<ScenePermission> = {}): PluginManifest {
   return {
     manifestVersion: 1,
     id: "sandbox.scene",
@@ -282,7 +282,7 @@ function sceneManifest(scene: Partial<ScenePermission> = {}): EffectManifest {
 }
 
 test("a scene-only plugin composes nodes through the sandbox", async () => {
-  const effect = await SandboxedEffect.create(await bundle(SCENE), sceneManifest())
+  const effect = await SandboxedPlugin.create(await bundle(SCENE), sceneManifest())
   try {
     expect(effect.hasCompose).toBe(true)
     expect(effect.hasParticles).toBe(false)
@@ -303,7 +303,7 @@ test("a scene-only plugin composes nodes through the sandbox", async () => {
 })
 
 test("compose without a scene grant is rejected", async () => {
-  const error = await SandboxedEffect.create(await bundle(SCENE), manifest())
+  const error = await SandboxedPlugin.create(await bundle(SCENE), manifest())
     .then(() => null)
     .catch((value: Error) => value)
   expect(error).toBeInstanceOf(Error)
@@ -311,7 +311,7 @@ test("compose without a scene grant is rejected", async () => {
 })
 
 test("a throwing compose is contained", async () => {
-  const effect = await SandboxedEffect.create(
+  const effect = await SandboxedPlugin.create(
     await bundle(SCENE.replace("compose(ctx) {", 'compose(ctx) { throw new Error("scene boom")')),
     sceneManifest(),
   )
@@ -374,7 +374,7 @@ export default {
 }
 `
 
-function commandManifest(): EffectManifest {
+function commandManifest(): PluginManifest {
   return {
     manifestVersion: 1,
     id: "sandbox.cmd",
@@ -390,7 +390,7 @@ function commandManifest(): EffectManifest {
 }
 
 test("a plugin command runs inside the sandbox and changes compose", async () => {
-  const effect = await SandboxedEffect.create(await bundle(COMMANDS), commandManifest())
+  const effect = await SandboxedPlugin.create(await bundle(COMMANDS), commandManifest())
   try {
     expect(effect.commandIds).toEqual(["status-toggle"])
     const result = effect.runCommand("status-toggle", { state: { width: 40, height: 12 }, time: 1 })
@@ -407,7 +407,7 @@ test("a plugin command runs inside the sandbox and changes compose", async () =>
 test("a command the manifest did not grant is rejected at load", async () => {
   const manifest = commandManifest()
   manifest.permissions.commands = []
-  const error = await SandboxedEffect.create(await bundle(COMMANDS), manifest)
+  const error = await SandboxedPlugin.create(await bundle(COMMANDS), manifest)
     .then(() => null)
     .catch((value: Error) => value)
   expect(error).toBeInstanceOf(Error)
@@ -435,13 +435,13 @@ test("command grants are validated", () => {
 
 test("the effect can set its display name in code", async () => {
   const code = await bundle(`export default { id: "sandbox.scene", name: "Pretty status card", compose() { return { nodes: [] } } }`)
-  const effect = await SandboxedEffect.create(code, sceneManifest())
+  const effect = await SandboxedPlugin.create(code, sceneManifest())
   try {
     expect(effect.pluginName).toBe("Pretty status card")
   } finally {
     effect.dispose()
   }
-  const unnamed = await SandboxedEffect.create(
+  const unnamed = await SandboxedPlugin.create(
     await bundle(`export default { id: "sandbox.scene", compose() { return { nodes: [] } } }`),
     sceneManifest(),
   )
@@ -477,7 +477,7 @@ export default {
 }
 `
 
-function persistManifest(): EffectManifest {
+function persistManifest(): PluginManifest {
   const manifest = sceneManifest()
   manifest.permissions.commands = [
     { id: "toggle", title: "Toggle" },
@@ -488,7 +488,7 @@ function persistManifest(): EffectManifest {
 
 test("store survives a reload; session does not", async () => {
   const code = await bundle(PERSIST)
-  const first = await SandboxedEffect.create(code, persistManifest(), undefined, { visible: false })
+  const first = await SandboxedPlugin.create(code, persistManifest(), undefined, { visible: false })
   try {
     const before = first.compose({ state: { width: 40, height: 12 }, time: 1 }) as {
       nodes: Array<Record<string, string>>
@@ -507,7 +507,7 @@ test("store survives a reload; session does not", async () => {
   }
 
   // A new worker starts from the host store; the session API is empty again.
-  const second = await SandboxedEffect.create(code, persistManifest(), undefined, { visible: false })
+  const second = await SandboxedPlugin.create(code, persistManifest(), undefined, { visible: false })
   try {
     const scene = second.compose({ state: { width: 40, height: 12 }, time: 1 }) as {
       nodes: Array<Record<string, string>>
@@ -523,7 +523,7 @@ test("store survives a reload; session does not", async () => {
 })
 
 test("the store rejects values it cannot persist", async () => {
-  const effect = await SandboxedEffect.create(
+  const effect = await SandboxedPlugin.create(
     await bundle(`
       export default {
         id: "sandbox.scene",
@@ -549,13 +549,13 @@ test("the compose frame rate comes from the code and is capped by the manifest",
   `)
   const manifest = sceneManifest()
   manifest.permissions.scene = { ...manifest.permissions.scene!, fps: 30 }
-  const capped = await SandboxedEffect.create(code, manifest)
+  const capped = await SandboxedPlugin.create(code, manifest)
   try {
     expect(capped.fps).toBe(30)
   } finally {
     capped.dispose()
   }
-  const fallback = await SandboxedEffect.create(
+  const fallback = await SandboxedPlugin.create(
     await bundle(`export default { id: "sandbox.scene", compose() { return { nodes: [] } } }`),
     sceneManifest(),
   )
@@ -593,7 +593,7 @@ test("a command can copy text only with the clipboard grant", async () => {
   const manifest = sceneManifest()
   manifest.permissions.commands = [{ id: "copy-row", title: "Copy row" }]
 
-  const refused = await SandboxedEffect.create(code, manifest)
+  const refused = await SandboxedPlugin.create(code, manifest)
   try {
     expect(refused.runCommand("copy-row", {})).toEqual({
       ok: false,
@@ -603,7 +603,7 @@ test("a command can copy text only with the clipboard grant", async () => {
     refused.dispose()
   }
 
-  const granted = await SandboxedEffect.create(code, {
+  const granted = await SandboxedPlugin.create(code, {
     ...manifest,
     permissions: { ...manifest.permissions, clipboard: true },
   })
@@ -619,7 +619,7 @@ test("a command can copy text only with the clipboard grant", async () => {
 })
 
 test("clipboard payloads are bounded and non-strings are ignored", async () => {
-  const huge = await SandboxedEffect.create(
+  const huge = await SandboxedPlugin.create(
     await bundle(`
       export default {
         id: "sandbox.scene",
@@ -643,7 +643,7 @@ test("clipboard payloads are bounded and non-strings are ignored", async () => {
     huge.dispose()
   }
 
-  const invalid = await SandboxedEffect.create(
+  const invalid = await SandboxedPlugin.create(
     await bundle(`
       export default {
         id: "sandbox.scene",

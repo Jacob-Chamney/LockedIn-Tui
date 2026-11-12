@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 
-import { defineParticleSystem } from "../../src/ui/effects/api"
-import { CustomParticleHost } from "../../src/ui/effects/host"
+import { defineParticleSystem } from "../../src/ui/plugins/api"
+import { CustomParticleHost } from "../../src/ui/plugins/particle-host"
 import { crimson } from "../../src/ui/theme/palettes"
 
 const system = defineParticleSystem({

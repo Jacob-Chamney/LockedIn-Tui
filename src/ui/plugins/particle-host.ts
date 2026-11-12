@@ -232,7 +232,7 @@ export class CustomParticleHost {
  * The interface the app's frame loop uses. The in-process host and the
  * sandboxed worker host both implement it, so effects are interchangeable.
  */
-export type EffectHost = {
+export type ParticleHost = {
   readonly layer: TextLayer
   readonly particleCount: number
   readonly failed?: boolean
