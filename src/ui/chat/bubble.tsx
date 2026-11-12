@@ -80,6 +80,8 @@ export function capPixels(input: {
 
 /** Cap images repeat across messages: cache by shape and colour. */
 const capCache = new Map<string, NativeImage>()
+/** Fading bubbles mint new colours per frame; keep the cache bounded. */
+const CAP_CACHE_LIMIT = 256
 
 export function bubbleCapCacheSize(): number {
   return capCache.size
@@ -93,7 +95,19 @@ export function disposeBubbleCaps(): void {
 function capImage(fill: string, background: string, width: number, capHeight: number, edge: "top" | "bottom"): NativeImage {
   const key = `${fill}:${background}:${width}:${capHeight}:${edge}`
   const cached = capCache.get(key)
-  if (cached) return cached
+  if (cached) {
+    // Refresh recency for the small LRU.
+    capCache.delete(key)
+    capCache.set(key, cached)
+    return cached
+  }
+  if (capCache.size >= CAP_CACHE_LIMIT) {
+    const oldest = capCache.keys().next().value
+    if (oldest !== undefined) {
+      capCache.get(oldest)?.dispose()
+      capCache.delete(oldest)
+    }
+  }
   const image = NativeImage.fromRgba(capPixels({ width, capHeight, fill, background, edge }), width, capHeight)
   capCache.set(key, image)
   return image

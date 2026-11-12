@@ -1,9 +1,10 @@
 /** Messages: ten seconds, then a fade. */
 import { describe, expect, test } from "bun:test"
 
-const { NOTICE_MS, NOTICE_FADE_MS, NOTICE_MIN_WIDTH, NOTICE_MAX_WIDTH, pruneNotices, noticeOpacity, noticeGlyph, noticeWidth } = await import(
+const { NOTICE_MS, NOTICE_FADE_MS, NOTICE_MIN_WIDTH, NOTICE_MAX_WIDTH, pruneNotices, noticeOpacity, noticeGlyph, noticeWidth, noticeColors } = await import(
   "../../src/ui/shell/notice-stack"
 )
+const { crimson } = await import("../../src/ui/theme")
 
 const notice = (at: number) => ({ id: "n1", text: "hello", level: "info" as const, at })
 
@@ -36,5 +37,19 @@ describe("notice bubble", () => {
     expect(noticeWidth("a".repeat(20), 60)).toBe(24)
     expect(noticeWidth("a".repeat(200), 60)).toBe(NOTICE_MAX_WIDTH)
     expect(noticeWidth("a".repeat(200), 30)).toBe(30)
+  })
+})
+
+describe("notice fade colours", () => {
+  test("blend the fill and ink to the background at zero", () => {
+    const full = noticeColors("error", crimson, 1)
+    expect(full.fill.toLowerCase()).toBe(crimson.error.toLowerCase())
+    expect(full.ink.toLowerCase()).toBe(crimson.background.toLowerCase())
+    const gone = noticeColors("error", crimson, 0)
+    expect(gone.fill.toLowerCase()).toBe(crimson.background.toLowerCase())
+    expect(gone.ink.toLowerCase()).toBe(crimson.background.toLowerCase())
+    const half = noticeColors("error", crimson, 0.5)
+    expect(half.fill).not.toBe(crimson.error)
+    expect(half.fill).not.toBe(crimson.background)
   })
 })
