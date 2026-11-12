@@ -14,6 +14,12 @@ requests merge.
 
 ## Unreleased
 
+### Removed
+
+- The in-app template and example galleries are no longer part of the packaged
+  app. Starter layouts stay in `plugin:new` and the shipped examples stay in
+  `src/ui/effects/examples/` as repository tooling.
+
 ## 2026.11.12
 
 ### Added
