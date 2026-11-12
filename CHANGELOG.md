@@ -16,6 +16,8 @@ requests merge.
 
 ### Changed
 
+- Notices now render as individual rounded bubbles with the message inside and
+  a level glyph; error bubbles use the error border and fade like the rest.
 - Settings now separates **MCP servers** from **UI plugins**, and the plugin
   manager is labelled **UI plugins**. The underlying MCP modules are named
   `src/mcp` / `features/mcp` instead of `plugins`.

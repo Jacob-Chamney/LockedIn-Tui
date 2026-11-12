@@ -1,7 +1,7 @@
 /** Messages: ten seconds, then a fade. */
 import { describe, expect, test } from "bun:test"
 
-const { NOTICE_MS, NOTICE_FADE_MS, pruneNotices, noticeOpacity } = await import(
+const { NOTICE_MS, NOTICE_FADE_MS, NOTICE_MIN_WIDTH, NOTICE_MAX_WIDTH, pruneNotices, noticeOpacity, noticeGlyph, noticeWidth } = await import(
   "../../src/ui/shell/notice-stack"
 )
 
@@ -19,5 +19,20 @@ describe("notice lifetime", () => {
   test("is pruned after ten seconds", () => {
     expect(pruneNotices([notice(0)], NOTICE_MS - 1)).toHaveLength(1)
     expect(pruneNotices([notice(0)], NOTICE_MS)).toHaveLength(0)
+  })
+})
+
+describe("notice bubble", () => {
+  test("uses a level glyph", () => {
+    expect(noticeGlyph("error")).toBe("×")
+    expect(noticeGlyph("warn")).toBe("!")
+    expect(noticeGlyph("info")).toBe("·")
+  })
+
+  test("fits short messages and wraps at the cap", () => {
+    expect(noticeWidth("hi", 60)).toBe(NOTICE_MIN_WIDTH)
+    expect(noticeWidth("a".repeat(20), 60)).toBe(26)
+    expect(noticeWidth("a".repeat(200), 60)).toBe(NOTICE_MAX_WIDTH)
+    expect(noticeWidth("a".repeat(200), 30)).toBe(30)
   })
 })
