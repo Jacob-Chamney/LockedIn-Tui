@@ -793,3 +793,32 @@ test("scene grants default to top-left, 24 nodes and 512 characters", () => {
     maxText: 512,
   })
 })
+
+test("commands may be bare ids and gain a title", () => {
+  const checked = parseManifest({
+    manifestVersion: 1,
+    id: "lab.scene",
+    name: "Scene",
+    version: "1.0.0",
+    apiVersion: "1.0",
+    entry: "effect.ts",
+    permissions: { scene: {}, commands: ["save", "focus-mode"] },
+  })
+  expect(checked.ok).toBe(true)
+  if (!checked.ok) return
+  expect(checked.manifest.permissions.commands).toEqual([
+    { id: "save", title: "Save" },
+    { id: "focus-mode", title: "Focus mode" },
+  ])
+  expect(
+    parseManifest({
+      manifestVersion: 1,
+      id: "lab.scene",
+      name: "Scene",
+      version: "1.0.0",
+      apiVersion: "1.0",
+      entry: "effect.ts",
+      permissions: { scene: {}, commands: ["Bad Id"] },
+    }).ok,
+  ).toBe(false)
+})

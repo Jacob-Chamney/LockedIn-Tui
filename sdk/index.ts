@@ -1245,6 +1245,149 @@ export function transition(elapsed: number, options: TransitionOptions = {}): nu
   return 1 - curve(Math.min(1, (afterEnter - hold) / exit))
 }
 
+export type CursorOptions = {
+  /** Initial selection; defaults to 0. */
+  index?: number
+  /** Wrap at the ends instead of clamping. */
+  wrap?: boolean
+}
+
+export type Cursor = {
+  readonly index: number
+  readonly count: number
+  readonly fraction: number
+  set(index: number): number
+  next(step?: number): number
+  prev(step?: number): number
+}
+
+/**
+ * A small selection cursor for lists and tables.
+ *
+ *   const cursor = createCursor(rows.length, { index: ctx.store.get("row") ?? 0 })
+ *   commands: {
+ *     next: () => { ctx.store.set("row", cursor.next()) },
+ *   }
+ *
+ * It clamps by default; pass `{ wrap: true }` to cycle.
+ */
+export function createCursor(count: number, options: CursorOptions = {}): Cursor {
+  const size = Math.max(0, Math.round(count))
+  const wrap = options.wrap === true
+  const place = (value: number): number => {
+    if (size === 0) return 0
+    const rounded = Math.round(value)
+    if (wrap) return ((rounded % size) + size) % size
+    return Math.max(0, Math.min(size - 1, rounded))
+  }
+  let index = place(options.index ?? 0)
+  return {
+    get index() {
+      return index
+    },
+    get count() {
+      return size
+    },
+    get fraction() {
+      return size <= 1 ? 0 : index / (size - 1)
+    },
+    set(value: number) {
+      index = place(value)
+      return index
+    },
+    next(step = 1) {
+      index = place(index + step)
+      return index
+    },
+    prev(step = 1) {
+      index = place(index - step)
+      return index
+    },
+  }
+}
+
+export type FieldRow = {
+  label: string
+  value?: string
+  /** Value colour override, a palette role or `#rrggbb`. */
+  tone?: string
+}
+
+export type FieldsOptions = {
+  rows: readonly FieldRow[]
+  /** Full row width in cells. */
+  width: number
+  selected?: number
+  height?: number
+  scroll?: number
+  labelWidth?: number
+  gap?: number
+  selectedBg?: string
+  selectedFg?: string
+  fg?: string
+  valueFg?: string
+}
+
+function fitFieldText(text: string, width: number): string {
+  const room = Math.max(0, Math.floor(width))
+  if (room === 0) return ""
+  return text.length > room ? `${text.slice(0, Math.max(0, room - 1))}…` : text
+}
+
+/** Label/value rows for a settings or detail panel. */
+export function fields(options: FieldsOptions): SceneNode[] {
+  const rows = options.rows
+  if (rows.length === 0) return []
+  const width = Math.max(1, Math.round(options.width))
+  const labelWidth = Math.max(
+    1,
+    Math.min(width - 1, Math.round(options.labelWidth ?? Math.min(14, Math.floor(width / 3)))),
+  )
+  const gap = " ".repeat(Math.max(0, Math.round(options.gap ?? 1)))
+  const selected = Math.max(0, Math.min(rows.length - 1, Math.round(options.selected ?? -1)))
+  const height = Math.max(1, Math.min(rows.length, Math.round(options.height ?? rows.length)))
+  const maxScroll = Math.max(0, rows.length - height)
+  const scroll =
+    options.scroll === undefined
+      ? Math.max(0, Math.min(maxScroll, selected - height + 1))
+      : Math.max(0, Math.min(maxScroll, Math.round(options.scroll)))
+  const nodes: SceneNode[] = []
+
+  for (let line = 0; line < height; line++) {
+    const index = scroll + line
+    const row = rows[index]
+    if (!row) break
+    const current = options.selected !== undefined && index === selected
+    if (current) {
+      nodes.push({
+        kind: "rect",
+        anchor: "top-left",
+        x: 0,
+        y: line,
+        width,
+        height: 1,
+        fill: true,
+        color: options.selectedBg ?? "line",
+      })
+    }
+    const label = fitFieldText(row.label, labelWidth).padEnd(labelWidth)
+    const valueWidth = width - labelWidth - gap.length
+    const value = valueWidth > 0 ? fitFieldText(row.value ?? "", valueWidth) : ""
+    nodes.push({
+      kind: "text",
+      anchor: "top-left",
+      x: 0,
+      y: line,
+      text: `${label}${gap}${value}`.trimEnd(),
+      fg: current
+        ? (options.selectedFg ?? "foreground")
+        : row.tone ?? (row.value ? (options.valueFg ?? "foreground") : (options.fg ?? "muted")),
+      ...(current ? { bg: options.selectedBg ?? "line" } : {}),
+    })
+  }
+  return nodes
+}
+
 /** Common easing curves for `ctx.time`-driven animation. */
 export const ease = {
   linear: (t: number): number => Math.max(0, Math.min(1, t)),
