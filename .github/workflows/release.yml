@@ -156,6 +156,8 @@ jobs:
 
       - name: Checksums and listing
         run: |
+          cp install.sh dist/install.sh
+          chmod +x dist/install.sh
           cd dist
           find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum > SHA256SUMS
           cat SHA256SUMS
