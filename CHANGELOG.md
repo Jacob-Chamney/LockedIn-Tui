@@ -45,6 +45,8 @@ requests merge.
 
 - Plugin commands can choose the host notice level (`notice("saved", "warn")`)
   without writing any bubble, fade or timing code.
+- `card({ title, lines, footer, tone })` builds a message window and computes
+  its own height, so scene messages do not hand-write layout.
 - Sandboxed TypeScript plugins with validated manifests, QuickJS workers,
   resource limits, quarantine and the typed `@lockedin/sdk`.
 - Particle systems with spawn/step/style hooks, text layers and event bursts.

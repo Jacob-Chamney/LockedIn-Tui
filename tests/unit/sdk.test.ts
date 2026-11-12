@@ -4,6 +4,7 @@ import {
   defineManifest,
   defineParticleSystem,
   definePlugin,
+  card,
   dashboard,
   ease,
   fadeColor,
@@ -536,4 +537,35 @@ test("table paints a drag-selection range and the cursor cell on top", () => {
 test("the notice helper returns a command result", () => {
   expect(notice("saved")).toEqual({ message: "saved", level: "info" })
   expect(notice("careful", "warn")).toEqual({ message: "careful", level: "warn" })
+})
+
+test("card computes its height and maps the tone to the frame", () => {
+  const saved = card({
+    anchor: "absolute",
+    x: 0,
+    y: 0,
+    width: 30,
+    title: "saved",
+    tone: "success",
+    lines: ["3 notes updated", "in this session"],
+    footer: [{ kind: "text", anchor: "top-left", x: 0, y: 0, text: "done" }],
+  })
+  expect(saved.kind).toBe("group")
+  expect(saved).toMatchObject({
+    width: 30,
+    height: 8,
+    borderColor: "success",
+    padding: 1,
+    title: "saved",
+  })
+  const body = saved.nodes.find((node) => node.kind === "group")
+  if (body?.kind !== "group") throw new Error("expected body")
+  expect(body.height).toBe(2)
+  expect(body.nodes[0]).toMatchObject({ kind: "text", y: 0, text: "3 notes updated" })
+  expect(body.nodes[1]).toMatchObject({ kind: "text", y: 1, text: "in this session" })
+  expect(saved.nodes.at(-1)?.kind).toBe("group")
+
+  const neutral = card({ anchor: "absolute", x: 0, y: 0, width: 20, tone: "neutral" })
+  expect(neutral.borderColor).toBe("line")
+  expect(neutral.height).toBe(4)
 })
