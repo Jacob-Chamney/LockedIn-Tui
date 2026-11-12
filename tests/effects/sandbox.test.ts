@@ -739,3 +739,37 @@ test("pointer permissions must reference granted commands", () => {
     }).ok,
   ).toBe(false)
 })
+
+test("a command can choose its notice level", async () => {
+  const effect = await SandboxedPlugin.create(
+    await bundle(`
+      export default {
+        id: "sandbox.scene",
+        commands: {
+          "warn"() { return { message: "careful", level: "warn" } },
+          "bad"() { return { message: "fine", level: "success" } },
+        },
+      }
+    `),
+    {
+      ...sceneManifest(),
+      permissions: {
+        ...sceneManifest().permissions,
+        commands: [
+          { id: "warn", title: "Warn" },
+          { id: "bad", title: "Bad level" },
+        ],
+      },
+    },
+  )
+  try {
+    expect(effect.runCommand("warn", {})).toMatchObject({
+      ok: true,
+      message: "careful",
+      level: "warn",
+    })
+    expect(effect.runCommand("bad", {}).level).toBeUndefined()
+  } finally {
+    effect.dispose()
+  }
+})

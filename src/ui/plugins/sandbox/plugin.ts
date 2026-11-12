@@ -302,7 +302,12 @@ export class SandboxedPlugin {
   }
 
   /** Run a granted command inside the sandbox. Errors are contained. */
-  runCommand(id: string, input: unknown): { ok: boolean; message?: string; copy?: string } {
+  runCommand(id: string, input: unknown): {
+    ok: boolean
+    message?: string
+    level?: "info" | "warn" | "error"
+    copy?: string
+  } {
     if (this.failed || !this.commandIds.includes(id)) {
       return { ok: false, message: "command is not available" }
     }
@@ -315,11 +320,16 @@ export class SandboxedPlugin {
       const out = JSON.parse(String(vm.dump(result))) as {
         ok?: unknown
         message?: unknown
+        level?: unknown
         copy?: unknown
         changes?: unknown
       }
       this.absorbChanges(out)
       const message = typeof out.message === "string" ? out.message.slice(0, 300) : undefined
+      const level =
+        out.level === "info" || out.level === "warn" || out.level === "error"
+          ? out.level
+          : undefined
       if (out.copy !== undefined) {
         if (this.manifest.permissions.clipboard !== true) {
           return { ok: false, message: "clipboard permission not granted" }
@@ -334,9 +344,9 @@ export class SandboxedPlugin {
             message: `clipboard text must be 1-${MAX_CLIPBOARD_CHARS} characters`,
           }
         }
-        return { ok: out.ok !== false, message, copy: out.copy }
+        return { ok: out.ok !== false, message, ...(level ? { level } : {}), copy: out.copy }
       }
-      return { ok: out.ok !== false, message }
+      return { ok: out.ok !== false, message, ...(level ? { level } : {}) }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       this.lastError = message.slice(0, 200)

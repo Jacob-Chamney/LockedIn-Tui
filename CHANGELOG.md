@@ -43,6 +43,8 @@ requests merge.
 
 ### Added
 
+- Plugin commands can choose the host notice level (`notice("saved", "warn")`)
+  without writing any bubble, fade or timing code.
 - Sandboxed TypeScript plugins with validated manifests, QuickJS workers,
   resource limits, quarantine and the typed `@lockedin/sdk`.
 - Particle systems with spawn/step/style hooks, text layers and event bursts.

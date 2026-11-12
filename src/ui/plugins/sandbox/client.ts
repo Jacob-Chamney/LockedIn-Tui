@@ -100,6 +100,7 @@ export class SandboxWorkerPlugin implements ParticleHost {
         id: string
         ok: boolean
         message?: string
+        level?: "info" | "warn" | "error"
         copy?: string
         /** True when a pointer event, not a key, ran the command. */
         pointer?: boolean
@@ -385,6 +386,7 @@ export class SandboxWorkerPlugin implements ParticleHost {
         id: message.id,
         ok: message.ok,
         message: message.message,
+        level: message.level,
         copy: message.copy,
         ...(pointer ? { pointer: true } : {}),
       })

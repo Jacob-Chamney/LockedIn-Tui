@@ -16,6 +16,7 @@ import {
   list,
   loop,
   mixHex,
+  notice,
   pingPong,
   sidebarMain,
   table,
@@ -530,4 +531,9 @@ test("table paints a drag-selection range and the cursor cell on top", () => {
   const cursorTexts = cursor.filter((node) => node.kind === "text")
   expect(cursorTexts[1]).toMatchObject({ text: "a    ", bg: "primary" })
   expect(cursorTexts[2]).toMatchObject({ text: "on    ", bg: "warning" })
+})
+
+test("the notice helper returns a command result", () => {
+  expect(notice("saved")).toEqual({ message: "saved", level: "info" })
+  expect(notice("careful", "warn")).toEqual({ message: "careful", level: "warn" })
 })

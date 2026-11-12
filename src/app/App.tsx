@@ -4407,7 +4407,8 @@ export function App(props: {
                   ok = false
                 }
               }
-              if (message) notify(message, ok ? "info" : "error")
+              const level = result.level === "warn" || result.level === "error" ? result.level : "info"
+              if (message) notify(message, ok ? level : "error")
               else if (!result.pointer) {
                 notify(ok ? command.title : `${command.title} failed`, ok ? "info" : "error")
               }
