@@ -297,7 +297,7 @@ function asPluginDirs(path: string, value: unknown): Result<string[], ConfigIssu
       return err(issue(path, `${path} contains an empty folder.`, `Remove the empty entry from ${path}.`))
     }
     if (!isAbsolute(entry) && !entry.startsWith("~")) {
-      return err(issue(path, `${path} must contain absolute paths.`, `Write the folder as /home/you/effects or ~/effects.`))
+      return err(issue(path, `${path} must contain absolute paths.`, `Write the folder as ~/effects or an absolute path.`))
     }
   }
   return list

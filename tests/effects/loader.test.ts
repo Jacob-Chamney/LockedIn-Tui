@@ -1,7 +1,7 @@
 import { afterAll, expect, test } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 
 import { bundledPluginRoots, effectPathsFromEnv, loadEffectFile, loadEffectFiles, scanPluginDirs, watchEffectSources } from "../../src/ui/effects/loader"
 
@@ -157,6 +157,7 @@ test("bundled roots find .lockedin plugin folders", async () => {
   await mkdir(join(plugins, "demo.lockedin"), { recursive: true })
   await writeFile(join(plugins, "demo.lockedin", "manifest.json"), "{}")
   expect(await scanPluginDirs([plugins])).toEqual([join(plugins, "demo.lockedin")])
-  expect(bundledPluginRoots("/opt/lockedin/lockedin", root)).toContain(join(root, "plugins"))
-  expect(bundledPluginRoots("/opt/lockedin/lockedin", root)).toContain("/opt/lockedin/plugins")
+  const executable = join("opt", "lockedin", "lockedin")
+  expect(bundledPluginRoots(executable, root)).toContain(join(root, "plugins"))
+  expect(bundledPluginRoots(executable, root)).toContain(join(dirname(executable), "plugins"))
 })
