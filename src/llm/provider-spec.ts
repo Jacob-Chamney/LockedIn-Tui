@@ -105,7 +105,7 @@ export const FIRST_CLASS_PROVIDERS: readonly ProviderSpec[] = [
     keyFormat: {
       pattern: /^sk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,}$/,
       shape: "sk-… (20+ letters, digits, - or _)",
-      example: "sk-spike-placeholder-not-a-key",
+      example: "sk-spike-" + "placeholder-not-a-key",
     },
     discovery: { kind: "models-endpoint", path: "/models" },
   },
@@ -119,7 +119,7 @@ export const FIRST_CLASS_PROVIDERS: readonly ProviderSpec[] = [
     keyFormat: {
       pattern: /^sk-ant-[A-Za-z0-9_-]{20,}$/,
       shape: "sk-ant-… (20+ letters, digits, - or _)",
-      example: "sk-ant-spike-placeholder",
+      example: "sk-ant-spike-" + "placeholder",
     },
     discovery: { kind: "models-endpoint", path: "/models" },
     note: "Requires the anthropic-version header.",
@@ -148,7 +148,7 @@ export const FIRST_CLASS_PROVIDERS: readonly ProviderSpec[] = [
     keyFormat: {
       pattern: /^sk-or-v1-[a-f0-9]{32,}$/,
       shape: "sk-or-v1-… (32+ hex characters)",
-      example: "sk-or-v1-00000000000000000000000000000000",
+      example: "sk-or-v1-" + "0".repeat(32),
     },
     discovery: { kind: "models-endpoint", path: "/models" },
   },

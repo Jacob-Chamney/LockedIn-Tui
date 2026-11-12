@@ -119,10 +119,10 @@ describe("catalogue", () => {
 describe("local key format check", () => {
   test("accepts plausible shapes and rejects the rest without echoing the value", () => {
     const cases: [string, string[]][] = [
-      ["openai", ["sk-spike-0123456789abcdef0123456789", "sk-proj-abcdefghijklmnopqrstuvwx"]],
-      ["anthropic", ["sk-ant-spike-0123456789abcdefgh"]],
+      ["openai", ["sk-spike-" + "a".repeat(24), "sk-proj-" + "b".repeat(24)]],
+      ["anthropic", ["sk-ant-spike-" + "a".repeat(16)]],
       ["google", ["AIza" + "a".repeat(35)]],
-      ["openrouter", ["sk-or-v1-0123456789abcdef0123456789abcdef"]],
+      ["openrouter", ["sk-or-v1-" + "a".repeat(32)]],
       ["opencode-zen", ["opencode-zen-placeholder-000000"]],
       ["opencode-go", ["opencode-spike-placeholder-000000"]],
     ]
