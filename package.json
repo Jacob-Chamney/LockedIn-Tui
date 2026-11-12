@@ -16,7 +16,7 @@
     "start": "bun run src/index.tsx",
     "dev": "bun --watch src/index.tsx",
     "typecheck": "tsc --noEmit",
-    "test": "bun test --parallel --no-isolate",
+    "test": "bun test --parallel --no-isolate --path-ignore-patterns='spikes/**' tests",
     "test:unit": "bun test --parallel --no-isolate tests/unit tests/contract tests/integration tests/invariant",
     "test:ui": "bun test --parallel --no-isolate tests/ui tests/e2e tests/smoke.test.tsx",
     "test:changed": "bun test --parallel --no-isolate --changed",
