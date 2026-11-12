@@ -23,6 +23,9 @@ workspace on your machine.
 
 ## Install
 
+> **1.0.0 is being prepared.** Until it is published, `latest` still points at
+> the previous 1.x release. Use the source instructions below to run this tree.
+
 Install the latest release:
 
 ```sh
