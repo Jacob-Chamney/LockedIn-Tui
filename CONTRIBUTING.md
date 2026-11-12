@@ -18,7 +18,9 @@ focused on building and running the source.
 
 ## Workflow
 
-1. Fork the repository and create a branch from `main`.
+1. Create a branch from `main`.
+   - If you have write access, branch in this repository.
+   - Otherwise fork the repository and branch in your fork.
 2. Make the change and add or update tests.
 3. Run the full gate:
 
@@ -37,7 +39,8 @@ The sign-off certifies the Developer Certificate of Origin:
 <https://developercertificate.org/>.
 
 5. Open a pull request against `main`. Describe the behaviour change, the tests
-   and any user-visible impact.
+   and any user-visible impact. Do not push directly to `main`; the branch is
+   protected and the gate must pass before merge.
 
 ## Code expectations
 
