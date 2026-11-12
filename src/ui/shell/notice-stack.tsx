@@ -10,6 +10,7 @@
  */
 import type { ThemePalette } from "../theme"
 import { Bubble, useAfterFirstFrame, useCellSize } from "../chat/bubble"
+import { mixHex } from "../theme/mix"
 
 export type NoticeLevel = "info" | "warn" | "error"
 
@@ -70,6 +71,25 @@ export function noticeInk(level: NoticeLevel, palette: ThemePalette): string {
   return level === "info" ? palette.foreground : palette.background
 }
 
+/**
+ * Colours for a bubble at `opacity`.
+ *
+ * Fading by colour, not by a parent opacity, keeps the opaque image caps and
+ * the cell body on the same curve. Alpha compositing treated them differently
+ * and left the body as a rectangle while the caps faded.
+ */
+export function noticeColors(
+  level: NoticeLevel,
+  palette: ThemePalette,
+  opacity: number,
+): { fill: string; ink: string } {
+  const amount = Math.max(0, Math.min(1, opacity))
+  return {
+    fill: mixHex(palette.background, noticeFill(level, palette), amount),
+    ink: mixHex(palette.background, noticeInk(level, palette), amount),
+  }
+}
+
 export function NoticeStack(props: { theme: ThemePalette; width: number; notices: Notice[]; now: number; rightOffset?: number }) {
   const palette = () => props.theme
   const cell = useCellSize()
@@ -88,28 +108,29 @@ export function NoticeStack(props: { theme: ThemePalette; width: number; notices
       alignItems="flex-end"
       gap={1}
     >
-      {props.notices.slice(-4).map((notice) => (
-        <box opacity={noticeOpacity(notice, props.now)}>
+      {props.notices.slice(-4).map((notice) => {
+        const colors = noticeColors(
+          notice.level,
+          palette(),
+          noticeOpacity(notice, props.now),
+        )
+        return (
           <Bubble
             width={noticeWidth(notice.text, available())}
-            fill={noticeFill(notice.level, palette())}
+            fill={colors.fill}
             background={palette().background}
             cell={cell()}
             ready={ready()}
           >
             <box flexDirection="row" gap={1}>
-              <text fg={noticeInk(notice.level, palette())}>{noticeGlyph(notice.level)}</text>
-              <text
-                fg={noticeInk(notice.level, palette())}
-                wrapMode="word"
-                flexGrow={1}
-              >
+              <text fg={colors.ink}>{noticeGlyph(notice.level)}</text>
+              <text fg={colors.ink} wrapMode="word" flexGrow={1}>
                 {notice.text}
               </text>
             </box>
           </Bubble>
-        </box>
-      ))}
+        )
+      })}
     </box>
   )
 }

@@ -18,8 +18,9 @@ requests merge.
 
 - Notices now use the chat bubble caps: a filled, rounded pill with the level
   glyph and message inside. Errors use the error fill, warnings the warning
-  fill, and info the panel fill. The fade repaints at 20 Hz and reaches zero
-  instead of dropping in half-second steps.
+  fill, and info the panel fill. The fade repaints at 20 Hz and blends fill and
+  ink toward the background instead of applying a parent opacity, so the image
+  caps and cell body stay on the same shape. The cap cache is bounded.
 - Settings now separates **MCP servers** from **UI plugins**, and the plugin
   manager is labelled **UI plugins**. The underlying MCP modules are named
   `src/mcp` / `features/mcp` instead of `plugins`.
