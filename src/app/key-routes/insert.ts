@@ -19,6 +19,8 @@ export type InsertKeyDeps = {
   chatTasks: Map<string, ChatController>
   /** A local command recognised before the text becomes a model request. */
   command?: (text: string) => ChatCommandMatch
+  /** Dev effects seam: a message is actually being sent. */
+  onSend?: () => void
   notify?: (text: string, level?: "info" | "warn" | "error") => void
 }
 
@@ -79,6 +81,7 @@ export function handleInsertKeys(
       kind: "chat",
       label: (current.composer.trim() || "chat").slice(0, 60),
     })
+    deps.onSend?.()
     void owner
       .send()
       .then((outcome) => {

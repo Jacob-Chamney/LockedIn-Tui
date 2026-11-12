@@ -41,7 +41,7 @@ export const initialKeybinds: KeybindsState = {
 }
 
 const SCOPE_ORDER: Scope[] = ["global", "chill", "learn", "work", "reader", "deck"]
-const GROUP_ORDER: Group[] = ["context", "global", "system"]
+const GROUP_ORDER: Group[] = ["context", "global", "system", "plugin"]
 
 export function search(rows: EditorRow[], query: string): EditorRow[] {
   const text = query.trim().toLowerCase()

@@ -9,7 +9,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 const { testRender } = await import("@opentui/solid")
 const { App } = await import("../../src/app/App")
-const { KeymapRegistry, bindingLabel, generatedRows } = await import(
+const { KeymapRegistry, bindingLabel, editorRows: registryEditorRows, generatedRows } = await import(
   "../../src/ui/keymap/registry"
 )
 const { createDefaultActions } = await import("../../src/ui/keymap/defaults")
@@ -257,5 +257,75 @@ describe("no second table", () => {
     expect(offenders).toEqual([])
     // the only command table lives in commands.ts
     expect(relative(dir, join(dir, "commands.ts"))).toBe("commands.ts")
+  })
+})
+
+describe("plugin actions", () => {
+  test("registered plugin commands join the palette and resolve by id", () => {
+    const pluginRegistry = new KeymapRegistry(createDefaultActions(() => {}))
+    const result = pluginRegistry.register({
+      id: "status-toggle",
+      label: "Toggle status card",
+      group: "plugin",
+      scope: "global",
+      defaultBinding: { kind: "leader", key: "s" },
+      run: () => {},
+    })
+    expect(result.ok).toBe(true)
+    expect(commands.allCommands(pluginRegistry).map((entry) => entry.name)).toContain("status-toggle")
+    expect(commands.filterCommands(pluginRegistry, "toggle").map((entry) => entry.name)).toContain(
+      "status-toggle",
+    )
+    expect(commands.resolveCommand(pluginRegistry, "status-toggle")).toEqual({
+      kind: "action",
+      id: "status-toggle",
+    })
+    expect(pluginRegistry.unregister("status-toggle")).toBe(true)
+    expect(commands.resolveCommand(pluginRegistry, "status-toggle").kind).toBe("unknown")
+  })
+
+  test("a palette-only command registers without a binding", () => {
+    const pluginRegistry = new KeymapRegistry(createDefaultActions(() => {}))
+    expect(
+      pluginRegistry.register({
+        id: "status-reset",
+        label: "Reset status card",
+        group: "plugin",
+        scope: "global",
+        run: () => {},
+      }).ok,
+    ).toBe(true)
+    expect(pluginRegistry.bindingFor("status-reset")).toBeUndefined()
+    expect(commands.resolveCommand(pluginRegistry, "status-reset").kind).toBe("action")
+  })
+
+  test("a plugin binding that collides with a built-in is rejected", () => {
+    const pluginRegistry = new KeymapRegistry(createDefaultActions(() => {}))
+    const result = pluginRegistry.register({
+      id: "status-collide",
+      label: "Collide",
+      group: "plugin",
+      scope: "global",
+      defaultBinding: { kind: "direct", key: "i" },
+      run: () => {},
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.message).toContain("i")
+    expect(pluginRegistry.action("status-collide")).toBeUndefined()
+  })
+
+  test("a plugin action appears in the keybinds editor", () => {
+    const pluginRegistry = new KeymapRegistry(createDefaultActions(() => {}))
+    pluginRegistry.register({
+      id: "status-toggle",
+      label: "Toggle status card",
+      group: "plugin",
+      scope: "global",
+      defaultBinding: { kind: "leader", key: "s" },
+      run: () => {},
+    })
+    const row = registryEditorRows(pluginRegistry).find((entry) => entry.id === "status-toggle")
+    expect(row).toMatchObject({ label: "Toggle status card", group: "plugin" })
+    expect(row?.keys).toContain("s")
   })
 })

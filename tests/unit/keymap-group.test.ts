@@ -27,6 +27,11 @@ describe("key grouping", () => {
   })
 
   test("the group headings are the old ones", () => {
-    expect(GROUP_TITLES).toEqual({ context: "CONTEXT", global: "GLOBAL", system: "SYSTEM" })
+    expect(GROUP_TITLES).toEqual({
+      context: "CONTEXT",
+      global: "GLOBAL",
+      system: "SYSTEM",
+      plugin: "PLUGINS",
+    })
   })
 })

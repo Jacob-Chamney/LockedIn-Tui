@@ -1,0 +1,34 @@
+{
+  "manifestVersion": 1,
+  "id": "example.scene-list",
+  "name": "Selectable list",
+  "version": "1.0.0",
+  "apiVersion": "1.0",
+  "entry": "effect.ts",
+  "permissions": {
+    "scene": {
+      "anchors": [
+        "top-left",
+        "bottom-right"
+      ],
+      "maxNodes": 40,
+      "maxText": 512,
+      "fps": 30
+    },
+    "state": [
+      "focusedWindow"
+    ],
+    "commands": [
+      {
+        "id": "list-next",
+        "title": "Select the next session",
+        "keys": "ctrl+n"
+      },
+      {
+        "id": "list-prev",
+        "title": "Select the previous session",
+        "keys": "ctrl+p"
+      }
+    ]
+  }
+}

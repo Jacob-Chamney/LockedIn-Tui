@@ -5,11 +5,12 @@ export const GROUP_TITLES: Record<Group, string> = {
   context: "CONTEXT",
   global: "GLOBAL",
   system: "SYSTEM",
+  plugin: "PLUGINS",
 }
 
 export type KeyGroup = { group: Group; rows: GeneratedRow[] }
 
-const ORDER: Group[] = ["context", "global", "system"]
+const ORDER: Group[] = ["context", "global", "system", "plugin"]
 
 /** Context first, then global, then system; empty groups are dropped. */
 export function groupKeyRows(rows: GeneratedRow[]): KeyGroup[] {

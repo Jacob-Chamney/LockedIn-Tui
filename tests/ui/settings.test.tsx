@@ -28,6 +28,8 @@ const VIEW: View = {
   tutorPolicy: "direct",
   pluginServers: ["notes", "filesystem"],
   hideHints: false,
+  effectPluginDirs: [],
+  disabledEffectPlugins: [],
 }
 
 async function mount(width: number, height: number, view: View = VIEW, state = settings.initialSettingsState) {
@@ -86,7 +88,7 @@ describe("rows and groups", () => {
     try {
       const frame = lines(setup).join("\n")
       for (const header of ["USER", "MODELS", "USAGE", "STORAGE", "PLUGINS"]) expect(frame).toContain(header)
-      expect(settings.flatRows(settings.settingsGroups(settings.emptySettingsView()))).toHaveLength(17)
+      expect(settings.flatRows(settings.settingsGroups(settings.emptySettingsView()))).toHaveLength(20)
       expect(frame).toContain("no limit")
       expect(frame).toContain("none configured")
     } finally {

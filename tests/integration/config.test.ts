@@ -389,6 +389,7 @@ describe("config", () => {
     expect(DEFAULT_CONFIG.archive.backend).toBe("folder")
     expect(DEFAULT_CONFIG.archive.github.token_ref).toBe("lockedin/github-token")
     expect(DEFAULT_CONFIG.decision_layer.enabled).toBe(false)
+    expect(DEFAULT_CONFIG.ui.effects).toEqual({ dirs: [], disabled: [] })
 
     // Binding *strings* are stored here but parsed and conflict-checked by the
     // keymap registry, so storage only requires them to be strings. This keeps
@@ -413,5 +414,29 @@ describe("config", () => {
     })
     expect(notStrings.ok).toBe(false)
     if (!notStrings.ok) expect(notStrings.error.key).toBe("ui.keybinds.navigator")
+  })
+
+  test("effect plugin mounting is validated", () => {
+    const ui = defaultDocument().ui as Record<string, unknown>
+    const good = validateDocument({
+      ...defaultDocument(),
+      ui: { ...ui, effects: { dirs: ["~/effects"], disabled: ["lab.status"] } },
+    })
+    expect(good.ok).toBe(true)
+    if (good.ok) expect(good.value.ui.effects.dirs).toEqual(["~/effects"])
+
+    const relative = validateDocument({
+      ...defaultDocument(),
+      ui: { ...ui, effects: { dirs: ["effects"], disabled: [] } },
+    })
+    expect(relative.ok).toBe(false)
+    if (!relative.ok) expect(relative.error.key).toBe("ui.effects.dirs")
+
+    const badId = validateDocument({
+      ...defaultDocument(),
+      ui: { ...ui, effects: { dirs: [], disabled: ["Not An Id"] } },
+    })
+    expect(badId.ok).toBe(false)
+    if (!badId.ok) expect(badId.error.key).toBe("ui.effects.disabled")
   })
 })

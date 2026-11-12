@@ -24,6 +24,7 @@ import type { ThemeId, ThemePalette } from "../../ui/theme"
 import type { ModelsController } from "../models-controller"
 import { applyViewPatch, nestedPatch } from "../settings-patch"
 import { typedCharacter, type ShellPress } from "../keys/press"
+import type { PluginManagerMode } from "../../ui/settings/plugin-manager"
 
 export type SettingsKeyDeps = {
   models: ModelsController
@@ -48,6 +49,17 @@ export type SettingsKeyDeps = {
   resolveLeader: (press: ShellPress) => ResolveResult
   dispatch: (id: string) => void
   notify: (text: string, level?: "info" | "warn" | "error") => void
+  openPluginManager?: () => void
+  openPluginTemplates?: () => void
+  movePluginManager?: (delta: number) => void
+  togglePluginManager?: () => void
+  pluginManagerMode?: () => PluginManagerMode
+  setPluginManagerMode?: (mode: PluginManagerMode) => void
+  moveTemplateManager?: (delta: number) => void
+  copyTemplateManager?: () => void
+  moveExampleManager?: (delta: number) => void
+  copyExampleManager?: () => void
+  openPluginExamples?: () => void
 }
 
 export function handleSettingsKeys(
@@ -58,6 +70,34 @@ export function handleSettingsKeys(
 ): boolean {
   if (state.overlay === null && state.mode === "normal" && state.pane === "manager" && press.name === "escape") {
     deps.setSessionsState((current) => cancelSessionPending(current))
+  }
+  if (state.overlay === null && state.mode === "normal" && state.pane === "plugin-manager") {
+    const mode = deps.pluginManagerMode?.() ?? "plugins"
+    const templates = mode === "templates"
+    const examples = mode === "examples"
+    if (press.name === "escape") {
+      if (templates || examples) deps.setPluginManagerMode?.("plugins")
+      else deps.update({ ...state, pane: "settings", mode: "normal" })
+    } else if (press.name === "t") {
+      deps.setPluginManagerMode?.(templates ? "plugins" : "templates")
+    } else if (press.name === "e") {
+      deps.setPluginManagerMode?.(examples ? "plugins" : "examples")
+    } else if (press.name === "space" && mode === "plugins") {
+      deps.togglePluginManager?.()
+    } else if (press.name === "j" || press.name === "down") {
+      if (examples) deps.moveExampleManager?.(1)
+      else if (templates) deps.moveTemplateManager?.(1)
+      else deps.movePluginManager?.(1)
+    } else if (press.name === "k" || press.name === "up") {
+      if (examples) deps.moveExampleManager?.(-1)
+      else if (templates) deps.moveTemplateManager?.(-1)
+      else deps.movePluginManager?.(-1)
+    } else if ((templates || examples) && (press.name === "return" || press.name === "enter")) {
+      if (templates) deps.copyTemplateManager?.()
+      else deps.copyExampleManager?.()
+    }
+    event.preventDefault()
+    return true
   }
   if (
     state.overlay === null &&
@@ -144,6 +184,21 @@ export function handleSettingsKeys(
       }
       if (row?.row.id === "baseUrl") {
         deps.models.openProviders("custom")
+        event.preventDefault()
+        return true
+      }
+      if (row?.row.id === "manage-plugins") {
+        deps.openPluginManager?.()
+        event.preventDefault()
+        return true
+      }
+      if (row?.row.id === "plugin-templates") {
+        deps.openPluginTemplates?.()
+        event.preventDefault()
+        return true
+      }
+      if (row?.row.id === "plugin-examples") {
+        deps.openPluginExamples?.()
         event.preventDefault()
         return true
       }

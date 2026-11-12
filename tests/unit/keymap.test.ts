@@ -407,3 +407,46 @@ describe("one key table", () => {
     expect(offenders).toEqual([])
   })
 })
+
+describe("plugin keybind persistence", () => {
+  test("a saved plugin binding applies after the plugin registers", () => {
+    const registry = fresh()
+    const config = { ui: { fixed_keybinds: { "status-toggle": "ctrl+t" } } }
+    // Before the plugin loads the action does not exist, so the entry is rejected.
+    expect(applyConfig(registry, config).applied).toEqual([])
+    const registered = registry.register({
+      id: "status-toggle",
+      label: "Toggle status card",
+      group: "plugin",
+      scope: "global",
+      defaultBinding: leader("s"),
+      run: () => {},
+    })
+    expect(registered.ok).toBe(true)
+    // Applying the same config again now reaches the plugin action.
+    expect(applyConfig(registry, config).applied).toContain("status-toggle")
+    expect(registry.bindingFor("status-toggle")).toEqual(direct("ctrl+t"))
+  })
+})
+
+describe("plugin window focus keys", () => {
+  test("F6 and F7 are global actions in every scope", () => {
+    const actions = createDefaultActions(dispatch)
+    const next = actions.find((entry) => entry.id === "plugin-focus-next")
+    const prev = actions.find((entry) => entry.id === "plugin-focus-prev")
+    expect(next?.defaultBinding).toEqual(direct("f6"))
+    expect(prev?.defaultBinding).toEqual(direct("f7"))
+    expect(next?.scope).toBe("global")
+    expect(prev?.scope).toBe("global")
+
+    const registry = fresh()
+    for (const scope of ["global", "chill", "learn", "work"] as const) {
+      const forward = resolveKey({ registry, scope, mode: "normal" }, { name: "f6" })
+      expect(forward.kind).toBe("action")
+      if (forward.kind === "action") expect(forward.action.id).toBe("plugin-focus-next")
+      const back = resolveKey({ registry, scope, mode: "normal" }, { name: "f7" })
+      expect(back.kind).toBe("action")
+      if (back.kind === "action") expect(back.action.id).toBe("plugin-focus-prev")
+    }
+  })
+})

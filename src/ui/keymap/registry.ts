@@ -10,7 +10,7 @@
 
 export type Scope = "global" | "chill" | "learn" | "work" | "reader" | "deck"
 
-export type Group = "context" | "global" | "system"
+export type Group = "context" | "global" | "system" | "plugin"
 
 export type Mode = "insert" | "normal"
 
@@ -44,7 +44,8 @@ export type Action = {
   label: string
   group: Group
   scope: Scope
-  defaultBinding: Binding
+  /** Omitted for palette-only actions; such an action has no chord. */
+  defaultBinding?: Binding
   /** Modes in which the action fires. Defaults to `["normal"]`. */
   modes?: Mode[]
   /** Mode after the action runs. Omitted = unchanged. Panels always leave to
@@ -67,7 +68,7 @@ export type KeyConflict = {
 }
 
 export type RebindResult =
-  | { ok: true; action: Action; previous: Binding }
+  | { ok: true; action: Action; previous?: Binding }
   | { ok: false; conflict: KeyConflict }
 
 export type ValidationIssue = {
@@ -220,6 +221,33 @@ export class KeymapRegistry {
     return this.known.get(id)?.defaultBinding
   }
 
+  /**
+   * Add an action after construction. Plugin commands register here so the
+   * palette, help, leader and keybinds screens all derive from one table.
+   */
+  register(action: Action): { ok: true } | { ok: false; message: string } {
+    if (this.known.has(action.id)) {
+      return { ok: false, message: `an action with id "${action.id}" already exists` }
+    }
+    const issues = validateActions([...this.catalogue, action])
+    if (issues.length > 0) {
+      return { ok: false, message: issues.map((issue) => issue.message).join(" ") }
+    }
+    this.catalogue.push({ ...action })
+    this.known.set(action.id, this.catalogue[this.catalogue.length - 1]!)
+    return { ok: true }
+  }
+
+  /** Remove a dynamically registered action. */
+  unregister(id: string): boolean {
+    const index = this.catalogue.findIndex((action) => action.id === id)
+    if (index < 0) return false
+    this.catalogue.splice(index, 1)
+    this.known.delete(id)
+    this.overrides.delete(id)
+    return true
+  }
+
   /** The action bound to `binding` in `scope`, if any (global actions apply). */
   actionFor(binding: Binding, scope: Scope): Action | undefined {
     for (const action of this.catalogue) {
@@ -271,7 +299,7 @@ export class KeymapRegistry {
         },
       }
     }
-    const previous = this.bindingFor(id)!
+    const previous = this.bindingFor(id)
     if (
       binding.kind === "leader" &&
       (!binding.key || normalizeKey(binding.key) === LEADER_PREFIX)
@@ -317,7 +345,7 @@ export class KeymapRegistry {
   isOverridden(id: string): boolean {
     const current = this.bindingFor(id)
     const action = this.known.get(id)
-    if (!current || !action) return false
+    if (!current || !action?.defaultBinding) return false
     return !sameBinding(current, action.defaultBinding)
   }
 
@@ -328,7 +356,7 @@ export class KeymapRegistry {
   unreachable(): Action[] {
     return this.catalogue.filter((action) => {
       const binding = this.bindingFor(action.id)
-      if (!binding) return true
+      if (!binding) return false
       if (!modesOf(action).includes("normal")) return false
       return !enabledInScope(action, binding, this)
     })
@@ -381,10 +409,10 @@ export function validateActions(actions: readonly Action[]): ValidationIssue[] {
         actionId: action.id,
       })
     }
-    if (!action.defaultBinding || !action.defaultBinding.key) {
+    if (action.defaultBinding && !action.defaultBinding.key) {
       issues.push({
         kind: "duplicate-binding",
-        message: `Action "${action.id}" has no default binding.`,
+        message: `Action "${action.id}" has an empty binding.`,
         actionId: action.id,
       })
     }
@@ -396,10 +424,15 @@ export function validateActions(actions: readonly Action[]): ValidationIssue[] {
     for (let j = i + 1; j < actions.length; j++) {
       const a = actions[i]!
       const b = actions[j]!
-      if (sameBinding(a.defaultBinding, b.defaultBinding) && scopesOverlap(a.scope, b.scope)) {
+      if (
+        a.defaultBinding &&
+        b.defaultBinding &&
+        sameBinding(a.defaultBinding, b.defaultBinding) &&
+        scopesOverlap(a.scope, b.scope)
+      ) {
         issues.push({
           kind: "duplicate-binding",
-          message: conflictMessage(a.defaultBinding, b),
+          message: conflictMessage(a.defaultBinding!, b),
           actionId: a.id,
         })
       }
@@ -496,17 +529,20 @@ export type EditorRow = {
 }
 
 export function editorRows(registry: KeymapRegistry): EditorRow[] {
-  return registry.actions().map((action) => {
-    const binding = registry.bindingFor(action.id)!
-    return {
-      id: action.id,
-      label: action.label,
-      group: action.group,
-      scope: action.scope,
-      keys: bindingLabel(binding),
-      defaultKeys: bindingLabel(action.defaultBinding),
-      overridden: registry.isOverridden(action.id),
-      rebindable: true,
-    }
+  return registry.actions().flatMap((action) => {
+    const binding = registry.bindingFor(action.id)
+    if (!binding) return []
+    return [
+      {
+        id: action.id,
+        label: action.label,
+        group: action.group,
+        scope: action.scope,
+        keys: bindingLabel(binding),
+        defaultKeys: bindingLabel(action.defaultBinding ?? binding),
+        overridden: registry.isOverridden(action.id),
+        rebindable: true,
+      },
+    ]
   })
 }

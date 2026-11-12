@@ -42,6 +42,8 @@ const SHELL_KEYS = [
   "quit",
   "buffers",
   "buffer-close",
+  "plugin-focus-next",
+  "plugin-focus-prev",
 ] as const
 
 export function actionIsUsable(id: string): boolean {

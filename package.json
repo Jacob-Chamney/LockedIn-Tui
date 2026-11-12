@@ -25,16 +25,21 @@
     "test:serial": "bun test --max-concurrency=1",
     "check": "bun run scripts/check.ts",
     "check:ci": "bun run scripts/check.ts --ci",
-    "build": "bun run scripts/build.ts"
+    "build": "bun run scripts/build.ts",
+    "plugin:build": "bun run scripts/plugin-build.ts",
+    "plugin:new": "bun run scripts/plugin-new.ts",
+    "acceptance": "bun run scripts/acceptance.ts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "3.0.82",
+    "@jitl/quickjs-wasmfile-release-sync": "^0.31.0",
     "@modelcontextprotocol/sdk": "1.32.2",
     "@napi-rs/keyring": "2.1.2",
     "@opentui/core": "0.8.4",
     "@opentui/solid": "0.8.4",
     "ai": "7.0.159",
     "fflate": "^0.8.3",
+    "quickjs-emscripten-core": "^0.31.0",
     "shiki": "^4.6.0",
     "smol-toml": "^1.9.1",
     "solid-js": "^1.9.12",

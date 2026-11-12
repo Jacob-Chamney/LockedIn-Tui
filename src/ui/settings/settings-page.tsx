@@ -32,6 +32,10 @@ export type SettingsView = {
   pluginServers: string[]
   /** `ui.hide_hints`: the chat's own hint rows are hidden. */
   hideHints: boolean
+  /** `ui.effects.dirs`: folders that contain plugin directories. */
+  effectPluginDirs: string[]
+  /** `ui.effects.disabled`: discovered plugin ids that are not mounted. */
+  disabledEffectPlugins: string[]
 }
 
 export const NOT_SET = "not set"
@@ -57,6 +61,8 @@ export function emptySettingsView(): SettingsView {
     tutorPolicy: "direct",
     pluginServers: [],
     hideHints: false,
+    effectPluginDirs: [],
+    disabledEffectPlugins: [],
   }
 }
 
@@ -150,6 +156,27 @@ export function settingsGroups(view: SettingsView): SettingsGroup[] {
       title: "PLUGINS",
       rows: [
         { id: "servers", label: "Servers", value: view.pluginServers.length === 0 ? "none configured" : `${view.pluginServers.length} configured`, hint: "MCP servers available; enable them per command in Plugins.", edit: "none" },
+        {
+          id: "manage-plugins",
+          label: "Plugin manager",
+          value: "open",
+          hint: "list discovered effect plugins; Space enables or disables one.",
+          edit: "none",
+        },
+        {
+          id: "plugin-templates",
+          label: "Template gallery",
+          value: "open",
+          hint: "starter layouts for new plugins; Enter copies the scaffold command.",
+          edit: "none",
+        },
+        {
+          id: "plugin-examples",
+          label: "Example gallery",
+          value: "open",
+          hint: "the shipped example plugins; Enter copies the package command.",
+          edit: "none",
+        },
       ],
     },
   ]

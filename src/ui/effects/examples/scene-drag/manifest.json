@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "example.scene-drag",
+  "name": "Drag card",
+  "version": "1.0.0",
+  "apiVersion": "1.0",
+  "entry": "effect.ts",
+  "permissions": {
+    "scene": {
+      "anchors": ["top-left"],
+      "maxNodes": 20,
+      "maxText": 512,
+      "fps": 4
+    },
+    "commands": [
+      { "id": "drag-start", "title": "Start dragging the card" },
+      { "id": "drag-move", "title": "Move the dragged card" },
+      { "id": "drag-end", "title": "Finish dragging the card" }
+    ],
+    "pointer": {
+      "press": "drag-start",
+      "move": "drag-move",
+      "release": "drag-end"
+    }
+  }
+}

@@ -49,6 +49,7 @@ import { PanelEmpty } from "../ui/panels/panel-frame"
 import { AgentSettingsPanel } from "../ui/features/agents/agent-settings-panel"
 import { ChatSettingsPanel, type ChatSettingsRow } from "../ui/features/chat-settings/chat-settings-panel"
 import { SessionSettingsPanel } from "../ui/features/session-settings/session-settings-panel"
+import { PluginManagerPane, type PluginManagerState } from "../ui/settings/plugin-manager"
 import type { SessionSettingsState } from "../ui/features/session-settings/session-settings-model"
 import { initialStepsView } from "../ui/reader/steps"
 import { initialView as initialPickerView } from "../ui/features/sources/sources-model"
@@ -102,6 +103,8 @@ export type PaneDeps = {
   liveCustomTheme: Partial<ThemePalette> | null
   themes: ThemesState
   settingsState: SettingsState
+  /** Effect plugin manager rows. */
+  pluginManager: PluginManagerState
   tasks: TaskRegistry
   taskCursor: number
   activity: ActivityView
@@ -339,6 +342,15 @@ const RENDERERS: Partial<Record<PaneId, PaneRenderer>> = {
       focused
       current={deps.themeId}
       state={deps.themes}
+    />
+  ),
+  "plugin-manager": (deps, width, height, palette) => (
+    <PluginManagerPane
+      theme={palette}
+      width={width}
+      height={height}
+      focused
+      state={deps.pluginManager}
     />
   ),
   settings: (deps, width, height, palette) => (

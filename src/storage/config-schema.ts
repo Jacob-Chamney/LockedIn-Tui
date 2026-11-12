@@ -106,6 +106,13 @@ export type Config = {
     keybinds: BindingMap
     fixed_keybinds: BindingMap
     direct_keybinds: BindingMap
+    /** Dev-only sandboxed effect plugins. */
+    effects: {
+      /** Folders that contain plugin directories (manifest + entry). */
+      dirs: string[]
+      /** Plugin ids that are discovered but not mounted. */
+      disabled: string[]
+    }
   }
   models: {
     chat: string
@@ -166,6 +173,10 @@ export const DEFAULT_CONFIG: Config = {
     keybinds: {},
     fixed_keybinds: {},
     direct_keybinds: {},
+    effects: {
+      dirs: [],
+      disabled: [],
+    },
   },
   models: {
     chat: "",
@@ -275,6 +286,32 @@ function asBoolean(path: string, value: unknown): Result<boolean, ConfigIssue> {
     return err(issue(path, `${path} must be true or false.`, `Set ${path} to true or false.`))
   }
   return ok(value)
+}
+
+/** Folder list for effect plugins; `~` is expanded when the loader runs. */
+function asPluginDirs(path: string, value: unknown): Result<string[], ConfigIssue> {
+  const list = asStringArray(path, value)
+  if (!list.ok) return list
+  for (const entry of list.value) {
+    if (entry.trim() === "" || entry.includes("\u0000")) {
+      return err(issue(path, `${path} contains an empty folder.`, `Remove the empty entry from ${path}.`))
+    }
+    if (!isAbsolute(entry) && !entry.startsWith("~")) {
+      return err(issue(path, `${path} must contain absolute paths.`, `Write the folder as ~/effects or an absolute path.`))
+    }
+  }
+  return list
+}
+
+function asPluginIds(path: string, value: unknown): Result<string[], ConfigIssue> {
+  const list = asStringArray(path, value)
+  if (!list.ok) return list
+  for (const entry of list.value) {
+    if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(entry)) {
+      return err(issue(path, `${path} contains an invalid plugin id: ${entry}.`, `Use the id from the plugin manifest.`))
+    }
+  }
+  return list
 }
 
 function asNumber(
@@ -523,6 +560,8 @@ export function validateDocument(document: TomlDocument): Result<Config, ConfigI
     () => asStringMap("ui.keybinds", get("ui.keybinds")),
     () => asStringMap("ui.fixed_keybinds", get("ui.fixed_keybinds")),
     () => asStringMap("ui.direct_keybinds", get("ui.direct_keybinds")),
+    () => asPluginDirs("ui.effects.dirs", get("ui.effects.dirs")),
+    () => asPluginIds("ui.effects.disabled", get("ui.effects.disabled")),
 
     () => asString("models.chat", get("models.chat")),
     () => asString("models.generation", get("models.generation")),

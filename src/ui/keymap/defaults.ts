@@ -33,6 +33,8 @@ const SPECS: Spec[] = [
   { id: "insert", label: "insert", group: "system", scope: "global", keys: "i", modeAfter: "insert" },
   { id: "down", label: "move down", group: "system", scope: "global", keys: "j" },
   { id: "up", label: "move up", group: "system", scope: "global", keys: "k" },
+  { id: "plugin-focus-next", label: "focus plugin window", group: "system", scope: "global", keys: "f6" },
+  { id: "plugin-focus-prev", label: "focus previous plugin window", group: "system", scope: "global", keys: "f7" },
 
   // global — reachable from every scope
   { id: "navigator", label: "explorer", group: "global", scope: "global", keys: "space+e", modeAfter: "normal" },
