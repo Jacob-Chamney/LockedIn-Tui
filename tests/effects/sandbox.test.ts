@@ -773,3 +773,23 @@ test("a command can choose its notice level", async () => {
     effect.dispose()
   }
 })
+
+test("scene grants default to top-left, 24 nodes and 512 characters", () => {
+  const manifest = {
+    manifestVersion: 1,
+    id: "lab.scene",
+    name: "Scene",
+    version: "1.0.0",
+    apiVersion: "1.0",
+    entry: "effect.ts",
+    permissions: { scene: {} },
+  }
+  const checked = parseManifest(manifest)
+  expect(checked.ok).toBe(true)
+  if (!checked.ok) return
+  expect(checked.manifest.permissions.scene).toEqual({
+    anchors: ["top-left"],
+    maxNodes: 24,
+    maxText: 512,
+  })
+})

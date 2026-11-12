@@ -84,6 +84,13 @@ export type ManifestCheck =
   | { ok: true; manifest: PluginManifest }
   | { ok: false; errors: string[] }
 
+/** Safe scene defaults when a manifest omits the limits. */
+export const DEFAULT_SCENE_GRANT = {
+  anchors: ["top-left"] as const,
+  maxNodes: 24,
+  maxText: 512,
+}
+
 const ID = /^[a-z0-9][a-z0-9._-]{0,63}$/
 const ACTION_ID = /^[a-z0-9][a-z0-9-]{0,63}$/
 const VERSION = /^\d+\.\d+\.\d+$/
@@ -173,17 +180,19 @@ export function parseManifest(input: unknown): ManifestCheck {
         errors.push("permissions.scene must be an object")
       } else {
         const scene = permissions.scene
-        if (!Array.isArray(scene.anchors) || scene.anchors.length === 0) {
-          errors.push("permissions.scene.anchors must list at least one anchor")
-        } else {
-          for (const anchor of scene.anchors) {
-            if (!SCENE_ANCHORS.includes(anchor as SceneAnchor)) errors.push(`unknown anchor: ${String(anchor)}`)
+        if (scene.anchors !== undefined) {
+          if (!Array.isArray(scene.anchors) || scene.anchors.length === 0) {
+            errors.push("permissions.scene.anchors must list at least one anchor")
+          } else {
+            for (const anchor of scene.anchors) {
+              if (!SCENE_ANCHORS.includes(anchor as SceneAnchor)) errors.push(`unknown anchor: ${String(anchor)}`)
+            }
           }
         }
-        if (!integerIn(scene.maxNodes, 1, 64)) {
+        if (scene.maxNodes !== undefined && !integerIn(scene.maxNodes, 1, 64)) {
           errors.push("permissions.scene.maxNodes must be an integer from 1 to 64")
         }
-        if (!integerIn(scene.maxText, 1, 4096)) {
+        if (scene.maxText !== undefined && !integerIn(scene.maxText, 1, 4096)) {
           errors.push("permissions.scene.maxText must be an integer from 1 to 4096")
         }
         if (scene.absolute !== undefined && typeof scene.absolute !== "boolean") {
@@ -270,7 +279,21 @@ export function parseManifest(input: unknown): ManifestCheck {
   }
 
   if (errors.length > 0) return { ok: false, errors }
-  return { ok: true, manifest: input as unknown as PluginManifest }
+  const source = input as unknown as PluginManifest
+  const manifest: PluginManifest = {
+    ...source,
+    permissions: { ...source.permissions },
+  }
+  if (manifest.permissions.scene) {
+    const scene = manifest.permissions.scene as Partial<ScenePermission>
+    manifest.permissions.scene = {
+      ...scene,
+      anchors: scene.anchors ?? [...DEFAULT_SCENE_GRANT.anchors],
+      maxNodes: scene.maxNodes ?? DEFAULT_SCENE_GRANT.maxNodes,
+      maxText: scene.maxText ?? DEFAULT_SCENE_GRANT.maxText,
+    } as ScenePermission
+  }
+  return { ok: true, manifest }
 }
 
 /** What the effect declared about itself inside the sandbox. */

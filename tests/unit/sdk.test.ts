@@ -21,6 +21,7 @@ import {
   pingPong,
   sidebarMain,
   table,
+  transition,
   window,
 } from "../../sdk"
 
@@ -568,4 +569,18 @@ test("card computes its height and maps the tone to the frame", () => {
   const neutral = card({ anchor: "absolute", x: 0, y: 0, width: 20, tone: "neutral" })
   expect(neutral.borderColor).toBe("line")
   expect(neutral.height).toBe(4)
+})
+
+test("transition runs enter, hold and exit", () => {
+  const opts = { enter: 0.4, hold: 1, exit: 0.4, curve: (t: number) => t }
+  expect(transition(-1, opts)).toBe(0)
+  expect(transition(0.2, opts)).toBeCloseTo(0.5)
+  expect(transition(0.4, opts)).toBeCloseTo(1)
+  expect(transition(1.0, opts)).toBe(1)
+  expect(transition(1.4, opts)).toBe(1)
+  expect(transition(1.6, opts)).toBeCloseTo(0.5)
+  expect(transition(1.8, opts)).toBeCloseTo(0)
+  expect(transition(10, opts)).toBe(0)
+  // exit 0 keeps it visible after the hold
+  expect(transition(10, { enter: 0.2, hold: 0.5, exit: 0 })).toBe(1)
 })

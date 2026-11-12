@@ -1214,6 +1214,37 @@ export function fadeNodes(
   return nodes.map((node) => fadeNode(node, opacity, background, palette))
 }
 
+export type TransitionOptions = {
+  /** Seconds to enter; defaults to 0.3. */
+  enter?: number
+  /** Seconds to stay fully visible; defaults to 0. */
+  hold?: number
+  /** Seconds to leave; defaults to 0.3. Set 0 to stay visible. */
+  exit?: number
+  curve?: (t: number) => number
+}
+
+/**
+ * One enter → hold → exit visibility envelope.
+ *
+ *   const opacity = transition(time - changedAt, { enter: 0.4, hold: 2, exit: 0.4 })
+ *
+ * Returns 0..1; once the full cycle has passed it stays 0. A zero `exit`
+ * keeps the value at 1 after the hold.
+ */
+export function transition(elapsed: number, options: TransitionOptions = {}): number {
+  const enter = Math.max(0, options.enter ?? 0.3)
+  const hold = Math.max(0, options.hold ?? 0)
+  const exit = Math.max(0, options.exit ?? 0.3)
+  const curve = options.curve ?? ease.outCubic
+  const t = Math.max(0, elapsed)
+  if (enter > 0 && t < enter) return curve(t / enter)
+  const afterEnter = Math.max(0, t - enter)
+  if (afterEnter < hold) return 1
+  if (exit <= 0) return 1
+  return 1 - curve(Math.min(1, (afterEnter - hold) / exit))
+}
+
 /** Common easing curves for `ctx.time`-driven animation. */
 export const ease = {
   linear: (t: number): number => Math.max(0, Math.min(1, t)),

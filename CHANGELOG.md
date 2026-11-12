@@ -47,6 +47,10 @@ requests merge.
   without writing any bubble, fade or timing code.
 - `card({ title, lines, footer, tone })` builds a message window and computes
   its own height, so scene messages do not hand-write layout.
+- `transition(elapsed, { enter, hold, exit })` gives a full visibility
+  envelope for a card or detail panel.
+- Scene permissions may omit `anchors`, `maxNodes` and `maxText`; they default
+  to `top-left`, 24 nodes and 512 characters.
 - Sandboxed TypeScript plugins with validated manifests, QuickJS workers,
   resource limits, quarantine and the typed `@lockedin/sdk`.
 - Particle systems with spawn/step/style hooks, text layers and event bursts.
