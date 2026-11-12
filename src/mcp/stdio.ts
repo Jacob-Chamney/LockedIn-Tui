@@ -26,8 +26,8 @@ import {
   type PluginCallResult,
   type PluginErrorKind,
   type PluginResult,
-  type PluginServerConfig,
-  type PluginTool,
+  type McpServerConfig,
+  type McpTool,
   type ServerState,
 } from "./types"
 
@@ -35,14 +35,14 @@ const DEFAULT_TIMEOUT_MS = 8_000
 const CONNECT_TIMEOUT_MS = 8_000
 const STDERR_LINES = 200
 
-export type PluginHostOptions = {
+export type McpHostOptions = {
   /** Clock seam for tests. */
   now?: () => number
 }
 
-export type PluginHost = {
+export type McpHost = {
   connect(id: string): Promise<PluginResult<ServerState>>
-  listTools(id: string): Promise<PluginResult<PluginTool[]>>
+  listTools(id: string): Promise<PluginResult<McpTool[]>>
   call(id: string, tool: string, input: Record<string, unknown>, options: CallOptions): Promise<PluginResult<PluginCallResult>>
   close(id?: string): Promise<void>
   state(id: string): ServerState
@@ -50,7 +50,7 @@ export type PluginHost = {
   /** Bounded stderr ring buffer, for diagnostics only. */
   stderrOf(id: string): string[]
   /** Configured servers, for Settings → Plugins. */
-  servers(): readonly PluginServerConfig[]
+  servers(): readonly McpServerConfig[]
 }
 
 function fail(kind: PluginErrorKind, server: string, message: string, hint: string): PluginResult<never> {
@@ -73,7 +73,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout: () => Error)
   })
 }
 
-export function createPluginHost(configs: readonly PluginServerConfig[]): PluginHost {
+export function createMcpHost(configs: readonly McpServerConfig[]): McpHost {
   const clients = new Map<string, Client>()
   const transports = new Map<string, StdioClientTransport>()
   const pids = new Map<string, number | null>()
@@ -96,7 +96,7 @@ export function createPluginHost(configs: readonly PluginServerConfig[]): Plugin
    * A closed-over function, not `this.listTools`: the host is often passed
    * around as a value, and a destructured `call` must still work.
    */
-  const listToolsFor = async (id: string): Promise<PluginResult<PluginTool[]>> => {
+  const listToolsFor = async (id: string): Promise<PluginResult<McpTool[]>> => {
     const client = clients.get(id)
     if (!client) return fail("unavailable", id, `Plugin server "${id}" is not connected.`, "Connect it first.")
     try {

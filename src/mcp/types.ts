@@ -43,7 +43,7 @@ export type PluginError = {
 
 export type PluginResult<T> = { ok: true; value: T } | { ok: false; error: PluginError }
 
-export type PluginTool = {
+export type McpTool = {
   name: string
   description: string
   /** True only when the server declared `readOnlyHint: true`. */
@@ -52,7 +52,7 @@ export type PluginTool = {
   label: "external explanation"
 }
 
-export type PluginServerConfig = {
+export type McpServerConfig = {
   id: string
   /** Executable to spawn. LockedIn never installs it. */
   command: string
@@ -105,7 +105,7 @@ export function pluginError(
 }
 
 /** Copy for each failure, in one place (`docs/design.md` §8). */
-export function pluginErrorCopy(error: PluginError): { title: string; next: string } {
+export function mcpErrorCopy(error: PluginError): { title: string; next: string } {
   switch (error.kind) {
     case "denied":
       return { title: error.message, next: error.hint }

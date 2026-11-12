@@ -47,7 +47,7 @@ import { loadReview } from "./actions/review";
 import { loadProjectChanges } from "./actions/changes";
 import { buildOutput, loadDeck, markDeckCard, readOutput, type LoadedDeck, type OutputKind } from "./actions/outputs";
 import type { PluginRuntime } from "./actions/plugins";
-import type { ServerRow } from "../ui/features/plugins/plugins-model";
+import type { ServerRow } from "../ui/features/mcp/mcp-model";
 import { addSessionSources, appendSessionMisconception, generateSessionDocument, importSessionInstructionsFile, loadParkedQuestionCount, loadSessionInstructions, loadSessionPrompt, loadSessionQuestions, loadSessionSourceNames, loadSessionSteps, parkSessionQuestion, reExtractSessionInstructions, recordSessionConfidence, regenerateSessionSteps, saveIntakeLevel, saveSessionInstructions, sessionNeedsStepRefresh, sessionTools, stepFailureMessage, toggleSessionStep } from "./actions/lockin";
 import { gatherSkillSources } from "./actions/skills";
 import { createSkillChat, createSkillCourse, deleteSkillGoal, loadChapter, loadCourse, loadGoalRows, loadGoalSourceNames, loadSkillChats, setChapterDone, skillTools } from "./actions/skills";

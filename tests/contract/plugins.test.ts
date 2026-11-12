@@ -7,17 +7,17 @@
 import { afterAll, describe, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { createPluginHost, pidAlive } from "../../src/plugins/stdio";
-import { coreServersFor, decidePolicy } from "../../src/plugins/policy";
-import type { ChatMode, PluginServerConfig, PluginTool } from "../../src/plugins/types";
-import { pluginErrorCopy } from "../../src/plugins/types";
+import { createMcpHost, pidAlive } from "../../src/mcp/stdio";
+import { coreServersFor, decidePolicy } from "../../src/mcp/policy";
+import type { ChatMode, McpServerConfig, McpTool } from "../../src/mcp/types";
+import { mcpErrorCopy } from "../../src/mcp/types";
 const ROOT = join(import.meta.dir, "..", "..")
 const SERVER = join(ROOT, "tests", "fixtures", "plugins", "server.ts")
 const matrix = JSON.parse(readFileSync(join(ROOT, "tests", "fixtures", "plugins", "policy-matrix.json"), "utf8")) as {
   matrix: { mode: ChatMode; tool: "read" | "write"; enabled: boolean; explicit: boolean; approval: boolean | null; expect: string }[]
 }
 
-function configs(extra: Partial<PluginServerConfig> = {}): PluginServerConfig[] {
+function configs(extra: Partial<McpServerConfig> = {}): McpServerConfig[] {
   return [
     { id: "notes", command: process.execPath, args: [SERVER], ...extra },
     { id: "crasher", command: process.execPath, args: [SERVER], env: { PLUGIN_MODE: "crash-on-call" }, ...extra },
@@ -26,7 +26,7 @@ function configs(extra: Partial<PluginServerConfig> = {}): PluginServerConfig[] 
   ]
 }
 
-const host = createPluginHost(configs())
+const host = createMcpHost(configs())
 const results: { name: string; ok: boolean; detail: string }[] = []
 function check(name: string, ok: boolean, detail: string) {
   results.push({ name, ok, detail })
@@ -34,7 +34,7 @@ function check(name: string, ok: boolean, detail: string) {
 
 const kinds = (r: { ok: boolean; error?: { kind: string } }) => (r.ok ? "ok" : (r.error?.kind ?? "?"))
 
-const tool = (readOnly: boolean): PluginTool => ({
+const tool = (readOnly: boolean): McpTool => ({
   name: readOnly ? "read_note" : "write_note",
   description: "",
   readOnly,
@@ -174,7 +174,7 @@ describe("plugin host", () => {
         connected.error.hint.includes("never installs plugin dependencies"),
       kinds(connected),
     )
-    const copy = connected.ok ? null : pluginErrorCopy(connected.error)
+    const copy = connected.ok ? null : mcpErrorCopy(connected.error)
     check("copy is actionable", !!copy && copy.next.length > 0, copy?.next ?? "")
   })
 

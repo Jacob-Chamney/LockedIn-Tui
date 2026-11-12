@@ -8,9 +8,9 @@
  */
 import type { ChatMode } from "../../llm/chat"
 import type { ToolResolver, ToolSpec } from "../../llm/tools"
-import { decidePolicy, coreServersFor } from "../../plugins/policy"
-import { createPluginHost, type PluginHost } from "../../plugins/stdio"
-import type { PluginServerConfig, PluginTool } from "../../plugins/types"
+import { decidePolicy, coreServersFor } from "../../mcp/policy"
+import { createMcpHost, type McpHost } from "../../mcp/stdio"
+import type { McpServerConfig, McpTool } from "../../mcp/types"
 import type { ChatToolSource } from "./projects"
 
 export type PluginRow = {
@@ -34,9 +34,9 @@ export type PluginRuntime = {
 }
 
 function rowFor(
-  config: PluginServerConfig,
+  config: McpServerConfig,
   alive: boolean,
-  tools: readonly PluginTool[],
+  tools: readonly McpTool[],
   failure?: string,
 ): PluginRow {
   return {
@@ -54,10 +54,10 @@ function isWebServer(id: string): boolean {
 }
 
 export function createPluginRuntime(
-  configs: readonly PluginServerConfig[],
+  configs: readonly McpServerConfig[],
 ): PluginRuntime {
-  const host: PluginHost = createPluginHost(configs)
-  const tools = new Map<string, PluginTool[]>()
+  const host: McpHost = createMcpHost(configs)
+  const tools = new Map<string, McpTool[]>()
   const failures = new Map<string, string>()
   const byId = new Map(configs.map((config) => [config.id, config]))
 
@@ -120,7 +120,7 @@ export function createPluginRuntime(
     },
     sourceFor(mode, options) {
       const explicitCall = options?.explicitCall === true
-      const entries: Array<{ id: string; tool: PluginTool }> = []
+      const entries: Array<{ id: string; tool: McpTool }> = []
       for (const config of configs) {
         const coreForMode = coreServersFor(mode).includes(config.id)
         if (config.enabled === false) continue

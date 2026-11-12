@@ -100,7 +100,7 @@ export function PluginManagerPane(props: {
       width={props.width}
       height={props.height}
       focused={props.focused}
-      title="Plugin manager"
+      title="UI plugins"
       meta={props.state.loading ? "discovering…" : `${props.state.items.length} discovered`}
       hints={["j/k move · Space enable · Esc back"]}
       notice={props.state.notice}

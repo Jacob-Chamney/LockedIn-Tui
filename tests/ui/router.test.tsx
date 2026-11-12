@@ -143,7 +143,7 @@ describe("rendering", () => {
     // Settings owns the entry point; the component is still reachable in App.
     const setup = await mount(120, 30, { pane: "plugins" })
     try {
-      expect(lines(setup).join("\n")).toContain("PLUGINS")
+      expect(lines(setup).join("\n")).toContain("MCP SERVERS")
     } finally {
       await setup.dispose()
     }

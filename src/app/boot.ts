@@ -30,7 +30,7 @@ import { estimateCostMicroUsd, priceFor } from "../llm/pricing";
 import { ZERO_USAGE, type Usage } from "../llm/events";
 import { createChatController, type ChatController, type HistoryPort, type HistoryRecord, type ToolContext } from "./chat-controller";
 import { createPluginRuntime, type PluginRuntime } from "./actions/plugins";
-import { coreServersFor } from "../plugins/policy";
+import { coreServersFor } from "../mcp/policy";
 import { loadConfig } from "../storage/config";
 import { defaultWorkspaceRoot, workspacePaths } from "../storage/paths";
 import { createWorkspace, openWorkspace, type Workspace, type WorkspaceError } from "../storage/workspace";
