@@ -5,6 +5,7 @@ import {
   defineParticleSystem,
   definePlugin,
   card,
+  createCursor,
   dashboard,
   ease,
   fadeColor,
@@ -12,6 +13,7 @@ import {
   fadeNode,
   fadeNodes,
   fadeOut,
+  fields,
   footerActions,
   kpiStrip,
   list,
@@ -583,4 +585,41 @@ test("transition runs enter, hold and exit", () => {
   expect(transition(10, opts)).toBe(0)
   // exit 0 keeps it visible after the hold
   expect(transition(10, { enter: 0.2, hold: 0.5, exit: 0 })).toBe(1)
+})
+
+test("createCursor clamps, wraps and reports a fraction", () => {
+  const cursor = createCursor(4, { index: 1 })
+  expect(cursor.index).toBe(1)
+  expect(cursor.next()).toBe(2)
+  expect(cursor.next(10)).toBe(3)
+  expect(cursor.prev(10)).toBe(0)
+  cursor.set(99)
+  expect(cursor.index).toBe(3)
+  expect(cursor.fraction).toBe(1)
+  expect(createCursor(4, { wrap: true }).prev()).toBe(3)
+  expect(createCursor(0).next()).toBe(0)
+  expect(createCursor(0).fraction).toBe(0)
+})
+
+test("fields aligns labels, truncates values and highlights the selection", () => {
+  const nodes = fields({
+    rows: [
+      { label: "theme", value: "crimson" },
+      { label: "provider", value: "a very long provider name" },
+      { label: "empty" },
+    ],
+    width: 24,
+    labelWidth: 10,
+    selected: 1,
+  })
+  expect(nodes).toHaveLength(4)
+  expect(nodes[0]).toMatchObject({ kind: "text", y: 0, text: "theme      crimson" })
+  expect(nodes[1]).toMatchObject({ kind: "rect", y: 1, width: 24 })
+  expect(nodes[2]).toMatchObject({
+    kind: "text",
+    y: 1,
+    text: "provider   a very long …",
+    bg: "line",
+  })
+  expect(nodes[3]).toMatchObject({ kind: "text", y: 2, text: "empty", fg: "muted" })
 })

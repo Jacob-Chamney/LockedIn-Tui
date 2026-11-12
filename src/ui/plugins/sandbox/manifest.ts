@@ -97,6 +97,12 @@ const VERSION = /^\d+\.\d+\.\d+$/
 const LAYERS: readonly TextLayer[] = ["around", "under", "over"]
 const TRIGGERS: readonly ParticleSpawnTrigger[] = ["cursor-move", "keypress", "send"]
 
+function commandTitle(id: string): string {
+  const words = id.split("-").filter(Boolean)
+  if (words.length === 0) return id
+  return [words[0]!.charAt(0).toUpperCase() + words[0]!.slice(1), ...words.slice(1)].join(" ")
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
@@ -214,8 +220,19 @@ export function parseManifest(input: unknown): ManifestCheck {
         if (permissions.commands.length > 16) errors.push("permissions.commands may list at most 16 commands")
         const seen = new Set<string>()
         for (const command of permissions.commands) {
+          if (typeof command === "string") {
+            if (!ACTION_ID.test(command)) {
+              errors.push(`command id ${command} must be lowercase kebab-case`)
+            } else if (seen.has(command)) {
+              errors.push(`duplicate command id: ${command}`)
+            } else {
+              seen.add(command)
+              grantedCommands.add(command)
+            }
+            continue
+          }
           if (!isRecord(command)) {
-            errors.push("each command must be an object")
+            errors.push("each command must be a string id or an object")
             continue
           }
           if (typeof command.id !== "string" || !ACTION_ID.test(command.id)) {
@@ -283,6 +300,13 @@ export function parseManifest(input: unknown): ManifestCheck {
   const manifest: PluginManifest = {
     ...source,
     permissions: { ...source.permissions },
+  }
+  if (manifest.permissions.commands) {
+    manifest.permissions.commands = (
+      manifest.permissions.commands as Array<CommandPermission | string>
+    ).map((command) =>
+      typeof command === "string" ? { id: command, title: commandTitle(command) } : command,
+    )
   }
   if (manifest.permissions.scene) {
     const scene = manifest.permissions.scene as Partial<ScenePermission>

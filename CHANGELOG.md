@@ -51,6 +51,9 @@ requests merge.
   envelope for a card or detail panel.
 - Scene permissions may omit `anchors`, `maxNodes` and `maxText`; they default
   to `top-left`, 24 nodes and 512 characters.
+- `permissions.commands` accepts bare ids and derives a title.
+- `createCursor()` handles clamped/wrapped list and table selection.
+- `fields()` builds aligned label/value rows with truncation and a selection bar.
 - Sandboxed TypeScript plugins with validated manifests, QuickJS workers,
   resource limits, quarantine and the typed `@lockedin/sdk`.
 - Particle systems with spawn/step/style hooks, text layers and event bursts.
