@@ -76,6 +76,7 @@ export type WorkerOut =
       id: string
       ok: boolean
       message?: string
+      level?: "info" | "warn" | "error"
       /** Text the host may place on the clipboard, if granted. */
       copy?: string
       failed: boolean

@@ -160,11 +160,14 @@ export const EFFECT_ADAPTER_SOURCE = String.raw`
         store: storeApi,
         session: sessionApi
       });
-      var out = { ok: true, message: undefined, copy: undefined };
+      var out = { ok: true, message: undefined, level: undefined, copy: undefined };
       if (typeof result === "string") {
         out.message = result.slice(0, 300);
       } else if (result && typeof result === "object") {
         if (typeof result.message === "string") out.message = result.message.slice(0, 300);
+        if (result.level === "info" || result.level === "warn" || result.level === "error") {
+          out.level = result.level;
+        }
         if (typeof result.copy === "string") out.copy = result.copy.slice(0, 4096);
       }
       var changes = takeStore();

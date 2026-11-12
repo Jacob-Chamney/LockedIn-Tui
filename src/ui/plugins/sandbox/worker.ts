@@ -87,6 +87,7 @@ scope.onmessage = async (event: MessageEvent<WorkerIn>) => {
       id: message.id,
       ok: result.ok,
       message: result.message,
+      level: result.level,
       copy: result.copy,
       failed: effect.failed,
       error: effect.lastError,

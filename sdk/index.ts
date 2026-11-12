@@ -95,10 +95,21 @@ export type PluginCommandContext = PluginContext & { id: string }
  * A command may return a notice, text to copy (requires the manifest's
  * `clipboard` grant), or both.
  */
+export type NoticeLevel = "info" | "warn" | "error"
+
 export type PluginCommandResult =
   | string
   | void
-  | { message?: string; copy?: string }
+  | { message?: string; level?: NoticeLevel; copy?: string }
+
+/**
+ * A one-line notice. The host owns the bubble, fade and lifetime.
+ *
+ *   return notice("saved", "warn")
+ */
+export function notice(message: string, level: NoticeLevel = "info") {
+  return { message, level }
+}
 
 /**
  * A plugin exports one object. Particle hooks, `compose`, lifecycle hooks and
