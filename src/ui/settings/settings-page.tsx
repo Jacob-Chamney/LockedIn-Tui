@@ -32,9 +32,9 @@ export type SettingsView = {
   pluginServers: string[]
   /** `ui.hide_hints`: the chat's own hint rows are hidden. */
   hideHints: boolean
-  /** `ui.effects.dirs`: folders that contain plugin directories. */
-  pluginDirsFromConfig: string[]
-  /** `ui.effects.disabled`: discovered plugin ids that are not mounted. */
+  /** `ui.plugins.dirs`: folders that contain plugin directories. */
+  pluginDirs: string[]
+  /** `ui.plugins.disabled`: discovered plugin ids that are not mounted. */
   disabledPlugins: string[]
 }
 
@@ -61,7 +61,7 @@ export function emptySettingsView(): SettingsView {
     tutorPolicy: "direct",
     pluginServers: [],
     hideHints: false,
-    pluginDirsFromConfig: [],
+    pluginDirs: [],
     disabledPlugins: [],
   }
 }

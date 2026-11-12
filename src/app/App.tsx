@@ -34,6 +34,7 @@ import { effectDebug } from "../ui/plugins/debug";
 import { CustomParticleHost } from "../ui/plugins/particle-host";
 import { bundledPluginRoots, particlePathsFromEnv, pluginDirsFromConfig, loadParticleFiles, loadPlugins, scanPluginDirs, watchPlugins } from "../ui/plugins/loader";
 import { copyToClipboard } from "../ui/plugins/clipboard";
+import { legacyPluginEnv } from "../ui/plugins/env";
 import { SandboxWorkerPlugin } from "../ui/plugins/sandbox/client";
 import type { SceneState } from "../ui/plugins/scene/model";
 import { dirty as sessionSettingsDirty, initialSessionSettings, move as moveSessionSettings, selectedRow as selectedSessionSettingsRow, type SessionSettingsState } from "../ui/features/session-settings/session-settings-model";
@@ -323,7 +324,7 @@ export function App(props: {
 }) {
   const renderer = useRenderer()
   const dims = useTerminalDimensions()
-  /** Dev-only effects layer; null unless LOCKEDIN_EFFECTS is set. */
+  /** Dev-only effects layer; null unless LOCKEDIN_PLUGINS is set. */
   let appEffects: import("../ui/plugins/app-plugins").AppPlugins | null = null
   /** Reloads the sandboxed hosts after the settings switch changes. */
   let reloadParticleHosts: (() => void) | null = null
@@ -4258,7 +4259,7 @@ export function App(props: {
     if (item.enabled) disabled.add(item.id)
     else disabled.delete(item.id)
     const next = [...disabled].sort()
-    const patch: Record<string, unknown> = { "ui.effects.disabled": next }
+    const patch: Record<string, unknown> = { "ui.plugins.disabled": next }
     try {
       const saved = await props.onConfigPatch?.(nestedPatch(patch))
       if (saved && typeof saved === "object" && "ok" in saved && saved.ok === false) {
@@ -4295,7 +4296,7 @@ export function App(props: {
   const [theme, setTheme] = createSignal<ThemeId>(props.theme ?? "lockedin")
   const [customTheme, setCustomTheme] = createSignal<Partial<ThemePalette> | null>(props.custom ?? null)
 
-  // Dev-only effects. Off unless LOCKEDIN_EFFECTS is set; reduced motion wins.
+  // Dev-only effects. Off unless LOCKEDIN_PLUGINS is set; reduced motion wins.
   onMount(() => {
     let stopped = false
     let unwatch: (() => void) | null = null
@@ -4303,6 +4304,11 @@ export function App(props: {
       for (const error of errors) effectDebug(`load error: ${error}`)
     }
     const palette = () => resolveTheme(theme(), customTheme()).palette
+
+    const legacyEnv = legacyPluginEnv(process.env)
+    if (legacyEnv.length > 0) {
+      notify(`legacy ${legacyEnv.join(", ")} · use LOCKEDIN_PLUGINS*`, "warn")
+    }
 
     // Pointer targets are resolved from the painted scene; grants decide
     // whether the terminal is put into mouse-reporting mode.
@@ -4412,7 +4418,7 @@ export function App(props: {
     /** Plugin roots: env folders for the dev harness, plus config folders when mounted. */
     const configDirs = (): readonly string[] => {
       const view = settingsView()
-      return view?.pluginDirsFromConfig ?? []
+      return view?.pluginDirs ?? []
     }
 
     void (async () => {

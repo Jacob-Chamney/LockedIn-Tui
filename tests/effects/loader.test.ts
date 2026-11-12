@@ -61,7 +61,7 @@ test("a directory is scanned for .ts files", async () => {
   await writeFile(join(dir, "a.ts"), `export default { id: "user.a", spawn() { return true } }`)
   await writeFile(join(dir, "b.ts"), `export default { id: "user.b", spawn() { return true } }`)
   await writeFile(join(dir, "types.d.ts"), `export type Nope = string`)
-  const paths = await particlePathsFromEnv({ LOCKEDIN_EFFECTS_DIR: dir })
+  const paths = await particlePathsFromEnv({ LOCKEDIN_PLUGINS_DIR: dir })
   expect(paths).toHaveLength(2)
   const loaded = await loadParticleFiles(paths)
   expect(loaded.systems.map((entry) => entry.system.id)).toEqual(["user.a", "user.b"])
@@ -69,7 +69,7 @@ test("a directory is scanned for .ts files", async () => {
 })
 
 test("a missing directory is not an error", async () => {
-  expect(await particlePathsFromEnv({ LOCKEDIN_EFFECTS_DIR: "/nonexistent/lockedin" })).toEqual([])
+  expect(await particlePathsFromEnv({ LOCKEDIN_PLUGINS_DIR: "/nonexistent/lockedin" })).toEqual([])
 })
 
 function waitFor(check: () => boolean, timeout = 2000): Promise<void> {
@@ -90,7 +90,7 @@ function waitFor(check: () => boolean, timeout = 2000): Promise<void> {
 test("an edit notifies the watcher for a file list", async () => {
   const path = await fixture("watched.ts", `export default { id: "user.watched" }`)
   let changes = 0
-  const stop = watchPlugins({ LOCKEDIN_EFFECTS_FILE: path }, () => changes++, 20)
+  const stop = watchPlugins({ LOCKEDIN_PLUGINS_FILE: path }, () => changes++, 20)
   try {
     await writeFile(path, `export default { id: "user.watched", maxParticles: 4 }`)
     await waitFor(() => changes > 0)
@@ -106,7 +106,7 @@ test("an edit notifies the watcher for a directory", async () => {
   const path = join(dir, "a.ts")
   await writeFile(path, `export default { id: "user.a" }`)
   let changes = 0
-  const stop = watchPlugins({ LOCKEDIN_EFFECTS_DIR: dir }, () => changes++, 20)
+  const stop = watchPlugins({ LOCKEDIN_PLUGINS_DIR: dir }, () => changes++, 20)
   try {
     await writeFile(path, `export default { id: "user.b" }`)
     await waitFor(() => changes > 0)
@@ -119,7 +119,7 @@ test("an edit notifies the watcher for a directory", async () => {
 test("unrelated files do not notify a file list", async () => {
   const path = await fixture("only.ts", `export default { id: "user.only" }`)
   let changes = 0
-  const stop = watchPlugins({ LOCKEDIN_EFFECTS_FILE: path }, () => changes++, 20)
+  const stop = watchPlugins({ LOCKEDIN_PLUGINS_FILE: path }, () => changes++, 20)
   try {
     await writeFile(join(path, "..", "noise.ts"), `export default { id: "user.noise" }`)
     await new Promise((resolve) => setTimeout(resolve, 300))

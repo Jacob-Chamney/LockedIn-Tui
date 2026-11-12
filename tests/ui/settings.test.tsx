@@ -28,7 +28,7 @@ const VIEW: View = {
   tutorPolicy: "direct",
   pluginServers: ["notes", "filesystem"],
   hideHints: false,
-  pluginDirsFromConfig: [],
+  pluginDirs: [],
   disabledPlugins: [],
 }
 

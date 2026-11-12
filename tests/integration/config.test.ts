@@ -12,7 +12,7 @@ import { chmodSync, existsSync, readFileSync, readdirSync } from "node:fs";
 import { chmod, cp, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CONFIG_MIGRATIONS, loadConfig, patchConfig, readConfig, serializeDocument, type ConfigError, type ConfigMigration, type LoadedConfig } from "../../src/storage/config";
+import { CONFIG_MIGRATIONS, loadConfig, patchConfig, readConfig, serializeDocument, type ConfigError, type LoadedConfig } from "../../src/storage/config";
 import { CONFIG_VERSION, DEFAULT_CONFIG, defaultDocument, findSecretKey, validateDocument } from "../../src/storage/config-schema";
 import { createWorkspace, type Workspace } from "../../src/storage/workspace";
 import type { Result } from "../../src/domain/markdown";
@@ -86,11 +86,12 @@ describe("config", () => {
     expect(loaded.created).toBe(true)
     expect(loaded.migrated).toBe(false)
     expect(loaded.config).toEqual(DEFAULT_CONFIG)
-    expect(loaded.document).toEqual(defaultDocument())
+    const createdDocument = { ...defaultDocument(), schema_version: CONFIG_VERSION }
+    expect(loaded.document).toEqual(createdDocument)
 
     // written, parseable, and exactly the documented defaults
     expect(existsSync(workspace.paths.config)).toBe(true)
-    expect(readFileSync(workspace.paths.config, "utf8")).toBe(serializeDocument(defaultDocument()))
+    expect(readFileSync(workspace.paths.config, "utf8")).toBe(serializeDocument(createdDocument))
     expect(tempFiles(workspace.paths.root)).toEqual([])
 
     // a second load reads the file instead of recreating it
@@ -310,45 +311,31 @@ describe("config", () => {
 
     // nothing was ever written outside the config file
     expect(readFileSync(workspace.paths.config, "utf8")).not.toBe(before)
-    expect(CONFIG_MIGRATIONS).toEqual([])
+    expect(CONFIG_MIGRATIONS.length).toBeGreaterThan(0)
   })
 
   /* ------------------------------------------------------------------------ */
   /* P1-CF-07                                                                 */
   /* ------------------------------------------------------------------------ */
 
-  test("schema_version appears only with a migration", async () => {
+  test("a created config carries the schema version and stays stable", async () => {
     const workspace = await tempWorkspace("migrations")
+    const first = unwrap(await loadConfig(workspace.paths))
+    expect(first.created).toBe(true)
+    expect(first.migrated).toBe(false)
+    expect(readFileSync(workspace.paths.config, "utf8")).toContain(
+      `schema_version = ${CONFIG_VERSION}`,
+    )
 
-    // no migration ships yet: the key is never invented
-    unwrap(await loadConfig(workspace.paths))
-    unwrap(await patchConfig(workspace.paths, { ui: { username: "friend" } }))
-    expect(readFileSync(workspace.paths.config, "utf8")).not.toContain("schema_version")
-
-    // when a migration exists it runs once and writes the key once
-    const migration: ConfigMigration = {
-      to: CONFIG_VERSION,
-      apply: (document) => ({
-        ...document,
-        ui: { ...(document.ui as Record<string, unknown>), theme: "high-contrast" },
-      }),
-    }
-
-    const migrated = unwrap(await loadConfig(workspace.paths, { migrations: [migration] }))
-    expect(migrated.migrated).toBe(true)
-    expect(migrated.config.ui.theme).toBe("high-contrast")
-    const migratedText = readFileSync(workspace.paths.config, "utf8")
-    expect(migratedText).toContain(`schema_version = ${CONFIG_VERSION}`)
-
-    // a second load does not rewrite the file
+    // A second load neither migrates nor writes.
     const { mtimeMs } = await import("node:fs/promises").then((fs) =>
       fs.stat(workspace.paths.config),
     )
-    const second = unwrap(await loadConfig(workspace.paths, { migrations: [migration] }))
+    const second = unwrap(await loadConfig(workspace.paths))
     expect(second.migrated).toBe(false)
+    expect(second.created).toBe(false)
     const after = await import("node:fs/promises").then((fs) => fs.stat(workspace.paths.config))
     expect(after.mtimeMs).toBe(mtimeMs)
-    expect(readFileSync(workspace.paths.config, "utf8")).toBe(migratedText)
   })
 
   /* ------------------------------------------------------------------------ */
@@ -389,7 +376,7 @@ describe("config", () => {
     expect(DEFAULT_CONFIG.archive.backend).toBe("folder")
     expect(DEFAULT_CONFIG.archive.github.token_ref).toBe("lockedin/github-token")
     expect(DEFAULT_CONFIG.decision_layer.enabled).toBe(false)
-    expect(DEFAULT_CONFIG.ui.effects).toEqual({ dirs: [], disabled: [] })
+    expect(DEFAULT_CONFIG.ui.plugins).toEqual({ dirs: [], disabled: [] })
 
     // Binding *strings* are stored here but parsed and conflict-checked by the
     // keymap registry, so storage only requires them to be strings. This keeps
@@ -416,27 +403,27 @@ describe("config", () => {
     if (!notStrings.ok) expect(notStrings.error.key).toBe("ui.keybinds.navigator")
   })
 
-  test("effect plugin mounting is validated", () => {
+  test("UI plugin mounting is validated", () => {
     const ui = defaultDocument().ui as Record<string, unknown>
     const good = validateDocument({
       ...defaultDocument(),
-      ui: { ...ui, effects: { dirs: ["~/effects"], disabled: ["lab.status"] } },
+      ui: { ...ui, plugins: { dirs: ["~/plugins"], disabled: ["lab.status"] } },
     })
     expect(good.ok).toBe(true)
-    if (good.ok) expect(good.value.ui.effects.dirs).toEqual(["~/effects"])
+    if (good.ok) expect(good.value.ui.plugins.dirs).toEqual(["~/plugins"])
 
     const relative = validateDocument({
       ...defaultDocument(),
-      ui: { ...ui, effects: { dirs: ["effects"], disabled: [] } },
+      ui: { ...ui, plugins: { dirs: ["plugins"], disabled: [] } },
     })
     expect(relative.ok).toBe(false)
-    if (!relative.ok) expect(relative.error.key).toBe("ui.effects.dirs")
+    if (!relative.ok) expect(relative.error.key).toBe("ui.plugins.dirs")
 
     const badId = validateDocument({
       ...defaultDocument(),
-      ui: { ...ui, effects: { dirs: [], disabled: ["Not An Id"] } },
+      ui: { ...ui, plugins: { dirs: [], disabled: ["Not An Id"] } },
     })
     expect(badId.ok).toBe(false)
-    if (!badId.ok) expect(badId.error.key).toBe("ui.effects.disabled")
+    if (!badId.ok) expect(badId.error.key).toBe("ui.plugins.disabled")
   })
 })

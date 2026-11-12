@@ -23,6 +23,10 @@ requests merge.
   `SandboxedPlugin` and `SandboxWorkerPlugin` are the primary names.
   `EffectManifest`, `SandboxedEffect` and `SandboxWorkerEffect` remain as
   deprecated aliases for the released SDK.
+- Config version 2 migrates `[ui.effects]` to `[ui.plugins]` and removes the
+  old table; existing directory/disabled values are preserved.
+- `LOCKEDIN_PLUGINS*` is the supported environment spelling. The old
+  `LOCKEDIN_EFFECTS*` names still work as a deprecated fallback for one release.
 
 ### Removed
 

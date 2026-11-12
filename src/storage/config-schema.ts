@@ -18,7 +18,7 @@ import { isAbsolute } from "node:path";
 import type { Result } from "../domain/markdown";
 import { err, ok } from "../domain/markdown";
 /** Target schema version once migrations exist. No migration ships in v1 yet. */
-export const CONFIG_VERSION = 1
+export const CONFIG_VERSION = 2
 
 export type NudgeIntensity = "gentle" | "balanced" | "intensive"
 export type ArchiveBackend = "folder" | "github"
@@ -106,8 +106,8 @@ export type Config = {
     keybinds: BindingMap
     fixed_keybinds: BindingMap
     direct_keybinds: BindingMap
-    /** Dev-only sandboxed effect plugins. */
-    effects: {
+    /** Sandboxed UI plugins. */
+    plugins: {
       /** Folders that contain plugin directories (manifest + entry). */
       dirs: string[]
       /** Plugin ids that are discovered but not mounted. */
@@ -173,7 +173,7 @@ export const DEFAULT_CONFIG: Config = {
     keybinds: {},
     fixed_keybinds: {},
     direct_keybinds: {},
-    effects: {
+    plugins: {
       dirs: [],
       disabled: [],
     },
@@ -560,8 +560,8 @@ export function validateDocument(document: TomlDocument): Result<Config, ConfigI
     () => asStringMap("ui.keybinds", get("ui.keybinds")),
     () => asStringMap("ui.fixed_keybinds", get("ui.fixed_keybinds")),
     () => asStringMap("ui.direct_keybinds", get("ui.direct_keybinds")),
-    () => asPluginDirs("ui.effects.dirs", get("ui.effects.dirs")),
-    () => asPluginIds("ui.effects.disabled", get("ui.effects.disabled")),
+    () => asPluginDirs("ui.plugins.dirs", get("ui.plugins.dirs")),
+    () => asPluginIds("ui.plugins.disabled", get("ui.plugins.disabled")),
 
     () => asString("models.chat", get("models.chat")),
     () => asString("models.generation", get("models.generation")),
@@ -610,7 +610,9 @@ export function validateDocument(document: TomlDocument): Result<Config, ConfigI
   const github = table("archive.github", get("archive.github"))
   if (!github.ok) return err(github.error)
 
-  return ok(document as unknown as Config)
+  // `schema_version` is document metadata, not configuration.
+  const { schema_version: _version, ...config } = document
+  return ok(config as unknown as Config)
 }
 
 /**
