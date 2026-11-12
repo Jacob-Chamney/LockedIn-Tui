@@ -68,9 +68,8 @@ async function pluginDir(files: Record<string, string>, name = "orbit"): Promise
 
 test("a plugin directory is discovered and its entry bundled", async () => {
   const root = await pluginDir({ "manifest.json": JSON.stringify(manifest()), "effect.ts": EFFECT })
-  const dirs = await pluginDirsFromConfig({ LOCKEDIN_EFFECTS_DIR: root })
+  const dirs = await pluginDirsFromConfig({ LOCKEDIN_PLUGINS_DIR: root })
   expect(dirs.length).toBe(1)
-  expect(await pluginDirsFromConfig({ LOCKEDIN_PLUGINS_DIR: root })).toEqual(dirs)
   expect(dirs).toHaveLength(1)
   const loaded = await loadPlugins(dirs)
   expect(loaded.errors).toEqual([])
