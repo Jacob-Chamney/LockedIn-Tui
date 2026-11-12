@@ -190,7 +190,8 @@ jobs:
       - name: Resolve version
         id: version
         shell: bash
-        run: echo "version=$(bun -e 'console.log((await Bun.file("package.json").json()).version)')" >> "$GITHUB_OUTPUT"
+        # This job does not install Bun; Node is on every GitHub runner.
+        run: echo "version=$(node -p 'require("./package.json").version')" >> "$GITHUB_OUTPUT"
 
       - name: Create draft release
         env:
