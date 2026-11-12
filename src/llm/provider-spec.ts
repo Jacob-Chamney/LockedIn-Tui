@@ -134,7 +134,7 @@ export const FIRST_CLASS_PROVIDERS: readonly ProviderSpec[] = [
     keyFormat: {
       pattern: /^AIza[0-9A-Za-z_-]{35}$/,
       shape: "AIza… (39 characters in total)",
-      example: "AIza... (39 characters)",
+      example: "AIza… (39 characters)",
     },
     discovery: { kind: "models-endpoint", path: "/models" },
   },
