@@ -7,7 +7,7 @@
 # verifies it against the release's SHA256SUMS, and installs it to
 # ~/.local/bin/lockedin (override with LOCKEDIN_INSTALL_DIR).
 #
-# Pin a version with LOCKEDIN_VERSION=1.0.0. The script never uses sudo and
+# Pin a version with LOCKEDIN_VERSION=2026.11.12. The script never uses sudo and
 # never edits a shell profile; it prints the PATH line when one is needed.
 set -eu
 

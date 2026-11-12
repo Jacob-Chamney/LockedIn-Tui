@@ -6,4 +6,4 @@
  * for source runs (`bun run start`).
  */
 export const RELEASE_BUILD = process.env.LOCKEDIN_RELEASE === "1"
-export const APP_VERSION = process.env.LOCKEDIN_APP_VERSION ?? "1.0.0"
+export const APP_VERSION = process.env.LOCKEDIN_APP_VERSION ?? "2026.11.12"

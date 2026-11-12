@@ -21,13 +21,13 @@
     {
       "metric": "compiled-artifact first frame, cold empty workspace",
       "budget": "<= 150 ms",
-      "measured": "145 / 146 / 145 ms (compiled 1.0.0 artifact, 3 clean-dir runs)",
+      "measured": "145 / 146 / 145 ms (compiled 2026.11.12 artifact, 3 clean-dir runs)",
       "source": "scripts/release.ts"
     },
     {
       "metric": "compiled-artifact first frame, 5k-note index",
       "budget": "<= 400 ms",
-      "measured": "145 / 152 / 154 ms (median 152; 5,000 notes, compiled 1.0.0 artifact)",
+      "measured": "145 / 152 / 154 ms (median 152; 5,000 notes, compiled 2026.11.12 artifact)",
       "source": "bun run scripts/measure-5k.ts --binary=<release-artifact>"
     },
     {

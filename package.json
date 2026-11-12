@@ -1,6 +1,6 @@
 {
   "name": "lockedin-tui",
-  "version": "1.0.0",
+  "version": "2026.11.12",
   "private": true,
   "type": "module",
   "description": "A keyboard-first terminal workspace for learning and focused work.",

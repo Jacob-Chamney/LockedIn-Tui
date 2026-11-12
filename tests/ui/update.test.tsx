@@ -7,17 +7,17 @@ const { App } = await import("../../src/app/App")
 import type { UpdateInfo, UpdateService } from "../../src/services/update"
 
 const INFO: UpdateInfo = {
-  version: "9.9.9",
-  asset: "lockedin-9.9.9-bun-linux-x64",
-  assetUrl: "https://github.com/Jacob-Chamney/LockedIn-Tui/releases/download/v9.9.9/a",
-  checksumUrl: "https://github.com/Jacob-Chamney/LockedIn-Tui/releases/download/v9.9.9/SHA256SUMS",
-  releaseUrl: "https://github.com/Jacob-Chamney/LockedIn-Tui/releases/tag/v9.9.9",
+  version: "2026.12.01",
+  asset: "lockedin-2026.12.01-bun-linux-x64",
+  assetUrl: "https://github.com/Jacob-Chamney/LockedIn-Tui/releases/download/v2026.12.01/a",
+  checksumUrl: "https://github.com/Jacob-Chamney/LockedIn-Tui/releases/download/v2026.12.01/SHA256SUMS",
+  releaseUrl: "https://github.com/Jacob-Chamney/LockedIn-Tui/releases/tag/v2026.12.01",
 }
 
 function service(overrides: Partial<UpdateService> = {}): UpdateService {
   return {
-    check: async () => ({ kind: "available", current: "1.0.0", info: INFO }),
-    install: async () => ({ kind: "updated", version: "9.9.9" }),
+    check: async () => ({ kind: "available", current: "2026.11.12", info: INFO }),
+    install: async () => ({ kind: "updated", version: "2026.12.01" }),
     ...overrides,
   }
 }
@@ -36,9 +36,9 @@ describe("update availability", () => {
   test("shows a persistent top-bar badge and a notice", async () => {
     const ui = await mount(service())
     try {
-      await ui.waitUntil(() => ui.frame().includes("9.9.9"))
+      await ui.waitUntil(() => ui.frame().includes("2026.12.01"))
       const frame = ui.frame()
-      expect(frame).toContain("↑ 9.9.9 · :update")
+      expect(frame).toContain("↑ 2026.12.01 · :update")
       expect(frame).toContain("is available")
     } finally {
       await ui.dispose()
@@ -47,7 +47,7 @@ describe("update availability", () => {
 
   test("a current release shows nothing", async () => {
     const ui = await mount(
-      service({ check: async () => ({ kind: "current", current: "1.0.0", latest: "1.0.0" }) }),
+      service({ check: async () => ({ kind: "current", current: "2026.11.12", latest: "2026.11.12" }) }),
     )
     try {
       await ui.idle()
@@ -65,7 +65,7 @@ describe(":update", () => {
       service({
         install: async () => {
           installed = true
-          return { kind: "updated", version: "9.9.9" }
+          return { kind: "updated", version: "2026.12.01" }
         },
       }),
       { overlay: "command", mode: "insert", commandQuery: "update" },
@@ -73,9 +73,9 @@ describe(":update", () => {
     try {
       await ui.waitUntil(() => ui.frame().includes(":update"))
       await ui.press("enter")
-      await ui.waitUntil(() => ui.frame().includes("restart for 9.9.9"))
+      await ui.waitUntil(() => ui.frame().includes("restart for 2026.12.01"))
       expect(installed).toBe(true)
-      expect(ui.frame()).toContain("updated to 9.9.9")
+      expect(ui.frame()).toContain("updated to 2026.12.01")
     } finally {
       await ui.dispose()
     }

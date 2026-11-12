@@ -190,12 +190,6 @@ export async function checkForUpdate(options: Options): Promise<UpdateCheck> {
         message: "the latest release has an unreadable version",
       }
     }
-    // The project reset its version line from 1.6.0 to 1.0.0 on the restored
-    // repository. The old 1.6.0 release is not an update for a 1.0.x build;
-    // once a 1.0.x release exists, /releases/latest returns that instead.
-    if (version === "1.6.0" && resolved.current.startsWith("1.0.")) {
-      return { kind: "current", current: resolved.current, latest: version }
-    }
     if (compareVersions(version, resolved.current) <= 0) {
       return { kind: "current", current: resolved.current, latest: version }
     }

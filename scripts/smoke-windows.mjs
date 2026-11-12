@@ -6,7 +6,7 @@
  * node-pty, waits for the first `LOCKEDIN` paint and checks the workspace.
  *
  * Run by the Windows release job after installing node-pty in a temp directory:
- *   node smoke.mjs --dir=dist --version=1.0.0
+ *   node smoke.mjs --dir=dist --version=2026.11.12
  *
  * The dependency is CI-only; it is never bundled into the app.
  */

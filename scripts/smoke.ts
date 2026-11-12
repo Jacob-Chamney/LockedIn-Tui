@@ -6,7 +6,7 @@
  * evidence that the file runs, so every job executes the binaries it just
  * built before uploading them:
  *
- *   bun run scripts/smoke.ts --dir=dist --version=1.0.0
+ *   bun run scripts/smoke.ts --dir=dist --version=2026.11.12
  *
  * Checks, per host artifact:
  *   1. `--version` prints `lockedin <version>` and exits 0;

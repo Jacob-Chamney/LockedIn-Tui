@@ -52,8 +52,9 @@ allows it.
 
 ## Install
 
-> **1.0.0 is being prepared.** Until it is published, `latest` still points at
-> the previous 1.x release. Use the source instructions below to run this tree.
+> **The first dated release (`2026.11.12`) is being prepared.** Until it is
+> published, `latest` still points at the previous 1.x release. Use the source
+> instructions below to run this tree.
 
 Install the latest release:
 
@@ -73,8 +74,8 @@ Windows x64.
 Download the asset for your platform, mark it executable and run it:
 
 ```sh
-chmod +x lockedin-1.0.0-bun-linux-x64
-./lockedin-1.0.0-bun-linux-x64 --workspace ~/LockedIn
+chmod +x lockedin-2026.11.12-bun-linux-x64
+./lockedin-2026.11.12-bun-linux-x64 --workspace ~/LockedIn
 ```
 
 ## Run from source

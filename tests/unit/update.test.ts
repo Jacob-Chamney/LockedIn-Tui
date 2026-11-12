@@ -69,6 +69,8 @@ describe("versions and asset names", () => {
     expect(compareVersions("1.0.1", "1.0.0")).toBe(1)
     expect(compareVersions("1.0.0", "1.10.0")).toBe(-1)
     expect(compareVersions("2.0.0", "1.9.9")).toBe(1)
+    expect(compareVersions("2026.11.12", "2026.11.11")).toBe(1)
+    expect(compareVersions("2026.11.12", "1.6.0")).toBe(1)
   })
 
   test("map every released platform to its asset", () => {
@@ -123,14 +125,14 @@ describe("checking", () => {
     expect(result).toEqual({ kind: "current", current: "1.2.0", latest: "1.2.0" })
   })
 
-  test("the old 1.6.0 release is not an update after the version reset", async () => {
+  test("a dated build is newer than the old 1.x releases", async () => {
     const result = await checkForUpdate({
-      current: "1.0.0",
+      current: "2026.11.12",
       platform: "linux",
       arch: "x64",
       fetch: responder({ [API]: () => release("1.6.0") }),
     })
-    expect(result).toEqual({ kind: "current", current: "1.0.0", latest: "1.6.0" })
+    expect(result).toEqual({ kind: "current", current: "2026.11.12", latest: "1.6.0" })
   })
 
   test("a missing release, server error or missing asset is unavailable, not a failure", async () => {
