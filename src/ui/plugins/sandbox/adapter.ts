@@ -157,10 +157,21 @@ export const EFFECT_ADAPTER_SOURCE = String.raw`
         state: input.state,
         time: input.time,
         pointer: input.pointer,
+        input: input.input,
         store: storeApi,
         session: sessionApi
       });
-      var out = { ok: true, message: undefined, level: undefined, copy: undefined };
+      var out = {
+        ok: true,
+        message: undefined,
+        level: undefined,
+        duration: undefined,
+        copy: undefined,
+        confirm: undefined,
+        prompt: undefined,
+        menu: undefined,
+        status: undefined,
+      };
       if (typeof result === "string") {
         out.message = result.slice(0, 300);
       } else if (result && typeof result === "object") {
@@ -168,7 +179,15 @@ export const EFFECT_ADAPTER_SOURCE = String.raw`
         if (result.level === "info" || result.level === "warn" || result.level === "error") {
           out.level = result.level;
         }
+        if (typeof result.duration === "number" && isFinite(result.duration)) {
+          out.duration = Math.max(1, Math.min(30, result.duration));
+        }
         if (typeof result.copy === "string") out.copy = result.copy.slice(0, 4096);
+        if (result.confirm && typeof result.confirm === "object") out.confirm = result.confirm;
+        if (result.prompt && typeof result.prompt === "object") out.prompt = result.prompt;
+        if (result.menu && typeof result.menu === "object") out.menu = result.menu;
+        if (result.status === null) out.status = null;
+        else if (result.status && typeof result.status === "object") out.status = result.status;
       }
       var changes = takeStore();
       if (changes !== undefined) out.changes = changes;

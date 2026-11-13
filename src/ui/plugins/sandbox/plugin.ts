@@ -66,6 +66,73 @@ export function safeGlyph(value: unknown): string {
   return first
 }
 
+const COMMAND_ID = /^[a-z0-9][a-z0-9-]{0,63}$/
+
+function shortText(value: unknown, max: number): string | undefined {
+  return typeof value === "string" && value.trim() !== ""
+    ? value.slice(0, max)
+    : undefined
+}
+
+function commandTarget(value: unknown): string | undefined {
+  return typeof value === "string" && COMMAND_ID.test(value) ? value : undefined
+}
+
+function confirmOf(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+  const raw = value as Record<string, unknown>
+  const message = shortText(raw.message, 120)
+  const command = commandTarget(raw.command)
+  if (!message || !command) return undefined
+  return {
+    message,
+    command,
+    ...(shortText(raw.confirmLabel, 40) ? { confirmLabel: shortText(raw.confirmLabel, 40) } : {}),
+    ...(shortText(raw.cancelLabel, 40) ? { cancelLabel: shortText(raw.cancelLabel, 40) } : {}),
+  }
+}
+
+function promptOf(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+  const raw = value as Record<string, unknown>
+  const message = shortText(raw.message, 120)
+  const command = commandTarget(raw.command)
+  if (!message || !command) return undefined
+  return {
+    message,
+    command,
+    ...(shortText(raw.placeholder, 40) ? { placeholder: shortText(raw.placeholder, 40) } : {}),
+  }
+}
+
+function menuOf(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+  const raw = value as Record<string, unknown>
+  const title = shortText(raw.title, 80)
+  const command = commandTarget(raw.command)
+  if (!title || !command || !Array.isArray(raw.options)) return undefined
+  const options = raw.options
+    .filter((option): option is string => typeof option === "string")
+    .map((option) => option.slice(0, 40))
+    .filter((option) => option.trim() !== "")
+    .slice(0, 9)
+  if (options.length === 0) return undefined
+  return { title, options, command }
+}
+
+function statusOf(
+  value: unknown,
+): { text: string; tone: "info" | "warn" | "error" } | null | undefined {
+  if (value === null) return null
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+  const raw = value as Record<string, unknown>
+  const text = shortText(raw.text, 40)
+  if (!text) return undefined
+  const tone =
+    raw.tone === "warn" || raw.tone === "error" || raw.tone === "info" ? raw.tone : "info"
+  return { text, tone }
+}
+
 export class SandboxedPlugin {
   readonly manifest: PluginManifest
   readonly description: SystemDescription
@@ -306,7 +373,12 @@ export class SandboxedPlugin {
     ok: boolean
     message?: string
     level?: "info" | "warn" | "error"
+    duration?: number
     copy?: string
+    confirm?: { message: string; command: string; confirmLabel?: string; cancelLabel?: string }
+    prompt?: { message: string; command: string; placeholder?: string }
+    menu?: { title: string; options: string[]; command: string }
+    status?: { text: string; tone?: "info" | "warn" | "error" } | null
   } {
     if (this.failed || !this.commandIds.includes(id)) {
       return { ok: false, message: "command is not available" }
@@ -321,7 +393,12 @@ export class SandboxedPlugin {
         ok?: unknown
         message?: unknown
         level?: unknown
+        duration?: unknown
         copy?: unknown
+        confirm?: unknown
+        prompt?: unknown
+        menu?: unknown
+        status?: unknown
         changes?: unknown
       }
       this.absorbChanges(out)
@@ -330,6 +407,20 @@ export class SandboxedPlugin {
         out.level === "info" || out.level === "warn" || out.level === "error"
           ? out.level
           : undefined
+      const duration =
+        typeof out.duration === "number" && Number.isFinite(out.duration)
+          ? Math.max(1, Math.min(30, out.duration))
+          : undefined
+      const confirm = confirmOf(out.confirm)
+      const prompt = promptOf(out.prompt)
+      const menu = menuOf(out.menu)
+      const status = statusOf(out.status)
+      const extras = {
+        ...(confirm ? { confirm } : {}),
+        ...(prompt ? { prompt } : {}),
+        ...(menu ? { menu } : {}),
+        ...(out.status === null ? { status: null } : status ? { status } : {}),
+      }
       if (out.copy !== undefined) {
         if (this.manifest.permissions.clipboard !== true) {
           return { ok: false, message: "clipboard permission not granted" }
@@ -344,9 +435,22 @@ export class SandboxedPlugin {
             message: `clipboard text must be 1-${MAX_CLIPBOARD_CHARS} characters`,
           }
         }
-        return { ok: out.ok !== false, message, ...(level ? { level } : {}), copy: out.copy }
+        return {
+          ok: out.ok !== false,
+          message,
+          ...(level ? { level } : {}),
+          ...(duration !== undefined ? { duration } : {}),
+          ...extras,
+          copy: out.copy,
+        }
       }
-      return { ok: out.ok !== false, message, ...(level ? { level } : {}) }
+      return {
+        ok: out.ok !== false,
+        message,
+        ...(level ? { level } : {}),
+        ...(duration !== undefined ? { duration } : {}),
+        ...extras,
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       this.lastError = message.slice(0, 200)

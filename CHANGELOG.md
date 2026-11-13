@@ -54,6 +54,15 @@ requests merge.
 - `permissions.commands` accepts bare ids and derives a title.
 - `createCursor()` handles clamped/wrapped list and table selection.
 - `fields()` builds aligned label/value rows with truncation and a selection bar.
+- `log()` tails and truncates a text stream; `stats()` builds right-aligned
+  metric rows; `form()` combines fields, a footer and an automatic height.
+- Commands can return `confirm()`, `prompt()` or `menu()` to use host-owned
+  confirmations, input and pickers; the follow-up command receives `ctx.input`.
+- `status()` publishes a status-bar chip and `status(null)` clears it.
+- Notices accept a per-message lifetime in seconds.
+- `bun run api:reference` generates the SDK reference page; the committed page
+  is checked against `sdk/index.ts`.
+- Scaffold templates use the cursor helper instead of hand-written clamps.
 - Sandboxed TypeScript plugins with validated manifests, QuickJS workers,
   resource limits, quarantine and the typed `@lockedin/sdk`.
 - Particle systems with spawn/step/style hooks, text layers and event bursts.

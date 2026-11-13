@@ -101,7 +101,12 @@ export class SandboxWorkerPlugin implements ParticleHost {
         ok: boolean
         message?: string
         level?: "info" | "warn" | "error"
+        duration?: number
         copy?: string
+        confirm?: { message: string; command: string; confirmLabel?: string; cancelLabel?: string }
+        prompt?: { message: string; command: string; placeholder?: string }
+        menu?: { title: string; options: string[]; command: string }
+        status?: { text: string; tone?: "info" | "warn" | "error" } | null
         /** True when a pointer event, not a key, ran the command. */
         pointer?: boolean
       }) => void)
@@ -227,12 +232,13 @@ export class SandboxWorkerPlugin implements ParticleHost {
       column?: number
       scroll?: { direction: "up" | "down" | "left" | "right"; delta: number }
     },
+    input?: string,
   ): void {
     if (this.failed || this.disposed || !this.ready || !this.commandIds.includes(id)) return
     this.worker.postMessage({
       type: "command",
       id,
-      input: { state, time: Date.now(), ...(pointer ? { pointer } : {}) },
+      input: { state, time: Date.now(), ...(pointer ? { pointer } : {}), ...(input !== undefined ? { input } : {}) },
     } satisfies WorkerIn)
   }
 
@@ -387,7 +393,12 @@ export class SandboxWorkerPlugin implements ParticleHost {
         ok: message.ok,
         message: message.message,
         level: message.level,
+        duration: message.duration,
         copy: message.copy,
+        confirm: message.confirm,
+        prompt: message.prompt,
+        menu: message.menu,
+        status: message.status,
         ...(pointer ? { pointer: true } : {}),
       })
       return

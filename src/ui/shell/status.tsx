@@ -34,6 +34,8 @@ export function StatusBar(props: {
   note?: string
   /** The chat's tool mode (PLAN/BUILD/LEARN), when the chat pane is active. */
   toolMode?: string
+  /** A chip a plugin published with the host status service. */
+  pluginStatus?: { text: string; tone?: "info" | "warn" | "error" } | null
   pane: Pane
   mode: Mode
   overlay: Overlay
@@ -79,6 +81,7 @@ export function StatusBar(props: {
     surface().length +
     props.mode.length +
     (props.toolMode?.length ?? 0) +
+    (props.pluginStatus ? Math.min(24, props.pluginStatus.text.length) + 2 : 0) +
     note().length +
     7
   const tail = "␣ · ? help"
@@ -103,6 +106,21 @@ export function StatusBar(props: {
         {props.toolMode ? (
           <text fg={palette().background} bg={palette().accent} wrapMode="none">
             {` ${props.toolMode} `}
+          </text>
+        ) : null}
+        {props.pluginStatus ? (
+          <text
+            fg={palette().background}
+            bg={
+              props.pluginStatus.tone === "error"
+                ? palette().error
+                : props.pluginStatus.tone === "warn"
+                  ? palette().warning
+                  : palette().primary
+            }
+            wrapMode="none"
+          >
+            {` ${fit(props.pluginStatus.text, 24)} `}
           </text>
         ) : null}
         {note() ? (

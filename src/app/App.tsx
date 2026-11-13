@@ -48,6 +48,7 @@ import { loadProjectChanges } from "./actions/changes";
 import { buildOutput, loadDeck, markDeckCard, readOutput, type LoadedDeck, type OutputKind } from "./actions/outputs";
 import type { PluginRuntime } from "./actions/plugins";
 import type { ServerRow } from "../ui/features/mcp/mcp-model";
+import type { PluginRequest } from "../ui/overlays/plugin-request";
 import { addSessionSources, appendSessionMisconception, generateSessionDocument, importSessionInstructionsFile, loadParkedQuestionCount, loadSessionInstructions, loadSessionPrompt, loadSessionQuestions, loadSessionSourceNames, loadSessionSteps, parkSessionQuestion, reExtractSessionInstructions, recordSessionConfidence, regenerateSessionSteps, saveIntakeLevel, saveSessionInstructions, sessionNeedsStepRefresh, sessionTools, stepFailureMessage, toggleSessionStep } from "./actions/lockin";
 import { gatherSkillSources } from "./actions/skills";
 import { createSkillChat, createSkillCourse, deleteSkillGoal, loadChapter, loadCourse, loadGoalRows, loadGoalSourceNames, loadSkillChats, setChapterDone, skillTools } from "./actions/skills";
@@ -59,7 +60,7 @@ import { initialArchive, move as moveArchiveState, type ArchiveState } from "../
 import type { ActivityRecord } from "../services/work/activity";
 import { runProjectExport } from "./actions/work";
 import { archiveProject as archiveProjectRecord, createProject as createProjectRecord, createAgentFromTemplate, createProjectAgent, deleteProject as deleteProjectRecord, loadAgentTemplates, loadProjectAgents, loadProjects, loadWorkHome, setProjectDefaultAgent, setProjectMode, type WorkHomeData, makeAgentId, makeProjectId, projectTools, updateProjectAgent } from "./actions/projects";
-import { NOTICE_FADE_MS, NOTICE_MS, NOTICE_TICK_MS, pruneNotices, type Notice, type NoticeLevel } from "../ui/shell/notice-stack";
+import { NOTICE_FADE_MS, NOTICE_TICK_MS, noticeDuration, pruneNotices, type Notice, type NoticeLevel } from "../ui/shell/notice-stack";
 import type { UpdateBadge } from "../ui/shell/layout";
 
 /**
@@ -3218,6 +3219,7 @@ export function App(props: {
       event.preventDefault()
       return
     }
+    if (pluginRequest() && handlePluginRequestKey(press, event)) return
     const state = current()
 
     /**
@@ -4185,7 +4187,7 @@ export function App(props: {
       if (next.length !== list.length) setNotices(next)
       if (next.length === 0) return
       const fading = next.some(
-        (notice) => now - notice.at >= NOTICE_MS - NOTICE_FADE_MS,
+        (notice) => now - notice.at >= noticeDuration(notice) - NOTICE_FADE_MS,
       )
       noticeTimer = setTimeout(tickNotices, fading ? NOTICE_TICK_MS : 100)
     }
@@ -4399,6 +4401,48 @@ export function App(props: {
             host.onCommandResult = (result) => {
               let message = result.message
               let ok = result.ok
+              if (result.status !== undefined) setPluginStatus(result.status)
+              const target = (value: string | undefined): string | undefined =>
+                value && host.commandIds.includes(value) ? value : undefined
+              if (result.confirm) {
+                const command = target(result.confirm.command)
+                if (command) {
+                  closePluginRequest()
+                  pluginRequestRun = () => host.command(command, sceneState())
+                  setPluginRequest({
+                    kind: "confirm",
+                    message: result.confirm.message,
+                    confirmLabel: result.confirm.confirmLabel ?? "Yes",
+                    cancelLabel: result.confirm.cancelLabel ?? "No",
+                  })
+                }
+              }
+              if (result.prompt) {
+                const command = target(result.prompt.command)
+                if (command) {
+                  closePluginRequest()
+                  pluginRequestRun = (input) => host.command(command, sceneState(), undefined, input)
+                  setPluginRequest({
+                    kind: "prompt",
+                    message: result.prompt.message,
+                    value: "",
+                    ...(result.prompt.placeholder ? { placeholder: result.prompt.placeholder } : {}),
+                  })
+                }
+              }
+              if (result.menu) {
+                const command = target(result.menu.command)
+                if (command) {
+                  closePluginRequest()
+                  pluginRequestRun = (input) => host.command(command, sceneState(), undefined, input)
+                  setPluginRequest({
+                    kind: "menu",
+                    title: result.menu.title,
+                    options: result.menu.options,
+                    index: 0,
+                  })
+                }
+              }
               if (result.copy !== undefined) {
                 if (plugin.manifest.permissions.clipboard === true && copyToClipboard(result.copy)) {
                   message = message ? `${message} · copied` : "copied to clipboard"
@@ -4408,8 +4452,15 @@ export function App(props: {
                 }
               }
               const level = result.level === "warn" || result.level === "error" ? result.level : "info"
-              if (message) notify(message, ok ? level : "error")
-              else if (!result.pointer) {
+              const duration =
+                typeof result.duration === "number" ? result.duration * 1000 : undefined
+              const interaction =
+                result.confirm !== undefined ||
+                result.prompt !== undefined ||
+                result.menu !== undefined ||
+                result.status !== undefined
+              if (message) notify(message, ok ? level : "error", duration)
+              else if (!result.pointer && !interaction) {
                 notify(ok ? command.title : `${command.title} failed`, ok ? "info" : "error")
               }
             }
@@ -4536,6 +4587,12 @@ export function App(props: {
   const [openChapter, setOpenChapter] = createSignal<{ id: string; practical: boolean } | null>(null)
   const [chapterText, setChapterText] = createSignal<string>("")
   const [notices, setNotices] = createSignal<Notice[]>([])
+  const [pluginRequest, setPluginRequest] = createSignal<PluginRequest | null>(null)
+  const [pluginStatus, setPluginStatus] = createSignal<{
+    text: string
+    tone?: "info" | "warn" | "error"
+  } | null>(null)
+  let pluginRequestRun: ((input?: string) => void) | null = null
   const [updateInfo, setUpdateInfo] = createSignal<UpdateInfo | null>(null)
   const [updatePhase, setUpdatePhase] = createSignal<"idle" | "checking" | "downloading" | "restart">("idle")
   let updateChecked = false
@@ -4598,9 +4655,74 @@ export function App(props: {
   const [nowMs, setNowMs] = createSignal(Date.now())
 
   /** Show a message in the top-right for ten seconds. */
-  function notify(text: string, level: NoticeLevel = "info") {
+  function closePluginRequest(): void {
+    setPluginRequest(null)
+    pluginRequestRun = null
+  }
+
+  function runPluginRequest(input?: string): void {
+    const run = pluginRequestRun
+    closePluginRequest()
+    run?.(input)
+  }
+
+  function handlePluginRequestKey(
+    press: ReturnType<typeof normalisePress>,
+    event: { preventDefault: () => void; sequence?: string },
+  ): boolean {
+    const request = pluginRequest()
+    if (!request) return false
+    if (press.name === "escape") {
+      closePluginRequest()
+      event.preventDefault()
+      return true
+    }
+    if (request.kind === "confirm") {
+      if (press.name === "return" || press.name === "enter" || press.name === "y") {
+        runPluginRequest()
+      } else if (press.name === "n") {
+        closePluginRequest()
+      }
+      event.preventDefault()
+      return true
+    }
+    if (request.kind === "menu") {
+      if (press.name === "j" || press.name === "down") {
+        setPluginRequest({ ...request, index: Math.min(request.options.length - 1, request.index + 1) })
+      } else if (press.name === "k" || press.name === "up") {
+        setPluginRequest({ ...request, index: Math.max(0, request.index - 1) })
+      } else if (press.name === "return" || press.name === "enter") {
+        runPluginRequest(request.options[request.index])
+      }
+      event.preventDefault()
+      return true
+    }
+    if (press.name === "return" || press.name === "enter") {
+      runPluginRequest(request.value)
+    } else if (press.name === "backspace") {
+      setPluginRequest({ ...request, value: Array.from(request.value).slice(0, -1).join("") })
+    } else {
+      const text = typedText(press, event)
+      if (text) setPluginRequest({ ...request, value: request.value + text })
+    }
+    event.preventDefault()
+    return true
+  }
+
+  function notify(text: string, level: NoticeLevel = "info", duration?: number) {
     const at = Date.now()
-    setNotices((list) => [...list, { id: `n${at}-${list.length}`, text, level, at }].slice(-4))
+    setNotices((list) =>
+      [
+        ...list,
+        {
+          id: `n${at}-${list.length}`,
+          text,
+          level,
+          at,
+          ...(duration === undefined ? {} : { duration }),
+        },
+      ].slice(-4),
+    )
   }
 
   const updateBadge = (): UpdateBadge | null => {
@@ -5280,6 +5402,8 @@ export function App(props: {
       update={updateBadge()}
       prompt={prompt()}
       choice={choice()}
+      pluginRequest={pluginRequest()}
+      pluginStatus={pluginStatus()}
       notices={notices()}
       now={nowMs()}
       helpRows={rows()}
