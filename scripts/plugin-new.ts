@@ -10,13 +10,14 @@
 import { access, mkdir, writeFile } from "node:fs/promises"
 import { join, resolve } from "node:path"
 
-export const SCAFFOLD_TEMPLATES = ["sidebar-main", "kpi", "table"] as const
+export const SCAFFOLD_TEMPLATES = ["sidebar-main", "kpi", "table", "form"] as const
 export type ScaffoldTemplate = (typeof SCAFFOLD_TEMPLATES)[number]
 
 export const SCAFFOLD_INFO: Record<ScaffoldTemplate, string> = {
   "sidebar-main": "fixed sidebar + session table with focus ids and row commands",
   kpi: "three-card KPI strip above a detail window with a refresh command",
   table: "table window with a row/column cursor and pointer hits",
+  form: "settings form with cursor fields and footer actions",
 }
 
 /** One line per template, for `plugin:new --list` and docs. */
@@ -55,13 +56,16 @@ function manifestFor(options: ScaffoldOptions) {
   const id = options.id
   const commands =
     options.template === "kpi"
-      ? [
-          { id: "refresh", title: "Refresh the metrics", keys: "r" },
-        ]
-      : [
-          { id: "next-row", title: "Select the next row", keys: "ctrl+n" },
-          { id: "prev-row", title: "Select the previous row", keys: "ctrl+p" },
-        ]
+      ? [{ id: "refresh", title: "Refresh the metrics", keys: "r" }]
+      : options.template === "form"
+        ? [
+            { id: "next-field", title: "Select the next field", keys: "ctrl+n" },
+            { id: "prev-field", title: "Select the previous field", keys: "ctrl+p" },
+          ]
+        : [
+            { id: "next-row", title: "Select the next row", keys: "ctrl+n" },
+            { id: "prev-row", title: "Select the previous row", keys: "ctrl+p" },
+          ]
   return {
     manifestVersion: 1,
     id,
@@ -93,6 +97,7 @@ import {
   createCursor,
   definePlugin,
   footerActions,
+  notice,
   sidebarMain,
   table,
 } from "@lockedin/sdk"
@@ -126,11 +131,11 @@ export default definePlugin({
   commands: {
     "next-row"(ctx) {
       ctx.store.set("selected", cursor.next())
-      return "row " + cursor.index
+      return notice("row " + cursor.index)
     },
     "prev-row"(ctx) {
       ctx.store.set("selected", cursor.prev())
-      return "row " + cursor.index
+      return notice("row " + cursor.index)
     },
   },
 
@@ -275,13 +280,80 @@ export default definePlugin({
 `
 }
 
+function formSource(options: ScaffoldOptions): string {
+  return `/**
+ * ${options.name ?? pluginDisplayName(options.id)} — form starter.
+ *
+ * Edit the rows and actions. Package with: bun run plugin:build
+ */
+import {
+  createCursor,
+  definePlugin,
+  footerActions,
+  form,
+  notice,
+} from "@lockedin/sdk"
+
+const rows = [
+  { label: "name", value: "draft" },
+  { label: "theme", value: "crimson" },
+  { label: "model", value: "not set" },
+  { label: "archive", value: "folder" },
+]
+
+const cursor = createCursor(rows.length)
+
+export default definePlugin({
+  id: "${options.id}",
+  name: "${options.name ?? pluginDisplayName(options.id)}",
+  fps: 10,
+
+  activate(ctx) {
+    const saved = ctx.store.get("field")
+    if (typeof saved === "number") cursor.set(saved)
+  },
+
+  commands: {
+    "next-field"(ctx) {
+      ctx.store.set("field", cursor.next())
+      return notice("field " + cursor.index)
+    },
+    "prev-field"(ctx) {
+      ctx.store.set("field", cursor.prev())
+      return notice("field " + cursor.index)
+    },
+  },
+
+  compose() {
+    return {
+      nodes: [
+        form({
+          anchor: "top-left",
+          x: 2,
+          y: 2,
+          width: 44,
+          title: " ${pluginDisplayName(options.id)} ",
+          rows,
+          selected: cursor.index,
+          actions: [
+            { key: "ctrl+n/p", label: "field" },
+            { key: "esc", label: "back" },
+          ],
+        }),
+      ],
+    }
+  },
+})
+`
+}
+
 function tableSource(options: ScaffoldOptions): string {
   return `/**
  * ${options.name ?? pluginDisplayName(options.id)} — table starter.
  *
  * Edit the columns and rows. Package with: bun run plugin:build
  */
-import { createCursor, definePlugin, footerActions, table, window } from "@lockedin/sdk"
+import { createCursor, definePlugin, footerActions, notice, table, window } from "@lockedin/sdk"
 
 const columns = [
   { label: "item", width: 20 },
@@ -310,11 +382,11 @@ export default definePlugin({
   commands: {
     "next-row"(ctx) {
       ctx.store.set("selected", cursor.next())
-      return "row " + cursor.index
+      return notice("row " + cursor.index)
     },
     "prev-row"(ctx) {
       ctx.store.set("selected", cursor.prev())
-      return "row " + cursor.index
+      return notice("row " + cursor.index)
     },
   },
 
@@ -389,7 +461,9 @@ export async function scaffoldPlugin(options: ScaffoldOptions): Promise<Scaffold
       ? kpiSource(options)
       : options.template === "table"
         ? tableSource(options)
-        : sidebarMainSource(options)
+        : options.template === "form"
+          ? formSource(options)
+          : sidebarMainSource(options)
   await mkdir(dir, { recursive: true })
   await writeFile(join(dir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8")
   await writeFile(join(dir, "effect.ts"), entry, "utf8")

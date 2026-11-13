@@ -63,7 +63,8 @@ requests merge.
   newest bubble.
 - `bun run api:reference` generates the SDK reference page; the committed page
   is checked against `sdk/index.ts`.
-- Scaffold templates use the cursor helper instead of hand-written clamps.
+- Scaffold templates use the cursor helper instead of hand-written clamps, and
+  a new `form` template demonstrates fields, footer actions and notices.
 - Sandboxed TypeScript plugins with validated manifests, QuickJS workers,
   resource limits, quarantine and the typed `@lockedin/sdk`.
 - Particle systems with spawn/step/style hooks, text layers and event bursts.
