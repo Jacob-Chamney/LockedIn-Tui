@@ -14,6 +14,7 @@ import type { ExplorerRow } from "../ui/shell/explorer"
 import type { GeneratedRow } from "../ui/keymap/registry"
 import type { Notice } from "../ui/shell/notice-stack"
 import type { Choice } from "../ui/overlays/choice"
+import type { PluginRequest } from "../ui/overlays/plugin-request"
 import type { Prompt } from "../ui/overlays/prompt"
 import type { ScrollApi } from "../ui/scroll"
 import type { ShellState } from "../ui/shell/state"
@@ -86,6 +87,8 @@ export type AppViewProps = {
   update?: UpdateBadge | null
   prompt: Prompt | null
   choice: Choice | null
+  pluginRequest?: PluginRequest | null
+  pluginStatus?: { text: string; tone?: "info" | "warn" | "error" } | null
   notices: Notice[]
   now: number
   helpRows: GeneratedRow[]
@@ -204,6 +207,8 @@ export function AppView(props: AppViewProps) {
         update={props.update}
         prompt={props.prompt}
         choice={props.choice}
+        pluginRequest={props.pluginRequest}
+        pluginStatus={props.pluginStatus}
         notices={props.notices}
         now={props.now}
         helpRows={props.helpRows}

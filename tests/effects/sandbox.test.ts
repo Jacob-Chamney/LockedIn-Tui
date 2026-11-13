@@ -746,8 +746,8 @@ test("a command can choose its notice level", async () => {
       export default {
         id: "sandbox.scene",
         commands: {
-          "warn"() { return { message: "careful", level: "warn" } },
-          "bad"() { return { message: "fine", level: "success" } },
+          "warn"() { return { message: "careful", level: "warn", duration: 4 } },
+          "bad"() { return { message: "fine", level: "success", duration: 99 } },
         },
       }
     `),
@@ -767,8 +767,10 @@ test("a command can choose its notice level", async () => {
       ok: true,
       message: "careful",
       level: "warn",
+      duration: 4,
     })
     expect(effect.runCommand("bad", {}).level).toBeUndefined()
+    expect(effect.runCommand("bad", {}).duration).toBe(30)
   } finally {
     effect.dispose()
   }
@@ -821,4 +823,82 @@ test("commands may be bare ids and gain a title", () => {
       permissions: { scene: {}, commands: ["Bad Id"] },
     }).ok,
   ).toBe(false)
+})
+
+test("command results can request host interactions", async () => {
+  const effect = await SandboxedPlugin.create(
+    await bundle(`
+      export default {
+        id: "sandbox.scene",
+        commands: {
+          "ask"() {
+            return {
+              confirm: { message: "delete?", command: "yes", confirmLabel: "delete" },
+              prompt: { message: "name?", command: "name", placeholder: "untitled" },
+              menu: { title: "pick", options: ["one", "two"], command: "picked" },
+              status: { text: "synced", tone: "warn" },
+            }
+          },
+          "bad"() {
+            return {
+              confirm: { message: "x", command: "Bad Id" },
+              menu: { title: "x", options: [], command: "bad" },
+              status: { text: "", tone: "nope" },
+            }
+          },
+        },
+      }
+    `),
+    {
+      ...sceneManifest(),
+      permissions: {
+        ...sceneManifest().permissions,
+        commands: [
+          { id: "ask", title: "Ask" },
+          { id: "bad", title: "Bad" },
+        ],
+      },
+    },
+  )
+  try {
+    expect(effect.runCommand("ask", {})).toMatchObject({
+      ok: true,
+      confirm: { message: "delete?", command: "yes", confirmLabel: "delete" },
+      prompt: { message: "name?", command: "name", placeholder: "untitled" },
+      menu: { title: "pick", options: ["one", "two"], command: "picked" },
+      status: { text: "synced", tone: "warn" },
+    })
+    const bad = effect.runCommand("bad", {})
+    expect(bad.confirm).toBeUndefined()
+    expect(bad.menu).toBeUndefined()
+    expect(bad.status).toBeUndefined()
+  } finally {
+    effect.dispose()
+  }
+})
+
+test("a host prompt value reaches ctx.input", async () => {
+  const effect = await SandboxedPlugin.create(
+    await bundle(`
+      export default {
+        id: "sandbox.scene",
+        commands: { "name-set"(ctx) { return { message: "name:" + ctx.input } } },
+      }
+    `),
+    {
+      ...sceneManifest(),
+      permissions: {
+        ...sceneManifest().permissions,
+        commands: [{ id: "name-set", title: "Set name" }],
+      },
+    },
+  )
+  try {
+    expect(effect.runCommand("name-set", { input: "hello" })).toMatchObject({
+      ok: true,
+      message: "name:hello",
+    })
+  } finally {
+    effect.dispose()
+  }
 })

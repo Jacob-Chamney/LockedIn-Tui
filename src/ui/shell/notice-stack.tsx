@@ -20,6 +20,8 @@ export type Notice = {
   level: NoticeLevel
   /** Epoch ms when it appeared. */
   at: number
+  /** Lifetime in ms; defaults to NOTICE_MS. */
+  duration?: number
 }
 
 /** How long a notice lives, and how long its fade lasts. */
@@ -33,15 +35,20 @@ export const NOTICE_MAX_WIDTH = 52
 /** Narrowest a bubble grows; shorter messages stay compact. */
 export const NOTICE_MIN_WIDTH = 20
 
+export function noticeDuration(notice: Notice): number {
+  return notice.duration ?? NOTICE_MS
+}
+
 export function pruneNotices(notices: Notice[], now: number): Notice[] {
-  return notices.filter((notice) => now - notice.at < NOTICE_MS)
+  return notices.filter((notice) => now - notice.at < noticeDuration(notice))
 }
 
 /** 1 while solid, sliding to 0 over the last second. */
 export function noticeOpacity(notice: Notice, now: number): number {
+  const duration = noticeDuration(notice)
   const age = now - notice.at
-  if (age >= NOTICE_MS) return 0
-  const remaining = NOTICE_MS - age
+  if (age >= duration) return 0
+  const remaining = duration - age
   return remaining >= NOTICE_FADE_MS ? 1 : Math.max(0, remaining / NOTICE_FADE_MS)
 }
 

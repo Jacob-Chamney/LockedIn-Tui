@@ -14,6 +14,7 @@ import { LeaderMenu } from "../overlays/leader";
 import { CommandBar } from "../overlays/command";
 import { PromptOverlay, type Prompt } from "../overlays/prompt";
 import { ChoiceOverlay, type Choice } from "../overlays/choice";
+import { PluginRequestOverlay, type PluginRequest } from "../overlays/plugin-request";
 import { NoticeStack, type Notice } from "./notice-stack";
 import { HelpScreen } from "../overlays/help";
 import { type CommandEntry } from "./commands";
@@ -96,6 +97,10 @@ export type LayoutProps = {
   prompt?: Prompt | null
   /** A highlighted chooser, e.g. chat vs swarm. */
   choice?: Choice | null
+  /** A host-owned confirm/prompt/menu raised by a plugin command. */
+  pluginRequest?: PluginRequest | null
+  /** A chip a plugin asked to publish in the status bar. */
+  pluginStatus?: { text: string; tone?: "info" | "warn" | "error" } | null
   /** A newer release, shown in the top bar; `:update` installs it. */
   update?: UpdateBadge | null
   /** Top-right messages; they fade after ten seconds. */
@@ -440,6 +445,7 @@ export function ShellLayout(props: LayoutProps) {
         tokens={props.tokens}
         cost={props.cost}
         durationMs={props.durationMs}
+        pluginStatus={props.pluginStatus}
       />
       {props.state.overlay === "command" ? (
         <CommandBar
@@ -463,6 +469,16 @@ export function ShellLayout(props: LayoutProps) {
       <Show when={props.choice}>
         {(choice) => (
           <ChoiceOverlay theme={props.theme} width={props.width} height={props.height} choice={choice()} />
+        )}
+      </Show>
+      <Show when={props.pluginRequest}>
+        {(request) => (
+          <PluginRequestOverlay
+            theme={props.theme}
+            width={props.width}
+            height={props.height}
+            request={request()}
+          />
         )}
       </Show>
       {props.state.overlay === "help" ? (

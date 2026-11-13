@@ -6,7 +6,13 @@ const { NOTICE_MS, NOTICE_FADE_MS, NOTICE_MIN_WIDTH, NOTICE_MAX_WIDTH, pruneNoti
 )
 const { crimson } = await import("../../src/ui/theme")
 
-const notice = (at: number) => ({ id: "n1", text: "hello", level: "info" as const, at })
+const notice = (at: number, duration?: number) => ({
+  id: "n1",
+  text: "hello",
+  level: "info" as const,
+  at,
+  ...(duration === undefined ? {} : { duration }),
+})
 
 describe("notice lifetime", () => {
   test("is solid until the last second, then fades to nothing", () => {
@@ -19,9 +25,12 @@ describe("notice lifetime", () => {
     expect(noticeOpacity(notice(0), NOTICE_MS)).toBe(0)
   })
 
-  test("is pruned after ten seconds", () => {
+  test("is pruned after its lifetime", () => {
     expect(pruneNotices([notice(0)], NOTICE_MS - 1)).toHaveLength(1)
     expect(pruneNotices([notice(0)], NOTICE_MS)).toHaveLength(0)
+    expect(pruneNotices([notice(0, 3_000)], 2_999)).toHaveLength(1)
+    expect(pruneNotices([notice(0, 3_000)], 3_000)).toHaveLength(0)
+    expect(noticeOpacity(notice(0, 3_000), 2_500)).toBeCloseTo(0.5)
   })
 })
 

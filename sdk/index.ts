@@ -84,6 +84,8 @@ export type PluginContext = {
   palette?: ThemePalette
   events?: readonly ParticleEvent[]
   pointer?: PluginPointer
+  /** Text submitted by a host prompt or menu, when the command came from one. */
+  input?: string
   state?: SceneState
   store: PluginStore
   session: PluginStore
@@ -97,18 +99,87 @@ export type PluginCommandContext = PluginContext & { id: string }
  */
 export type NoticeLevel = "info" | "warn" | "error"
 
+export type ConfirmRequest = {
+  message: string
+  /** Command to run when the user confirms. */
+  command: string
+  confirmLabel?: string
+  cancelLabel?: string
+}
+
+export type PromptRequest = {
+  message: string
+  /** Command to run with the entered text in `ctx.input`. */
+  command: string
+  placeholder?: string
+}
+
+export type MenuRequest = {
+  title: string
+  options: readonly string[]
+  /** Command to run with the chosen option in `ctx.input`. */
+  command: string
+}
+
+export type StatusRequest = {
+  text: string
+  tone?: NoticeLevel
+}
+
 export type PluginCommandResult =
   | string
   | void
-  | { message?: string; level?: NoticeLevel; copy?: string }
+  | {
+      message?: string
+      level?: NoticeLevel
+      duration?: number
+      copy?: string
+      confirm?: ConfirmRequest
+      prompt?: PromptRequest
+      menu?: MenuRequest
+      /** Set a status-bar chip; `null` clears it. */
+      status?: StatusRequest | null
+    }
+
+/** Ask the host for a yes/no confirmation, then run `command`. */
+export function confirm(
+  message: string,
+  command: string,
+  options: { confirmLabel?: string; cancelLabel?: string } = {},
+) {
+  return { confirm: { message, command, ...options } }
+}
+
+/** Ask the host for one line of text, then run `command` with `ctx.input`. */
+export function prompt(
+  message: string,
+  command: string,
+  options: { placeholder?: string } = {},
+) {
+  return { prompt: { message, command, ...options } }
+}
+
+/** Ask the host to pick from a list, then run `command` with `ctx.input`. */
+export function menu(title: string, options: readonly string[], command: string) {
+  return { menu: { title, options, command } }
+}
+
+/** Publish a status-bar chip; `status(null)` clears it. */
+export function status(text: string | null, tone: NoticeLevel = "info") {
+  return { status: text === null ? null : { text, tone } }
+}
 
 /**
  * A one-line notice. The host owns the bubble, fade and lifetime.
  *
  *   return notice("saved", "warn")
  */
-export function notice(message: string, level: NoticeLevel = "info") {
-  return { message, level }
+export function notice(
+  message: string,
+  level: NoticeLevel = "info",
+  duration?: number,
+) {
+  return { message, level, ...(duration === undefined ? {} : { duration }) }
 }
 
 /**
@@ -1386,6 +1457,158 @@ export function fields(options: FieldsOptions): SceneNode[] {
     })
   }
   return nodes
+}
+
+export type LogOptions = {
+  lines: readonly string[]
+  /** Truncate each line to this width. */
+  width?: number
+  /** Visible rows; defaults to all lines. */
+  height?: number
+  /** First visible line; defaults to the tail. */
+  scroll?: number
+  fg?: string
+  /** Lines before `scroll` can use a quieter colour. */
+  muted?: string
+  /** Lines at or after this index use `tone`. */
+  toneFrom?: number
+  tone?: string
+}
+
+/** A tailing text stream: build output, events, logs. */
+export function log(options: LogOptions): SceneNode[] {
+  const lines = options.lines
+  if (lines.length === 0) return []
+  const height = Math.max(1, Math.min(lines.length, Math.round(options.height ?? lines.length)))
+  const maxScroll = Math.max(0, lines.length - height)
+  const scroll =
+    options.scroll === undefined
+      ? maxScroll
+      : Math.max(0, Math.min(maxScroll, Math.round(options.scroll)))
+  const nodes: SceneNode[] = []
+  for (let line = 0; line < height; line++) {
+    const index = scroll + line
+    const text = lines[index]
+    if (text === undefined) break
+    const value =
+      options.width === undefined
+        ? text
+        : text.length > options.width
+          ? `${text.slice(0, Math.max(0, options.width - 1))}…`
+          : text
+    const tone = options.tone && options.toneFrom !== undefined && index >= options.toneFrom
+    nodes.push({
+      kind: "text",
+      anchor: "top-left",
+      x: 0,
+      y: line,
+      text: value,
+      fg: tone ? options.tone : options.fg ?? options.muted ?? "muted",
+    })
+  }
+  return nodes
+}
+
+export type StatItem = {
+  label: string
+  value: string
+  detail?: string
+  /** Value colour, a palette role or `#rrggbb`. */
+  tone?: string
+}
+
+export type StatsOptions = {
+  items: readonly StatItem[]
+  width: number
+  labelFg?: string
+  valueFg?: string
+  detailFg?: string
+}
+
+/** Compact label/value stats: a value on the right, optional detail below. */
+export function stats(options: StatsOptions): SceneNode[] {
+  const width = Math.max(1, Math.round(options.width))
+  const nodes: SceneNode[] = []
+  let y = 0
+  for (const item of options.items) {
+    const label = fitFieldText(item.label, width)
+    const value = fitFieldText(item.value, Math.max(1, width - label.length - 1))
+    const pad = Math.max(1, width - label.length - value.length)
+    nodes.push({
+      kind: "text",
+      anchor: "top-left",
+      x: 0,
+      y,
+      text: `${label}${" ".repeat(pad)}${value}`,
+      fg: item.tone ?? options.valueFg ?? "foreground",
+    })
+    y += 1
+    if (item.detail) {
+      nodes.push({
+        kind: "text",
+        anchor: "top-left",
+        x: 0,
+        y,
+        text: fitFieldText(item.detail, width),
+        fg: options.detailFg ?? "muted",
+      })
+      y += 1
+    }
+  }
+  return nodes
+}
+
+export type FormOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  width: number
+  title?: string
+  titleAlign?: "left" | "center" | "right"
+  rows: readonly FieldRow[]
+  selected?: number
+  labelWidth?: number
+  actions?: readonly FooterAction[]
+  footerRule?: boolean
+  padding?: number
+  gap?: number
+  bg?: string
+}
+
+/** A settings form: framed window with aligned fields and a footer. */
+export function form(options: FormOptions): SceneGroup {
+  const padding = Math.max(0, options.padding ?? 1)
+  const gap = Math.max(0, options.gap ?? 1)
+  const body = fields({
+    rows: options.rows,
+    width: Math.max(1, options.width - (padding + 1) * 2),
+    ...(options.selected === undefined ? {} : { selected: options.selected }),
+    ...(options.labelWidth === undefined ? {} : { labelWidth: options.labelWidth }),
+  })
+  const footer = options.actions ? [footerActions(options.actions)] : []
+  const bodyRows = body.reduce(
+    (total, node) => Math.max(total, node.y + sceneHeight(node)),
+    0,
+  )
+  const rule = footer.length > 0 && (options.footerRule ?? true) ? 1 : 0
+  const height =
+    2 + padding * 2 + Math.max(1, bodyRows) + (footer.length > 0 ? gap + 1 + rule : 0)
+  return window({
+    anchor: options.anchor,
+    x: options.x,
+    y: options.y,
+    width: options.width,
+    height,
+    title: options.title,
+    titleAlign: options.titleAlign,
+    padding,
+    gap,
+    bg: options.bg ?? "surface",
+    body,
+    ...(footer.length > 0
+      ? { footer, footerRule: options.footerRule ?? true }
+      : {}),
+  })
 }
 
 /** Common easing curves for `ctx.time`-driven animation. */

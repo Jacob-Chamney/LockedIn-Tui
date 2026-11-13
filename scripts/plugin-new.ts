@@ -90,6 +90,7 @@ function sidebarMainSource(options: ScaffoldOptions): string {
  * are wired. Package with: bun run plugin:build <this dir>
  */
 import {
+  createCursor,
   definePlugin,
   footerActions,
   sidebarMain,
@@ -110,11 +111,7 @@ const rows = [
 
 const menu = ["Overview", "Queue", "Archive", "Settings"]
 
-let selected = 0
-
-function clamp(index: number): number {
-  return Math.max(0, Math.min(rows.length - 1, Math.round(index)))
-}
+const cursor = createCursor(rows.length)
 
 export default definePlugin({
   id: "${options.id}",
@@ -123,19 +120,17 @@ export default definePlugin({
 
   activate(ctx) {
     const saved = ctx.store.get("selected")
-    if (typeof saved === "number") selected = clamp(saved)
+    if (typeof saved === "number") cursor.set(saved)
   },
 
   commands: {
     "next-row"(ctx) {
-      selected = clamp(selected + 1)
-      ctx.store.set("selected", selected)
-      return "row " + selected
+      ctx.store.set("selected", cursor.next())
+      return "row " + cursor.index
     },
     "prev-row"(ctx) {
-      selected = clamp(selected - 1)
-      ctx.store.set("selected", selected)
-      return "row " + selected
+      ctx.store.set("selected", cursor.prev())
+      return "row " + cursor.index
     },
   },
 
@@ -189,7 +184,7 @@ export default definePlugin({
             body: table({
               columns,
               rows,
-              selected,
+              selected: cursor.index,
               height: 6,
               selectedBg: "accent",
               selectedFg: "surface",
@@ -286,7 +281,7 @@ function tableSource(options: ScaffoldOptions): string {
  *
  * Edit the columns and rows. Package with: bun run plugin:build
  */
-import { definePlugin, footerActions, table, window } from "@lockedin/sdk"
+import { createCursor, definePlugin, footerActions, table, window } from "@lockedin/sdk"
 
 const columns = [
   { label: "item", width: 20 },
@@ -300,16 +295,7 @@ const rows = [
   { cells: ["Third item", "5:00", "todo"] },
 ]
 
-let selected = 0
-let column = 0
-
-function clampRow(index: number): number {
-  return Math.max(0, Math.min(rows.length - 1, Math.round(index)))
-}
-
-function clampColumn(index: number): number {
-  return Math.max(0, Math.min(columns.length - 1, Math.round(index)))
-}
+const cursor = createCursor(rows.length)
 
 export default definePlugin({
   id: "${options.id}",
@@ -318,21 +304,17 @@ export default definePlugin({
 
   activate(ctx) {
     const saved = ctx.store.get("selected")
-    if (typeof saved === "number") selected = clampRow(saved)
-    const savedColumn = ctx.store.get("column")
-    if (typeof savedColumn === "number") column = clampColumn(savedColumn)
+    if (typeof saved === "number") cursor.set(saved)
   },
 
   commands: {
     "next-row"(ctx) {
-      selected = clampRow(selected + 1)
-      ctx.store.set("selected", selected)
-      return "row " + selected
+      ctx.store.set("selected", cursor.next())
+      return "row " + cursor.index
     },
     "prev-row"(ctx) {
-      selected = clampRow(selected - 1)
-      ctx.store.set("selected", selected)
-      return "row " + selected
+      ctx.store.set("selected", cursor.prev())
+      return "row " + cursor.index
     },
   },
 
@@ -357,8 +339,7 @@ export default definePlugin({
           body: table({
             columns,
             rows,
-            selected,
-            column,
+            selected: cursor.index,
             height: 6,
             selectedBg: "accent",
             selectedFg: "surface",

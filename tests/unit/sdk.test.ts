@@ -5,6 +5,7 @@ import {
   defineParticleSystem,
   definePlugin,
   card,
+  confirm,
   createCursor,
   dashboard,
   ease,
@@ -15,6 +16,10 @@ import {
   fadeOut,
   fields,
   footerActions,
+  form,
+  log,
+  menu,
+  prompt,
   kpiStrip,
   list,
   loop,
@@ -22,6 +27,8 @@ import {
   notice,
   pingPong,
   sidebarMain,
+  stats,
+  status,
   table,
   transition,
   window,
@@ -540,6 +547,7 @@ test("table paints a drag-selection range and the cursor cell on top", () => {
 test("the notice helper returns a command result", () => {
   expect(notice("saved")).toEqual({ message: "saved", level: "info" })
   expect(notice("careful", "warn")).toEqual({ message: "careful", level: "warn" })
+  expect(notice("brief", "info", 4)).toEqual({ message: "brief", level: "info", duration: 4 })
 })
 
 test("card computes its height and maps the tone to the frame", () => {
@@ -622,4 +630,77 @@ test("fields aligns labels, truncates values and highlights the selection", () =
     bg: "line",
   })
   expect(nodes[3]).toMatchObject({ kind: "text", y: 2, text: "empty", fg: "muted" })
+})
+
+test("log tails, truncates and highlights recent lines", () => {
+  const nodes = log({
+    lines: ["one", "two", "a very long line"],
+    width: 8,
+    height: 2,
+    toneFrom: 2,
+    tone: "warning",
+  })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[0]).toMatchObject({ kind: "text", y: 0, text: "two" })
+  expect(nodes[1]).toMatchObject({
+    kind: "text",
+    y: 1,
+    text: "a very …",
+    fg: "warning",
+  })
+  expect(log({ lines: [] })).toEqual([])
+})
+
+test("stats right-align values and optionally add detail", () => {
+  const nodes = stats({
+    width: 20,
+    items: [
+      { label: "focus", value: "3h", detail: "today" },
+      { label: "queue", value: "8", tone: "warning" },
+    ],
+  })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]).toMatchObject({ kind: "text", y: 0, text: "focus             3h" })
+  expect(nodes[1]).toMatchObject({ kind: "text", y: 1, text: "today", fg: "muted" })
+  expect(nodes[2]).toMatchObject({ kind: "text", y: 2, text: "queue              8", fg: "warning" })
+})
+
+test("form builds fields and a footer with computed height", () => {
+  const node = form({
+    anchor: "absolute",
+    x: 0,
+    y: 0,
+    width: 30,
+    title: "settings",
+    rows: [
+      { label: "theme", value: "crimson" },
+      { label: "model", value: "gpt" },
+    ],
+    selected: 1,
+    actions: [{ key: "enter", label: "change" }],
+  })
+  expect(node).toMatchObject({ kind: "group", width: 30, height: 9 })
+  const body = node.nodes.find((child) => child.kind === "group")
+  if (body?.kind !== "group") throw new Error("expected body")
+  expect(body.height).toBe(2)
+  const footer = node.nodes.at(-1)
+  expect(footer?.kind).toBe("group")
+  if (footer?.kind !== "group") return
+  const hint = footer.nodes[0]
+  if (hint?.kind !== "text") throw new Error("expected hint")
+  expect(hint.text).toBe("enter change")
+})
+
+test("host interaction helpers return command results", () => {
+  expect(confirm("delete?", "delete-yes", { confirmLabel: "delete" })).toEqual({
+    confirm: { message: "delete?", command: "delete-yes", confirmLabel: "delete" },
+  })
+  expect(prompt("name?", "name-set", { placeholder: "untitled" })).toEqual({
+    prompt: { message: "name?", command: "name-set", placeholder: "untitled" },
+  })
+  expect(menu("pick", ["one", "two"], "picked")).toEqual({
+    menu: { title: "pick", options: ["one", "two"], command: "picked" },
+  })
+  expect(status("synced", "warn")).toEqual({ status: { text: "synced", tone: "warn" } })
+  expect(status(null)).toEqual({ status: null })
 })

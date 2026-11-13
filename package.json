@@ -28,7 +28,8 @@
     "build": "bun run scripts/build.ts",
     "plugin:build": "bun run scripts/plugin-build.ts",
     "plugin:new": "bun run scripts/plugin-new.ts",
-    "acceptance": "bun run scripts/acceptance.ts"
+    "acceptance": "bun run scripts/acceptance.ts",
+    "api:reference": "bun run scripts/api-reference.ts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "3.0.82",

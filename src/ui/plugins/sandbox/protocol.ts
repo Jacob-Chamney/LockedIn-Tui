@@ -77,8 +77,14 @@ export type WorkerOut =
       ok: boolean
       message?: string
       level?: "info" | "warn" | "error"
+      /** Lifetime in seconds, when the plugin asked for one. */
+      duration?: number
       /** Text the host may place on the clipboard, if granted. */
       copy?: string
+      confirm?: { message: string; command: string; confirmLabel?: string; cancelLabel?: string }
+      prompt?: { message: string; command: string; placeholder?: string }
+      menu?: { title: string; options: string[]; command: string }
+      status?: { text: string; tone?: "info" | "warn" | "error" } | null
       failed: boolean
       error: string | null
       store?: PluginStoreData

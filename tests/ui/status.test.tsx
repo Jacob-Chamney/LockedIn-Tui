@@ -138,3 +138,29 @@ describe("layout", () => {
     }
   })
 })
+
+test("a plugin status chip appears beside the mode", async () => {
+  const setup = await testRender(
+    () => (
+      <StatusBar
+        theme={crimson}
+        width={120}
+        pane="chat"
+        mode="normal"
+        overlay={null}
+        context="chill"
+        hints={[]}
+        tokens={0}
+        cost={null}
+        pluginStatus={{ text: "synced", tone: "warn" }}
+      />
+    ),
+    { width: 120, height: 3 },
+  )
+  try {
+    await setup.flush()
+    expect(setup.captureCharFrame()).toContain("synced")
+  } finally {
+    await setup.dispose()
+  }
+})
