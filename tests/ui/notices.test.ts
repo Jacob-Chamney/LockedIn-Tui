@@ -1,7 +1,7 @@
 /** Messages: ten seconds, then a fade. */
 import { describe, expect, test } from "bun:test"
 
-const { NOTICE_MS, NOTICE_FADE_MS, NOTICE_MIN_WIDTH, NOTICE_MAX_WIDTH, pruneNotices, noticeOpacity, noticeGlyph, noticeWidth, noticeColors } = await import(
+const { NOTICE_MS, NOTICE_FADE_MS, NOTICE_MIN_WIDTH, NOTICE_MAX_WIDTH, dismissLatestNotice, pruneNotices, noticeOpacity, noticeGlyph, noticeWidth, noticeColors } = await import(
   "../../src/ui/shell/notice-stack"
 )
 const { crimson } = await import("../../src/ui/theme")
@@ -61,4 +61,12 @@ describe("notice fade colours", () => {
     expect(half.fill).not.toBe(crimson.error)
     expect(half.fill).not.toBe(crimson.background)
   })
+})
+
+test("dismiss removes the newest bubble first", () => {
+  const first = { id: "1", text: "one", level: "info" as const, at: 0 }
+  const second = { id: "2", text: "two", level: "warn" as const, at: 1 }
+  expect(dismissLatestNotice([first, second])).toEqual([first])
+  expect(dismissLatestNotice([first])).toEqual([])
+  expect(dismissLatestNotice([])).toEqual([])
 })

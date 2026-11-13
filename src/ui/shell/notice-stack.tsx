@@ -39,6 +39,11 @@ export function noticeDuration(notice: Notice): number {
   return notice.duration ?? NOTICE_MS
 }
 
+/** Dismiss the newest bubble; repeated calls clear the stack. */
+export function dismissLatestNotice(notices: Notice[]): Notice[] {
+  return notices.slice(0, -1)
+}
+
 export function pruneNotices(notices: Notice[], now: number): Notice[] {
   return notices.filter((notice) => now - notice.at < noticeDuration(notice))
 }
