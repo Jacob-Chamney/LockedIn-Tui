@@ -378,6 +378,11 @@ export function window(options: WindowOptions): SceneGroup {
 export type CardTone = "info" | "success" | "warning" | "error" | "neutral"
 
 export type CardOptions = {
+  /** Stable id when the card is focusable. */
+  id?: string
+  focusable?: boolean
+  focused?: boolean
+  focusedColor?: string
   anchor: ScenePosition
   x: number
   y: number
@@ -438,6 +443,10 @@ export function card(options: CardOptions): SceneGroup {
     tone === "neutral" || tone === "info" ? "line" : tone
 
   return window({
+    ...(options.id ? { id: options.id } : {}),
+    ...(options.id && options.focusable !== false ? { focusable: true } : {}),
+    ...(options.focused === undefined ? {} : { focused: options.focused }),
+    ...(options.focusedColor ? { focusedColor: options.focusedColor } : {}),
     anchor: options.anchor,
     x: options.x,
     y: options.y,

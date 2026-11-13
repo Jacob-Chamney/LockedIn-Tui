@@ -576,6 +576,11 @@ test("card computes its height and maps the tone to the frame", () => {
   expect(body.nodes[1]).toMatchObject({ kind: "text", y: 1, text: "in this session" })
   expect(saved.nodes.at(-1)?.kind).toBe("group")
 
+  const focusable = card({
+    anchor: "absolute", x: 0, y: 0, width: 20, id: "note", focused: true,
+  })
+  expect(focusable).toMatchObject({ id: "note", focusable: true })
+
   const neutral = card({ anchor: "absolute", x: 0, y: 0, width: 20, tone: "neutral" })
   expect(neutral.borderColor).toBe("line")
   expect(neutral.height).toBe(4)
