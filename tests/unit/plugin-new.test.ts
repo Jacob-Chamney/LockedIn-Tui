@@ -98,6 +98,16 @@ for (const template of SCAFFOLD_TEMPLATES) {
           time: 1,
         })).toMatchObject({ ok: true, message: "refreshed 1" })
         expect(effect.takeStoreChanges()).toEqual({ refresh: 1 })
+      } else if (template === "form") {
+        const formNode = scene.nodes[0]!
+        expect(formNode.kind).toBe("group")
+        if (formNode.kind !== "group") return
+        expect(formNode.title).toContain("Form")
+        expect(effect.runCommand("next-field", {
+          state: { width: 110, height: 40 },
+          time: 1,
+        })).toMatchObject({ ok: true, message: "field 1" })
+        expect(effect.takeStoreChanges()).toEqual({ field: 1 })
       } else {
         const windowNode = scene.nodes[0]!
         expect(windowNode.kind).toBe("group")
