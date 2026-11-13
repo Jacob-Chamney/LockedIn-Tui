@@ -219,7 +219,7 @@ function kpiSource(options: ScaffoldOptions): string {
  *
  * Edit the metrics and the detail window. Package with: bun run plugin:build
  */
-import { definePlugin, kpiStrip, window } from "@lockedin/sdk"
+import { card, definePlugin, kpiStrip } from "@lockedin/sdk"
 
 let refresh = 0
 
@@ -252,24 +252,17 @@ export default definePlugin({
             { label: "queue", value: "3", detail: "due", color: "muted" },
           ],
         }),
-        window({
+        card({
           id: "detail",
           focusable: true,
           anchor: "top-left",
           x: 2,
           y: 9,
           width: 88,
-          height: 12,
           title: " detail ",
-          padding: 1,
-          gap: 1,
-          bg: "surface",
           focused: ctx.state?.focusedWindow === "detail",
           focusedColor: "accent",
-          body: [
-            { kind: "text", anchor: "top-left", x: 0, y: 0, text: "Replace this with your content", fg: "foreground" },
-            { kind: "text", anchor: "top-left", x: 0, y: 1, text: "refreshes: " + refresh, fg: "muted" },
-          ],
+          lines: ["Replace this with your content", "refreshes: " + refresh],
           footer: [{ kind: "text", anchor: "top-left", x: 0, y: 0, text: "r refresh", fg: "muted" }],
           footerRule: true,
         }),

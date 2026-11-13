@@ -65,6 +65,7 @@ requests merge.
   is checked against `sdk/index.ts`.
 - Scaffold templates use the cursor helper instead of hand-written clamps, and
   a new `form` template demonstrates fields, footer actions and notices.
+- `card()` can be focusable and carry an id, so it replaces detail windows.
 - Sandboxed TypeScript plugins with validated manifests, QuickJS workers,
   resource limits, quarantine and the typed `@lockedin/sdk`.
 - Particle systems with spawn/step/style hooks, text layers and event bursts.
