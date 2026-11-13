@@ -60,7 +60,7 @@ import { initialArchive, move as moveArchiveState, type ArchiveState } from "../
 import type { ActivityRecord } from "../services/work/activity";
 import { runProjectExport } from "./actions/work";
 import { archiveProject as archiveProjectRecord, createProject as createProjectRecord, createAgentFromTemplate, createProjectAgent, deleteProject as deleteProjectRecord, loadAgentTemplates, loadProjectAgents, loadProjects, loadWorkHome, setProjectDefaultAgent, setProjectMode, type WorkHomeData, makeAgentId, makeProjectId, projectTools, updateProjectAgent } from "./actions/projects";
-import { NOTICE_FADE_MS, NOTICE_TICK_MS, noticeDuration, pruneNotices, type Notice, type NoticeLevel } from "../ui/shell/notice-stack";
+import { NOTICE_FADE_MS, NOTICE_TICK_MS, dismissLatestNotice, noticeDuration, pruneNotices, type Notice, type NoticeLevel } from "../ui/shell/notice-stack";
 import type { UpdateBadge } from "../ui/shell/layout";
 
 /**
@@ -2542,6 +2542,10 @@ export function App(props: {
   function dispatch(id: string) {
     if (id === "quit") {
       renderer.destroy()
+      return
+    }
+    if (id === "dismiss-notice") {
+      setNotices((list) => dismissLatestNotice(list))
       return
     }
     if (id === "plugin-focus-next" || id === "plugin-focus-prev") {

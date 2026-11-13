@@ -59,7 +59,8 @@ requests merge.
 - Commands can return `confirm()`, `prompt()` or `menu()` to use host-owned
   confirmations, input and pickers; the follow-up command receives `ctx.input`.
 - `status()` publishes a status-bar chip and `status(null)` clears it.
-- Notices accept a per-message lifetime in seconds.
+- Notices accept a per-message lifetime in seconds; `ctrl+.` dismisses the
+  newest bubble.
 - `bun run api:reference` generates the SDK reference page; the committed page
   is checked against `sdk/index.ts`.
 - Scaffold templates use the cursor helper instead of hand-written clamps.

@@ -42,6 +42,7 @@ const SHELL_KEYS = [
   "quit",
   "buffers",
   "buffer-close",
+  "dismiss-notice",
   "plugin-focus-next",
   "plugin-focus-prev",
 ] as const
