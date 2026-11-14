@@ -27,7 +27,9 @@ export type Notice = {
 /** How long a notice lives, and how long its fade lasts. */
 export const NOTICE_MS = 10_000
 export const NOTICE_FADE_MS = 1_000
-/** Repaint cadence while a bubble is fading; the shell slows down outside it. */
+/** Bubbles ease in rather than popping into place. */
+export const NOTICE_ENTER_MS = 180
+/** Repaint cadence while a bubble is animating; the shell slows down outside it. */
 export const NOTICE_TICK_MS = 50
 
 /** Widest a bubble grows before the text wraps. */
@@ -53,6 +55,11 @@ export function noticeOpacity(notice: Notice, now: number): number {
   const duration = noticeDuration(notice)
   const age = now - notice.at
   if (age >= duration) return 0
+  if (age < NOTICE_ENTER_MS) {
+    const t = Math.max(0, Math.min(1, age / NOTICE_ENTER_MS))
+    // smoothstep: no visible snap at either end
+    return t * t * (3 - 2 * t)
+  }
   const remaining = duration - age
   return remaining >= NOTICE_FADE_MS ? 1 : Math.max(0, remaining / NOTICE_FADE_MS)
 }

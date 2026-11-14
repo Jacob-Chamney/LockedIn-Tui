@@ -65,7 +65,7 @@ describe("P1-SH-01 / P1-SH-02 snapshots", () => {
       expect(frame).toContain("Chat")
       expect(frame).toContain("no model configured")
       expect(frame).toContain("NORMAL")
-      expect(frame).toContain("read-only")
+      expect(frame).toContain("no model")
       expect(frame).not.toContain("EXPLORER")
       // Hints shorten rather than push the mode off screen.
       expect(lines[23]!.length).toBe(80)
