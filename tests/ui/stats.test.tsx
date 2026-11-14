@@ -63,6 +63,36 @@ describe("the hero", () => {
     }
   })
 
+  test("a token trend line sits under the total", async () => {
+    const setup = await mount(140, 44)
+    try {
+      const out = lines(setup)
+      const tokens = out.findIndex((line) => line.includes("T O K E N S"))
+      expect(tokens).toBeGreaterThanOrEqual(0)
+      const trend = out[tokens + 1]!.trim()
+      expect(trend).toMatch(/^[▁▂▃▄▅▆▇█]+$/)
+      expect(trend.length).toBeGreaterThan(4)
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("no trend line is drawn for an empty range", async () => {
+    const empty = summary({
+      overview: { runs: 0, failed: 0, input: 0, output: 0 },
+      activity: [],
+      period: { from: "2026-11-01", to: "2026-11-02" },
+    })
+    const setup = await mount(140, 44, { summary: empty })
+    try {
+      const out = lines(setup)
+      const tokens = out.findIndex((line) => line.includes("T O K E N S"))
+      expect(out[tokens + 1]!.trim()).toBe("")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("the heatmap labels months and weekdays", async () => {
     const setup = await mount(140, 44)
     try {
