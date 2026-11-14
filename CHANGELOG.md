@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `bars()` draws labelled proportional bars for plugin scenes; the Usage page
+  uses the same layout for its per-model token chart.
 - `badges()` draws a row of tone-coded status chips for plugin scenes; the
   Models screen uses the same fills for linked, key-rejected and model-count
   badges.

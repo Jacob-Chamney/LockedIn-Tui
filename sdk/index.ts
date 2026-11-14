@@ -28,6 +28,7 @@ import type {
 } from "../src/ui/plugins/sandbox/manifest"
 import type { ThemePalette } from "../src/ui/theme"
 import { tabLayout, type TabSpec as TabSpecInput } from "../src/ui/tabs"
+import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import {
   badgeLayout,
   badgeStyle,
@@ -1904,6 +1905,89 @@ export function badges(options: BadgesOptions): SceneNode[] {
       text: segment.text,
       fg: options.fg ?? style.fg,
     })
+  }
+  return nodes
+}
+
+/** One row in a `bars()` chart. */
+export type BarItem = BarItemInput
+
+export type BarsOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Total row width in cells. */
+  width: number
+  items: readonly BarItem[]
+  labelWidth?: number
+  /** Right-hand column; 0 hides it. Defaults to the widest text. */
+  valueWidth?: number
+  barWidth?: number
+  /** Spaces between columns; defaults to 1. */
+  gap?: number
+  /** Scale top; defaults to the largest value. */
+  max?: number
+  /** Cells kept filled for any non-zero value; defaults to 1. */
+  minBar?: number
+  /** Label colour. Defaults to `foreground`. */
+  fg?: string
+  /** Value colour. Defaults to `muted`. */
+  valueFg?: string
+  /** Bar fill. Defaults to `primary`. */
+  tone?: string
+  /** Bar track. Defaults to `line`. */
+  track?: string
+}
+
+/**
+ * A proportional bar chart: one labelled row per item.
+ *
+ *   bars({ anchor: "top-left", x: 2, y: 4, width: 48,
+ *          labelWidth: 20, valueWidth: 4,
+ *          items: [{ label: "gpt-4.1", value: 62, text: "62%" },
+ *                  { label: "claude", value: 38, text: "38%" }] })
+ *
+ * Every row shares the label and value columns, so the bars line up. The bar
+ * width is whatever remains; a non-zero value always keeps one cell. The fill
+ * is a `progress` node with sub-cell precision.
+ */
+export function bars(options: BarsOptions): SceneNode[] {
+  const rows = barRows(options)
+  const nodes: SceneNode[] = []
+  for (const row of rows) {
+    const barX = options.x + row.labelWidth + row.gap
+    const valueX = barX + row.barWidth + row.gap
+    const y = options.y + row.index
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y,
+      text: row.label,
+      fg: options.fg ?? "foreground",
+    })
+    nodes.push({
+      kind: "progress",
+      anchor: options.anchor,
+      x: barX,
+      y,
+      width: row.barWidth,
+      height: 1,
+      value: row.fraction,
+      radius: 0,
+      color: options.tone ?? "primary",
+      track: options.track ?? "line",
+    })
+    if (row.valueWidth > 0) {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: valueX,
+        y,
+        text: row.text.padStart(row.valueWidth),
+        fg: options.valueFg ?? "muted",
+      })
+    }
   }
   return nodes
 }

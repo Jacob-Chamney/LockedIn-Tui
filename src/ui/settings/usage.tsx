@@ -9,6 +9,7 @@ import type { BudgetConfig, BudgetPeriod } from "../../llm/budget";
 import type { RunRecord, UsageTotals } from "../../llm/usage";
 import type { ThemePalette } from "../theme";
 import { meterCells } from "../meter";
+import { Bars } from "../shell/bars";
 import { Callout } from "../shell/callout";
 export type UsageSnapshot = {
   today: UsageTotals
@@ -185,6 +186,17 @@ export function footerHints(): string {
   return USAGE_KEYS.filter((entry) => entry.footer).map((entry) => entry.footer).join(" · ")
 }
 
+/** Tokens per model across the recorded runs, largest first. */
+export function modelUsage(runs: readonly RunRecord[]): Array<{ model: string; tokens: number }> {
+  const totals = new Map<string, number>();
+  for (const run of runs) {
+    totals.set(run.model, (totals.get(run.model) ?? 0) + run.input + run.output);
+  }
+  return [...totals.entries()]
+    .map(([model, tokens]) => ({ model, tokens }))
+    .sort((a, b) => b.tokens - a.tokens || a.model.localeCompare(b.model));
+}
+
 /** The status bar reads this too, so there is exactly one source of numbers. */
 export function statusNumbers(snapshot: UsageSnapshot): { tokens: number; costMicroUsd: number | null } {
   return {
@@ -211,6 +223,22 @@ export function UsagePanel(props: {
   const palette = () => props.theme
   const reached = () => limitReached(props.snapshot, props.state.budget)
   const breakdown = () => breakdownLinesFor(props.snapshot, props.width, props.state.expanded)
+  /**
+   * The busiest models in the record, as proportional bars. Percentages are
+   * relative to the busiest one, so the chart fills the width even when the
+   * absolute totals are small.
+   */
+  const modelItems = () => {
+    const totals = modelUsage(props.snapshot.runs).slice(0, 4);
+    const peak = totals[0]?.tokens ?? 0;
+    return totals.map((entry) => ({
+      label: entry.model,
+      value: entry.tokens,
+      text: `${Math.round((entry.tokens / Math.max(1, peak)) * 100)}%`,
+    }));
+  };
+  const chartWidth = () => Math.max(20, props.width - 2);
+  const chartLabelWidth = () => Math.min(24, Math.max(10, Math.floor(chartWidth() / 3)));
   /**
    * Spend against the period budget, as a cell meter. The bar warms at the
    * warn threshold and turns to the error tone at the limit; with no limit
@@ -267,6 +295,21 @@ export function UsagePanel(props: {
             {meter()!.suffix}
           </text>
         </box>
+      ) : null}
+
+      {modelItems().length > 0 ? (
+        <>
+          <text fg={palette().secondary} wrapMode="none">
+            {"BY MODEL"}
+          </text>
+          <Bars
+            theme={palette()}
+            items={modelItems()}
+            width={chartWidth()}
+            labelWidth={chartLabelWidth()}
+            valueWidth={4}
+          />
+        </>
       ) : null}
 
       <text fg={palette().secondary} wrapMode="none">
