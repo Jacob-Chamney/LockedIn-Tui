@@ -152,9 +152,26 @@ export function ChatPane(props: {
    * "Nothing to send" is not a warning: an empty composer is the normal state.
    * Only a real block (no model, no key) earns the warning line.
    */
-  const blockedSend = () => {
+  const blockedCopy = () => {
     const result = send()
-    return !result.ok && result.reason !== "nothing to send"
+    return result.ok || result.reason === "nothing to send"
+      ? null
+      : { reason: result.reason, fix: result.fix }
+  }
+  const blockedSend = () => blockedCopy() !== null
+  /** Inside the pane margin; one cell of padding each side. */
+  const warningWidth = () => Math.max(8, props.width - 2)
+  const fitText = (text: string, max: number) =>
+    max <= 0 ? "" : text.length <= max ? text : max === 1 ? "…" : `${text.slice(0, max - 1)}…`
+  /**
+   * One row when the reason and the fix both fit, two when they do not.
+   * A blocked send names the problem and the key that clears it; it never
+   * spills past the pane or pushes the composer off screen.
+   */
+  const warningSingleRow = () => {
+    const copy = blockedCopy()
+    if (!copy) return true
+    return `▌ send disabled · ${copy.reason} — ${copy.fix}`.length <= warningWidth()
   }
   /**
    * While a reply streams, the controller has already appended an empty
@@ -412,10 +429,37 @@ export function ChatPane(props: {
           </text>
         </box>
       ) : blockedSend() ? (
-        <box height={1} paddingX={1} flexShrink={0}>
-          <text fg={palette().warning} wrapMode="none">
-            {`send disabled: ${(send() as { reason: string; fix: string }).reason} — ${(send() as { reason: string; fix: string }).fix}`}
-          </text>
+        <box
+          flexDirection="column"
+          flexShrink={0}
+          paddingX={1}
+          height={warningSingleRow() ? 1 : 2}
+        >
+          {warningSingleRow() ? (
+            <box flexDirection="row" height={1}>
+              <text fg={palette().warning} wrapMode="none">
+                {"▌ send disabled · "}
+              </text>
+              <text fg={palette().warning} wrapMode="none">
+                {blockedCopy()!.reason}
+              </text>
+              <text fg={palette().muted} wrapMode="none">
+                {fitText(
+                  ` — ${blockedCopy()!.fix}`,
+                  warningWidth() - 16 - blockedCopy()!.reason.length,
+                )}
+              </text>
+            </box>
+          ) : (
+            <>
+              <text fg={palette().warning} wrapMode="none">
+                {fitText(`▌ send disabled · ${blockedCopy()!.reason}`, warningWidth())}
+              </text>
+              <text fg={palette().muted} wrapMode="none">
+                {fitText(`  ${blockedCopy()!.fix}`, warningWidth())}
+              </text>
+            </>
+          )}
         </box>
       ) : null}
 

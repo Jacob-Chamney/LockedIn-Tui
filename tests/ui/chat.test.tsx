@@ -104,6 +104,22 @@ describe("no model", () => {
       await setup.dispose()
     }
   })
+
+  test("the blocked-send warning splits onto two rows instead of overflowing", async () => {
+    const state = chat.initialChat("ada", null)
+    state.composer = "hello"
+    const setup = await mount(40, 24, state)
+    try {
+      const lines = rows(setup)
+      const warning = lines.filter((line) => line.includes("send disabled") || line.includes("Providers"))
+      expect(warning.length).toBe(2)
+      expect(warning[0]).toContain("send disabled · no model configured")
+      expect(warning[1]).toContain("Settings → Providers")
+      for (const line of lines) expect(line.length).toBeLessThanOrEqual(40)
+    } finally {
+      await setup.dispose()
+    }
+  })
 })
 
 describe("streaming and stop", () => {

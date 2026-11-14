@@ -6,9 +6,39 @@
  * differs — the leader sits over the bottom-right corner, the rest are centred —
  * so placement is the one thing this frame varies.
  */
+import { createSignal, onCleanup, onMount } from "solid-js"
+
+import { transition } from "../../../sdk"
+import { reducedMotion } from "../chat/pulse"
 import type { ThemePalette } from "../theme"
 
 export type ModalPlacement = "center" | "bottom-right"
+
+/**
+ * Fade the backdrop rather than letting it pop.
+ *
+ * Only the dimming layer animates. The window itself stays opaque: fading the
+ * frame would make its fill translucent and let the screen underneath read
+ * through the copy.
+ */
+function useBackdropFade(duration = 0.16) {
+  const [opacity, setOpacity] = createSignal(0)
+  onMount(() => {
+    if (reducedMotion()) {
+      setOpacity(1)
+      return
+    }
+    const started = Date.now()
+    const timer = setInterval(() => {
+      const elapsed = (Date.now() - started) / 1000
+      const next = transition(elapsed, { enter: duration, hold: 0, exit: 0 })
+      setOpacity(next)
+      if (next >= 1) clearInterval(timer)
+    }, 16)
+    onCleanup(() => clearInterval(timer))
+  })
+  return opacity
+}
 
 export function ModalFrame(props: {
   theme: ThemePalette
@@ -33,6 +63,7 @@ export function ModalFrame(props: {
 }) {
   const palette = () => props.theme
   const placement = () => props.placement ?? "center"
+  const backdropFade = useBackdropFade()
   const fit = (text: string) => {
     const max = Math.max(0, props.boxWidth - 4)
     return text.length <= max ? text : max <= 1 ? "…" : `${text.slice(0, max - 1)}…`
@@ -101,7 +132,7 @@ export function ModalFrame(props: {
           width={props.width}
           height={props.height}
           backgroundColor={palette().background}
-          opacity={0.6}
+          opacity={0.6 * backdropFade()}
         />
       )}
       <box
