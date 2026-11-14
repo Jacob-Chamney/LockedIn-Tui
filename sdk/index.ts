@@ -28,6 +28,12 @@ import type {
 } from "../src/ui/plugins/sandbox/manifest"
 import type { ThemePalette } from "../src/ui/theme"
 import { tabLayout, type TabSpec as TabSpecInput } from "../src/ui/tabs"
+import {
+  timelineRole,
+  timelineRows,
+  type TimelineEntry as TimelineEntryInput,
+  type TimelineTone as TimelineToneInput,
+} from "../src/ui/timeline"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import {
   badgeLayout,
@@ -1986,6 +1992,105 @@ export function bars(options: BarsOptions): SceneNode[] {
         y,
         text: row.text.padStart(row.valueWidth),
         fg: options.valueFg ?? "muted",
+      })
+    }
+  }
+  return nodes
+}
+
+/** A timeline entry's tone: the glyph and rail colour. */
+export type TimelineTone = TimelineToneInput
+
+/** One event in a `timeline()`. */
+export type TimelineEntry = TimelineEntryInput
+
+export type TimelineOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Total row width in cells. */
+  width: number
+  entries: readonly TimelineEntry[]
+  /** Time column width; defaults to the longest time. */
+  timeWidth?: number
+  /** Glyph column width; defaults to the widest glyph. */
+  glyphWidth?: number
+  /** Spaces between columns; defaults to 1. */
+  gap?: number
+  /** Render detail rows; defaults to true. */
+  details?: boolean
+  /** Label colour. Defaults to `foreground`. */
+  fg?: string
+  /** Time colour. Defaults to `muted`. */
+  timeFg?: string
+  /** Detail text and rail colour. Defaults to `muted`. */
+  detailFg?: string
+}
+
+/**
+ * A vertical timeline: time, status glyph and label, with an optional detail
+ * line connected by a rail.
+ *
+ *   timeline({ anchor: "top-left", x: 2, y: 2, width: 60,
+ *              entries: [
+ *                { time: "14:03", glyph: "✓", tone: "success",
+ *                  label: "src/a.ts · approved", detail: "write-decision · my-app" },
+ *                { time: "14:05", glyph: "×", tone: "error",
+ *                  label: "bun test · denied", detail: "command-decision · my-app" },
+ *              ] })
+ *
+ * Entries with a `detail` take two rows; the rail glyph (`│`) connects them.
+ * Long labels fit to the row and truncate with `…`.
+ */
+export function timeline(options: TimelineOptions): SceneNode[] {
+  const rows = timelineRows(options)
+  const nodes: SceneNode[] = []
+  for (const row of rows) {
+    const timeX = options.x
+    const glyphX = timeX + row.timeWidth + (row.timeWidth > 0 ? row.gap : 0)
+    const labelX = glyphX + row.glyphWidth + row.gap
+    if (row.timeWidth > 0) {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: timeX,
+        y: options.y + row.y,
+        text: row.time,
+        fg: options.timeFg ?? "muted",
+      })
+    }
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: glyphX,
+      y: options.y + row.y,
+      text: row.glyph,
+      fg: timelineRole(row.tone),
+    })
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: labelX,
+      y: options.y + row.y,
+      text: row.label,
+      fg: options.fg ?? "foreground",
+    })
+    if (row.detail) {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: glyphX,
+        y: options.y + row.y + 1,
+        text: `${"│"}`.padEnd(row.glyphWidth),
+        fg: options.detailFg ?? "muted",
+      })
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: labelX,
+        y: options.y + row.y + 1,
+        text: row.detail,
+        fg: options.detailFg ?? "muted",
       })
     }
   }
