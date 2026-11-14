@@ -27,6 +27,11 @@ import type {
   ScenePermission,
 } from "../src/ui/plugins/sandbox/manifest"
 import type { ThemePalette } from "../src/ui/theme"
+import {
+  sparklineText as renderSparkline,
+  type SparklineOptions as SparklineInput,
+  type SparklineReduce as SparklineReduceInput,
+} from "../src/ui/sparkline"
 
 export type {
   CommandPermission,
@@ -1565,6 +1570,122 @@ export function stats(options: StatsOptions): SceneNode[] {
     }
   }
   return nodes
+}
+
+/** A label row above a progress track, with a tone and optional custom text. */
+export type MeterOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Track width in cells. */
+  width: number
+  /** Fill, 0..1. */
+  value: number
+  /** A row above the track, left-aligned. */
+  label?: string
+  /** A row above the track, right-aligned. Defaults to the percentage. */
+  text?: string
+  /** Track height in cells; defaults to 1. */
+  height?: number
+  /** Corner radius of the track and fill; defaults to 0. */
+  radius?: number
+  /** Fill colour: a palette role or `#rrggbb`. Defaults to `primary`. */
+  tone?: string
+  /** Track colour. Defaults to `line`. */
+  track?: string
+  labelFg?: string
+  textFg?: string
+  /** Hide the percentage when `text` is omitted; defaults to false. */
+  showPercent?: boolean
+}
+
+/**
+ * A labelled progress track: label and percentage above a filled bar.
+ *
+ *   meter({ anchor: "top-left", x: 0, y: 6, width: 32,
+ *           label: "queue", value: 0.62, tone: "accent" })
+ *
+ * Returns one text row (when a label or text is given) and one `progress`
+ * node. The value is clamped to 0..1.
+ */
+export function meter(options: MeterOptions): SceneNode[] {
+  const width = Math.max(1, Math.round(options.width))
+  const value = Math.max(0, Math.min(1, Number.isFinite(options.value) ? options.value : 0))
+  const height = Math.max(1, Math.round(options.height ?? 1))
+  const label = options.label ?? ""
+  const text =
+    options.text ??
+    (label !== "" && options.showPercent !== false ? `${Math.round(value * 100)}%` : "")
+  const nodes: SceneNode[] = []
+  const labelled = label !== "" || text !== ""
+  if (labelled) {
+    const pad = Math.max(1, width - label.length - text.length)
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      text: `${label}${" ".repeat(pad)}${text}`.trimEnd(),
+      fg: options.labelFg ?? "muted",
+    })
+  }
+  nodes.push({
+    kind: "progress",
+    anchor: options.anchor,
+    x: options.x,
+    y: options.y + (labelled ? 1 : 0),
+    width,
+    height,
+    value,
+    radius: Math.max(0, Math.min(options.radius ?? 0, Math.floor(width / 2))),
+    color: options.tone ?? "primary",
+    track: options.track ?? "line",
+  })
+  return nodes
+}
+
+/** How a series collapses into a column: the sum, peak or mean of the bucket. */
+export type SparklineReduce = SparklineReduceInput
+
+/** Values, scale, ramp and bucketing for a sparkline. */
+export type SparklineOptions = SparklineInput
+
+/** A sparkline plus its scene placement and glyph colour. */
+export type SparklineNodeOptions = SparklineOptions & {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Glyph colour: a palette role or `#rrggbb`. Defaults to `primary`. */
+  fg?: string
+}
+
+/**
+ * A block-glyph trend line placed as a scene text node.
+ *
+ *   sparkline({ anchor: "top-left", x: 0, y: 4, values: [2, 5, 3, 9] })
+ *
+ * `sparklineText` returns the same line without placing it, which is handy for
+ * a window title or a footer. More values than `width` are bucketed; fewer are
+ * left as they are rather than stretched.
+ */
+export function sparkline(options: SparklineNodeOptions): SceneText {
+  return {
+    kind: "text",
+    anchor: options.anchor,
+    x: options.x,
+    y: options.y,
+    text: renderSparkline(options),
+    fg: options.fg ?? "primary",
+  }
+}
+
+/**
+ * The glyph line for a series, without placement.
+ *
+ *   sparklineText({ values: [1, 4, 2, 9, 3] }) // "▁▄▂█▃"
+ */
+export function sparklineText(options: SparklineOptions): string {
+  return renderSparkline(options)
 }
 
 export type FormOptions = {

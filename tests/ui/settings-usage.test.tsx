@@ -76,6 +76,33 @@ describe("budget", () => {
     try {
       expect(lines(setup).join("\n")).toContain("USAGE · no limit")
       expect(lines(setup).join("\n")).not.toContain("budget reached")
+      expect(lines(setup).join("\n")).not.toContain("░")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("a spend meter shows the fraction of the period budget", async () => {
+    const setup = await mount(120, 30)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("spend ")
+      expect(frame).toContain("78%")
+      expect(frame).toContain("$3.90 of $5.00")
+      expect(frame).toContain("█")
+      expect(frame).toContain("░")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("the meter reaches 100% at the limit", async () => {
+    const atLimit = snapshot({ spentMicroUsd: 5_000_000 })
+    const setup = await mount(120, 30, state(), atLimit)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("100%")
+      expect(frame).toContain("$5.00 of $5.00")
     } finally {
       await setup.dispose()
     }

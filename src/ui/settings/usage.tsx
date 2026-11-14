@@ -8,6 +8,7 @@ import { parseBinding, type Binding } from "../keymap/registry";
 import type { BudgetConfig, BudgetPeriod } from "../../llm/budget";
 import type { RunRecord, UsageTotals } from "../../llm/usage";
 import type { ThemePalette } from "../theme";
+import { meterCells } from "../meter";
 export type UsageSnapshot = {
   today: UsageTotals
   month: UsageTotals
@@ -193,6 +194,11 @@ export function statusNumbers(snapshot: UsageSnapshot): { tokens: number; costMi
 
 // ---------------------------------------------------------------- render
 
+function fitText(text: string, max: number): string {
+  if (max <= 0) return ""
+  return text.length <= max ? text : max === 1 ? "…" : `${text.slice(0, max - 1)}…`
+}
+
 export function UsagePanel(props: {
   theme: ThemePalette
   width: number
@@ -204,6 +210,28 @@ export function UsagePanel(props: {
   const palette = () => props.theme
   const reached = () => limitReached(props.snapshot, props.state.budget)
   const breakdown = () => breakdownLinesFor(props.snapshot, props.width, props.state.expanded)
+  /**
+   * Spend against the period budget, as a cell meter. The bar warms at the
+   * warn threshold and turns to the error tone at the limit; with no limit
+   * there is nothing to measure, so the row is omitted.
+   */
+  const meter = () => {
+    const budget = props.state.budget
+    if (budget.budget <= 0) return null
+    const spent = props.snapshot.spentMicroUsd / 1_000_000
+    const columns = Math.max(8, Math.min(24, props.width - 34))
+    const cells = meterCells(spent, budget.budget, columns)
+    const percent = `${Math.round(cells.fraction * 100)}%`
+    const suffix = ` · $${spent.toFixed(2)} of $${budget.budget.toFixed(2)}`
+    const fixed = "spend ".length + columns + 1 + percent.length
+    const room = Math.max(0, props.width - 2 - fixed)
+    const tone = reached()
+      ? palette().error
+      : cells.fraction >= budget.warn_at
+        ? palette().warning
+        : palette().primary
+    return { cells, percent, suffix: fitText(suffix, room), tone }
+  }
 
   return (
     <box width={props.width} height={props.height} flexDirection="column" backgroundColor={palette().panel} paddingX={1}>
@@ -220,6 +248,25 @@ export function UsagePanel(props: {
       <text fg={palette().foreground} wrapMode="none">
         {`warn at ${warnLabel(props.state.budget.warn_at)} · pause at limit ${props.state.budget.pause_at_limit ? "on" : "off"}`}
       </text>
+      {meter() ? (
+        <box flexDirection="row" height={1}>
+          <text fg={palette().muted} wrapMode="none">
+            {"spend "}
+          </text>
+          <text fg={meter()!.tone} wrapMode="none">
+            {"█".repeat(meter()!.cells.filled)}
+          </text>
+          <text fg={palette().line} wrapMode="none">
+            {"░".repeat(meter()!.cells.empty)}
+          </text>
+          <text fg={palette().muted} wrapMode="none">
+            {` ${meter()!.percent}`}
+          </text>
+          <text fg={palette().muted} wrapMode="none">
+            {meter()!.suffix}
+          </text>
+        </box>
+      ) : null}
 
       <text fg={palette().secondary} wrapMode="none">
         {"BREAKDOWN"}

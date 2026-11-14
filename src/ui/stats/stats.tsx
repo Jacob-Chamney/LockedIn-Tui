@@ -13,6 +13,7 @@ import type { ThemePalette } from "../theme"
 import { LOCKED_IN_LOGO, LOCKED_IN_LOGO_COMPACT } from "../shell/brand"
 import { compactTokens } from "./big-number"
 import { buildHeatmap } from "./heatmap"
+import { sparklineText } from "../sparkline"
 
 export type StatsView = {
   range: StatsRange
@@ -215,6 +216,18 @@ export function StatsPage(props: {
   const maxWeeks = () => Math.max(1, Math.floor((props.width - 6) / cellWidth()))
   const heat = () => buildHeatmap(props.summary.activity, props.summary.period, maxWeeks())
   const gridWidth = () => heat().weeks.length * cellWidth()
+  /**
+   * One glyph per calendar week, summing that week's tokens. The line shares
+   * the calendar's width so the trend and the contribution grid read together.
+   */
+  const trend = () => {
+    const weeks = heat().weeks
+    if (weeks.length === 0) return ""
+    const values = weeks.map((week) =>
+      week.reduce((sum, day) => sum + (day?.tokens ?? 0), 0),
+    )
+    return values.some((value) => value > 0) ? sparklineText({ values }) : ""
+  }
   const label = () => "best streak"
 
   return (
@@ -257,6 +270,11 @@ export function StatsPage(props: {
         <text fg={palette().muted} wrapMode="none">
           {Array.from("TOKENS").join(" ")}
         </text>
+        {trend() ? (
+          <text fg={palette().primary} wrapMode="none">
+            {trend()}
+          </text>
+        ) : null}
         <box height={1} flexShrink={0} />
 
         <box flexDirection="column" alignItems="center" flexShrink={0}>

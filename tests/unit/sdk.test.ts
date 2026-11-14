@@ -23,10 +23,13 @@ import {
   kpiStrip,
   list,
   loop,
+  meter,
   mixHex,
   notice,
   pingPong,
   sidebarMain,
+  sparkline,
+  sparklineText,
   stats,
   status,
   table,
@@ -708,4 +711,67 @@ test("host interaction helpers return command results", () => {
   })
   expect(status("synced", "warn")).toEqual({ status: { text: "synced", tone: "warn" } })
   expect(status(null)).toEqual({ status: null })
+})
+
+test("meter aligns its label and percentage above the track", () => {
+  const nodes = meter({ anchor: "top-left", x: 2, y: 3, width: 20, label: "queue", value: 0.62 })
+  expect(nodes).toHaveLength(2)
+  const label = nodes[0]!
+  const bar = nodes[1]!
+  expect(label.kind).toBe("text")
+  if (label.kind !== "text") return
+  expect(label.y).toBe(3)
+  expect(label.text.startsWith("queue")).toBe(true)
+  expect(label.text.endsWith("62%")).toBe(true)
+  expect(label.text).toHaveLength(20)
+  expect(bar).toMatchObject({
+    kind: "progress",
+    x: 2,
+    y: 4,
+    width: 20,
+    height: 1,
+    value: 0.62,
+    color: "primary",
+    track: "line",
+  })
+})
+
+test("meter clamps values, accepts custom text and caps the radius", () => {
+  const bare = meter({ anchor: "top-left", x: 0, y: 0, width: 6, value: 4 })
+  expect(bare).toHaveLength(1)
+  expect(bare[0]).toMatchObject({ kind: "progress", y: 0, value: 1, radius: 0 })
+
+  const tuned = meter({
+    anchor: "top-left",
+    x: 1,
+    y: 2,
+    width: 12,
+    value: -1,
+    height: 2,
+    radius: 9,
+    label: "spent",
+    text: "$3",
+    tone: "warning",
+    track: "muted",
+    showPercent: false,
+  })
+  expect(tuned).toHaveLength(2)
+  const caption = tuned[0]!
+  expect(caption.kind).toBe("text")
+  if (caption.kind !== "text") return
+  expect(caption.text).toBe("spent     $3")
+  expect(tuned[1]).toMatchObject({ y: 3, height: 2, value: 0, radius: 6, color: "warning", track: "muted" })
+})
+
+test("sparkline places the glyph line and sparklineText returns it", () => {
+  expect(sparklineText({ values: [1, 2, 3] })).toBe("▃▅█")
+  expect(sparkline({ anchor: "top-left", x: 1, y: 2, values: [1, 2, 3], fg: "accent" })).toEqual({
+    kind: "text",
+    anchor: "top-left",
+    x: 1,
+    y: 2,
+    text: "▃▅█",
+    fg: "accent",
+  })
+  expect(sparkline({ anchor: "top-left", x: 0, y: 0, values: [1] })).toMatchObject({ fg: "primary" })
 })
