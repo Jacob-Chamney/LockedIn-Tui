@@ -13,6 +13,8 @@ import { parseBinding, type Binding } from "../keymap/registry"
 import type { ThemePalette } from "../theme"
 import { FloatingWindow, WindowBody, WindowFooter, WindowHeader } from "../panels/floating-window"
 import { PanelEmpty } from "../panels/panel-frame"
+import { Timeline } from "../shell/timeline"
+import type { TimelineEntry } from "../timeline"
 import { windowStart } from "../panels/select-list"
 
 export type Filter = { kind: ActivityKind | null; project: string | null }
@@ -96,6 +98,38 @@ export function rowText(record: ActivityRecord): string {
   return `${record.at}  ${record.kind}  ${record.project}  ${summaryOf(record)}`
 }
 
+/** `2026-11-01T10:00:00Z` becomes `11-01 10:00`; anything else is left alone. */
+export function timelineTime(at: string): string {
+  const match = /^(\d{4})-(\d{2}-\d{2})T(\d{2}:\d{2})/.exec(at)
+  return match ? `${match[2]} ${match[3]}` : at
+}
+
+/**
+ * One timeline row per record: the subject on the label line and the kind,
+ * project and decision on the detail line. The decision word stays beside the
+ * glyph, so colour is never the only signal.
+ */
+export function timelineEntry(record: ActivityRecord): TimelineEntry {
+  const decision =
+    record.kind === "write-decision" || record.kind === "command-decision"
+      ? record.decision
+      : null
+  const subject =
+    record.kind === "write-decision"
+      ? record.path
+      : record.kind === "command-decision"
+        ? record.argv.join(" ")
+        : `${record.run} · ${record.event}`
+  const bad = decision !== null && decision !== "approve"
+  return {
+    time: timelineTime(record.at),
+    glyph: bad ? "×" : decision === "approve" ? "✓" : "●",
+    tone: bad ? "error" : decision === "approve" ? "success" : "info",
+    label: subject,
+    detail: `${record.kind} · ${record.project}${decision === null ? "" : ` · ${decisionLabel(decision)}`}`,
+  }
+}
+
 export function emptyCopy(): string {
   return "no activity yet"
 }
@@ -168,7 +202,8 @@ export function ActivityPane(props: {
 }) {
   const palette = () => props.theme
   const rows = () => visibleRecords(props.records, props.view.filter)
-  const size = () => Math.max(1, props.height - 4)
+  /** Each entry is a label row plus a detail row. */
+  const size = () => Math.max(1, Math.floor((props.height - 4) / 2))
   const start = () => windowStart(props.view.cursor, rows().length, size())
   const windowed = () => rows().slice(start(), start() + size())
   const empty = () => rows().length === 0
@@ -201,25 +236,13 @@ export function ActivityPane(props: {
         </WindowBody>
       ) : (
         <WindowBody>
-          {windowed().map((record, offset) => {
-            const index = start() + offset
-            return (
-              <text
-                fg={
-                  record.kind === "write-decision" && record.decision !== "approve"
-                    ? palette().error
-                    : record.kind === "command-decision" && record.decision === "deny"
-                      ? palette().error
-                      : index === props.view.cursor
-                        ? palette().primary
-                        : palette().foreground
-                }
-                wrapMode="none"
-              >
-                {`${index === props.view.cursor ? "▸" : " "} ${fitRow(rowText(record), props.width - 2)}`}
-              </text>
-            )
-          })}
+          <Timeline
+            theme={palette()}
+            entries={windowed().map(timelineEntry)}
+            width={props.width - 2}
+            selected={props.view.cursor - start()}
+            selectable
+          />
         </WindowBody>
       )}
     </FloatingWindow>

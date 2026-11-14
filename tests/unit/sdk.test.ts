@@ -37,6 +37,7 @@ import {
   status,
   table,
   tabs,
+  timeline,
   transition,
   window,
 } from "../../sdk"
@@ -979,4 +980,43 @@ test("bars can hide the value column and is empty without items", () => {
   expect(nodes).toHaveLength(2)
   expect(nodes[1]).toMatchObject({ kind: "progress", color: "accent", track: "muted" })
   expect(bars({ anchor: "top-left", x: 0, y: 0, width: 30, items: [] })).toEqual([])
+})
+
+test("timeline lays out time, glyph, label and a rail", () => {
+  const nodes = timeline({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 40,
+    entries: [
+      { time: "10:00", label: "a", glyph: "✓", tone: "success" },
+      { time: "10:05", label: "b", detail: "detail", glyph: "×", tone: "error" },
+    ],
+  })
+  expect(nodes).toHaveLength(8)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, text: "10:00", fg: "muted" })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 8, y: 3, text: "✓", fg: "success" })
+  expect(nodes[2]).toMatchObject({ kind: "text", x: 10, y: 3, text: "a", fg: "foreground" })
+  expect(nodes[3]).toMatchObject({ x: 2, y: 4, text: "10:05" })
+  expect(nodes[4]).toMatchObject({ x: 8, y: 4, text: "×", fg: "error" })
+  expect(nodes[5]).toMatchObject({ x: 10, y: 4, text: "b" })
+  expect(nodes[6]).toMatchObject({ x: 8, y: 5, text: "│", fg: "muted" })
+  expect(nodes[7]).toMatchObject({ x: 10, y: 5, text: "detail", fg: "muted" })
+})
+
+test("timeline honours colour overrides and can be empty", () => {
+  const nodes = timeline({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 40,
+    fg: "primary",
+    timeFg: "secondary",
+    detailFg: "warning",
+    entries: [{ time: "t", label: "a", detail: "d" }],
+  })
+  expect(nodes[0]).toMatchObject({ fg: "secondary" })
+  expect(nodes[2]).toMatchObject({ fg: "primary" })
+  expect(nodes[4]).toMatchObject({ fg: "warning" })
+  expect(timeline({ anchor: "top-left", x: 0, y: 0, width: 40, entries: [] })).toEqual([])
 })

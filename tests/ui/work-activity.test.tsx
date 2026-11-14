@@ -64,16 +64,29 @@ function lines(setup: { captureCharFrame: () => string }): string[] {
 }
 
 describe("rows", () => {
-  test("renders time, kind, project and a one-line summary for all three kinds", async () => {
+  test("renders a timeline with a time, glyph, subject and detail line", async () => {
     const setup = await mount(200, 24)
     try {
       const frame = lines(setup).join("\n")
-      expect(frame).toContain("2026-11-01T10:00:00Z  write-decision  my-app  src/a.ts · approved ✓")
-      expect(frame).toContain("command-decision  my-app  ls -la · denied ×")
-      expect(frame).toContain("swarm  other  run-1 · finished")
+      expect(frame).toContain("11-01 10:00")
+      expect(frame).toContain("✓ src/a.ts")
+      expect(frame).toContain("write-decision · my-app · approved ✓")
+      expect(frame).toContain("× ls -la")
+      expect(frame).toContain("command-decision · my-app · denied ×")
+      expect(frame).toContain("● run-1 · finished")
+      expect(frame).toContain("swarm · other")
+      expect(frame).toContain("▸ 11-01 12:00")
     } finally {
       await setup.dispose()
     }
+  })
+
+  test("timeline times are short and the tone follows the decision", () => {
+    expect(activity.timelineTime("2026-11-01T10:00:00Z")).toBe("11-01 10:00")
+    expect(activity.timelineTime("t")).toBe("t")
+    expect(activity.timelineEntry(RECORDS[0]!).tone).toBe("success")
+    expect(activity.timelineEntry(RECORDS[1]!).tone).toBe("error")
+    expect(activity.timelineEntry(RECORDS[2]!).tone).toBe("info")
   })
 
   test("newest first", () => {
