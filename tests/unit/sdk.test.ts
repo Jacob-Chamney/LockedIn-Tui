@@ -4,6 +4,7 @@ import {
   defineManifest,
   defineParticleSystem,
   definePlugin,
+  badges,
   callout,
   card,
   confirm,
@@ -890,4 +891,42 @@ test("an empty callout has no nodes and a long title is fitted", () => {
   expect(nodes[0]!.kind).toBe("text")
   if (nodes[0]!.kind !== "text") return
   expect(nodes[0]!.text.endsWith("…")).toBe(true)
+})
+
+test("badges fill each chip with its tone and lay them out", () => {
+  const nodes = badges({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 40,
+    badges: [{ label: "linked", tone: "success" }, { label: "3 models" }],
+  })
+  expect(nodes).toHaveLength(4)
+  expect(nodes[0]).toMatchObject({
+    kind: "rect",
+    x: 2,
+    y: 3,
+    width: 8,
+    height: 1,
+    fill: true,
+    color: "success",
+  })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 2, text: " linked ", fg: "background" })
+  expect(nodes[2]).toMatchObject({ kind: "rect", x: 11, width: 10, color: "line" })
+  expect(nodes[3]).toMatchObject({ kind: "text", x: 11, text: " 3 models ", fg: "background" })
+})
+
+test("badges accept colour overrides and can be empty", () => {
+  const nodes = badges({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 40,
+    badges: [{ label: "a", tone: "warning" }],
+    bg: "panel",
+    fg: "foreground",
+  })
+  expect(nodes[0]).toMatchObject({ color: "panel" })
+  expect(nodes[1]).toMatchObject({ fg: "foreground" })
+  expect(badges({ anchor: "top-left", x: 0, y: 0, width: 40, badges: [] })).toEqual([])
 })

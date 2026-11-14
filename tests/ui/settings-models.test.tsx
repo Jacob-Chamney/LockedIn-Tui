@@ -24,6 +24,18 @@ async function mount(width: number, height: number, value = state(), cursor = 0)
   return setup
 }
 
+function backgrounds(setup: { captureSpans: () => { lines: Array<{ spans: Array<{ text: string; bg: { buffer: ArrayLike<number> } }> }> } }, needle: string): string[] {
+  const out: string[] = []
+  for (const line of setup.captureSpans().lines) {
+    for (const span of line.spans) {
+      if (!span.text.includes(needle)) continue
+      const buffer = span.bg.buffer
+      out.push(`#${[buffer[0], buffer[1], buffer[2]].map((n) => (n ?? 0).toString(16).padStart(2, "0")).join("")}`)
+    }
+  }
+  return out
+}
+
 function lines(setup: { captureCharFrame: () => string }): string[] {
   const out = setup.captureCharFrame().split("\n")
   while (out.length > 0 && out[out.length - 1] === "") out.pop()
@@ -39,6 +51,34 @@ describe("provider list", () => {
       expect(frame).toContain("not validated")
       expect(frame).not.toContain("ok ·")
       expect(frame).toContain("no provider linked yet")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("provider rows render their status as a tone-coded badge", async () => {
+    const setup = await mount(120, 30)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("not linked")
+      expect(backgrounds(setup, "not linked")).toContain(crimson.line.toLowerCase())
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("a linked row's model count uses the success tone", async () => {
+    const linked = models.afterLink(
+      state(),
+      listFirstClassProviders()[0]!.id,
+      ["gpt-4.1-mini", "gpt-4.1"],
+      "2026-11-01T14:00:00Z",
+    )
+    const setup = await mount(120, 30, linked)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("2 models")
+      expect(backgrounds(setup, "2 models")).toContain(crimson.success.toLowerCase())
     } finally {
       await setup.dispose()
     }

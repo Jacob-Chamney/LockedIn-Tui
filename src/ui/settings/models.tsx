@@ -13,6 +13,8 @@ import type { LlmError } from "../../llm/validate";
 import { isLoopbackUrl } from "../../llm/pricing";
 import type { ThemePalette } from "../theme";
 import { ListRow } from "../panels/list-row";
+import type { BadgeTone } from "../badges";
+import { Badge } from "../shell/badges";
 import { TwoColumnSurface } from "../panels/two-column";
 export type ValidationState =
   | { kind: "never" }
@@ -78,6 +80,22 @@ export function validationLine(row: ProviderRow): string {
 export function providerLine(row: ProviderRow): string {
   const state = row.linked ? "linked" : "not linked"
   return `${row.spec.label}  ${state}  ${validationLine(row)}`
+}
+
+/** The provider's state as a tone-coded badge. */
+export function providerBadge(row: ProviderRow): { label: string; tone: BadgeTone } {
+  if (!row.linked) {
+    return row.validation.kind === "failed"
+      ? { label: "key rejected", tone: "error" }
+      : { label: "not linked", tone: "neutral" }
+  }
+  if (row.validation.kind === "ok") {
+    const count = row.validation.models.length
+    return { label: `${count} model${count === 1 ? "" : "s"}`, tone: "success" }
+  }
+  return row.validation.kind === "checking"
+    ? { label: "checking…", tone: "info" }
+    : { label: "linked", tone: "success" }
 }
 
 /** One mapping from the validation error to the documented copy. */
@@ -284,18 +302,29 @@ export function ModelsPanel(props: {
       ) : null}
 
       {props.state.rows.map((row, index) => (
-        <text
-          fg={
-            row.validation.kind === "failed"
-              ? palette().error
-              : index === props.cursor
-                ? palette().primary
-                : palette().foreground
-          }
-          wrapMode="none"
-        >
-          {`${index === props.cursor ? "▸" : " "} ${providerLine(row)}`}
-        </text>
+        <box flexDirection="row" height={1}>
+          <text
+            fg={
+              row.validation.kind === "failed"
+                ? palette().error
+                : index === props.cursor
+                  ? palette().primary
+                  : palette().foreground
+            }
+            wrapMode="none"
+          >
+            {`${index === props.cursor ? "▸" : " "} ${row.spec.label} `}
+          </text>
+          <Badge
+            theme={palette()}
+            label={providerBadge(row).label}
+            tone={providerBadge(row).tone}
+            width={20}
+          />
+          <text fg={palette().muted} wrapMode="none">
+            {` ${validationLine(row)}`}
+          </text>
+        </box>
       ))}
 
       {props.state.editing ? (
@@ -572,15 +601,6 @@ export function ModelsScreenPanel(props: {
   const selectedForTarget = () =>
     screen().target === "chat" ? screen().data.chatModel : screen().data.generationModel
 
-  const providerValue = (row: ProviderRow): string => {
-    if (!row.linked) return row.validation.kind === "failed" ? "key rejected" : "not linked"
-    if (row.validation.kind === "ok") {
-      const count = row.validation.models.length
-      return `${count} model${count === 1 ? "" : "s"}`
-    }
-    return row.validation.kind === "checking" ? "checking…" : "linked"
-  }
-
   const hints = () =>
     modelView()
       ? "j/k move · g chat/generation · Enter choose · Esc back"
@@ -667,7 +687,7 @@ export function ModelsScreenPanel(props: {
               selected={index === screen().cursor}
               active={activeProviderOf(screen()) === row.spec.id}
               label={row.spec.label}
-              value={providerValue(row)}
+              badge={providerBadge(row)}
               labelWidth={22}
               tone={row.validation.kind === "failed" ? "error" : "normal"}
             />

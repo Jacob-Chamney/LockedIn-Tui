@@ -19,6 +19,9 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `badges()` draws a row of tone-coded status chips for plugin scenes; the
+  Models screen uses the same fills for linked, key-rejected and model-count
+  badges.
 - `callout()` renders a tone-coded, wrapped warning for plugin scenes; the
   Usage and Stats warnings use the same bar and wrapping in the app.
 - `tabs()` draws a filled-chip tab strip for plugin scenes, and the Stats page
