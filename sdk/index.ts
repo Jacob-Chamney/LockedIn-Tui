@@ -29,6 +29,12 @@ import type {
 import type { ThemePalette } from "../src/ui/theme"
 import { tabLayout, type TabSpec as TabSpecInput } from "../src/ui/tabs"
 import {
+  CALLOUT_GLYPH,
+  calloutLines,
+  calloutRole,
+  type CalloutTone as CalloutToneInput,
+} from "../src/ui/callout"
+import {
   sparklineText as renderSparkline,
   type SparklineOptions as SparklineInput,
   type SparklineReduce as SparklineReduceInput,
@@ -1760,6 +1766,71 @@ export function tabs(options: TabsOptions): SceneNode[] {
       y: options.y,
       text: segment.text,
       fg: segment.selected ? (options.selectedFg ?? "background") : (options.fg ?? "muted"),
+    })
+  }
+  return nodes
+}
+
+/** The tone a callout uses; `info` follows the secondary ink. */
+export type CalloutTone = CalloutToneInput
+
+export type CalloutOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Total block width, including the bar and its space. */
+  width: number
+  message: string
+  /** One title line above the message, in the same tone. */
+  title?: string
+  tone?: CalloutTone
+  /** Optional fill behind the whole block. */
+  bg?: string
+  /** Text colour override; defaults to the tone's palette role. */
+  fg?: string
+}
+
+/** The widest a single line can be, given the bar prefix. */
+function fitCallout(text: string, width: number): string {
+  if (text.length <= width) return text
+  return width <= 1 ? "…" : `${text.slice(0, width - 1)}…`
+}
+
+/**
+ * A tone-coded warning or notice: a `▌` bar and a wrapped message.
+ *
+ *   callout({ anchor: "top-left", x: 0, y: 10, width: 40,
+ *             tone: "warning", message: "the budget is nearly spent" })
+ *
+ * The message wraps to the block width; a word longer than a line hard-breaks.
+ * `title` adds a heading line, and `bg` fills the block for a louder notice.
+ */
+export function callout(options: CalloutOptions): SceneNode[] {
+  const role = options.fg ?? calloutRole(options.tone ?? "info")
+  const inner = Math.max(1, Math.round(options.width) - 2)
+  const body = calloutLines(options.message, inner)
+  const lines = options.title ? [fitCallout(options.title, inner), ...body] : body
+  const nodes: SceneNode[] = []
+  if (options.bg && lines.length > 0) {
+    nodes.push({
+      kind: "rect",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      width: Math.max(1, Math.round(options.width)),
+      height: lines.length,
+      fill: true,
+      color: options.bg,
+    })
+  }
+  for (let index = 0; index < lines.length; index++) {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y + index,
+      text: `${CALLOUT_GLYPH} ${lines[index]}`.trimEnd(),
+      fg: role,
     })
   }
   return nodes

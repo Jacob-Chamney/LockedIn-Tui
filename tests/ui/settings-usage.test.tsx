@@ -96,6 +96,19 @@ describe("budget", () => {
     }
   })
 
+  test("a budget warning renders under the callout bar and wraps", async () => {
+    const atLimit = snapshot({ spentMicroUsd: 5_000_000 })
+    const setup = await mount(60, 24, state(), atLimit)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("▌ day budget reached")
+      expect(frame).toContain("press o to override once")
+      for (const line of lines(setup)) expect(line.length).toBeLessThanOrEqual(60)
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("the meter reaches 100% at the limit", async () => {
     const atLimit = snapshot({ spentMicroUsd: 5_000_000 })
     const setup = await mount(120, 30, state(), atLimit)

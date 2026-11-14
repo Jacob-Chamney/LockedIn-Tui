@@ -9,6 +9,7 @@ import type { BudgetConfig, BudgetPeriod } from "../../llm/budget";
 import type { RunRecord, UsageTotals } from "../../llm/usage";
 import type { ThemePalette } from "../theme";
 import { meterCells } from "../meter";
+import { Callout } from "../shell/callout";
 export type UsageSnapshot = {
   today: UsageTotals
   month: UsageTotals
@@ -283,19 +284,28 @@ export function UsagePanel(props: {
       ) : null}
 
       {reached() ? (
-        <text fg={palette().error} wrapMode="none">
-          {`! ${refusalCopy(props.state.budget)}`}
-        </text>
+        <Callout
+          theme={palette()}
+          tone="error"
+          width={props.width - 2}
+          message={refusalCopy(props.state.budget)}
+        />
       ) : null}
       {props.state.pendingPeriod ? (
-        <text fg={palette().warning} wrapMode="none">
-          {`! ${periodEffectLine(props.state.pendingPeriod)}`}
-        </text>
+        <Callout
+          theme={palette()}
+          tone="warning"
+          width={props.width - 2}
+          message={periodEffectLine(props.state.pendingPeriod)}
+        />
       ) : null}
       {props.state.notice ? (
-        <text fg={palette().warning} wrapMode="none">
-          {`! ${props.state.notice}`}
-        </text>
+        <Callout
+          theme={palette()}
+          tone="warning"
+          width={props.width - 2}
+          message={props.state.notice}
+        />
       ) : null}
 
       <text fg={palette().muted} wrapMode="none">
