@@ -14,6 +14,7 @@ import { LOCKED_IN_LOGO, LOCKED_IN_LOGO_COMPACT } from "../shell/brand"
 import { compactTokens } from "./big-number"
 import { buildHeatmap } from "./heatmap"
 import { sparklineText } from "../sparkline"
+import { tabLayout } from "../tabs"
 
 export type StatsView = {
   range: StatsRange
@@ -212,6 +213,18 @@ export function StatsPage(props: {
   const tokens = () => props.summary.overview.input + props.summary.overview.output
   const total = () => compactTokens(tokens(), 0)
   const period = () => periodLabel(props.summary.period)
+  const rangeStrip = () =>
+    tabLayout({
+      tabs: RANGE_ORDER.map((label) => ({ label })),
+      selected: RANGE_ORDER.indexOf(props.view.range),
+      width: Math.max(0, props.width - 12),
+    })
+  const scopeStrip = () =>
+    tabLayout({
+      tabs: SCOPE_ORDER.map((label) => ({ label })),
+      selected: SCOPE_ORDER.indexOf(props.view.scope),
+      width: Math.max(0, props.width - 12),
+    })
   const cellWidth = () => (props.width >= 120 ? 2 : 1)
   const maxWeeks = () => Math.max(1, Math.floor((props.width - 6) / cellWidth()))
   const heat = () => buildHeatmap(props.summary.activity, props.summary.period, maxWeeks())
@@ -253,6 +266,39 @@ export function StatsPage(props: {
         <text fg={palette().muted} wrapMode="none">
           {period()}
         </text>
+      </box>
+
+      <box flexDirection="row" justifyContent="space-between" height={1} flexShrink={0}>
+        <box flexDirection="row" height={1}>
+          <text fg={palette().muted} wrapMode="none">
+            {"range "}
+          </text>
+          {rangeStrip().map((tab) => (
+            <text
+              fg={tab.selected ? palette().background : palette().muted}
+              bg={tab.selected ? palette().primary : undefined}
+              wrapMode="none"
+            >
+              {tab.text}
+            </text>
+          ))}
+        </box>
+        {props.width >= 96 ? (
+          <box flexDirection="row" height={1}>
+            <text fg={palette().muted} wrapMode="none">
+              {"scope "}
+            </text>
+            {scopeStrip().map((tab) => (
+              <text
+                fg={tab.selected ? palette().background : palette().muted}
+                bg={tab.selected ? palette().primary : undefined}
+                wrapMode="none"
+              >
+                {tab.text}
+              </text>
+            ))}
+          </box>
+        ) : null}
       </box>
 
       <box flexGrow={1} minHeight={0} flexDirection="column" justifyContent="center" alignItems="center">

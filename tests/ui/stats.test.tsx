@@ -37,11 +37,55 @@ async function mount(
   return setup
 }
 
+function backgrounds(setup: Awaited<ReturnType<typeof mount>>, needle: string): string[] {
+  const out: string[] = []
+  for (const line of setup.captureSpans().lines) {
+    for (const span of line.spans) {
+      if (!span.text.includes(needle)) continue
+      const buffer = (span.bg as unknown as { buffer: ArrayLike<number> }).buffer
+      out.push(`#${[buffer[0], buffer[1], buffer[2]].map((n) => (n ?? 0).toString(16).padStart(2, "0")).join("")}`)
+    }
+  }
+  return out
+}
+
 function lines(setup: Awaited<ReturnType<typeof mount>>): string[] {
   const out = setup.captureCharFrame().split("\n")
   while (out.length > 0 && out[out.length - 1] === "") out.pop()
   return out
 }
+
+describe("range and scope strips", () => {
+  test("both strips render and the active chips are filled", async () => {
+    const setup = await mount(140, 44, {
+      view: { ...stats.initialStatsView, range: "30d", scope: "skills" },
+    })
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("range")
+      expect(frame).toContain("30d")
+      expect(frame).toContain("scope")
+      expect(frame).toContain("skills")
+      expect(backgrounds(setup, " 30d ")).toContain(crimson.primary.toLowerCase())
+      expect(backgrounds(setup, " skills ")).toContain(crimson.primary.toLowerCase())
+      expect(backgrounds(setup, " 7d ")).not.toContain(crimson.primary.toLowerCase())
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("a narrow pane keeps the range strip and hides scope", async () => {
+    const setup = await mount(80, 24)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("range")
+      expect(frame).toContain("7d")
+      expect(frame).not.toContain("scope")
+    } finally {
+      await setup.dispose()
+    }
+  })
+})
 
 describe("the hero", () => {
   test("shows the context, period, token total and calendar stats", async () => {

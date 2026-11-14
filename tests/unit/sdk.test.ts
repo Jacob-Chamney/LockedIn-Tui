@@ -33,6 +33,7 @@ import {
   stats,
   status,
   table,
+  tabs,
   transition,
   window,
 } from "../../sdk"
@@ -774,4 +775,47 @@ test("sparkline places the glyph line and sparklineText returns it", () => {
     fg: "accent",
   })
   expect(sparkline({ anchor: "top-left", x: 0, y: 0, values: [1] })).toMatchObject({ fg: "primary" })
+})
+
+test("tabs fills the active chip and lays the strip out", () => {
+  const nodes = tabs({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 40,
+    tabs: [{ label: "7d" }, { label: "30d", count: 2 }],
+    selected: 1,
+  })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, text: " 7d ", fg: "muted" })
+  expect(nodes[1]).toMatchObject({
+    kind: "rect",
+    x: 6,
+    y: 3,
+    width: 7,
+    height: 1,
+    fill: true,
+    color: "accent",
+  })
+  expect(nodes[2]).toMatchObject({ kind: "text", x: 6, text: " 30d 2 ", fg: "background" })
+})
+
+test("tabs can paint a background behind every chip and honours colours", () => {
+  const nodes = tabs({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 20,
+    tabs: [{ label: "a" }, { label: "b" }],
+    selected: 0,
+    bg: "surface",
+    selectedBg: "warning",
+    selectedFg: "surface",
+    fg: "foreground",
+  })
+  expect(nodes.filter((node) => node.kind === "rect")).toHaveLength(2)
+  expect(nodes[0]).toMatchObject({ color: "warning" })
+  expect(nodes[2]).toMatchObject({ color: "surface" })
+  expect(nodes[1]).toMatchObject({ fg: "surface" })
+  expect(nodes[3]).toMatchObject({ fg: "foreground" })
 })
