@@ -61,6 +61,7 @@ import type { ActivityRecord } from "../services/work/activity";
 import { runProjectExport } from "./actions/work";
 import { archiveProject as archiveProjectRecord, createProject as createProjectRecord, createAgentFromTemplate, createProjectAgent, deleteProject as deleteProjectRecord, loadAgentTemplates, loadProjectAgents, loadProjects, loadWorkHome, setProjectDefaultAgent, setProjectMode, type WorkHomeData, makeAgentId, makeProjectId, projectTools, updateProjectAgent } from "./actions/projects";
 import { NOTICE_FADE_MS, NOTICE_TICK_MS, dismissLatestNotice, noticeDuration, pruneNotices, type Notice, type NoticeLevel } from "../ui/shell/notice-stack";
+import { latestPluginStatus, updatePluginStatus, type PluginStatusMap } from "../ui/shell/plugin-status";
 import type { UpdateBadge } from "../ui/shell/layout";
 
 /**
@@ -4405,7 +4406,12 @@ export function App(props: {
             host.onCommandResult = (result) => {
               let message = result.message
               let ok = result.ok
-              if (result.status !== undefined) setPluginStatus(result.status)
+              if (result.status !== undefined) {
+                const id = plugin.manifest.id
+                setPluginStatuses((current) =>
+                  updatePluginStatus(current, id, result.status ?? null),
+                )
+              }
               const target = (value: string | undefined): string | undefined =>
                 value && host.commandIds.includes(value) ? value : undefined
               if (result.confirm) {
@@ -4418,6 +4424,7 @@ export function App(props: {
                     message: result.confirm.message,
                     confirmLabel: result.confirm.confirmLabel ?? "Yes",
                     cancelLabel: result.confirm.cancelLabel ?? "No",
+                    index: 0,
                   })
                 }
               }
@@ -4538,6 +4545,7 @@ export function App(props: {
         }
         appEffects?.setHosts(next.particles)
         appEffects?.setSceneHosts(next.scenes)
+        setPluginStatuses({})
         mountPluginActions(next.actions)
         effectDebug(`reloaded ${next.particles.length + next.scenes.length} host(s)`)
       }
@@ -4592,10 +4600,8 @@ export function App(props: {
   const [chapterText, setChapterText] = createSignal<string>("")
   const [notices, setNotices] = createSignal<Notice[]>([])
   const [pluginRequest, setPluginRequest] = createSignal<PluginRequest | null>(null)
-  const [pluginStatus, setPluginStatus] = createSignal<{
-    text: string
-    tone?: "info" | "warn" | "error"
-  } | null>(null)
+  const [pluginStatuses, setPluginStatuses] = createSignal<PluginStatusMap>({})
+  const pluginStatus = () => latestPluginStatus(pluginStatuses())
   let pluginRequestRun: ((input?: string) => void) | null = null
   const [updateInfo, setUpdateInfo] = createSignal<UpdateInfo | null>(null)
   const [updatePhase, setUpdatePhase] = createSignal<"idle" | "checking" | "downloading" | "restart">("idle")
@@ -4682,10 +4688,17 @@ export function App(props: {
       return true
     }
     if (request.kind === "confirm") {
-      if (press.name === "return" || press.name === "enter" || press.name === "y") {
+      if (press.name === "y") {
         runPluginRequest()
       } else if (press.name === "n") {
         closePluginRequest()
+      } else if (press.name === "j" || press.name === "down") {
+        setPluginRequest({ ...request, index: 1 })
+      } else if (press.name === "k" || press.name === "up") {
+        setPluginRequest({ ...request, index: 0 })
+      } else if (press.name === "return" || press.name === "enter") {
+        if (request.index === 1) closePluginRequest()
+        else runPluginRequest()
       }
       event.preventDefault()
       return true
@@ -4695,6 +4708,8 @@ export function App(props: {
         setPluginRequest({ ...request, index: Math.min(request.options.length - 1, request.index + 1) })
       } else if (press.name === "k" || press.name === "up") {
         setPluginRequest({ ...request, index: Math.max(0, request.index - 1) })
+      } else if (/^[1-9]$/.test(press.name) && Number(press.name) <= request.options.length) {
+        runPluginRequest(request.options[Number(press.name) - 1])
       } else if (press.name === "return" || press.name === "enter") {
         runPluginRequest(request.options[request.index])
       }

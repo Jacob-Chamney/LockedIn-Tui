@@ -8,6 +8,7 @@ export type PluginRequest =
       message: string
       confirmLabel: string
       cancelLabel: string
+      index: number
     }
   | {
       kind: "prompt"
@@ -29,22 +30,21 @@ export function PluginRequestOverlay(props: {
   request: PluginRequest
 }) {
   const palette = () => props.theme
-  const request = props.request
+  const menu = () => (props.request.kind === "menu" ? props.request : null)
+  const prompt = () => (props.request.kind === "prompt" ? props.request : null)
+  const confirm = () => (props.request.kind === "confirm" ? props.request : null)
   const title = () =>
-    request.kind === "menu" ? request.title : request.kind === "prompt" ? "Input" : "Confirm"
+    menu()?.title ?? (prompt() ? "Input" : "Confirm")
   const hint = () =>
-    request.kind === "menu"
-      ? "Choose an option"
-      : request.kind === "confirm"
-        ? `${request.confirmLabel} or ${request.cancelLabel}`
-        : request.message
+    menu() ? "Choose an option" : confirm() ? "Choose an action" : (prompt()?.message ?? "")
   const footer = () =>
-    request.kind === "confirm"
-      ? "Enter yes · Esc no"
-      : request.kind === "menu"
-        ? "j/k · Enter · Esc"
+    confirm()
+      ? "j/k · y/n · Enter · Esc"
+      : menu()
+        ? "j/k · 1-9 · Enter · Esc"
         : "Enter save · Esc cancel"
-  const boxHeight = () => (request.kind === "menu" ? request.options.length + 6 : 7)
+  const boxHeight = () =>
+    menu() ? menu()!.options.length + 6 : confirm() ? 9 : 7
 
   return (
     <ModalFrame
@@ -57,31 +57,48 @@ export function PluginRequestOverlay(props: {
       hint={hint()}
       footer={footer()}
     >
-      {request.kind === "menu" ? (
+      {menu() ? (
         <box flexDirection="column">
-          {request.options.map((option, index) => (
+          {menu()!.options.map((option, index) => (
             <text
-              fg={index === request.index ? palette().primary : palette().foreground}
+              fg={index === menu()!.index ? palette().primary : palette().foreground}
               wrapMode="none"
             >
-              {`${index === request.index ? "▸ " : "  "}${option}`}
+              {`${index === menu()!.index ? "▸ " : "  "}${option}`}
             </text>
           ))}
         </box>
-      ) : request.kind === "prompt" ? (
+      ) : prompt() ? (
         <box flexDirection="row" height={1}>
-          <text fg={palette().foreground} wrapMode="none">
-            {request.value || request.placeholder || ""}
+          <text
+            fg={prompt()!.value ? palette().foreground : palette().muted}
+            wrapMode="none"
+          >
+            {prompt()!.value || prompt()!.placeholder || ""}
           </text>
           <text fg={palette().muted} wrapMode="none">
             {"▏"}
           </text>
         </box>
-      ) : (
-        <text fg={palette().foreground} wrapMode="word">
-          {request.message}
-        </text>
-      )}
+      ) : confirm() ? (
+        <box flexDirection="column" gap={0}>
+          <text fg={palette().foreground} wrapMode="word">
+            {confirm()!.message}
+          </text>
+          <text
+            fg={confirm()!.index === 0 ? palette().primary : palette().foreground}
+            wrapMode="none"
+          >
+            {`${confirm()!.index === 0 ? "▸ " : "  "}${confirm()!.confirmLabel}`}
+          </text>
+          <text
+            fg={confirm()!.index === 1 ? palette().primary : palette().foreground}
+            wrapMode="none"
+          >
+            {`${confirm()!.index === 1 ? "▸ " : "  "}${confirm()!.cancelLabel}`}
+          </text>
+        </box>
+      ) : null}
     </ModalFrame>
   )
 }

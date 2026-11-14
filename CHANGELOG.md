@@ -16,6 +16,10 @@ requests merge.
 
 ### Changed
 
+- Host confirms render selectable options (`j/k`, `y/n`, Enter, Esc); menus
+  accept `1-9`.
+- Plugin status chips are keyed by plugin, show the newest, clear individually
+  with `status(null)`, and clear when plugins reload.
 - Notices now use the chat bubble caps: a filled, rounded pill with the level
   glyph and message inside. Errors use the error fill, warnings the warning
   fill, and info the panel fill. The fade repaints at 20 Hz and blends fill and
