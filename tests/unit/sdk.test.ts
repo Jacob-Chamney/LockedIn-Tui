@@ -5,6 +5,7 @@ import {
   defineParticleSystem,
   definePlugin,
   badges,
+  bars,
   callout,
   card,
   confirm,
@@ -929,4 +930,53 @@ test("badges accept colour overrides and can be empty", () => {
   expect(nodes[0]).toMatchObject({ color: "panel" })
   expect(nodes[1]).toMatchObject({ fg: "foreground" })
   expect(badges({ anchor: "top-left", x: 0, y: 0, width: 40, badges: [] })).toEqual([])
+})
+
+test("bars lines up labels, progress tracks and values", () => {
+  const nodes = bars({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 40,
+    labelWidth: 10,
+    valueWidth: 4,
+    items: [
+      { label: "gpt-4.1", value: 60, text: "60%" },
+      { label: "claude", value: 40, text: "40%" },
+    ],
+  })
+  expect(nodes).toHaveLength(6)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, text: "gpt-4.1   ", fg: "foreground" })
+  expect(nodes[1]).toMatchObject({
+    kind: "progress",
+    x: 13,
+    y: 3,
+    width: 24,
+    height: 1,
+    value: 1,
+    radius: 0,
+    color: "primary",
+    track: "line",
+  })
+  expect(nodes[2]).toMatchObject({ kind: "text", x: 38, y: 3, text: " 60%", fg: "muted" })
+  expect(nodes[4]!.kind).toBe("progress")
+  if (nodes[4]!.kind !== "progress") return
+  expect(nodes[4]!.value).toBeCloseTo(2 / 3)
+  expect(nodes[5]).toMatchObject({ x: 38, y: 4, text: " 40%" })
+})
+
+test("bars can hide the value column and is empty without items", () => {
+  const nodes = bars({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 30,
+    valueWidth: 0,
+    tone: "accent",
+    track: "muted",
+    items: [{ label: "one", value: 1 }],
+  })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[1]).toMatchObject({ kind: "progress", color: "accent", track: "muted" })
+  expect(bars({ anchor: "top-left", x: 0, y: 0, width: 30, items: [] })).toEqual([])
 })

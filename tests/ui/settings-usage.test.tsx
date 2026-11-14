@@ -148,6 +148,48 @@ describe("budget", () => {
   })
 })
 
+describe("per-model usage", () => {
+  test("tokens aggregate per model, largest first", () => {
+    const totals = usage.modelUsage([
+      { model: "a", input: 10, output: 5, costMicroUsd: null, at: "t", failed: false, scope: "school" },
+      { model: "b", input: 40, output: 2, costMicroUsd: null, at: "t", failed: false, scope: "school" },
+      { model: "a", input: 1, output: 1, costMicroUsd: null, at: "t", failed: false, scope: "school" },
+    ])
+    expect(totals).toEqual([
+      { model: "b", tokens: 42 },
+      { model: "a", tokens: 17 },
+    ])
+  })
+
+  test("a bar chart shows the busiest models with relative shares", async () => {
+    const runs = [
+      { model: "big/model", input: 900, output: 100, costMicroUsd: 12, at: "2026-11-01T10:00:00Z", failed: false, scope: "school" },
+      { model: "small/model", input: 100, output: 0, costMicroUsd: 1, at: "2026-11-01T11:00:00Z", failed: false, scope: "school" },
+    ]
+    const setup = await mount(100, 30, state(), snapshot({ runs: runs as never }))
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("BY MODEL")
+      expect(frame).toContain("big/model")
+      expect(frame).toContain("100%")
+      expect(frame).toContain("small/model")
+      expect(frame).toContain("10%")
+      expect(frame).toContain("█")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("no runs means no chart", async () => {
+    const setup = await mount(100, 30, state(), snapshot({ runs: [] }))
+    try {
+      expect(lines(setup).join("\n")).not.toContain("BY MODEL")
+    } finally {
+      await setup.dispose()
+    }
+  })
+})
+
 describe("pause at limit and override", () => {
   test("at the limit the request is refused with the documented copy", async () => {
     const atLimit = snapshot({ spentMicroUsd: 5_000_000 })
@@ -204,8 +246,10 @@ describe("layout and keys", () => {
       expect(out.length).toBe(24)
       for (const line of out) expect(line.length).toBe(80)
       // two rows shown, the rest behind the key
-      expect(out.join("\n")).toContain("Enter expand")
-      expect(out.join("\n").match(/openai\/gpt-4\.1-mini/g)!.length).toBe(2)
+      const frame = out.join("\n")
+      expect(frame).toContain("Enter expand")
+      const breakdown = frame.slice(frame.indexOf("BREAKDOWN"))
+      expect(breakdown.match(/openai\/gpt-4\.1-mini/g)!.length).toBe(2)
     } finally {
       await setup.dispose()
     }
