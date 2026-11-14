@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `checklist()` draws `[x]`/`[ ]`/`[-]` checkbox rows for plugin scenes; the
+  plugin manager uses the same boxes for its enable/disable list.
 - `accordion()` draws collapsible titled sections for plugin scenes; Settings
   headers fold and unfold with `h`/`l`.
 - `gauge()` draws a ring with a clamped level, centre percentage and caption

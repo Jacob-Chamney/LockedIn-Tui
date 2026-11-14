@@ -11,6 +11,7 @@
 import type { ThemePalette } from "../theme"
 import { ListRow } from "../panels/list-row"
 import { TwoColumnSurface } from "../panels/two-column"
+import { checklistBox } from "../checklist"
 
 export type PluginManagerItem = {
   id: string
@@ -71,7 +72,7 @@ export function renamePluginItem(
 }
 
 export function pluginRowLabel(item: PluginManagerItem): string {
-  return `${item.enabled ? "[x]" : "[ ]"} ${item.name}`
+  return `${checklistBox(item.enabled, item.error !== undefined)} ${item.name}`
 }
 
 export function PluginManagerPane(props: {
@@ -133,9 +134,10 @@ export function PluginManagerPane(props: {
         <ListRow
           theme={palette()}
           selected={props.state.items[props.state.cursor]?.id === item.id}
-          label={pluginRowLabel(item)}
+          label={item.name}
+          check={{ checked: item.enabled, disabled: item.error !== undefined }}
           value={item.bundled ? "bundled" : item.error ? "error" : ""}
-          labelWidth={Math.max(24, Math.floor(props.width * 0.45))}
+          labelWidth={Math.max(16, Math.floor(props.width * 0.45) - 10)}
           tone={item.error ? "error" : undefined}
         />
       ))}

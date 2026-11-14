@@ -9,6 +9,7 @@ import {
   bars,
   callout,
   card,
+  checklist,
   confirm,
   createCursor,
   dashboard,
@@ -1313,4 +1314,48 @@ test("accordion can hide carets and skip a meta that does not fit", () => {
   expect(nodes[0]).toMatchObject({ text: "A", fg: "primary" })
   expect(nodes).toHaveLength(2)
   expect(nodes[1]).toMatchObject({ x: 0, text: "  X" })
+})
+
+test("checklist draws markers, boxes and labels", () => {
+  const nodes = checklist({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 30,
+    selected: 0,
+    items: [
+      { id: "a", label: "notes", checked: true },
+      { id: "b", label: "filesystem", checked: false },
+      { id: "c", label: "legacy", checked: true, disabled: true },
+    ],
+  })
+  expect(nodes).toHaveLength(9)
+  expect(nodes[0]).toMatchObject({ x: 2, y: 3, text: "▌ ", fg: "primary" })
+  expect(nodes[1]).toMatchObject({ x: 4, y: 3, text: "[x]", fg: "success" })
+  expect(nodes[2]).toMatchObject({ x: 8, y: 3, text: "notes", fg: "primary" })
+  expect(nodes[4]).toMatchObject({ x: 4, y: 4, text: "[ ]", fg: "muted" })
+  expect(nodes[5]).toMatchObject({ x: 8, y: 4, text: "filesystem", fg: "foreground" })
+  expect(nodes[7]).toMatchObject({ x: 4, y: 5, text: "[-]", fg: "muted" })
+})
+
+test("checklist honours glyph and colour overrides", () => {
+  const nodes = checklist({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 30,
+    glyphs: { checked: "Y", unchecked: "N", disabled: "-" },
+    markerFg: "accent",
+    checkedFg: "warning",
+    uncheckedFg: "secondary",
+    disabledFg: "line",
+    fg: "foreground",
+    selectedFg: "error",
+    items: [
+      { id: "a", label: "one", checked: true },
+      { id: "b", label: "two", checked: false, disabled: true },
+    ],
+  })
+  expect(nodes[0]).toMatchObject({ text: "Y", fg: "warning" })
+  expect(nodes[2]).toMatchObject({ text: "-", fg: "line" })
 })

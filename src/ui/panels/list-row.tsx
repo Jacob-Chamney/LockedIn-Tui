@@ -8,6 +8,7 @@
 import type { ThemePalette } from "../theme"
 import type { BadgeTone } from "../badges"
 import { Badge } from "../shell/badges"
+import { checklistBox } from "../checklist"
 
 export type ListRowTone = "normal" | "muted" | "error"
 
@@ -21,6 +22,8 @@ export function ListRow(props: {
   value?: string
   /** A tone-coded chip instead of a plain value; takes precedence over `value`. */
   badge?: { label: string; tone?: BadgeTone }
+  /** A checkbox before the label, for checklist rows. */
+  check?: { checked: boolean; disabled?: boolean }
   /** A second, muted line under the label. */
   detail?: string
   /** When set, the label is padded/truncated to this width. */
@@ -50,6 +53,21 @@ export function ListRow(props: {
         <text fg={palette().primary} wrapMode="none" width={2}>
           {props.selected ? "▌ " : "  "}
         </text>
+        {props.check ? (
+          <text
+            fg={
+              props.check.disabled
+                ? palette().muted
+                : props.check.checked
+                  ? palette().success
+                  : palette().muted
+            }
+            wrapMode="none"
+            width={4}
+          >
+            {checklistBox(props.check.checked, props.check.disabled)}
+          </text>
+        ) : null}
         <text
           fg={
             props.active

@@ -56,6 +56,11 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  checklistRows,
+  type ChecklistGlyphs as ChecklistGlyphsInput,
+  type ChecklistItem as ChecklistItemInput,
+} from "../src/ui/checklist"
+import {
   heatmapLayout,
   type HeatmapDay as HeatmapDayInput,
 } from "../src/ui/heatmap"
@@ -2681,6 +2686,89 @@ export function accordion(options: AccordionOptions): SceneNode[] {
       fg: selected ? (options.selectedFg ?? "primary") : (options.itemFg ?? "foreground"),
     })
     y += 1
+  }
+  return nodes
+}
+
+/** The boxes a `checklist()` uses. */
+export type ChecklistGlyphs = ChecklistGlyphsInput
+
+/** One line in a `checklist()`. */
+export type ChecklistItem = ChecklistItemInput
+
+export type ChecklistOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Total row width in cells. */
+  width: number
+  items: readonly ChecklistItem[]
+  /** Draw a marker column and mark this row. */
+  selected?: number
+  glyphs?: Partial<ChecklistGlyphs>
+  /** Marker colour. Defaults to `primary`. */
+  markerFg?: string
+  /** Checked box colour. Defaults to `success`. */
+  checkedFg?: string
+  /** Unchecked box colour. Defaults to `muted`. */
+  uncheckedFg?: string
+  /** Disabled box colour. Defaults to `muted`. */
+  disabledFg?: string
+  /** Label colour. Defaults to `foreground`. */
+  fg?: string
+  /** Selected label colour. Defaults to `primary`. */
+  selectedFg?: string
+}
+
+/**
+ * A checklist: three-cell boxes with aligned labels and a cursor marker.
+ *
+ *   checklist({ anchor: "top-left", x: 2, y: 2, width: 40, selected: 0,
+ *               items: [
+ *                 { id: "a", label: "notes", checked: true },
+ *                 { id: "b", label: "filesystem", checked: false },
+ *                 { id: "c", label: "legacy", checked: false, disabled: true },
+ *               ] })
+ *
+ * Disabled items render `[-]` and keep their checked state. `selected` adds a
+ * marker column; labels fit to the row and truncate with `…`.
+ */
+export function checklist(options: ChecklistOptions): SceneNode[] {
+  const rows = checklistRows(options)
+  const nodes: SceneNode[] = []
+  for (const row of rows) {
+    const y = options.y + row.index
+    if (row.marker !== "") {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x,
+        y,
+        text: row.marker,
+        fg: options.markerFg ?? "primary",
+      })
+    }
+    const boxX = options.x + row.marker.length
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: boxX,
+      y,
+      text: row.box,
+      fg: row.disabled
+        ? (options.disabledFg ?? "muted")
+        : row.checked
+          ? (options.checkedFg ?? "success")
+          : (options.uncheckedFg ?? "muted"),
+    })
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: boxX + row.boxWidth + 1,
+      y,
+      text: row.label,
+      fg: row.selected ? (options.selectedFg ?? "primary") : (options.fg ?? "foreground"),
+    })
   }
   return nodes
 }
