@@ -105,6 +105,22 @@ describe("rendering", () => {
     return setup.captureCharFrame().split("\n")
   }
 
+  test("items hang off their section with tree guides", async () => {
+    const rows = explore.explorerRows({})
+    const setup = await mount(rows, explore.firstItem(rows))
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("├─")
+      expect(frame).toContain("└─")
+      expect(frame).toContain("│ ")
+      const selected = frame.split("\n").find((line) => line.includes("Chill chat"))!
+      expect(selected).toContain("▌")
+      expect(selected).toContain("└─")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("the selected row carries a bar, and the header a focus glyph", async () => {
     const rows = explore.explorerRows({})
     const setup = await mount(rows, explore.firstItem(rows))

@@ -12,6 +12,7 @@
  */
 import type { ThemePalette } from "../theme"
 import type { PaneId } from "./state"
+import { treeRows, type TreeItem } from "../tree"
 
 export type ExplorerItem = {
   kind: "item"
@@ -154,7 +155,22 @@ export function Explorer(props: {
   /** Keep the cursor row inside the pane instead of slicing from row zero. */
   const start = () =>
     Math.max(0, Math.min(Math.max(0, props.rows.length - size()), props.cursor - Math.floor(size() / 2)))
-  const visible = () => props.rows.slice(start(), start() + size())
+  const tree = () =>
+    treeRows({
+      items: props.rows.map((row, index): TreeItem => {
+        if (row.kind === "divider") {
+          return { id: `divider:${index}`, label: "", depth: 0, divider: true }
+        }
+        if (row.kind === "section") {
+          return { id: row.key, label: row.label, depth: 0, hasChildren: true, expanded: true }
+        }
+        return { id: row.key, label: row.label, depth: 1 }
+      }),
+      width: Math.max(1, props.width - 2),
+      selected: props.cursor,
+      carets: false,
+    })
+  const visible = () => tree().slice(start(), start() + size())
 
   return (
     <box
@@ -171,40 +187,37 @@ export function Explorer(props: {
           <b>{props.focused ? "▸ EXPLORER" : "  EXPLORER"}</b>
         </text>
       </box>
-      {visible().map((row, index) => {
-        if (row.kind === "divider") {
+      {visible().map((row) => {
+        if (row.divider) {
           return (
             <box paddingX={1} height={1}>
               <text fg={palette().line} wrapMode="none">
-                {"─".repeat(Math.max(0, props.width - 4))}
-              </text>
-            </box>
-          )
-        }
-        if (row.kind === "section") {
-          return (
-            <box paddingX={1} height={1} marginTop={1}>
-              <text fg={palette().primary} wrapMode="none">
                 {row.label}
               </text>
             </box>
           )
         }
-        const selected = start() + index === props.cursor
+        const section = row.depth === 0
         return (
           <box
             flexDirection="row"
-            backgroundColor={selected ? palette().panel : palette().surface}
+            backgroundColor={row.selected ? palette().panel : palette().surface}
             height={1}
+            paddingX={1}
           >
             <text fg={palette().primary} wrapMode="none">
-              {selected ? "▌" : " "}
+              {row.marker}
             </text>
+            {row.guides !== "" || row.branch !== "" ? (
+              <text fg={palette().line} wrapMode="none">
+                {`${row.guides}${row.branch}`}
+              </text>
+            ) : null}
             <text
-              fg={selected ? palette().foreground : palette().muted}
+              fg={section ? palette().primary : row.selected ? palette().foreground : palette().muted}
               wrapMode="none"
             >
-              {selected ? <b>{` ${row.label}`}</b> : ` ${row.label}`}
+              {section ? <b>{row.label}</b> : row.label}
             </text>
           </box>
         )

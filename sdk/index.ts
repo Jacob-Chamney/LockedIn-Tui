@@ -29,6 +29,12 @@ import type {
 import type { ThemePalette } from "../src/ui/theme"
 import { tabLayout, type TabSpec as TabSpecInput } from "../src/ui/tabs"
 import {
+  flattenTree,
+  treeRows,
+  type TreeGlyphs as TreeGlyphsInput,
+  type TreeNode as TreeNodeInput,
+} from "../src/ui/tree"
+import {
   STEPPER_PREFIX_WIDTH,
   stepPrefix,
   stepRail,
@@ -2357,6 +2363,124 @@ export function stepper(options: StepperOptions): SceneNode[] {
       y += 1
     }
   })
+  return nodes
+}
+
+/** The guide and caret glyphs a `tree()` uses. */
+export type TreeGlyphs = TreeGlyphsInput
+
+/** A node in a `tree()`; children nest under it. */
+export type TreeNode = TreeNodeInput
+
+export type TreeOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Total row width in cells. */
+  width: number
+  nodes: readonly TreeNode[]
+  /** Ids whose children are hidden and whose caret points right. */
+  collapsed?: readonly string[]
+  /** Draw a marker column and mark this visible row. */
+  selected?: number
+  glyphs?: Partial<TreeGlyphs>
+  /** Draw expand/collapse carets; defaults true. */
+  carets?: boolean
+  /** Leaf label colour. Defaults to `foreground`. */
+  fg?: string
+  /** Root label colour. Defaults to `primary`. */
+  rootFg?: string
+  /** Detail colour. Defaults to `muted`. */
+  detailFg?: string
+  /** Marker colour. Defaults to `primary`. */
+  markerFg?: string
+  /** Guide, branch and caret colour. Defaults to `line`. */
+  guideFg?: string
+}
+
+/**
+ * A tree with guide glyphs, expand/collapse carets and a selection marker.
+ *
+ *   tree({ anchor: "top-left", x: 2, y: 2, width: 48, collapsed: ["b"],
+ *          nodes: [
+ *            { id: "a", label: "project", children: [
+ *              { id: "a1", label: "src", children: [{ id: "a2", label: "index.ts" }] },
+ *            ] },
+ *            { id: "b", label: "archive", children: [{ id: "b1", label: "old.ts" }] },
+ *          ] })
+ *
+ * Collapsed ids hide their children; the caret turns from `▾` to `▸`. Guides
+ * mark ancestors that still have siblings below, and `├─`/`└─` mark the branch.
+ * Pass `carets: false` for a static tree. A node's `detail` is a muted second
+ * line.
+ */
+export function tree(options: TreeOptions): SceneNode[] {
+  const items = flattenTree(options.nodes, options.collapsed ?? [])
+  const rows = treeRows({
+    items,
+    width: options.width,
+    ...(options.selected === undefined ? {} : { selected: options.selected }),
+    ...(options.glyphs === undefined ? {} : { glyphs: options.glyphs }),
+    ...(options.carets === undefined ? {} : { carets: options.carets }),
+  })
+  const nodes: SceneNode[] = []
+  let y = options.y
+  for (const row of rows) {
+    const guideX = options.x + row.marker.length
+    const caretX = guideX + row.guides.length + row.branch.length
+    const labelX = options.x + row.prefixWidth
+    if (row.marker !== "") {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x,
+        y,
+        text: row.marker,
+        fg: options.markerFg ?? "primary",
+      })
+    }
+    if (row.guides !== "" || row.branch !== "") {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: guideX,
+        y,
+        text: `${row.guides}${row.branch}`,
+        fg: options.guideFg ?? "line",
+      })
+    }
+    if (row.caret !== " " && row.caret !== "") {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: caretX,
+        y,
+        text: `${row.caret} `,
+        fg: options.guideFg ?? "line",
+      })
+    }
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: labelX,
+      y,
+      text: row.label,
+      fg: row.depth === 0 ? (options.rootFg ?? "primary") : (options.fg ?? "foreground"),
+    })
+    if (row.detail) {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: labelX,
+        y: y + 1,
+        text: row.detail,
+        fg: options.detailFg ?? "muted",
+      })
+      y += 2
+    } else {
+      y += 1
+    }
+  }
   return nodes
 }
 
