@@ -30,7 +30,7 @@ test("a plugin menu renders its options with a cursor", async () => {
 
 test("a confirm and a prompt render their messages", async () => {
   for (const request of [
-    { kind: "confirm" as const, message: "delete this?", confirmLabel: "delete", cancelLabel: "keep" },
+    { kind: "confirm" as const, message: "delete this?", confirmLabel: "delete", cancelLabel: "keep", index: 0 },
     { kind: "prompt" as const, message: "name?", value: "draft", placeholder: "untitled" },
   ]) {
     const setup = await testRender(
@@ -43,5 +43,25 @@ test("a confirm and a prompt render their messages", async () => {
     } finally {
       await setup.dispose()
     }
+  }
+})
+
+test("a confirm can point at the cancel option", async () => {
+  const setup = await testRender(
+    () => (
+      <PluginRequestOverlay
+        theme={crimson}
+        width={80}
+        height={24}
+        request={{ kind: "confirm", message: "delete?", confirmLabel: "delete", cancelLabel: "keep", index: 1 }}
+      />
+    ),
+    { width: 80, height: 24 },
+  )
+  try {
+    await setup.flush()
+    expect(setup.captureCharFrame()).toContain("▸ keep")
+  } finally {
+    await setup.dispose()
   }
 })
