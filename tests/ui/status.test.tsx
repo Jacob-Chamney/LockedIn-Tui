@@ -164,3 +164,71 @@ test("a plugin status chip appears beside the mode", async () => {
     await setup.dispose()
   }
 })
+
+describe("a narrow bar drops pieces instead of clipping chips", () => {
+  test("40 columns keeps the pane, mode and warning whole", async () => {
+    const setup = await testRender(
+      () => (
+        <StatusBar
+          theme={crimson}
+          width={40}
+          pane="chat"
+          mode="normal"
+          overlay={null}
+          context="chill"
+          hints={[]}
+          tokens={1234}
+          cost={null}
+          note="no model"
+          noteTone="warn"
+        />
+      ),
+      { width: 40, height: 2 },
+    )
+    try {
+      await setup.flush()
+      const line = setup.captureCharFrame().split("\n")[0]!
+      expect(line.length).toBe(40)
+      expect(line).toContain("CHILL")
+      expect(line).toContain("NORMAL")
+      expect(line).toContain("no model")
+      expect(line).toContain("? help")
+      // Usage is the first thing to go; the warning stays.
+      expect(line).not.toContain("1234 tok")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("50 columns truncates the plugin chip but keeps the note and help", async () => {
+    const setup = await testRender(
+      () => (
+        <StatusBar
+          theme={crimson}
+          width={50}
+          pane="chat"
+          mode="normal"
+          overlay={null}
+          context="chill"
+          hints={[]}
+          tokens={0}
+          cost={null}
+          note="no model"
+          noteTone="warn"
+          pluginStatus={{ text: "a fairly long plugin status", tone: "warn" }}
+        />
+      ),
+      { width: 50, height: 2 },
+    )
+    try {
+      await setup.flush()
+      const line = setup.captureCharFrame().split("\n")[0]!
+      expect(line.length).toBe(50)
+      expect(line).toContain("a fairly long…")
+      expect(line).toContain("no model")
+      expect(line).toContain("? help")
+    } finally {
+      await setup.dispose()
+    }
+  })
+})
