@@ -36,6 +36,10 @@ import {
 } from "../src/ui/timeline"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import {
+  heatmapLayout,
+  type HeatmapDay as HeatmapDayInput,
+} from "../src/ui/heatmap"
+import {
   emptyStateRows,
   emptyStateX,
   type EmptyStateRow as EmptyStateRowInput,
@@ -2156,6 +2160,94 @@ export function emptyState(options: EmptyStateOptions): SceneNode[] {
           ? (options.glyphFg ?? "primary")
           : (options.titleFg ?? "muted"),
   }))
+}
+
+/** One day in a `heatmap()`; `null` is a day outside the period. */
+export type HeatmapDay = HeatmapDayInput
+
+export type HeatmapOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Columns, one per week; each holds seven days (Monday first). */
+  weeks: readonly (readonly HeatmapDay[])[]
+  months?: readonly { week: number; label: string }[]
+  /** Columns per week; 1 or 2. Defaults to 1. */
+  cellWidth?: 1 | 2
+  dayLabels?: readonly string[]
+  /** Glyph ramp from level 0 to 4. */
+  ramp?: readonly string[]
+  /** Tokens that fill the top level; defaults to the busiest day. */
+  max?: number
+  /** Draw the month line and weekday labels; defaults true. */
+  labels?: boolean
+  /** Active cell colour. Defaults to `primary`. */
+  tone?: string
+  /** Rest colour. Defaults to `muted`. */
+  muted?: string
+}
+
+/**
+ * A contribution-style heatmap: weekdays down, weeks across.
+ *
+ *   heatmap({ anchor: "top-left", x: 2, y: 4,
+ *             weeks: [[{ runs: 1, tokens: 400 }, ...seven days], ...],
+ *             months: [{ week: 0, label: "Jan" }] })
+ *
+ * Busy days use a denser ramp glyph, so intensity reads without relying on
+ * colour alone. Adjacent cells with the same tone become one text node to keep
+ * the node count down. Pass `labels: false` for a bare grid.
+ */
+export function heatmap(options: HeatmapOptions): SceneNode[] {
+  const grid = heatmapLayout(options)
+  const labels = options.labels !== false
+  const labelWidth = labels ? (grid.days[0]?.length ?? 1) + 1 : 0
+  const nodes: SceneNode[] = []
+  let y = options.y
+  if (labels) {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y,
+      text: `${" ".repeat(labelWidth)}${grid.months}`,
+      fg: options.muted ?? "muted",
+    })
+    y += 1
+  }
+  grid.cells.forEach((row, index) => {
+    if (labels) {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x,
+        y: y + index,
+        text: `${grid.days[index]} `.padEnd(labelWidth),
+        fg: options.muted ?? "muted",
+      })
+    }
+    let start = 0
+    for (let week = 1; week <= row.length; week++) {
+      if (week < row.length && row[week]!.tone === row[start]!.tone) continue
+      const text = row
+        .slice(start, week)
+        .map((cell) => cell.glyph.repeat(grid.cellWidth))
+        .join("")
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x + labelWidth + start * grid.cellWidth,
+        y: y + index,
+        text,
+        fg:
+          row[start]!.tone === "muted"
+            ? (options.muted ?? "muted")
+            : (options.tone ?? "primary"),
+      })
+      start = week
+    }
+  })
+  return nodes
 }
 
 export type FormOptions = {
