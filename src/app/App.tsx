@@ -60,7 +60,7 @@ import { initialArchive, move as moveArchiveState, type ArchiveState } from "../
 import type { ActivityRecord } from "../services/work/activity";
 import { runProjectExport } from "./actions/work";
 import { archiveProject as archiveProjectRecord, createProject as createProjectRecord, createAgentFromTemplate, createProjectAgent, deleteProject as deleteProjectRecord, loadAgentTemplates, loadProjectAgents, loadProjects, loadWorkHome, setProjectDefaultAgent, setProjectMode, type WorkHomeData, makeAgentId, makeProjectId, projectTools, updateProjectAgent } from "./actions/projects";
-import { NOTICE_FADE_MS, NOTICE_TICK_MS, dismissLatestNotice, noticeDuration, pruneNotices, type Notice, type NoticeLevel } from "../ui/shell/notice-stack";
+import { NOTICE_ENTER_MS, NOTICE_FADE_MS, NOTICE_TICK_MS, dismissLatestNotice, noticeDuration, pruneNotices, type Notice, type NoticeLevel } from "../ui/shell/notice-stack";
 import { latestPluginStatus, updatePluginStatus, type PluginStatusMap } from "../ui/shell/plugin-status";
 import type { UpdateBadge } from "../ui/shell/layout";
 
@@ -4191,10 +4191,11 @@ export function App(props: {
       const next = pruneNotices(list, now)
       if (next.length !== list.length) setNotices(next)
       if (next.length === 0) return
-      const fading = next.some(
-        (notice) => now - notice.at >= noticeDuration(notice) - NOTICE_FADE_MS,
-      )
-      noticeTimer = setTimeout(tickNotices, fading ? NOTICE_TICK_MS : 100)
+      const animating = next.some((notice) => {
+        const age = now - notice.at
+        return age < NOTICE_ENTER_MS || age >= noticeDuration(notice) - NOTICE_FADE_MS
+      })
+      noticeTimer = setTimeout(tickNotices, animating ? NOTICE_TICK_MS : 100)
     }
     const startNoticeTimer = () => {
       if (noticeTimer !== null) return

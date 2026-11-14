@@ -1,7 +1,7 @@
 /** Messages: ten seconds, then a fade. */
 import { describe, expect, test } from "bun:test"
 
-const { NOTICE_MS, NOTICE_FADE_MS, NOTICE_MIN_WIDTH, NOTICE_MAX_WIDTH, dismissLatestNotice, pruneNotices, noticeOpacity, noticeGlyph, noticeWidth, noticeColors } = await import(
+const { NOTICE_MS, NOTICE_FADE_MS, NOTICE_ENTER_MS, NOTICE_MIN_WIDTH, NOTICE_MAX_WIDTH, dismissLatestNotice, pruneNotices, noticeOpacity, noticeGlyph, noticeWidth, noticeColors } = await import(
   "../../src/ui/shell/notice-stack"
 )
 const { crimson } = await import("../../src/ui/theme")
@@ -16,7 +16,9 @@ const notice = (at: number, duration?: number) => ({
 
 describe("notice lifetime", () => {
   test("is solid until the last second, then fades to nothing", () => {
-    expect(noticeOpacity(notice(0), 0)).toBe(1)
+    expect(noticeOpacity(notice(0), 0)).toBe(0)
+    expect(noticeOpacity(notice(0), NOTICE_ENTER_MS / 2)).toBeGreaterThan(0)
+    expect(noticeOpacity(notice(0), NOTICE_ENTER_MS)).toBeCloseTo(1)
     expect(noticeOpacity(notice(0), NOTICE_MS - NOTICE_FADE_MS)).toBe(1)
     expect(noticeOpacity(notice(0), NOTICE_MS - NOTICE_FADE_MS / 2)).toBeGreaterThan(0)
     expect(noticeOpacity(notice(0), NOTICE_MS - NOTICE_FADE_MS / 2)).toBeLessThan(1)

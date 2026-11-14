@@ -16,6 +16,9 @@ requests merge.
 
 ### Changed
 
+- Notices ease in over 180 ms instead of popping into place.
+- The status bar shows a warning-toned `no model` chip when the chat has no
+  model; `read-only` appears only when a model is configured.
 - Host confirms render selectable options (`j/k`, `y/n`, Enter, Esc); menus
   accept `1-9`.
 - Plugin status chips are keyed by plugin, show the newest, clear individually

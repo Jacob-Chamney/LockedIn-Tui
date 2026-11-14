@@ -32,6 +32,7 @@ export function StatusBar(props: {
   paneTitle?: string
   /** A one-word note beside the mode, e.g. `read-only`. */
   note?: string
+  noteTone?: "muted" | "warn" | "error"
   /** The chat's tool mode (PLAN/BUILD/LEARN), when the chat pane is active. */
   toolMode?: string
   /** A chip a plugin published with the host status service. */
@@ -124,8 +125,22 @@ export function StatusBar(props: {
           </text>
         ) : null}
         {note() ? (
-          <text fg={palette().muted} wrapMode="none">
-            {` ${note()}`}
+          <text
+            fg={
+              props.noteTone === "warn" || props.noteTone === "error"
+                ? palette().background
+                : palette().muted
+            }
+            bg={
+              props.noteTone === "error"
+                ? palette().error
+                : props.noteTone === "warn"
+                  ? palette().warning
+                  : undefined
+            }
+            wrapMode="none"
+          >
+            {` ${note()} `}
           </text>
         ) : null}
       </box>
