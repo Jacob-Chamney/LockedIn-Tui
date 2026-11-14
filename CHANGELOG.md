@@ -16,6 +16,9 @@ requests merge.
 
 ### Changed
 
+- The status bar allocates by priority: pane and mode chips stay whole, the
+  warning note is kept before a plugin chip, usage drops before the help hint,
+  and the hint shortens on narrow panes instead of clipping mid-word.
 - Overlays fade their dimmed backdrop in over 160 ms while the window stays
   opaque; reduced motion skips the fade.
 - The blocked-send warning names the problem in a fitted line, splitting the
