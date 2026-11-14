@@ -12,6 +12,7 @@
 import { parseProgress } from "../../domain/progress"
 import { bindingLabel, parseBinding, type Binding } from "../keymap/registry"
 import type { ThemePalette } from "../theme"
+import { stepPrefix as renderStepPrefix, stepRail, stepStatus } from "../stepper"
 
 export type StepRow =
   | { kind: "heading"; text: string }
@@ -77,7 +78,7 @@ export function currentStep(rows: StepRow[], cursor: number): Extract<StepRow, {
 export type RenderedStepLine = {
   text: string
   row: number
-  kind: "heading" | "step" | "blank"
+  kind: "heading" | "step" | "blank" | "rail"
   selected: boolean
   continuation: boolean
 }
@@ -141,7 +142,7 @@ export function wrapStepText(text: string, width: number): string[] {
 
 /** Prefix/continuation for one step row, aligned under the step text. */
 export function stepPrefix(selected: boolean, checked: boolean): string {
-  return `${selected ? "▌" : " "} ${checked ? "✓" : "☐"}  `
+  return renderStepPrefix(stepStatus(checked, selected), selected)
 }
 
 /**
@@ -182,7 +183,7 @@ export function layoutSteps(input: {
       })
     }
     if (input.rows[index + 1]?.kind === "step") {
-      lines.push({ text: "", row: index, kind: "blank", selected: false, continuation: false })
+      lines.push({ text: stepRail(), row: index, kind: "rail", selected: false, continuation: false })
     }
   }
 
@@ -392,6 +393,10 @@ export function StepsReader(props: {
               </text>
             ) : line.kind === "blank" ? (
               <text> </text>
+            ) : line.kind === "rail" ? (
+              <text fg={palette().muted} wrapMode="none">
+                {line.text}
+              </text>
             ) : (
               <text fg={line.selected ? palette().primary : body()} wrapMode="none">
                 {line.text}
