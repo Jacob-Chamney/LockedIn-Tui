@@ -12,6 +12,7 @@ import {
   createCursor,
   dashboard,
   ease,
+  emptyState,
   fadeColor,
   fadeIn,
   fadeNode,
@@ -1019,4 +1020,34 @@ test("timeline honours colour overrides and can be empty", () => {
   expect(nodes[2]).toMatchObject({ fg: "primary" })
   expect(nodes[4]).toMatchObject({ fg: "warning" })
   expect(timeline({ anchor: "top-left", x: 0, y: 0, width: 40, entries: [] })).toEqual([])
+})
+
+test("emptyState centres a glyph, title and hint", () => {
+  const nodes = emptyState({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 20,
+    glyph: "○",
+    title: "no activity",
+    hint: "go",
+  })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 9, y: 0, text: "○", fg: "primary" })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 4, y: 1, text: "no activity", fg: "muted" })
+  expect(nodes[2]).toMatchObject({ kind: "text", x: 9, y: 2, text: "go", fg: "primary" })
+})
+
+test("emptyState centres vertically in a box and can be text-only", () => {
+  const nodes = emptyState({
+    anchor: "top-left",
+    x: 2,
+    y: 1,
+    width: 20,
+    height: 10,
+    title: "nothing",
+  })
+  expect(nodes).toHaveLength(1)
+  expect(nodes[0]).toMatchObject({ x: 2 + 6, y: 1 + 4, text: "nothing", fg: "muted" })
+  expect(emptyState({ anchor: "top-left", x: 0, y: 0, width: 20, title: "" })).toEqual([])
 })

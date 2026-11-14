@@ -36,6 +36,11 @@ import {
 } from "../src/ui/timeline"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import {
+  emptyStateRows,
+  emptyStateX,
+  type EmptyStateRow as EmptyStateRowInput,
+} from "../src/ui/empty-state"
+import {
   badgeLayout,
   badgeStyle,
   type BadgeSpec as BadgeSpecInput,
@@ -2095,6 +2100,62 @@ export function timeline(options: TimelineOptions): SceneNode[] {
     }
   }
   return nodes
+}
+
+/** One row of an `emptyState()`. */
+export type EmptyStateRow = EmptyStateRowInput
+
+export type EmptyStateOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Text columns available; titles and hints wrap to it. */
+  width: number
+  title: string
+  hint?: string
+  /** A glyph above the title; omit for a text-only empty state. */
+  glyph?: string
+  /** Optional box height; content is centred vertically inside it. */
+  height?: number
+  /** Title colour. Defaults to `muted`. */
+  titleFg?: string
+  /** Hint colour. Defaults to `primary`. */
+  hintFg?: string
+  /** Glyph colour. Defaults to `primary`. */
+  glyphFg?: string
+}
+
+/**
+ * A centred empty-state placeholder: glyph, title and hint.
+ *
+ *   emptyState({ anchor: "top-left", x: 4, y: 6, width: 40, glyph: "○",
+ *                title: "no activity yet",
+ *                hint: "run an agent to see events" })
+ *
+ * Rows are centred horizontally in `width` and stacked in order. Pass `height`
+ * to centre the block vertically inside a box; long titles and hints wrap, and
+ * a word wider than the line hard-breaks.
+ */
+export function emptyState(options: EmptyStateOptions): SceneNode[] {
+  const rows = emptyStateRows(options)
+  if (rows.length === 0) return []
+  const top =
+    options.height === undefined
+      ? 0
+      : Math.max(0, Math.floor((options.height - rows.length) / 2))
+  return rows.map((row, index) => ({
+    kind: "text" as const,
+    anchor: options.anchor,
+    x: options.x + emptyStateX(row, options.width),
+    y: options.y + top + index,
+    text: row.text,
+    fg:
+      row.kind === "hint"
+        ? (options.hintFg ?? "primary")
+        : row.kind === "glyph"
+          ? (options.glyphFg ?? "primary")
+          : (options.titleFg ?? "muted"),
+  }))
 }
 
 export type FormOptions = {
