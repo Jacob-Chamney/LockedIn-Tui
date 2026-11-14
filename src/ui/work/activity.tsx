@@ -12,7 +12,7 @@ import type { WriteDecisionEvent } from "../../services/work/writes"
 import { parseBinding, type Binding } from "../keymap/registry"
 import type { ThemePalette } from "../theme"
 import { FloatingWindow, WindowBody, WindowFooter, WindowHeader } from "../panels/floating-window"
-import { PanelEmpty } from "../panels/panel-frame"
+import { EmptyState } from "../shell/empty-state"
 import { Timeline } from "../shell/timeline"
 import type { TimelineEntry } from "../timeline"
 import { windowStart } from "../panels/select-list"
@@ -228,11 +228,22 @@ export function ActivityPane(props: {
     >
       {deepEmpty() ? (
         <WindowBody center>
-          <PanelEmpty theme={palette()} line={emptyCopy()} />
+          <EmptyState
+            theme={palette()}
+            title={emptyCopy()}
+            hint="run an agent or approve a write to see events"
+            glyph="○"
+            width={props.width - 4}
+          />
         </WindowBody>
       ) : empty() ? (
         <WindowBody center>
-          <PanelEmpty theme={palette()} line={filteredEmptyCopy(props.view)} />
+          <EmptyState
+            theme={palette()}
+            title={filteredEmptyCopy(props.view)}
+            glyph="◇"
+            width={props.width - 4}
+          />
         </WindowBody>
       ) : (
         <WindowBody>

@@ -191,7 +191,10 @@ describe("states and layout", () => {
     const empty = await mount(80, 24, activity.initialActivity, [])
     try {
       const out = lines(empty)
-      expect(out.join("\n")).toContain("no activity yet")
+      const frame = out.join("\n")
+      expect(frame).toContain("○")
+      expect(frame).toContain("no activity yet")
+      expect(frame).toContain("run an agent or approve a write to see events")
       for (const line of out) expect(line.length).toBe(80)
     } finally {
       await empty.dispose()
@@ -203,7 +206,9 @@ describe("states and layout", () => {
       { filter: { kind: "swarm", project: "my-app" }, cursor: 0, notice: null },
     )
     try {
-      expect(lines(filtered).join("\n")).toContain("no swarm records for this project · c to clear")
+      const frame = lines(filtered).join("\n")
+      expect(frame).toContain("◇")
+      expect(frame).toContain("no swarm records for this project · c to clear")
     } finally {
       await filtered.dispose()
     }
