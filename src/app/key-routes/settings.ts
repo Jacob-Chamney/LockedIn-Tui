@@ -6,6 +6,8 @@ import {
   emptySettingsView,
   selectedRow,
   settingsGroups,
+  toggleSection,
+  visibleGroups,
   typeEdit,
   type SettingsState,
   type SettingsView,
@@ -135,8 +137,17 @@ export function handleSettingsKeys(
       event.preventDefault()
       return true
     }
-    if (press.name === "return") {
+    if (press.name === "h" || press.name === "l") {
       const groups = settingsGroups(deps.settingsView() ?? emptySettingsView())
+      deps.setSettingsState((current) => toggleSection(current, groups))
+      event.preventDefault()
+      return true
+    }
+    if (press.name === "return") {
+      const groups = visibleGroups(
+        settingsGroups(deps.settingsView() ?? emptySettingsView()),
+        deps.settingsState().collapsed ?? [],
+      )
       const row = selectedRow(groups, deps.settingsState().cursor)
       if (row?.row.id === "theme") {
         deps.update({ ...state, pane: "themes", mode: "normal" })

@@ -48,6 +48,11 @@ import {
   type TimelineEntry as TimelineEntryInput,
   type TimelineTone as TimelineToneInput,
 } from "../src/ui/timeline"
+import {
+  accordionRows,
+  type AccordionSection as AccordionSectionInput,
+  type AccordionItem as AccordionItemInput,
+} from "../src/ui/accordion"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
@@ -2575,6 +2580,107 @@ export function gauge(options: GaugeOptions): SceneNode[] {
       text: layout.label,
       fg: options.labelFg ?? "muted",
     })
+  }
+  return nodes
+}
+
+/** One row inside an `accordion()` section. */
+export type AccordionItem = AccordionItemInput
+
+/** A titled group of items in an `accordion()`. */
+export type AccordionSection = AccordionSectionInput
+
+export type AccordionOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Total row width in cells. */
+  width: number
+  sections: readonly AccordionSection[]
+  /** Ids whose items are hidden and whose caret points right. */
+  collapsed?: readonly string[]
+  /** Highlight an item by section and item id. */
+  selected?: { section: string; item: string }
+  /** Draw a caret on every header; defaults true. */
+  carets?: boolean
+  /** Header colour. Defaults to `primary`. */
+  titleFg?: string
+  /** Item label colour. Defaults to `foreground`. */
+  itemFg?: string
+  /** Selected item colour. Defaults to `primary`. */
+  selectedFg?: string
+  /** Header meta colour. Defaults to `muted`. */
+  metaFg?: string
+  /** Marker column for items: selected and rest strings. */
+  marker?: { selected?: string; rest?: string }
+}
+
+/**
+ * A collapsible section list: headers with carets and indented items.
+ *
+ *   accordion({ anchor: "top-left", x: 2, y: 2, width: 48, collapsed: ["models"],
+ *               sections: [
+ *                 { id: "user", title: "USER", items: [
+ *                   { id: "name", label: "Username" },
+ *                 ] },
+ *                 { id: "models", title: "MODELS", items: [
+ *                   { id: "provider", label: "Providers" },
+ *                 ] },
+ *               ] })
+ *
+ * Collapsed ids hide their items and turn `▾` into `▸`. `selected` adds a
+ * marker column to item rows; headers are never selected. A section `meta` is
+ * right-aligned when it fits.
+ */
+export function accordion(options: AccordionOptions): SceneNode[] {
+  const rows = accordionRows(options)
+  const width = Math.max(1, Math.floor(options.width))
+  const fit = (text: string, room: number) =>
+    text.length <= room ? text : room <= 1 ? "…" : `${text.slice(0, room - 1)}…`
+  const markerSelected = options.marker?.selected ?? "▌ "
+  const markerRest = options.marker?.rest ?? "  "
+  const nodes: SceneNode[] = []
+  let y = options.y
+
+  for (const row of rows) {
+    if (row.kind === "header") {
+      const prefix = row.caret === "" ? "" : `${row.caret} `
+      const title = `${prefix}${row.title}`
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x,
+        y,
+        text: title,
+        fg: options.titleFg ?? "primary",
+      })
+      if (row.meta !== undefined && title.length + row.meta.length + 2 <= width) {
+        nodes.push({
+          kind: "text",
+          anchor: options.anchor,
+          x: options.x + width - row.meta.length,
+          y,
+          text: row.meta,
+          fg: options.metaFg ?? "muted",
+        })
+      }
+      y += 1
+      continue
+    }
+    const selected =
+      options.selected !== undefined &&
+      options.selected.section === row.sectionId &&
+      options.selected.item === row.id
+    const marker = selected ? markerSelected : markerRest
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y,
+      text: `${marker}${fit(row.label, Math.max(1, width - marker.length))}`,
+      fg: selected ? (options.selectedFg ?? "primary") : (options.itemFg ?? "foreground"),
+    })
+    y += 1
   }
   return nodes
 }

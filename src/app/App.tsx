@@ -103,7 +103,7 @@ const SYNTAX_WARM_LANGUAGES = [
 
 import type { UpdateInfo, UpdateService } from "../services/update";
 import { explorerRows as explorerRowsFor, firstItem, moveExplorer, selectedItem } from "../ui/shell/explorer";
-import { initialSettingsState, moveSetting, settingsGroups } from "../ui/settings";
+import { initialSettingsState, moveSetting, settingsGroups, visibleGroups } from "../ui/settings";
 import type { PaneId } from "../ui/shell/state";
 import type { PickerEntry, PickerState } from "../services/lockin/picker";
 import { blockedReason as pickerBlockedReason, currentEntry as pickerCurrentEntry, errorLine as pickerErrorLine, initialView as initialPickerView, isPathQuery, move as movePicker, type PickerView } from "../ui/features/sources/sources-model";
@@ -507,7 +507,13 @@ export function App(props: {
     else if (pane === "skills") {
       setSkillsState((state) => (state.pane === "goals" ? moveGoal(state, delta) : moveChat(state, delta)))
     } else if (pane === "settings") {
-      setSettingsState((state) => moveSetting(state, delta, settingsGroups(settingsView() ?? emptySettingsView())))
+      setSettingsState((state) =>
+        moveSetting(
+          state,
+          delta,
+          visibleGroups(settingsGroups(settingsView() ?? emptySettingsView()), state.collapsed ?? []),
+        ),
+      )
     } else if (pane === "archive") {
       setArchiveState((state) => moveArchiveState(state, delta))
     } else if (pane === "task-centre") {
