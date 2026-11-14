@@ -58,7 +58,7 @@ describe("creating a lock-in session", () => {
       await ui.press("space")
       await ui.press("e")
       await ui.waitUntil(() => ui.frame().includes("LOCK-IN · Physics"))
-      expect(ui.frame()).toContain("▌ Chat")
+      expect(ui.frame()).toContain("├─Chat")
     } finally {
       await ui.dispose()
     }

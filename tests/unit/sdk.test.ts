@@ -42,6 +42,7 @@ import {
   tabs,
   timeline,
   transition,
+  tree,
   window,
 } from "../../sdk"
 
@@ -1153,4 +1154,60 @@ test("stepper honours glyph and colour overrides", () => {
   expect(nodes[1]).toMatchObject({ text: "  |  x", fg: "foreground" })
   expect(nodes[2]).toMatchObject({ text: "  |  ", fg: "line" })
   expect(nodes[3]).toMatchObject({ text: "* C  b", fg: "warning" })
+})
+
+test("tree draws guides, carets and a selection marker", () => {
+  const nodes = tree({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 30,
+    selected: 1,
+    nodes: [{ id: "a", label: "root", children: [{ id: "a1", label: "child" }] }],
+  })
+  expect(nodes).toHaveLength(6)
+  expect(nodes[0]).toMatchObject({ x: 2, y: 3, text: "  ", fg: "primary" })
+  expect(nodes[1]).toMatchObject({ x: 4, y: 3, text: "▾ ", fg: "line" })
+  expect(nodes[2]).toMatchObject({ x: 6, y: 3, text: "root", fg: "primary" })
+  expect(nodes[3]).toMatchObject({ x: 2, y: 4, text: "▌ ", fg: "primary" })
+  expect(nodes[4]).toMatchObject({ x: 4, y: 4, text: "  └─", fg: "line" })
+  expect(nodes[5]).toMatchObject({ x: 8, y: 4, text: "child", fg: "foreground" })
+})
+
+test("tree hides collapsed children and can omit carets", () => {
+  const collapsed = tree({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 30,
+    collapsed: ["a"],
+    nodes: [{ id: "a", label: "root", children: [{ id: "a1", label: "child" }] }],
+  })
+  expect(collapsed.map((node) => (node.kind === "text" ? node.text : ""))).toEqual(["▸ ", "root"])
+
+  const flat = tree({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 30,
+    carets: false,
+    nodes: [{ id: "a", label: "root", children: [{ id: "a1", label: "child" }] }],
+  })
+  expect(flat[0]).toMatchObject({ x: 0, text: "root", fg: "primary" })
+  expect(flat[1]).toMatchObject({ x: 0, text: "  └─", fg: "line" })
+  expect(flat[2]).toMatchObject({ x: 4, text: "child", fg: "foreground" })
+})
+
+test("tree renders a detail on a second line", () => {
+  const nodes = tree({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 30,
+    fg: "accent",
+    detailFg: "warning",
+    nodes: [{ id: "a", label: "root", detail: "three files", children: [] }],
+  })
+  expect(nodes[0]).toMatchObject({ y: 0, text: "root", fg: "primary" })
+  expect(nodes[1]).toMatchObject({ y: 1, text: "three files", fg: "warning" })
 })

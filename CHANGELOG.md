@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `tree()` draws nested rows with guides, branches and carets for plugin
+  scenes; the Explorer sidebar uses the same guides.
 - `stepper()` draws done/current/pending entries with a rail for plugin scenes;
   the assignment-steps reader uses the same glyphs and rail.
 - `heatmap()` draws a five-step intensity contribution grid for plugin scenes;
