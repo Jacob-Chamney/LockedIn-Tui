@@ -13,6 +13,8 @@ import { parseProgress } from "../../domain/progress"
 import { bindingLabel, parseBinding, type Binding } from "../keymap/registry"
 import type { ThemePalette } from "../theme"
 import { stepPrefix as renderStepPrefix, stepRail, stepStatus } from "../stepper"
+import { gaugeLayout } from "../gauge"
+import { meterCells } from "../meter"
 
 export type StepRow =
   | { kind: "heading"; text: string }
@@ -329,6 +331,13 @@ export function StepsReader(props: {
   const footer = () => footerLines(props.hasInstructions ?? false)
   const pending = () => (props.view.pendingRegenerate ? wrapStepText(REGENERATE_COPY, innerWidth()) : [])
   const notice = () => (props.view.notice ? wrapStepText(`! ${props.view.notice}`, innerWidth()) : [])
+  /** A compact ten-cell gauge beside the progress line. */
+  const gauge = () => {
+    const snapshot = props.snapshot
+    const level = gaugeLayout({ value: snapshot.checked, max: snapshot.total })
+    const cells = meterCells(snapshot.checked, snapshot.total, 10)
+    return { level, cells }
+  }
 
   /** Reserved chrome, message lines and body height, all in terminal rows. */
   const frame = () => {
@@ -371,9 +380,24 @@ export function StepsReader(props: {
       <text fg={props.focused ? palette().primary : palette().muted} wrapMode="none">
         {`${props.focused ? "▸" : " "} STEPS · assignment-steps.md${props.stale ? " · stale" : ""}`}
       </text>
-      <text fg={palette().secondary} wrapMode="none">
-        {empty() ? "" : `${progressLine(props.snapshot)}${more()}`}
-      </text>
+      <box flexDirection="row" height={1}>
+        <text fg={palette().secondary} wrapMode="none">
+          {empty() ? "" : `${progressLine(props.snapshot)}${more()}`}
+        </text>
+        {empty() || props.width < 40 ? null : (
+          <>
+            <text fg={palette().primary} wrapMode="none">
+              {`  ${"█".repeat(gauge().cells.filled)}`}
+            </text>
+            <text fg={palette().line} wrapMode="none">
+              {"░".repeat(gauge().cells.empty)}
+            </text>
+            <text fg={palette().muted} wrapMode="none">
+              {` ${gauge().level.percentText}`}
+            </text>
+          </>
+        )}
+      </box>
       {frame().blank ? <text> </text> : null}
 
       <box flexGrow={1} minHeight={0} flexDirection="column">
