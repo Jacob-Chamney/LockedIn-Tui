@@ -13,6 +13,7 @@ import type { ThemePalette } from "../theme"
 import { LOCKED_IN_LOGO, LOCKED_IN_LOGO_COMPACT } from "../shell/brand"
 import { compactTokens } from "./big-number"
 import { buildHeatmap } from "./heatmap"
+import { heatmapLayout } from "../heatmap"
 import { sparklineText } from "../sparkline"
 import { tabLayout } from "../tabs"
 import { Bars } from "../shell/bars"
@@ -167,21 +168,6 @@ export function periodLabel(period: { from: string; to: string }): string {
   return `${fromMonth} ${from.getFullYear()} – ${toMonth} ${to.getFullYear()}`
 }
 
-const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"] as const
-
-function monthLine(months: Array<{ week: number; label: string }>, gridWidth: number, cellWidth: number): string {
-  const cells = Array.from({ length: gridWidth }, () => " ")
-  for (const month of months) {
-    const start = month.week * cellWidth
-    if (start + month.label.length > cells.length) continue
-    for (let index = 0; index < month.label.length; index++) {
-      const at = start + index
-      if (at < cells.length) cells[at] = month.label[index]!
-    }
-  }
-  return cells.join("")
-}
-
 function StatColumn(props: { theme: ThemePalette; value: string; label: string }) {
   const palette = () => props.theme
   return (
@@ -243,7 +229,8 @@ export function StatsPage(props: {
   const cellWidth = () => (props.width >= 120 ? 2 : 1)
   const maxWeeks = () => Math.max(1, Math.floor((props.width - 6) / cellWidth()))
   const heat = () => buildHeatmap(props.summary.activity, props.summary.period, maxWeeks())
-  const gridWidth = () => heat().weeks.length * cellWidth()
+  const grid = () =>
+    heatmapLayout({ weeks: heat().weeks, months: heat().months, cellWidth: cellWidth() })
   /**
    * One glyph per day, bucketed to 60 columns for a long range. Daily buckets
    * keep a short range informative: a fortnight is a trend, not two blocks.
@@ -342,22 +329,21 @@ export function StatsPage(props: {
 
         <box flexDirection="column" alignItems="center" flexShrink={0}>
           <text fg={palette().muted} wrapMode="none">
-            {`${"  "}${monthLine(heat().months, gridWidth(), cellWidth())}`}
+            {`${"  "}${grid().months}`}
           </text>
-          {DAY_LABELS.map((day, row) => (
+          {grid().cells.map((row, index) => (
             <box flexDirection="row" height={1}>
               <text fg={palette().muted} wrapMode="none">
-                {`${day} `}
+                {`${grid().days[index]} `}
               </text>
-              {heat().weeks.map((week) => {
-                const entry = week[row]
-                const glyph = entry === null ? " " : entry.runs > 0 ? "■" : "·"
-                return (
-                  <text fg={entry !== null && entry.runs > 0 ? palette().primary : palette().muted} wrapMode="none">
-                    {glyph.repeat(cellWidth())}
-                  </text>
-                )
-              })}
+              {row.map((cell) => (
+                <text
+                  fg={cell.tone === "muted" ? palette().muted : palette().primary}
+                  wrapMode="none"
+                >
+                  {cell.glyph.repeat(grid().cellWidth)}
+                </text>
+              ))}
             </box>
           ))}
         </box>
@@ -365,7 +351,7 @@ export function StatsPage(props: {
 
         <box
           flexDirection="row"
-          width={Math.max(24, Math.min(props.width - 4, Math.max(64, gridWidth() + 2)))}
+          width={Math.max(24, Math.min(props.width - 4, Math.max(64, grid().width + 2)))}
           flexShrink={0}
         >
           <StatColumn theme={palette()} value={`${props.summary.bestStreak} days`} label={label()} />

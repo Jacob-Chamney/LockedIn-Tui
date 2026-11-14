@@ -19,6 +19,7 @@ import {
   fadeNodes,
   fadeOut,
   fields,
+  heatmap,
   footerActions,
   form,
   log,
@@ -1050,4 +1051,38 @@ test("emptyState centres vertically in a box and can be text-only", () => {
   expect(nodes).toHaveLength(1)
   expect(nodes[0]).toMatchObject({ x: 2 + 6, y: 1 + 4, text: "nothing", fg: "muted" })
   expect(emptyState({ anchor: "top-left", x: 0, y: 0, width: 20, title: "" })).toEqual([])
+})
+
+test("heatmap groups runs and marks active days", () => {
+  const days = (tokens: number[]) => tokens.map((tokens) => ({ runs: tokens > 0 ? 1 : 0, tokens }))
+  const nodes = heatmap({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    labels: false,
+    weeks: [days([0, 10, 0, 0, 0, 0, 0]), days([0, 0, 0, 0, 0, 0, 0])],
+  })
+  expect(nodes).toHaveLength(8)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, text: "··", fg: "muted" })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 2, y: 4, text: "█", fg: "primary" })
+  expect(nodes[2]).toMatchObject({ kind: "text", x: 3, y: 4, text: "·", fg: "muted" })
+})
+
+test("heatmap labels months and weekdays and honours colours", () => {
+  const days = (tokens: number[]) =>
+    tokens.map((tokens) => ({ runs: tokens > 0 ? 1 : 0, tokens }))
+  const empty = () => days([0, 0, 0, 0, 0, 0, 0])
+  const nodes = heatmap({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    tone: "accent",
+    muted: "line",
+    months: [{ week: 0, label: "Nov" }],
+    weeks: [days([5, 0, 0, 0, 0, 0, 0]), empty(), empty(), empty()],
+  })
+  expect(nodes[0]).toMatchObject({ x: 2, y: 3, text: "  Nov ", fg: "line" })
+  expect(nodes[1]).toMatchObject({ x: 2, y: 4, text: "M ", fg: "line" })
+  expect(nodes[2]).toMatchObject({ x: 4, y: 4, text: "█", fg: "accent" })
+  expect(nodes[3]).toMatchObject({ x: 5, y: 4, text: "···", fg: "line" })
 })

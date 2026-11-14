@@ -166,7 +166,7 @@ describe("the hero", () => {
       const frame = lines(setup).join("\n")
       for (const month of ["Jan", "Feb", "Mar", "Oct"]) expect(frame).toContain(month)
       for (const day of ["M ", "T ", "W ", "F ", "S "]) expect(frame).toContain(day)
-      expect(frame).toContain("■")
+      expect(frame).toContain("░")
       expect(frame).toContain("·")
     } finally {
       await setup.dispose()

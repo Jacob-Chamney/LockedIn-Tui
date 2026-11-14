@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `heatmap()` draws a five-step intensity contribution grid for plugin scenes;
+  the Stats calendar uses the same levels and ramp.
 - `emptyState()` draws a centred glyph/title/hint placeholder for plugin
   scenes; the Activity empty views use the same rows.
 - `timeline()` draws a vertical time/glyph/label event list for plugin scenes;
