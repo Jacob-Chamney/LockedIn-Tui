@@ -137,6 +137,29 @@ describe("the hero", () => {
     }
   })
 
+  test("per-model bars appear when the page has room", async () => {
+    const setup = await mount(140, 44)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("BY MODEL")
+      expect(frame).toContain("openai/gpt-4.1-mini")
+      expect(frame).toContain("local/llama")
+      expect(frame).toContain("29%")
+      expect(frame).toContain("█")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("the compact page omits the model chart", async () => {
+    const setup = await mount(80, 24)
+    try {
+      expect(lines(setup).join("\n")).not.toContain("BY MODEL")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("the heatmap labels months and weekdays", async () => {
     const setup = await mount(140, 44)
     try {

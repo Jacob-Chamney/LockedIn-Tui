@@ -15,6 +15,7 @@ import { compactTokens } from "./big-number"
 import { buildHeatmap } from "./heatmap"
 import { sparklineText } from "../sparkline"
 import { tabLayout } from "../tabs"
+import { Bars } from "../shell/bars"
 import { Callout } from "../shell/callout"
 
 export type StatsView = {
@@ -214,6 +215,19 @@ export function StatsPage(props: {
   const tokens = () => props.summary.overview.input + props.summary.overview.output
   const total = () => compactTokens(tokens(), 0)
   const period = () => periodLabel(props.summary.period)
+  /** The busiest models, as proportions of the busiest one. */
+  const modelItems = () => {
+    const totals = props.summary.models
+      .map((model) => ({ label: model.model, value: model.input + model.output }))
+      .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
+      .slice(0, 3)
+    const peak = totals[0]?.value ?? 0
+    return totals.map((model) => ({
+      ...model,
+      text: `${Math.round((model.value / Math.max(1, peak)) * 100)}%`,
+    }))
+  }
+  const chartWidth = () => Math.max(28, Math.min(props.width - 8, 64))
   const rangeStrip = () =>
     tabLayout({
       tabs: RANGE_ORDER.map((label) => ({ label })),
@@ -362,6 +376,26 @@ export function StatsPage(props: {
           />
           <StatColumn theme={palette()} value={formatCount(props.summary.overview.runs)} label="sessions" />
         </box>
+        {props.height >= 36 && props.width >= 60 && modelItems().length > 0 ? (
+          <box
+            flexDirection="column"
+            alignItems="center"
+            width={chartWidth()}
+            marginTop={1}
+            flexShrink={0}
+          >
+            <text fg={palette().muted} wrapMode="none">
+              {"BY MODEL"}
+            </text>
+            <Bars
+              theme={palette()}
+              items={modelItems()}
+              width={chartWidth()}
+              labelWidth={22}
+              valueWidth={4}
+            />
+          </box>
+        ) : null}
         {props.summary.diagnostic ? (
           <Callout
             theme={palette()}
