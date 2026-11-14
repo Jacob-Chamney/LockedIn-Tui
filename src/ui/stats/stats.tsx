@@ -217,16 +217,18 @@ export function StatsPage(props: {
   const heat = () => buildHeatmap(props.summary.activity, props.summary.period, maxWeeks())
   const gridWidth = () => heat().weeks.length * cellWidth()
   /**
-   * One glyph per calendar week, summing that week's tokens. The line shares
-   * the calendar's width so the trend and the contribution grid read together.
+   * One glyph per day, bucketed to 60 columns for a long range. Daily buckets
+   * keep a short range informative: a fortnight is a trend, not two blocks.
    */
   const trend = () => {
-    const weeks = heat().weeks
-    if (weeks.length === 0) return ""
-    const values = weeks.map((week) =>
-      week.reduce((sum, day) => sum + (day?.tokens ?? 0), 0),
-    )
-    return values.some((value) => value > 0) ? sparklineText({ values }) : ""
+    const values: number[] = []
+    for (const week of heat().weeks) {
+      for (const day of week) if (day) values.push(day.tokens)
+    }
+    if (values.length === 0) return ""
+    return values.some((value) => value > 0)
+      ? sparklineText({ values, width: 60 })
+      : ""
   }
   const label = () => "best streak"
 

@@ -19,8 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
-- The Stats page shows a weekly token trend under the total, and Usage shows
-  spend against the period budget.
+- The Stats page shows a daily token trend under the total (bucketed to 60
+  columns for a long range), and Usage shows spend against the period budget.
 
 ### Changed
 
