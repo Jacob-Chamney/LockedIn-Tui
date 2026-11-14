@@ -103,6 +103,35 @@ describe("rows and groups", () => {
     expect(models.rows.find((row) => row.id === "chatModel")?.value).toBe("deepseek-v4.1-flash")
   })
 
+  test("collapsed sections keep their header and hide their rows", async () => {
+    const state = { ...settings.initialSettingsState, collapsed: ["models"] }
+    const setup = await mount(120, 36, VIEW, state)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("▸ MODELS")
+      expect(frame).toContain("▾ USER")
+      expect(frame).not.toContain("Providers")
+      expect(frame).toContain("ada")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("toggleSection hides and restores the rows", () => {
+    const groups = settings.settingsGroups(VIEW)
+    const at = settings.flatRows(groups).findIndex((entry) => entry.row.id === "providers")
+    const collapsed = settings.toggleSection({ ...settings.initialSettingsState, cursor: at }, groups)
+    expect(collapsed.collapsed).toContain("models")
+    expect(settings.flatRows(settings.visibleGroups(groups, collapsed.collapsed!)).some((entry) => entry.row.id === "providers")).toBe(false)
+    const expanded = settings.toggleSection(collapsed, groups)
+    expect(expanded.collapsed).not.toContain("models")
+    expect(settings.flatRows(settings.visibleGroups(groups, expanded.collapsed!)).some((entry) => entry.row.id === "providers")).toBe(true)
+  })
+
+  test("the footer names the fold keys", () => {
+    expect(settings.settingsFooterHints()).toContain("h/l fold")
+  })
+
   test("the value column is aligned across rows", () => {
     const rows = lines
     // pure check: every label is padded to the same width before its value

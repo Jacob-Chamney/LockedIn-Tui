@@ -4,6 +4,7 @@ import {
   defineManifest,
   defineParticleSystem,
   definePlugin,
+  accordion,
   badges,
   bars,
   callout,
@@ -1269,4 +1270,47 @@ test("gauge keeps the label and percent colours", () => {
   })
   expect(nodes[2]).toMatchObject({ text: "100%", fg: "warning" })
   expect(nodes[3]).toMatchObject({ text: "one", fg: "secondary" })
+})
+
+test("accordion draws headers, hidden items and a selected marker", () => {
+  const nodes = accordion({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 20,
+    collapsed: ["models"],
+    selected: { section: "user", item: "name" },
+    sections: [
+      {
+        id: "user",
+        title: "USER",
+        meta: "2",
+        items: [
+          { id: "name", label: "Username" },
+          { id: "theme", label: "Theme" },
+        ],
+      },
+      { id: "models", title: "MODELS", items: [{ id: "provider", label: "Providers" }] },
+    ],
+  })
+  expect(nodes).toHaveLength(5)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, text: "▾ USER", fg: "primary" })
+  expect(nodes[1]).toMatchObject({ x: 21, y: 3, text: "2", fg: "muted" })
+  expect(nodes[2]).toMatchObject({ x: 2, y: 4, text: "▌ Username", fg: "primary" })
+  expect(nodes[3]).toMatchObject({ x: 2, y: 5, text: "  Theme", fg: "foreground" })
+  expect(nodes[4]).toMatchObject({ x: 2, y: 6, text: "▸ MODELS", fg: "primary" })
+})
+
+test("accordion can hide carets and skip a meta that does not fit", () => {
+  const nodes = accordion({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 4,
+    carets: false,
+    sections: [{ id: "a", title: "A", meta: "long", items: [{ id: "x", label: "X" }] }],
+  })
+  expect(nodes[0]).toMatchObject({ text: "A", fg: "primary" })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[1]).toMatchObject({ x: 0, text: "  X" })
 })

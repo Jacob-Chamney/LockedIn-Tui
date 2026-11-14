@@ -9,6 +9,8 @@ export {
   SettingsPage,
   settingsGroups,
   flatRows,
+  visibleGroups,
+  toggleSection,
   selectedRow,
   emptySettingsView,
   initialSettingsState,

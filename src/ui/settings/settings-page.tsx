@@ -9,7 +9,8 @@
 import { parseBinding, type Binding } from "../keymap/registry";
 import type { ThemePalette } from "../theme";
 import { getProvider } from "../../llm/catalogue";
-import { ListRow, SectionLabel } from "../panels/list-row";
+import { ListRow } from "../panels/list-row";
+import { accordionRows } from "../accordion";
 import { TwoColumnSurface } from "../panels/two-column";
 export type SettingsView = {
   username: string
@@ -169,10 +170,21 @@ export function settingsGroups(view: SettingsView): SettingsGroup[] {
 }
 
 /** A flat cursor path over rows only: headers are never a cursor stop. */
-export type FlatRow = { row: SettingsRow; group: string }
+export type FlatRow = { row: SettingsRow; group: string; groupId: string }
 
 export function flatRows(groups: SettingsGroup[]): FlatRow[] {
-  return groups.flatMap((group) => group.rows.map((row) => ({ row, group: group.title })))
+  return groups.flatMap((group) =>
+    group.rows.map((row) => ({ row, group: group.title, groupId: group.id })),
+  )
+}
+
+/** Drop the rows of collapsed groups; the headers stay for rendering. */
+export function visibleGroups(
+  groups: SettingsGroup[],
+  collapsed: readonly string[] = [],
+): SettingsGroup[] {
+  const closed = new Set(collapsed)
+  return groups.map((group) => (closed.has(group.id) ? { ...group, rows: [] } : group))
 }
 
 export function clampCursor(rows: FlatRow[], cursor: number): number {
@@ -191,9 +203,26 @@ export type SettingsState = {
   /** Row id being edited and its draft. */
   editing?: { id: string; key: string; draft: string } | null
   notice?: string | null
+  /** Section ids whose rows are hidden. */
+  collapsed?: readonly string[]
 }
 
-export const initialSettingsState: SettingsState = { cursor: 0, editing: null, notice: null }
+export const initialSettingsState: SettingsState = {
+  cursor: 0,
+  editing: null,
+  notice: null,
+  collapsed: [],
+}
+
+/** Toggle the section that owns the selected row and keep the cursor valid. */
+export function toggleSection(state: SettingsState, groups: SettingsGroup[]): SettingsState {
+  const current = selectedRow(groups, state.cursor)
+  if (!current) return state
+  const collapsed = new Set(state.collapsed ?? [])
+  if (collapsed.has(current.groupId)) collapsed.delete(current.groupId)
+  else collapsed.add(current.groupId)
+  return { ...state, collapsed: [...collapsed], notice: null }
+}
 
 export function move(state: SettingsState, delta: number, groups: SettingsGroup[]): SettingsState {
   return { ...state, cursor: clampCursor(flatRows(groups), state.cursor + delta), notice: null }
@@ -266,7 +295,10 @@ export function intentFor(name: string, options: { ctrl?: boolean } = {}): Setti
 }
 
 export function footerHints(): string {
-  return SETTINGS_PAGE_KEYS.filter((entry) => entry.footer).map((entry) => entry.footer).join(" · ")
+  const hints = SETTINGS_PAGE_KEYS.filter((entry) => entry.footer).map((entry) =>
+    entry.footer === "j/k move" ? "j/k" : entry.footer,
+  )
+  return `${hints.join(" · ")} · h/l fold`
 }
 
 /** The value column starts at the same cell for every row. */
@@ -284,9 +316,19 @@ export function SettingsPage(props: {
 }) {
   const palette = () => props.theme
   const groups = () => settingsGroups(props.view)
-  const rows = () => flatRows(groups())
+  const collapsed = () => props.state.collapsed ?? []
+  const rows = () => flatRows(visibleGroups(groups(), collapsed()))
   const cursor = () => clampCursor(rows(), props.state.cursor)
   const current = () => rows()[cursor()]?.row
+  const accordion = () =>
+    accordionRows({
+      sections: groups().map((group) => ({
+        id: group.id,
+        title: group.title,
+        items: group.rows.map((row) => ({ id: row.id, label: row.label })),
+      })),
+      collapsed: collapsed(),
+    })
 
 
   /**
@@ -295,26 +337,16 @@ export function SettingsPage(props: {
    * cursor, with the group header of the first visible row so the grouping
    * still reads.
    */
-  type Entry = { kind: "group"; title: string } | { kind: "row"; id: string }
-  const entries = (): Entry[] =>
-    groups().flatMap((group) => [
-      { kind: "group" as const, title: group.title },
-      ...group.rows.map((row) => ({ kind: "row" as const, id: row.id })),
-    ])
+  const entries = () => accordion()
   const maxVisible = () => Math.max(4, props.height - 2)
   const windowStart = () => {
     const all = entries()
-    const at = all.findIndex((entry) => entry.kind === "row" && entry.id === rows()[cursor()]?.row.id)
+    const at = all.findIndex((entry) => entry.kind === "item" && entry.id === rows()[cursor()]?.row.id)
     if (at === -1) return 0
     const half = Math.floor(maxVisible() / 2)
     return Math.max(0, Math.min(Math.max(0, all.length - maxVisible()), at - half))
   }
-  const visibleEntries = () => {
-    const window = entries().slice(windowStart(), windowStart() + maxVisible())
-    // Never end the window on a group header with none of its rows below it.
-    while (window.length > 0 && window[window.length - 1]!.kind === "group") window.pop()
-    return window
-  }
+  const visibleEntries = () => entries().slice(windowStart(), windowStart() + maxVisible())
 
   return (
     <TwoColumnSurface
@@ -339,10 +371,15 @@ export function SettingsPage(props: {
       }
     >
       {visibleEntries().map((entry) => {
-        if (entry.kind === "group") {
-          return <SectionLabel theme={palette()} title={entry.title} />
+        if (entry.kind === "header") {
+          return (
+            <text fg={palette().primary} wrapMode="none">
+              {`${entry.caret === "" ? "" : `${entry.caret} `}${entry.title}`}
+            </text>
+          )
         }
         const index = rows().findIndex((candidate) => candidate.row.id === entry.id)
+        if (index < 0) return null
         const row = rows()[index]!.row
         const editing = props.state.editing?.id === row.id
         return (
