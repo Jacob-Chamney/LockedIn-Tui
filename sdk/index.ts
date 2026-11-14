@@ -29,6 +29,12 @@ import type {
 import type { ThemePalette } from "../src/ui/theme"
 import { tabLayout, type TabSpec as TabSpecInput } from "../src/ui/tabs"
 import {
+  badgeLayout,
+  badgeStyle,
+  type BadgeSpec as BadgeSpecInput,
+  type BadgeTone as BadgeToneInput,
+} from "../src/ui/badges"
+import {
   CALLOUT_GLYPH,
   calloutLines,
   calloutRole,
@@ -1831,6 +1837,72 @@ export function callout(options: CalloutOptions): SceneNode[] {
       y: options.y + index,
       text: `${CALLOUT_GLYPH} ${lines[index]}`.trimEnd(),
       fg: role,
+    })
+  }
+  return nodes
+}
+
+/** A badge's tone: the fill and ink pair it selects. */
+export type BadgeTone = BadgeToneInput
+
+/** A label and tone in a badge row. */
+export type BadgeSpec = BadgeSpecInput
+
+export type BadgesOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Available columns for the whole row. */
+  width: number
+  badges: readonly BadgeSpec[]
+  /** Spaces on each side of a label; defaults to 1. */
+  padding?: number
+  /** Spaces between badges; defaults to 1. */
+  gap?: number
+  /** Fill override for every badge; otherwise the tone decides. */
+  bg?: string
+  /** Label-colour override for every badge. */
+  fg?: string
+}
+
+/**
+ * A row of filled status chips.
+ *
+ *   badges({ anchor: "top-left", x: 2, y: 2, width: 40,
+ *            badges: [{ label: "linked", tone: "success" },
+ *                     { label: "3 models", tone: "neutral" }] })
+ *
+ * Tones are `info`, `success`, `warning`, `error` and `neutral`. Badges are
+ * measured left to right; the first one that does not fit ends the row, and a
+ * lone too-wide badge truncates with `…`.
+ */
+export function badges(options: BadgesOptions): SceneNode[] {
+  const segments = badgeLayout({
+    badges: options.badges,
+    width: options.width,
+    ...(options.padding === undefined ? {} : { padding: options.padding }),
+    ...(options.gap === undefined ? {} : { gap: options.gap }),
+  })
+  const nodes: SceneNode[] = []
+  for (const segment of segments) {
+    const style = badgeStyle(segment.tone)
+    nodes.push({
+      kind: "rect",
+      anchor: options.anchor,
+      x: options.x + segment.x,
+      y: options.y,
+      width: segment.width,
+      height: 1,
+      fill: true,
+      color: options.bg ?? style.bg,
+    })
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + segment.x,
+      y: options.y,
+      text: segment.text,
+      fg: options.fg ?? style.fg,
     })
   }
   return nodes

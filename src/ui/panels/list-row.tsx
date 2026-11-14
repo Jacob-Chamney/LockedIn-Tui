@@ -6,6 +6,8 @@
  * screens pass label/value/detail; they never re-implement the chrome.
  */
 import type { ThemePalette } from "../theme"
+import type { BadgeTone } from "../badges"
+import { Badge } from "../shell/badges"
 
 export type ListRowTone = "normal" | "muted" | "error"
 
@@ -17,6 +19,8 @@ export function ListRow(props: {
   label: string
   /** Rendered after a fixed-width label; omitted for full-width rows. */
   value?: string
+  /** A tone-coded chip instead of a plain value; takes precedence over `value`. */
+  badge?: { label: string; tone?: BadgeTone }
   /** A second, muted line under the label. */
   detail?: string
   /** When set, the label is padded/truncated to this width. */
@@ -63,7 +67,21 @@ export function ListRow(props: {
         >
           {label()}
         </text>
-        {props.value === undefined ? (
+        {props.badge ? (
+          <>
+            <Badge
+              theme={palette()}
+              label={props.badge.label}
+              tone={props.badge.tone}
+              width={40}
+            />
+            {props.active ? (
+              <text fg={palette().primary} wrapMode="none">
+                {marker()}
+              </text>
+            ) : null}
+          </>
+        ) : props.value === undefined ? (
           <text fg={valueFg()} wrapMode="none">
             {marker()}
           </text>
