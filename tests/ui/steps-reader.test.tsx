@@ -57,6 +57,19 @@ describe("rows", () => {
     }
   })
 
+  test("the progress line carries a compact gauge", async () => {
+    const setup = await mount(90, 20)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("1 of 3 steps done")
+      expect(frame).toContain("█")
+      expect(frame).toContain("░")
+      expect(frame).toContain("33%")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("long text wraps at words and hard-breaks an overlong token", () => {
     expect(steps.wrapStepText("one two three", 7)).toEqual(["one two", "three"])
     expect(steps.wrapStepText("abcdefghij", 4)).toEqual(["abcd", "efgh", "ij"])

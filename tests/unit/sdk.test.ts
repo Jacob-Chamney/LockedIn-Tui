@@ -19,6 +19,7 @@ import {
   fadeNodes,
   fadeOut,
   fields,
+  gauge,
   heatmap,
   footerActions,
   form,
@@ -1210,4 +1211,62 @@ test("tree renders a detail on a second line", () => {
   })
   expect(nodes[0]).toMatchObject({ y: 0, text: "root", fg: "primary" })
   expect(nodes[1]).toMatchObject({ y: 1, text: "three files", fg: "warning" })
+})
+
+test("gauge draws a track, a filled arc, a percentage and a label", () => {
+  const nodes = gauge({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    size: 10,
+    value: 3,
+    max: 10,
+    label: "3 / 10",
+  })
+  expect(nodes).toHaveLength(4)
+  expect(nodes[0]).toMatchObject({
+    kind: "arc",
+    x: 2,
+    y: 3,
+    width: 10,
+    height: 10,
+    value: 1,
+    start: -90,
+    color: "line",
+  })
+  expect(nodes[1]).toMatchObject({ kind: "arc", value: 0.3, color: "primary" })
+  expect(nodes[2]).toMatchObject({ kind: "text", x: 5, y: 8, text: "30%", fg: "foreground" })
+  expect(nodes[3]).toMatchObject({ kind: "text", x: 2, y: 13, text: "3 / 10", fg: "muted" })
+})
+
+test("gauge can hide the centre text and honours colours", () => {
+  const nodes = gauge({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    size: 1,
+    value: 1,
+    max: 2,
+    showPercent: false,
+    tone: "accent",
+    track: "muted",
+    thickness: 2,
+  })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[0]).toMatchObject({ width: 3, height: 3, thickness: 2, color: "muted" })
+  expect(nodes[1]).toMatchObject({ value: 0.5, color: "accent" })
+})
+
+test("gauge keeps the label and percent colours", () => {
+  const nodes = gauge({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    value: 1,
+    label: "one",
+    percentFg: "warning",
+    labelFg: "secondary",
+  })
+  expect(nodes[2]).toMatchObject({ text: "100%", fg: "warning" })
+  expect(nodes[3]).toMatchObject({ text: "one", fg: "secondary" })
 })

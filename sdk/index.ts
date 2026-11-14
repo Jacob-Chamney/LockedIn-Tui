@@ -49,6 +49,7 @@ import {
   type TimelineTone as TimelineToneInput,
 } from "../src/ui/timeline"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
+import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
   heatmapLayout,
   type HeatmapDay as HeatmapDayInput,
@@ -2480,6 +2481,100 @@ export function tree(options: TreeOptions): SceneNode[] {
     } else {
       y += 1
     }
+  }
+  return nodes
+}
+
+/** Clamped level, percentage and text for a gauge. */
+export type GaugeLayout = GaugeLayoutInput
+
+export type GaugeOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Ring bounding box in cells; defaults to 10. */
+  size?: number
+  value: number
+  /** Limit; 0 means no meaningful level. Defaults to `value`. */
+  max?: number
+  /** A caption under the ring. */
+  label?: string
+  /** Show the percentage in the centre; defaults true. */
+  showPercent?: boolean
+  /** Ring thickness in cells; defaults to 1. */
+  thickness?: number
+  /** Filled arc colour. Defaults to `primary`. */
+  tone?: string
+  /** Track arc colour. Defaults to `line`. */
+  track?: string
+  /** Label colour. Defaults to `muted`. */
+  labelFg?: string
+  /** Centre text colour. Defaults to `foreground`. */
+  percentFg?: string
+}
+
+/**
+ * A ring gauge with an optional centre percentage and a caption.
+ *
+ *   gauge({ anchor: "top-left", x: 2, y: 2, size: 12, value: 3, max: 10,
+ *           label: "3 / 10" })
+ *
+ * A full track arc is drawn first, then the filled arc from 12 o'clock. The
+ * value is clamped to 0..max; `max: 0` draws an empty ring. `showPercent: false`
+ * hides the centre text.
+ */
+export function gauge(options: GaugeOptions): SceneNode[] {
+  const layout = gaugeLayout(options)
+  const size = Math.max(3, Math.round(options.size ?? 10))
+  const thickness = options.thickness ?? 1
+  const nodes: SceneNode[] = [
+    {
+      kind: "arc",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      width: size,
+      height: size,
+      thickness,
+      start: -90,
+      value: 1,
+      rounded: true,
+      color: options.track ?? "line",
+    },
+    {
+      kind: "arc",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      width: size,
+      height: size,
+      thickness,
+      start: -90,
+      value: layout.fraction,
+      rounded: true,
+      color: options.tone ?? "primary",
+    },
+  ]
+  if (options.showPercent !== false) {
+    const text = layout.percentText
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + Math.max(0, Math.floor((size - text.length) / 2)),
+      y: options.y + Math.floor(size / 2),
+      text,
+      fg: options.percentFg ?? "foreground",
+    })
+  }
+  if (layout.label !== "") {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y + size,
+      text: layout.label,
+      fg: options.labelFg ?? "muted",
+    })
   }
   return nodes
 }
