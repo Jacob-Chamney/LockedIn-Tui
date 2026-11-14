@@ -16,6 +16,10 @@ requests merge.
 
 ### Changed
 
+- Overlays fade their dimmed backdrop in over 160 ms while the window stays
+  opaque; reduced motion skips the fade.
+- The blocked-send warning names the problem in a fitted line, splitting the
+  fix onto a second row on narrow terminals instead of running off the edge.
 - Notices ease in over 180 ms instead of popping into place.
 - The status bar shows a warning-toned `no model` chip when the chat has no
   model; `read-only` appears only when a model is configured.
