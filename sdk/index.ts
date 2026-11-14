@@ -56,6 +56,10 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  breadcrumbs as breadcrumbLayout,
+  type BreadcrumbSegment as BreadcrumbSegmentInput,
+} from "../src/ui/breadcrumbs"
+import {
   checklistRows,
   type ChecklistGlyphs as ChecklistGlyphsInput,
   type ChecklistItem as ChecklistItemInput,
@@ -2769,6 +2773,69 @@ export function checklist(options: ChecklistOptions): SceneNode[] {
       text: row.label,
       fg: row.selected ? (options.selectedFg ?? "primary") : (options.fg ?? "foreground"),
     })
+  }
+  return nodes
+}
+
+/** One crumb, separator or elision mark in a `breadcrumbs()` trail. */
+export type BreadcrumbSegment = BreadcrumbSegmentInput
+
+export type BreadcrumbsOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Available columns. */
+  width: number
+  items: readonly string[]
+  /** Separator between crumbs; defaults to ` › `. */
+  separator?: string
+  /** Elision mark; defaults to `…`. */
+  ellipsis?: string
+  /** Middle crumb colour. Defaults to `muted`. */
+  fg?: string
+  /** First crumb colour. Defaults to `muted`. */
+  rootFg?: string
+  /** Current crumb colour. Defaults to `foreground`. */
+  currentFg?: string
+  /** Separator colour. Defaults to `muted`. */
+  separatorFg?: string
+  /** Elision mark colour. Defaults to `muted`. */
+  ellipsisFg?: string
+}
+
+/**
+ * A folder-style trail with fitting.
+ *
+ *   breadcrumbs({ anchor: "top-left", x: 2, y: 0, width: 24,
+ *                 items: ["LEARN", "Physics unit 4", "Chat"] })
+ *
+ * When the full trail does not fit, the middle is elided first
+ * (`LEARN › … › Chat`), then the root (`… › Chat`), and finally the last crumb
+ * is truncated. The current crumb always survives.
+ */
+export function breadcrumbs(options: BreadcrumbsOptions): SceneNode[] {
+  const layout = breadcrumbLayout(options)
+  const nodes: SceneNode[] = []
+  let x = options.x
+  for (const segment of layout.segments) {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x,
+      y: options.y,
+      text: segment.text,
+      fg:
+        segment.kind === "separator"
+          ? (options.separatorFg ?? "muted")
+          : segment.kind === "ellipsis"
+            ? (options.ellipsisFg ?? "muted")
+            : segment.last
+              ? (options.currentFg ?? "foreground")
+              : segment.first
+                ? (options.rootFg ?? "muted")
+                : (options.fg ?? "muted"),
+    })
+    x += segment.text.length
   }
   return nodes
 }
