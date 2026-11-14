@@ -27,6 +27,7 @@ import type {
   ScenePermission,
 } from "../src/ui/plugins/sandbox/manifest"
 import type { ThemePalette } from "../src/ui/theme"
+import { tabLayout, type TabSpec as TabSpecInput } from "../src/ui/tabs"
 import {
   sparklineText as renderSparkline,
   type SparklineOptions as SparklineInput,
@@ -1686,6 +1687,82 @@ export function sparkline(options: SparklineNodeOptions): SceneText {
  */
 export function sparklineText(options: SparklineOptions): string {
   return renderSparkline(options)
+}
+
+export type TabItem = {
+  label: string
+  /** Optional trailing count, e.g. `work 3`. */
+  count?: number
+}
+
+/** A tab label with an optional trailing count. */
+export type TabSpec = TabSpecInput
+
+export type TabsOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Available columns for the whole strip. */
+  width: number
+  tabs: readonly TabItem[]
+  /** Index of the active tab; clamped to the list. */
+  selected: number
+  /** Spaces on each side of a label; defaults to 1. */
+  padding?: number
+  /** Spaces between chips; defaults to 0. */
+  gap?: number
+  /** Unselected label colour. Defaults to `muted`. */
+  fg?: string
+  /** Selected label colour. Defaults to `background`. */
+  selectedFg?: string
+  /** Selected chip fill. Defaults to `accent`. */
+  selectedBg?: string
+  /** Optional fill behind every chip; selected keeps `selectedBg`. */
+  bg?: string
+}
+
+/**
+ * A horizontal tab strip with the active chip filled.
+ *
+ *   tabs({ anchor: "top-left", x: 2, y: 2, width: 40,
+ *          tabs: [{ label: "7d" }, { label: "30d" }, { label: "all" }],
+ *          selected: 1 })
+ *
+ * Chips are measured left to right; the first one that does not fit ends the
+ * strip rather than being cut in half. A lone too-wide chip is truncated.
+ */
+export function tabs(options: TabsOptions): SceneNode[] {
+  const segments = tabLayout({
+    tabs: options.tabs,
+    selected: options.selected,
+    width: options.width,
+    ...(options.padding === undefined ? {} : { padding: options.padding }),
+    ...(options.gap === undefined ? {} : { gap: options.gap }),
+  })
+  const nodes: SceneNode[] = []
+  for (const segment of segments) {
+    if (segment.selected || options.bg) {
+      nodes.push({
+        kind: "rect",
+        anchor: options.anchor,
+        x: options.x + segment.x,
+        y: options.y,
+        width: segment.width,
+        height: 1,
+        fill: true,
+        color: segment.selected ? (options.selectedBg ?? "accent") : (options.bg ?? "surface"),
+      })
+    }
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + segment.x,
+      y: options.y,
+      text: segment.text,
+      fg: segment.selected ? (options.selectedFg ?? "background") : (options.fg ?? "muted"),
+    })
+  }
+  return nodes
 }
 
 export type FormOptions = {
