@@ -4,6 +4,7 @@ import {
   defineManifest,
   defineParticleSystem,
   definePlugin,
+  callout,
   card,
   confirm,
   createCursor,
@@ -818,4 +819,75 @@ test("tabs can paint a background behind every chip and honours colours", () => 
   expect(nodes[2]).toMatchObject({ color: "surface" })
   expect(nodes[1]).toMatchObject({ fg: "surface" })
   expect(nodes[3]).toMatchObject({ fg: "foreground" })
+})
+
+test("callout draws its bar and wraps to the block width", () => {
+  const one = callout({
+    anchor: "top-left",
+    x: 1,
+    y: 2,
+    width: 20,
+    tone: "warning",
+    message: "all good now",
+  })
+  expect(one).toHaveLength(1)
+  expect(one[0]).toMatchObject({
+    kind: "text",
+    x: 1,
+    y: 2,
+    text: "▌ all good now",
+    fg: "warning",
+  })
+
+  const wrapped = callout({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 12,
+    tone: "error",
+    message: "the budget is nearly spent",
+  })
+  expect(wrapped.map((node) => (node.kind === "text" ? node.text : ""))).toEqual([
+    "▌ the budget",
+    "▌ is nearly",
+    "▌ spent",
+  ])
+})
+
+test("callout adds a title and an optional fill", () => {
+  const nodes = callout({
+    anchor: "top-left",
+    x: 0,
+    y: 4,
+    width: 24,
+    tone: "info",
+    title: "heads up",
+    message: "short",
+    bg: "surface",
+  })
+  expect(nodes[0]).toMatchObject({
+    kind: "rect",
+    y: 4,
+    width: 24,
+    height: 2,
+    fill: true,
+    color: "surface",
+  })
+  expect(nodes[1]).toMatchObject({ kind: "text", y: 4, text: "▌ heads up", fg: "secondary" })
+  expect(nodes[2]).toMatchObject({ kind: "text", y: 5, text: "▌ short", fg: "secondary" })
+})
+
+test("an empty callout has no nodes and a long title is fitted", () => {
+  expect(callout({ anchor: "top-left", x: 0, y: 0, width: 10, message: "" })).toEqual([])
+  const nodes = callout({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 10,
+    title: "a title that is far too long",
+    message: "x",
+  })
+  expect(nodes[0]!.kind).toBe("text")
+  if (nodes[0]!.kind !== "text") return
+  expect(nodes[0]!.text.endsWith("…")).toBe(true)
 })

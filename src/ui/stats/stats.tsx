@@ -15,6 +15,7 @@ import { compactTokens } from "./big-number"
 import { buildHeatmap } from "./heatmap"
 import { sparklineText } from "../sparkline"
 import { tabLayout } from "../tabs"
+import { Callout } from "../shell/callout"
 
 export type StatsView = {
   range: StatsRange
@@ -362,14 +363,15 @@ export function StatsPage(props: {
           <StatColumn theme={palette()} value={formatCount(props.summary.overview.runs)} label="sessions" />
         </box>
         {props.summary.diagnostic ? (
-          <text fg={palette().warning} wrapMode="none">
-            {`! ${props.summary.diagnostic}`}
-          </text>
+          <Callout
+            theme={palette()}
+            tone="warning"
+            width={props.width - 4}
+            message={props.summary.diagnostic}
+          />
         ) : null}
         {props.view.notice ? (
-          <text fg={palette().warning} wrapMode="none">
-            {`! ${props.view.notice}`}
-          </text>
+          <Callout theme={palette()} tone="warning" width={props.width - 4} message={props.view.notice} />
         ) : null}
       </box>
 

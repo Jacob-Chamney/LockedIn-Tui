@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `callout()` renders a tone-coded, wrapped warning for plugin scenes; the
+  Usage and Stats warnings use the same bar and wrapping in the app.
 - `tabs()` draws a filled-chip tab strip for plugin scenes, and the Stats page
   uses it for the range and scope selectors.
 - The Stats page shows a daily token trend under the total (bucketed to 60

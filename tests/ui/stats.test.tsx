@@ -230,7 +230,7 @@ describe("diagnostics and export", () => {
     const setup = await mount(80, 24, { summary: corrupt })
     try {
       const frame = lines(setup).join("\n")
-      expect(frame).toContain("usage.json was unreadable")
+      expect(frame).toContain("▌ usage.json was unreadable")
       expect(frame).toContain("T O K E N S")
     } finally {
       await setup.dispose()
