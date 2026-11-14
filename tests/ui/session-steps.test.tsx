@@ -82,7 +82,7 @@ test("space r opens the steps, x toggles only that checkbox and the progress lin
     // The "opened session" toast sits over the reader's top-right corner, so
     // the progress line is partly covered; the rows and the file are not.
     expect(ui.frame()).toContain("0 of 3")
-    expect(ui.frame()).toContain("☐  Read section 4.2")
+    expect(ui.frame()).toContain("▸  Read section 4.2")
 
     await ui.press("x")
     await ui.waitUntil(() => ui.frame().includes("✓  Read section 4.2"))

@@ -51,7 +51,7 @@ describe("rows", () => {
       expect(frame).toContain("1 of 3 steps done")
       expect(frame).toContain("Understand")
       expect(frame).toContain("✓  Read section 4.2")
-      expect(frame).toContain("☐  Derive the energy balance")
+      expect(frame).toContain("○  Derive the energy balance")
     } finally {
       await setup.dispose()
     }
@@ -80,7 +80,7 @@ describe("rows", () => {
     const second = layout.lines.findIndex((line) => line.text.includes("Second step"))
     expect(first).toBeGreaterThanOrEqual(0)
     expect(second).toBeGreaterThan(first)
-    expect(layout.lines.slice(first, second).some((line) => line.kind === "blank")).toBe(true)
+    expect(layout.lines.slice(first, second).some((line) => line.kind === "rail")).toBe(true)
     for (const line of layout.lines) expect(Array.from(line.text).length).toBeLessThanOrEqual(36)
   })
 

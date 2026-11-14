@@ -35,6 +35,7 @@ import {
   sidebarMain,
   sparkline,
   sparklineText,
+  stepper,
   stats,
   status,
   table,
@@ -1085,4 +1086,71 @@ test("heatmap labels months and weekdays and honours colours", () => {
   expect(nodes[1]).toMatchObject({ x: 2, y: 4, text: "M ", fg: "line" })
   expect(nodes[2]).toMatchObject({ x: 4, y: 4, text: "█", fg: "accent" })
   expect(nodes[3]).toMatchObject({ x: 5, y: 4, text: "···", fg: "line" })
+})
+
+test("stepper joins done, current and pending entries with a rail", () => {
+  const nodes = stepper({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 30,
+    entries: [
+      { label: "read", done: true },
+      { label: "derive", current: true },
+      { label: "write" },
+    ],
+  })
+  expect(nodes).toHaveLength(5)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, text: "  ✓  read", fg: "success" })
+  expect(nodes[1]).toMatchObject({ x: 2, y: 4, text: "  │  ", fg: "muted" })
+  expect(nodes[2]).toMatchObject({ x: 2, y: 5, text: "▌ ▸  derive", fg: "primary" })
+  expect(nodes[3]).toMatchObject({ x: 2, y: 6, text: "  │  " })
+  expect(nodes[4]).toMatchObject({ x: 2, y: 7, text: "  ○  write", fg: "foreground" })
+})
+
+test("stepper adds details and can drop the rails", () => {
+  const withDetail = stepper({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 30,
+    entries: [{ label: "one", current: true, detail: "10 min" }],
+  })
+  expect(withDetail).toHaveLength(2)
+  expect(withDetail[0]).toMatchObject({ y: 0, text: "▌ ▸  one" })
+  expect(withDetail[1]).toMatchObject({ y: 1, text: "  │  10 min", fg: "muted" })
+
+  const flat = stepper({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 30,
+    rails: false,
+    entries: [{ label: "a", done: true }, { label: "b" }],
+  })
+  expect(flat).toHaveLength(2)
+  expect(flat[1]).toMatchObject({ y: 1, text: "  ○  b" })
+})
+
+test("stepper honours glyph and colour overrides", () => {
+  const nodes = stepper({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 30,
+    glyphs: { done: "D", current: "C", pending: "P", selected: "*", rail: "|" },
+    doneFg: "accent",
+    currentFg: "warning",
+    pendingFg: "secondary",
+    railFg: "line",
+    detailFg: "foreground",
+    entries: [
+      { label: "a", done: true, detail: "x" },
+      { label: "b", current: true },
+    ],
+  })
+  expect(nodes[0]).toMatchObject({ text: "  D  a", fg: "accent" })
+  expect(nodes[1]).toMatchObject({ text: "  |  x", fg: "foreground" })
+  expect(nodes[2]).toMatchObject({ text: "  |  ", fg: "line" })
+  expect(nodes[3]).toMatchObject({ text: "* C  b", fg: "warning" })
 })

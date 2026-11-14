@@ -29,6 +29,14 @@ import type {
 import type { ThemePalette } from "../src/ui/theme"
 import { tabLayout, type TabSpec as TabSpecInput } from "../src/ui/tabs"
 import {
+  STEPPER_PREFIX_WIDTH,
+  stepPrefix,
+  stepRail,
+  stepStatus,
+  stepperGlyphs,
+  type StepperGlyphs as StepperGlyphsInput,
+} from "../src/ui/stepper"
+import {
   timelineRole,
   timelineRows,
   type TimelineEntry as TimelineEntryInput,
@@ -2245,6 +2253,108 @@ export function heatmap(options: HeatmapOptions): SceneNode[] {
             : (options.tone ?? "primary"),
       })
       start = week
+    }
+  })
+  return nodes
+}
+
+/** The glyphs a `stepper()` uses. */
+export type StepperGlyphs = StepperGlyphsInput
+
+/** One entry in a `stepper()`. */
+export type StepperEntry = {
+  label: string
+  /** Completed/ticked; takes precedence over `current`. */
+  done?: boolean
+  /** The entry the cursor is on. */
+  current?: boolean
+  /** An optional second line under the label. */
+  detail?: string
+}
+
+export type StepperOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Total row width in cells. */
+  width: number
+  entries: readonly StepperEntry[]
+  glyphs?: Partial<StepperGlyphs>
+  /** Rail rows between entries; defaults true. */
+  rails?: boolean
+  /** Completed label colour. Defaults to `success`. */
+  doneFg?: string
+  /** Current label colour. Defaults to `primary`. */
+  currentFg?: string
+  /** Pending label colour. Defaults to `foreground`. */
+  pendingFg?: string
+  /** Rail colour. Defaults to `muted`. */
+  railFg?: string
+  /** Detail colour. Defaults to `muted`. */
+  detailFg?: string
+}
+
+/**
+ * A vertical stepper: done, current and pending entries joined by a rail.
+ *
+ *   stepper({ anchor: "top-left", x: 2, y: 2, width: 48,
+ *             entries: [
+ *               { label: "read the brief", done: true },
+ *               { label: "derive the balance", current: true,
+ *                 detail: "about 12 minutes" },
+ *               { label: "write the answer" },
+ *             ] })
+ *
+ * The prefix is the selection bar, the status glyph and two spaces. A checked
+ * entry reads done even when it is current; the bar still marks the cursor.
+ * Rails and details can be turned off.
+ */
+export function stepper(options: StepperOptions): SceneNode[] {
+  const glyphs = stepperGlyphs(options.glyphs)
+  const width = Math.max(1, Math.floor(options.width))
+  const labelWidth = Math.max(1, width - STEPPER_PREFIX_WIDTH)
+  const fit = (text: string) =>
+    text.length <= labelWidth ? text : labelWidth === 1 ? "…" : `${text.slice(0, labelWidth - 1)}…`
+  const nodes: SceneNode[] = []
+  let y = options.y
+
+  options.entries.forEach((entry, index) => {
+    const status = stepStatus(entry.done === true, entry.current === true)
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y,
+      text: `${stepPrefix(status, entry.current === true, glyphs)}${fit(entry.label)}`,
+      fg:
+        status === "done"
+          ? (options.doneFg ?? "success")
+          : status === "current"
+            ? (options.currentFg ?? "primary")
+            : (options.pendingFg ?? "foreground"),
+    })
+    y += 1
+    if (entry.detail) {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x,
+        y,
+        text: `${stepRail(glyphs)}${fit(entry.detail)}`,
+        fg: options.detailFg ?? "muted",
+      })
+      y += 1
+    }
+    if (options.rails !== false && index < options.entries.length - 1) {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x,
+        y,
+        text: stepRail(glyphs),
+        fg: options.railFg ?? "muted",
+      })
+      y += 1
     }
   })
   return nodes
