@@ -55,6 +55,7 @@ import {
   list,
   loop,
   meter,
+  matrix,
   mixHex,
   multiSelect,
   outline,
@@ -2791,4 +2792,43 @@ test("statCard aligns and handles empty widths", () => {
   expect(nodes[0]).toMatchObject({ x: 19, fg: "foreground" })
   expect(nodes[1]).toMatchObject({ x: 12, fg: "secondary" })
   expect(statCard({ anchor: "top-left", x: 0, y: 0, width: 0, value: "x", label: "y" })).toEqual([])
+})
+
+test("matrix draws a header and toned rows", () => {
+  const nodes = matrix({
+    anchor: "top-left",
+    x: 2,
+    y: 1,
+    width: 40,
+    headerWidth: 11,
+    rows: ["chill", "lockin"],
+    columns: ["notes", "files"],
+    cells: [
+      ["any", "any"],
+      ["explicit only", "never"],
+    ],
+    rowTones: ["normal", "muted"],
+    notes: ["", "locked"],
+  })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 1, fg: "muted" })
+  expect(nodes[1]).toMatchObject({ x: 2, y: 2, fg: "foreground" })
+  expect(nodes[2]).toMatchObject({ x: 2, y: 3, fg: "muted" })
+  expect(nodes[2]!.kind === "text" ? nodes[2]!.text : "").toContain("locked")
+})
+
+test("matrix can hide the header and handles empty input", () => {
+  const nodes = matrix({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 40,
+    showHeader: false,
+    rows: ["a"],
+    columns: ["b"],
+    cells: [["c"]],
+  })
+  expect(nodes).toHaveLength(1)
+  expect(nodes[0]).toMatchObject({ y: 0, text: "a  c  " })
+  expect(matrix({ anchor: "top-left", x: 0, y: 0, width: 40, rows: [], columns: [], cells: [] })).toEqual([])
 })

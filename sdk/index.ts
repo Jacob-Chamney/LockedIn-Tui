@@ -56,6 +56,14 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  matrixLayout,
+  matrixText as renderMatrix,
+  type MatrixLayout as MatrixLayoutInput,
+  type MatrixLayoutRow as MatrixLayoutRowInput,
+  type MatrixOptions as MatrixLayoutOptions,
+  type MatrixRowTone as MatrixRowToneInput,
+} from "../src/ui/matrix"
+import {
   statCardLayout,
   statCardToneRole,
   type StatCardAlign as StatCardAlignInput,
@@ -5546,6 +5554,84 @@ export function statCard(options: StatCardOptions): SceneNode[] {
     text: row.text,
     fg: row.kind === "value" ? statCardToneRole(layout.tone) : (options.mutedFg ?? "muted"),
   }))
+}
+
+/** A matrix row's tone. */
+export type MatrixRowTone = MatrixRowToneInput
+
+/** One placed matrix row. */
+export type MatrixLayoutRow = MatrixLayoutRowInput
+
+/** The header, rows and shared column widths of a matrix. */
+export type MatrixLayout = MatrixLayoutInput
+
+export type MatrixOptions = Omit<MatrixLayoutOptions, "rows" | "columns" | "cells"> & {
+  anchor: ScenePosition
+  x: number
+  y: number
+  rows: readonly string[]
+  columns: readonly string[]
+  cells: readonly (readonly string[])[]
+  /** Draw the column-header line; defaults true. */
+  showHeader?: boolean
+  /** Header colour. Defaults to `muted`. */
+  headerFg?: string
+  /** Normal row colour. Defaults to `foreground`. */
+  fg?: string
+  /** Muted row colour. Defaults to `muted`. */
+  mutedFg?: string
+  /** Error row colour. Defaults to `error`. */
+  errorFg?: string
+}
+
+/**
+ * A fitted matrix with a row-label column, data columns and optional notes.
+ *
+ *   matrix({ anchor: "top-left", x: 2, y: 2, width: 60,
+ *            rows: ["chill", "lockin"],
+ *            columns: ["notes", "files"],
+ *            cells: [["any", "any"], ["explicit only", "never"]] })
+ *
+ * Column widths follow the contents and shrink from the widest until the row
+ * fits; cells are fitted with `…`. `notes` adds a trailing reason column, and
+ * `rowTones` mutes or reddens whole rows.
+ */
+export function matrix(options: MatrixOptions): SceneNode[] {
+  const layout = matrixLayout(options)
+  const nodes: SceneNode[] = []
+  let y = options.y
+  if (options.showHeader !== false && layout.header !== "") {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y,
+      text: layout.header,
+      fg: options.headerFg ?? "muted",
+    })
+    y += 1
+  }
+  for (const row of layout.rows) {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y: y + row.index,
+      text: row.text,
+      fg:
+        row.tone === "muted"
+          ? (options.mutedFg ?? "muted")
+          : row.tone === "error"
+            ? (options.errorFg ?? "error")
+            : (options.fg ?? "foreground"),
+    })
+  }
+  return nodes
+}
+
+/** The matrix as plain lines, header first. */
+export function matrixText(options: Omit<MatrixOptions, "anchor" | "x" | "y" | "showHeader" | "headerFg" | "fg" | "mutedFg" | "errorFg">): string[] {
+  return renderMatrix(options)
 }
 
 export type FormOptions = {

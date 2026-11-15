@@ -3,6 +3,7 @@ import type { ThemePalette } from "../../theme"
 import { WindowBody } from "../../panels/floating-window"
 import { PanelWindow } from "../../panels/panel-window"
 import { SelectList } from "../../panels/select-list"
+import { Matrix } from "../../shell/matrix"
 import {
   cellLabel,
   footerHints,
@@ -23,6 +24,7 @@ const COMMANDS: Command[] = ["chill", "lockin", "flashcards", "study-guide", "sk
 /** The named middle region of the Plugins window. */
 export function PluginList(props: {
   theme: ThemePalette
+  width: number
   height: number
   servers: ServerRow[]
   cursor: number
@@ -62,14 +64,17 @@ export function PluginList(props: {
       <text fg={palette().secondary} wrapMode="none">
         {"POLICY"}
       </text>
-      {COMMANDS.map((command) => {
-        const locked = lockedReason(command)
-        return (
-          <text fg={locked ? palette().muted : palette().foreground} wrapMode="none">
-            {`${command.padEnd(11)}${props.servers.map((server) => cellLabel(command, server)).join("  ")}${locked ? `  · ${locked}` : ""}`}
-          </text>
-        )
-      })}
+      <Matrix
+        theme={palette()}
+        width={Math.max(20, props.width - 4)}
+        headerWidth={11}
+        showHeader={false}
+        rows={COMMANDS}
+        columns={props.servers.map((server) => server.name)}
+        cells={COMMANDS.map((command) => props.servers.map((server) => cellLabel(command, server)))}
+        notes={COMMANDS.map((command) => (lockedReason(command) ? `· ${lockedReason(command)}` : ""))}
+        rowTones={COMMANDS.map((command) => (lockedReason(command) ? "muted" : "normal"))}
+      />
 
       <text fg={palette().muted} wrapMode="none">
         {standingNote()}
@@ -100,6 +105,7 @@ export function McpPanel(props: {
     >
       <PluginList
         theme={palette()}
+        width={props.width}
         height={props.height}
         servers={props.servers}
         cursor={props.cursor}
