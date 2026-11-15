@@ -7,6 +7,7 @@
  */
 import { parseBinding, type Binding } from "../keymap/registry";
 import { contrastRatio, crimson, failingContrast, isValidHex, resolveTheme, paletteChoices, type ThemePalette } from "../theme";
+import { ThresholdBar } from "../shell/threshold-bar";
 import type { ThemeId } from "../theme";
 // ---------------------------------------------------------------- sections
 
@@ -290,6 +291,7 @@ export function AppearancePanel(props: {
   const wide = () => props.width >= 120
   const noColor = () => noColorState(props.env ?? {})
   const contrast = () => usernameContrastLabel(props.state.usernameColor || palette().primary, palette())
+  const contrastValue = () => contrastRatio(props.state.usernameColor || palette().primary, palette().background)
   const preview = () => props.state.usernameDraft || props.state.username
 
   return (
@@ -309,9 +311,21 @@ export function AppearancePanel(props: {
         {`username   ${preview()}`}
       </text>
       {wide() ? (
-        <text fg={palette().secondary} wrapMode="none">
-          {`  preview    ${preview()}   ${contrast()}`}
-        </text>
+        <>
+          <text fg={palette().secondary} wrapMode="none">
+            {`  preview    ${preview()}`}
+          </text>
+          <ThresholdBar
+            theme={palette()}
+            value={contrastValue()}
+            min={1}
+            max={21}
+            markers={[{ value: 4.5 }, { value: 7 }]}
+            label={contrast()}
+            width={Math.min(props.width - 4, 44)}
+            valueFg={contrastValue() >= 4.5 ? "success" : "error"}
+          />
+        </>
       ) : (
         <text fg={palette().secondary} wrapMode="none">
           {`  contrast   ${contrast()}`}

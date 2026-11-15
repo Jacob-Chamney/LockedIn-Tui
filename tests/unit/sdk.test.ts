@@ -84,6 +84,8 @@ import {
   swatches,
   table,
   tabs,
+  thresholdBar,
+  thresholdBarText,
   tagInput,
   textField,
   timeline,
@@ -2867,4 +2869,48 @@ test("rangeSlider honours overrides and empty widths", () => {
   expect(nodes[1]).toMatchObject({ fg: "accent" })
   expect(rangeSliderText({ width: 20, values: [0, 1] })).toContain("0%–100%")
   expect(rangeSlider({ anchor: "top-left", x: 0, y: 0, width: 0, values: [0, 1] })).toEqual([])
+})
+
+test("thresholdBar draws the fill, markers, value and label", () => {
+  const nodes = thresholdBar({
+    anchor: "top-left",
+    x: 2,
+    y: 2,
+    width: 30,
+    value: 4.8,
+    min: 1,
+    max: 21,
+    markers: [{ value: 4.5 }, { value: 7 }],
+    label: "4.8:1 AA pass",
+  })
+  expect(nodes).toHaveLength(7)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 2, text: "███", fg: "primary" })
+  expect(nodes[1]).toMatchObject({ x: 5, text: "●", fg: "foreground" })
+  expect(nodes[2]).toMatchObject({ x: 6, text: "░", fg: "line" })
+  expect(nodes[3]).toMatchObject({ x: 7, text: "┊", fg: "muted" })
+  expect(nodes[4]).toMatchObject({ x: 8, text: "░░░░░░░░░░", fg: "line" })
+  expect(nodes[5]).toMatchObject({ x: 18, text: " " })
+  expect(nodes[6]).toMatchObject({ x: 19, text: "4.8:1 AA pass", fg: "muted" })
+})
+
+test("thresholdBar honours overrides and empty widths", () => {
+  const nodes = thresholdBar({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 12,
+    value: 99,
+    min: 0,
+    max: 10,
+    showLabel: false,
+    filledFg: "accent",
+    valueFg: "warning",
+    markerFg: "secondary",
+    markers: [{ value: 2 }],
+  })
+  expect(nodes[0]).toMatchObject({ fg: "accent" })
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "warning")).toBe(true)
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "secondary")).toBe(true)
+  expect(thresholdBarText({ width: 20, value: 0.5, label: "half" })).toContain("half")
+  expect(thresholdBar({ anchor: "top-left", x: 0, y: 0, width: 0, value: 0 })).toEqual([])
 })
