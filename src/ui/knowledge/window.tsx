@@ -16,7 +16,8 @@ import { onAnimationTick, useRenderer } from "@opentui/solid"
 import type { KnowledgeGraph, KnowledgeNote } from "../../services/knowledge/graph"
 import { flattenTopics, GENERAL_TOPIC, topicsFor } from "../../services/knowledge/graph"
 import type { ThemePalette } from "../theme"
-import { MarkdownBody, blockCount } from "../reader/markdown-body"
+import { MarkdownBody, blockCount, parseMarkdown } from "../reader/markdown-body"
+import { Outline } from "../shell/outline"
 import { Scrollbar } from "../shell/scrollbar"
 import {
   breadcrumb,
@@ -85,6 +86,25 @@ export function KnowledgeWindow(props: {
   const rows = () => Math.max(6, props.height)
   const diagnostic = () => props.graph.diagnostics[0] ?? null
   const diagnosticExtra = () => Math.max(0, props.graph.diagnostics.length - 1)
+  /** Heading blocks for the one-row outline; `block` maps to the reader offset. */
+  const headings = () =>
+    note() === null
+      ? []
+      : parseMarkdown(note()!.body).flatMap((block, index) =>
+          block.kind === "heading"
+            ? [{ id: `h${index}`, label: block.text, depth: block.level, block: index }]
+            : [],
+        )
+  const outlineItems = () => headings().map(({ block: _block, ...item }) => item)
+  const outlineCurrent = () => {
+    let current = 0
+    headings().forEach((heading, index) => {
+      if (heading.block <= props.state.readingOffset) current = index
+    })
+    return current
+  }
+  const outlineRows = () => (outlineItems().length > 0 ? 1 : 0)
+  const readerHeight = () => Math.max(1, bodyRows() - 3 - outlineRows())
   const bodyRows = () =>
     Math.max(
       3,
@@ -454,27 +474,35 @@ export function KnowledgeWindow(props: {
             <text fg={palette().muted} wrapMode="none">
               {metaFor(open())}
             </text>
+            {outlineItems().length > 0 ? (
+              <Outline
+                theme={palette()}
+                items={outlineItems()}
+                width={columns() - 4}
+                current={outlineCurrent()}
+              />
+            ) : null}
             <box
               flexDirection="row"
               flexGrow={1}
               minHeight={0}
-              marginTop={1}
+              marginTop={outlineItems().length > 0 ? 0 : 1}
             >
               <box flexDirection="column" flexGrow={1} minHeight={0}>
                 <MarkdownBody
                   theme={palette()}
                   text={open().body}
                   width={columns() - 4}
-                  height={Math.max(1, bodyRows() - 3)}
+                  height={readerHeight()}
                   scrollable
                   offset={props.state.readingOffset}
                 />
               </box>
               <Scrollbar
                 theme={palette()}
-                length={Math.max(1, bodyRows() - 3)}
+                length={readerHeight()}
                 content={blockCount(open().body)}
-                viewport={Math.max(1, bodyRows() - 3)}
+                viewport={readerHeight()}
                 offset={props.state.readingOffset}
               />
             </box>

@@ -55,6 +55,13 @@ import {
 } from "../src/ui/accordion"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
+import {
+  outlineLayout,
+  type OutlineGlyphs as OutlineGlyphsInput,
+  type OutlineItem as OutlineItemInput,
+  type OutlineLayout as OutlineLayoutInput,
+  type OutlineSegment as OutlineSegmentInput,
+} from "../src/ui/outline"
 import { dividerLayout, type DividerLayout as DividerLayoutInput } from "../src/ui/divider"
 import {
   spinnerLayout,
@@ -4580,6 +4587,60 @@ export function divider(options: DividerOptions): SceneNode[] {
     })
   }
   return nodes
+}
+
+/** The depth and current markers an `outline()` uses. */
+export type OutlineGlyphs = OutlineGlyphsInput
+
+/** One section in an `outline()`. */
+export type OutlineItem = OutlineItemInput
+
+/** One placed section in an `outline()`. */
+export type OutlineSegment = OutlineSegmentInput
+
+/** The placed sections, hidden count and current index of an outline. */
+export type OutlineLayout = OutlineLayoutInput
+
+export type OutlineOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  width: number
+  items: readonly OutlineItem[]
+  /** Index of the current section. */
+  current?: number
+  /** Spaces between entries; defaults to 2. */
+  gap?: number
+  glyphs?: Partial<OutlineGlyphs>
+  /** Current-section colour. Defaults to `primary`. */
+  currentFg?: string
+  /** Other-section colour. Defaults to `muted`. */
+  fg?: string
+}
+
+/**
+ * A one-row outline: every heading with its depth marker, current one marked.
+ *
+ *   outline({ anchor: "top-left", x: 2, y: 1, width: 50, current: 1, items: [
+ *     { id: "intro", label: "Intro", depth: 1 },
+ *     { id: "detail", label: "Detail", depth: 2 },
+ *   ] })
+ *   // ◆  Intro  ◇▸ Detail
+ *
+ * `◆` marks a root, `◇` a child and `·` deeper sections; the current item also
+ * gets `▸` and the current colour. The first item that does not fit ends the row,
+ * unless the current item would be lost — then it is shown alone, fitted.
+ */
+export function outline(options: OutlineOptions): SceneNode[] {
+  const layout = outlineLayout(options)
+  return layout.segments.map((segment) => ({
+    kind: "text" as const,
+    anchor: options.anchor,
+    x: options.x + segment.x,
+    y: options.y,
+    text: segment.text,
+    fg: segment.current ? (options.currentFg ?? "primary") : (options.fg ?? "muted"),
+  }))
 }
 
 export type FormOptions = {

@@ -152,6 +152,30 @@ describe("the knowledge window", () => {
     }
   })
 
+  test("heading outline marks depth and the section being read", async () => {
+    const body = "# One\n\nfirst paragraph\n\n## Second\n\nsecond paragraph"
+    const outlineNotes = [{ ...notes[0]!, body }, notes[1]!]
+    const outlineGraph: KnowledgeGraph = {
+      ...GRAPH,
+      notes: outlineNotes,
+      topics: graph.buildTopics(outlineNotes),
+    }
+    const state = {
+      ...knowledge.initialKnowledge,
+      reading: outlineNotes[0]!.id,
+      readingOffset: 4,
+    }
+    const setup = await mount(state, outlineGraph)
+    try {
+      const text = frame(setup)
+      expect(text).toContain("◆  One")
+      expect(text).toContain("◇▸ Second")
+      expect(text).toContain("second paragraph")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("a corrupt index is shown as a diagnostic, not an empty page", async () => {
     const setup = await mount(
       { ...knowledge.initialKnowledge, focus: graph.topicId("Coding") },
