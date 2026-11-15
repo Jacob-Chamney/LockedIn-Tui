@@ -221,6 +221,9 @@ requests merge.
 
 ### Fixed
 
+- Stats ranges of six weeks or less now read as a dated Mon–Sun week table
+  instead of a tiny contribution grid without dates, so a handful of active
+  days still makes sense.
 - `:keys` and `:keybinds` open the all-keys help overlay instead of a screen
   that was never rendered; a command that refuses now dismisses the palette
   before showing its warning.

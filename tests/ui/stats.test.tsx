@@ -55,6 +55,20 @@ function lines(setup: Awaited<ReturnType<typeof mount>>): string[] {
   return out
 }
 
+function shortSummary(): Summary {
+  const activity = Array.from({ length: 15 }, (_, index) => ({
+    date: `2026-11-${String(index + 1).padStart(2, "0")}`,
+    runs: index % 3 === 0 ? 0 : 1,
+    tokens: index % 3 === 0 ? 0 : 1000 + index * 600,
+  }))
+  return summary({
+    activity,
+    bestStreak: 3,
+    activeDays: 10,
+    period: { from: "2026-11-01", to: "2026-11-15" },
+  })
+}
+
 function emptySummary(): Summary {
   return summary({
     overview: { runs: 0, failed: 0, input: 0, output: 0 },
@@ -219,6 +233,20 @@ describe("activity and trend", () => {
       expect(frame).toContain("· less")
       expect(frame).not.toContain("TOKENS OVER TIME")
       expect(frame).not.toContain("│")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("a short range names the days and dates instead of a tiny calendar", async () => {
+    const setup = await mount(105, 26, { summary: shortSummary() })
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("Mon Tue Wed Thu Fri Sat Sun")
+      expect(frame).toContain("Oct 26")
+      expect(frame).toContain("Nov 02")
+      expect(frame).toContain("Nov 09")
+      expect(frame).not.toContain("Jan Feb Mar")
     } finally {
       await setup.dispose()
     }
