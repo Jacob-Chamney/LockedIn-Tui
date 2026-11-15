@@ -68,6 +68,8 @@ import {
   sparklineText,
   spinner,
   spinnerText,
+  splitButton,
+  splitButtonText,
   statusDot,
   stepper,
   stats,
@@ -2688,4 +2690,47 @@ test("statusBanner honours overrides and empty widths", () => {
   expect(nodes[1]).toMatchObject({ text: "✓ done", fg: "accent" })
   expect(statusBannerText({ width: 20, message: "plain" })).toBe("· plain")
   expect(statusBanner({ anchor: "top-left", x: 0, y: 0, width: 0, message: "x" })).toEqual([])
+})
+
+test("splitButton draws both halves with keycaps and a separator", () => {
+  const nodes = splitButton({
+    anchor: "top-left",
+    x: 2,
+    y: 1,
+    primary: { key: "Enter", label: "send" },
+    secondary: { key: "⇧Enter", label: "newline" },
+  })
+  expect(nodes).toHaveLength(7)
+  expect(nodes[0]).toMatchObject({ kind: "rect", x: 2, y: 1, width: 7, color: "primary" })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 2, text: "[Enter]", fg: "background" })
+  expect(nodes[2]).toMatchObject({ x: 9, text: " send", fg: "foreground" })
+  expect(nodes[3]).toMatchObject({ x: 14, text: "│", fg: "muted" })
+  expect(nodes[4]).toMatchObject({ x: 15, width: 8, color: "line" })
+  expect(nodes[5]).toMatchObject({ x: 15, text: "[⇧Enter]", fg: "foreground" })
+  expect(nodes[6]).toMatchObject({ x: 23, text: " newline" })
+})
+
+test("splitButton drops the second half and honours disabled colours", () => {
+  const dropped = splitButton({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 20,
+    primary: { key: "Enter", label: "send" },
+    secondary: { key: "⇧Enter", label: "newline" },
+  })
+  expect(dropped).toHaveLength(3)
+  expect(splitButtonText({ primary: { key: "Enter", label: "send" } })).toBe("[Enter] send")
+
+  const disabled = splitButton({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    primary: { key: "Enter", label: "send" },
+    secondary: { key: "⇧Enter", label: "newline" },
+    disabled: true,
+    disabledFg: "warning",
+  })
+  expect(disabled[0]).toMatchObject({ color: "line" })
+  expect(disabled[1]).toMatchObject({ fg: "warning" })
 })

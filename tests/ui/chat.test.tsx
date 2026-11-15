@@ -591,3 +591,14 @@ describe("chat bubbles", () => {
     }
   })
 })
+
+test("the composer footer splits send from the newline alternative", async () => {
+  const setup = await mount(100, 30, chat.initialChat("ada", "m"))
+  try {
+    const frame = rows(setup).join("\n")
+    expect(frame).toContain("[Enter] send│[⇧Enter] newline")
+    expect(frame).toContain("[Esc] normal")
+  } finally {
+    await setup.dispose()
+  }
+})

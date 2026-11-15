@@ -56,6 +56,13 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  splitButtonLayout,
+  splitButtonText as renderSplitButton,
+  type SplitAction as SplitActionInput,
+  type SplitButtonLayout as SplitButtonLayoutInput,
+  type SplitButtonToken as SplitButtonTokenInput,
+} from "../src/ui/split-button"
+import {
   statusBannerLayout,
   statusBannerStyle,
   statusBannerText as renderStatusBanner,
@@ -5311,6 +5318,108 @@ export function statusBanner(options: StatusBannerOptions): SceneNode[] {
 /** The banner text without placement. */
 export function statusBannerText(options: Omit<StatusBannerOptions, "anchor" | "x" | "y">): string {
   return renderStatusBanner(options)
+}
+
+/** One half of a `splitButton()`. */
+export type SplitAction = SplitActionInput
+
+/** One key, label or separator in a split button. */
+export type SplitButtonToken = SplitButtonTokenInput
+
+/** The placed tokens, text and secondary visibility of a split button. */
+export type SplitButtonLayout = SplitButtonLayoutInput
+
+export type SplitButtonOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  primary: SplitAction
+  secondary?: SplitAction
+  /** Available columns; defaults to the natural width. */
+  width?: number
+  disabled?: boolean
+  /** Separator between the halves; defaults `│`. */
+  separator?: string
+  /** Primary key fill. Defaults to `primary`. */
+  primaryBg?: string
+  /** Secondary key fill. Defaults to `line`. */
+  secondaryBg?: string
+  /** Primary key text. Defaults to `background`. */
+  primaryFg?: string
+  /** Secondary key text. Defaults to `foreground`. */
+  secondaryFg?: string
+  /** Label colour. Defaults to `foreground`. */
+  labelFg?: string
+  /** Disabled label colour. Defaults to `muted`. */
+  disabledFg?: string
+  /** Separator colour. Defaults to `muted`. */
+  separatorFg?: string
+}
+
+/**
+ * A primary action with an attached secondary action.
+ *
+ *   splitButton({ anchor: "top-left", x: 2, y: 1,
+ *                 primary: { key: "Enter", label: "send" },
+ *                 secondary: { key: "⇧Enter", label: "newline" } })
+ *   // [Enter] send│[⇧Enter] newline
+ *
+ * The secondary half is dropped when it does not fit. A disabled button keeps
+ * its shape but reads muted. `splitButtonText()` returns the line.
+ */
+export function splitButton(options: SplitButtonOptions): SceneNode[] {
+  const layout = splitButtonLayout(options)
+  const nodes: SceneNode[] = []
+  for (const token of layout.tokens) {
+    if (token.kind === "key") {
+      nodes.push({
+        kind: "rect",
+        anchor: options.anchor,
+        x: options.x + token.x,
+        y: options.y,
+        width: token.width,
+        height: 1,
+        fill: true,
+        color: options.disabled
+          ? "line"
+          : token.primary
+            ? (options.primaryBg ?? "primary")
+            : (options.secondaryBg ?? "line"),
+      })
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x + token.x,
+        y: options.y,
+        text: token.text,
+        fg: options.disabled
+          ? (options.disabledFg ?? "muted")
+          : token.primary
+            ? (options.primaryFg ?? "background")
+            : (options.secondaryFg ?? "foreground"),
+      })
+    } else {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x + token.x,
+        y: options.y,
+        text: token.text,
+        fg:
+          token.kind === "separator"
+            ? (options.separatorFg ?? "muted")
+            : options.disabled
+              ? (options.disabledFg ?? "muted")
+              : (options.labelFg ?? "foreground"),
+      })
+    }
+  }
+  return nodes
+}
+
+/** The split button text without placement. */
+export function splitButtonText(options: Omit<SplitButtonOptions, "anchor" | "x" | "y">): string {
+  return renderSplitButton(options)
 }
 
 export type FormOptions = {

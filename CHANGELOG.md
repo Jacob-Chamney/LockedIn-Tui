@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `splitButton()` pairs a primary and secondary action with fitted keycaps; the
+  chat composer shows send and the newline alternative together.
 - `statusBanner()` draws a filled one-line status with a tone glyph and action
   slot; Sources shows blocked and failed states with it.
 - `wizard()` draws numbered steps with done/current/upcoming markers; the
