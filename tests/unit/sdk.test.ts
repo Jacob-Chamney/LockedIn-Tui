@@ -5,6 +5,7 @@ import {
   defineParticleSystem,
   definePlugin,
   accordion,
+  actionBar,
   badges,
   bars,
   calendar,
@@ -1888,4 +1889,50 @@ test("scrollbar can be horizontal, hidden when idle or forced", () => {
   const always = scrollbar({ anchor: "top-left", x: 0, y: 0, length: 3, content: 3, viewport: 5, offset: 0, always: true })
   expect(always).toHaveLength(3)
   expect(always.every((node) => node.kind === "text" && node.text === "█")).toBe(true)
+})
+
+test("actionBar fills keycaps and keeps labels separate", () => {
+  const nodes = actionBar({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 60,
+    groups: [
+      {
+        id: "keys",
+        actions: [
+          { id: "send", key: "Enter", label: "send" },
+          { id: "normal", key: "Esc", label: "normal", disabled: true },
+        ],
+      },
+      { id: "caps", actions: [{ id: "style", label: "style: normal" }] },
+    ],
+  })
+  expect(nodes).toHaveLength(9)
+  expect(nodes[0]).toMatchObject({ kind: "rect", x: 2, y: 3, width: 7, color: "line" })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 2, text: "[Enter]", fg: "background" })
+  expect(nodes[2]).toMatchObject({ x: 9, text: " send", fg: "foreground" })
+  expect(nodes[3]).toMatchObject({ x: 14, text: "  ", fg: "line" })
+  expect(nodes[4]).toMatchObject({ x: 16, width: 5, color: "line" })
+  expect(nodes[5]).toMatchObject({ x: 16, text: "[Esc]", fg: "muted" })
+  expect(nodes[6]).toMatchObject({ x: 21, text: " normal", fg: "muted" })
+  expect(nodes[7]).toMatchObject({ x: 28, text: " · ", fg: "line" })
+  expect(nodes[8]).toMatchObject({ x: 31, text: "style: normal" })
+})
+
+test("actionBar honours colours and hides actions that do not fit", () => {
+  const nodes = actionBar({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 10,
+    keyBg: "accent",
+    keyFg: "warning",
+    disabledFg: "secondary",
+    groups: [{ id: "keys", actions: [{ id: "send", key: "Enter", label: "send" }] }],
+  })
+  expect(nodes[0]).toMatchObject({ color: "accent" })
+  expect(nodes[1]).toMatchObject({ fg: "warning" })
+  expect(nodes[2]).toMatchObject({ text: " s…" })
+  expect(actionBar({ anchor: "top-left", x: 0, y: 0, width: 10, groups: [] })).toEqual([])
 })

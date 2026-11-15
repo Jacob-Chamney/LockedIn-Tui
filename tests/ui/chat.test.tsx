@@ -434,7 +434,9 @@ describe("response style strip", () => {
     }
     const skillSetup = await mount(100, 24, skill)
     try {
-      expect(rows(skillSetup).join("\n")).toContain("style: brief · tutor: socratic")
+      const skillFrame = rows(skillSetup).join("\n")
+      expect(skillFrame).toContain("style: brief  tutor: socratic")
+      expect(skillFrame).toContain("[Enter] send")
     } finally {
       await skillSetup.dispose()
     }

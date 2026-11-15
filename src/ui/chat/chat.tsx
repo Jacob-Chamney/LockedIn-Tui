@@ -17,7 +17,8 @@ import { MarkdownBody } from "../reader/markdown-body";
 import { LOGO_MIN_WIDTH, LOCKED_IN_LOGO, LOCKED_IN_TAGLINE } from "../shell/brand";
 import { Bubble, useAfterFirstFrame, useCellSize } from "./bubble";
 import { useThinkingPulse } from "./pulse"
-import { ChipList } from "../shell/chips";
+import { ChipList } from "../shell/chips"
+import { ActionBar } from "../shell/action-bar";
 import { bubbleColumns } from "./bubble-geometry";
 import { COMPOSER_CURSOR, PLACEHOLDER, STOP_LINE, THINKING_LINE, canSend, composerRows, composerText, greeting, hiddenCount, hints as hintList, mountedMessages, newMessagesMarker, pasteLabel, pasteRows, stopMarker, streamingText, thinkingLine, waitingForModel, type ChatState, type Message } from "./model";
 export function ChatPane(props: {
@@ -113,12 +114,31 @@ export function ChatPane(props: {
   const body = () => (props.focused ? palette().foreground : palette().muted)
   const compact = () => props.height < 24 || props.width < 90
   /** Only the response controls this surface offers, plus the key hint. */
-  const strip = () => {
-    const parts: string[] = []
-    if (props.state.capabilities?.responseStyle) parts.push(`style: ${props.state.responseStyle}`)
-    if (props.state.capabilities?.tutorPolicy) parts.push(`tutor: ${props.state.tutorPolicy}`)
-    if (!compact()) parts.push("Enter send · Esc normal")
-    return parts.join(" · ")
+  const actionGroups = () => {
+    const caps: Array<{ id: string; label: string }> = []
+    if (props.state.capabilities?.responseStyle) {
+      caps.push({ id: "style", label: `style: ${props.state.responseStyle}` })
+    }
+    if (props.state.capabilities?.tutorPolicy) {
+      caps.push({ id: "tutor", label: `tutor: ${props.state.tutorPolicy}` })
+    }
+    const groups: Array<{
+      id: string
+      actions: Array<{ id: string; key?: string; label: string; disabled?: boolean }>
+    }> = []
+    if (caps.length > 0) groups.push({ id: "caps", actions: caps })
+    if (!compact()) {
+      const result = send()
+      const blocked = !result.ok && result.reason !== "nothing to send"
+      groups.push({
+        id: "keys",
+        actions: [
+          { id: "send", key: "Enter", label: "send", disabled: blocked },
+          { id: "normal", key: "Esc", label: "normal" },
+        ],
+      })
+    }
+    return groups
   }
   /** Prefer whichever semantic text token reads best on the user bubble. */
   const userInk = () => {
@@ -502,9 +522,7 @@ export function ChatPane(props: {
       </box>
 
       <box paddingX={1} flexShrink={0}>
-        <text fg={palette().muted} wrapMode="none">
-          {strip()}
-        </text>
+        <ActionBar theme={palette()} groups={actionGroups()} width={fullWidth()} />
       </box>
 
     </box>
