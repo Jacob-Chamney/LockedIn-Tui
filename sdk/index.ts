@@ -99,6 +99,12 @@ import {
 } from "../src/ui/segmented"
 import { avatarLayout, type AvatarTone as AvatarToneInput } from "../src/ui/avatar"
 import {
+  avatarGroupLayout,
+  type AvatarGroupItem as AvatarGroupItemInput,
+  type AvatarGroupLayout as AvatarGroupLayoutInput,
+  type AvatarGroupMember as AvatarGroupMemberInput,
+} from "../src/ui/avatar-group"
+import {
   ratingLayout,
   ratingText as renderRating,
   type RatingGlyphs as RatingGlyphsInput,
@@ -4707,6 +4713,80 @@ export function delta(options: DeltaOptions): SceneNode[] {
 /** The delta text without placement. */
 export function deltaText(options: Omit<DeltaOptions, "anchor" | "x" | "y">): string {
   return renderDelta(options)
+}
+
+/** One monogram in an `avatarGroup()`. */
+export type AvatarGroupItem = AvatarGroupItemInput
+
+/** One placed member of an avatar group. */
+export type AvatarGroupMember = AvatarGroupMemberInput
+
+/** The placed members, overflow count and group width. */
+export type AvatarGroupLayout = AvatarGroupLayoutInput
+
+export type AvatarGroupOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Available columns. */
+  width: number
+  items: readonly AvatarGroupItem[]
+  /** Avatar width; defaults to 4 (`[AB]`). */
+  avatarWidth?: number
+  /** Cells each avatar starts before the previous ends; defaults to 1. */
+  overlap?: number
+  /** Badge text colour. Defaults to `background`. */
+  fg?: string
+  /** Overflow-count colour. Defaults to `muted`. */
+  overflowFg?: string
+}
+
+/**
+ * A stacked row of monograms with an overflow count.
+ *
+ *   avatarGroup({ anchor: "top-left", x: 2, y: 1, width: 20, items: [
+ *     { id: "a", name: "Ada Lovelace" },
+ *     { id: "b", name: "Builder" },
+ *   ] })
+ *
+ * Each avatar is `avatarWidth` cells; following avatars start `overlap` cells
+ * earlier, so a scene painter stacks them. When the row is too wide the tail is
+ * replaced by `+N`, and only the members that fit are drawn.
+ */
+export function avatarGroup(options: AvatarGroupOptions): SceneNode[] {
+  const layout = avatarGroupLayout(options)
+  const nodes: SceneNode[] = []
+  for (const member of layout.members) {
+    nodes.push({
+      kind: "rect",
+      anchor: options.anchor,
+      x: options.x + member.x,
+      y: options.y,
+      width: member.width,
+      height: 1,
+      fill: true,
+      color: member.tone,
+    })
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + member.x,
+      y: options.y,
+      text: member.avatar.text,
+      fg: options.fg ?? "background",
+    })
+  }
+  if (layout.overflow !== "") {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + layout.overflowX,
+      y: options.y,
+      text: layout.overflow,
+      fg: options.overflowFg ?? "muted",
+    })
+  }
+  return nodes
 }
 
 export type FormOptions = {
