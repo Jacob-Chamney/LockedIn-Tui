@@ -11,6 +11,12 @@
 import type { ThemePalette } from "../theme"
 import { Bubble, useAfterFirstFrame, useCellSize } from "../chat/bubble"
 import { mixHex } from "../theme/mix"
+import {
+  toastGlyph,
+  toastStackLayout,
+  toastStyle,
+  toastWidth,
+} from "../toast"
 
 export type NoticeLevel = "info" | "warn" | "error"
 
@@ -65,29 +71,22 @@ export function noticeOpacity(notice: Notice, now: number): number {
 }
 
 export function noticeGlyph(level: NoticeLevel): string {
-  return level === "error" ? "×" : level === "warn" ? "!" : "·"
+  return toastGlyph(level)
 }
 
 /** Bubble width: icon + gap + padding, clamped to the available column. */
 export function noticeWidth(text: string, available: number): number {
-  const max = Math.max(1, Math.min(NOTICE_MAX_WIDTH, available))
-  const min = Math.min(NOTICE_MIN_WIDTH, max)
-  const wanted = text.length + 4
-  return Math.max(min, Math.min(max, wanted))
+  return toastWidth(text, available, { minWidth: NOTICE_MIN_WIDTH, maxWidth: NOTICE_MAX_WIDTH })
 }
 
 /** The fill of the bubble: saturated for error/warn, panel for info. */
 export function noticeFill(level: NoticeLevel, palette: ThemePalette): string {
-  return level === "error"
-    ? palette.error
-    : level === "warn"
-      ? palette.warning
-      : palette.panel
+  return palette[toastStyle(level).fill as keyof ThemePalette] ?? palette.panel
 }
 
 /** Text on the fill; saturated fills use the background as ink. */
 export function noticeInk(level: NoticeLevel, palette: ThemePalette): string {
-  return level === "info" ? palette.foreground : palette.background
+  return palette[toastStyle(level).ink as keyof ThemePalette] ?? palette.foreground
 }
 
 /**
@@ -113,7 +112,21 @@ export function NoticeStack(props: { theme: ThemePalette; width: number; notices
   const palette = () => props.theme
   const cell = useCellSize()
   const ready = useAfterFirstFrame()
-  const available = () => Math.max(1, Math.min(NOTICE_MAX_WIDTH, Math.floor(props.width * 0.5)))
+  const stack = () =>
+    toastStackLayout({
+      toasts: props.notices.map((notice) => ({
+        id: notice.id,
+        text: notice.text,
+        tone: notice.level,
+      })),
+      width: props.width,
+      maxWidth: NOTICE_MAX_WIDTH,
+      minWidth: NOTICE_MIN_WIDTH,
+      maxVisible: 4,
+      maxLines: 4,
+      gap: 1,
+    })
+  const available = () => stack().available
   const left = () =>
     Math.max(1, props.width - available() - 2 - (props.rightOffset ?? 0))
 
@@ -127,7 +140,8 @@ export function NoticeStack(props: { theme: ThemePalette; width: number; notices
       alignItems="flex-end"
       gap={1}
     >
-      {props.notices.slice(-4).map((notice) => {
+      {props.notices.slice(-4).map((notice, index) => {
+        const item = stack().items[index]!
         const colors = noticeColors(
           notice.level,
           palette(),
@@ -135,7 +149,7 @@ export function NoticeStack(props: { theme: ThemePalette; width: number; notices
         )
         return (
           <Bubble
-            width={noticeWidth(notice.text, available())}
+            width={item.width}
             fill={colors.fill}
             background={palette().background}
             cell={cell()}

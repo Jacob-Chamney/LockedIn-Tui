@@ -56,6 +56,15 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  toastGlyph,
+  toastStackLayout,
+  type ToastItem as ToastItemInput,
+  type ToastLayoutItem as ToastLayoutItemInput,
+  type ToastStackLayout as ToastStackLayoutInput,
+  type ToastStyle as ToastStyleInput,
+  type ToastTone as ToastToneInput,
+} from "../src/ui/toast"
+import {
   segmentedLayout,
   type SegmentedOptions as SegmentedLayoutOptions,
 } from "../src/ui/segmented"
@@ -4289,6 +4298,97 @@ export function rating(options: RatingOptions): SceneNode[] {
       y: options.y,
       text: layout.text.slice(layout.filled),
       fg: options.emptyFg ?? "line",
+    })
+  }
+  return nodes
+}
+
+/** The tone a toast uses: info, warn or error. */
+export type ToastTone = ToastToneInput
+
+/** The fill/ink roles and glyph for a tone. */
+export type ToastStyle = ToastStyleInput
+
+/** One message in a `toasts()` stack. */
+export type ToastItem = ToastItemInput
+
+/** One laid-out toast, including its wrapped lines and stack offset. */
+export type ToastLayoutItem = ToastLayoutItemInput
+
+/** The visible toasts, dropped count and total height of a stack. */
+export type ToastStackLayout = ToastStackLayoutInput
+
+export type ToastsOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Surface width; a toast may use at most half of it. */
+  width: number
+  toasts: readonly ToastItem[]
+  maxWidth?: number
+  minWidth?: number
+  /** Rows kept in the stack; defaults to 4. */
+  maxVisible?: number
+  /** Wrapped body lines kept per toast; defaults to 4. */
+  maxLines?: number
+  /** Rows between stacked toasts; defaults to 1. */
+  gap?: number
+  /** Frame fill override; otherwise the tone decides. */
+  fill?: string
+  /** Text and glyph colour override. */
+  ink?: string
+  /** Frame border colour. Defaults to `line`. */
+  borderColor?: string
+}
+
+/**
+ * A stack of tone-coded toasts, newest at the bottom.
+ *
+ *   toasts({ anchor: "top-left", x: 60, y: 2, width: 60, toasts: [
+ *     { id: "a", text: "saved", tone: "info" },
+ *     { id: "b", text: "the request failed", tone: "error" },
+ *   ] })
+ *
+ * Each toast is a rounded, filled banner with a glyph and wrapped body. The
+ * stack keeps the newest `maxVisible`, reports older ones via `hidden`, and uses
+ * the same tone and fitting as the app's notice surface.
+ */
+export function toasts(options: ToastsOptions): SceneNode[] {
+  const layout = toastStackLayout(options)
+  const nodes: SceneNode[] = []
+  for (const item of layout.items) {
+    const fill = options.fill ?? item.style.fill
+    const ink = options.ink ?? item.style.ink
+    const top = options.y + item.y
+    nodes.push({
+      kind: "box",
+      anchor: options.anchor,
+      x: options.x,
+      y: top,
+      width: item.width,
+      height: item.frameHeight,
+      border: true,
+      borderStyle: "rounded",
+      borderColor: options.borderColor ?? "line",
+      bg: fill,
+    })
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + 1,
+      y: top + 1,
+      text: toastGlyph(item.tone),
+      fg: ink,
+    })
+    item.lines.forEach((line, index) => {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x + 3,
+        y: top + 1 + index,
+        text: line,
+        fg: ink,
+      })
     })
   }
   return nodes
