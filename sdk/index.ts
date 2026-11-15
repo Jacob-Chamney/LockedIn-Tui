@@ -54,6 +54,15 @@ import {
   type AccordionItem as AccordionItemInput,
 } from "../src/ui/accordion"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
+import {
+  bulletChartLayout,
+  bulletChartText as renderBulletChart,
+  type BulletChartGlyphs as BulletChartGlyphsInput,
+  type BulletChartLayout as BulletChartLayoutInput,
+  type BulletChartOptions as BulletChartLayoutOptions,
+  type BulletSegment as BulletSegmentInput,
+  type BulletSegmentKind as BulletSegmentKindInput,
+} from "../src/ui/bullet-chart"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
   dataTableLayout,
@@ -6353,6 +6362,68 @@ export function donutText(options: DonutLayoutOptions): string {
 /** The legend rows without placement. */
 export function donutLegendText(options: DonutLegendLayoutOptions): string[] {
   return donutLegendLayout(options).rows.map((row) => row.text)
+}
+
+/** The fill, track and target glyphs a `bulletChart()` uses. */
+export type BulletChartGlyphs = BulletChartGlyphsInput
+
+/** A segment kind: empty, filled, target or label. */
+export type BulletSegmentKind = BulletSegmentKindInput
+
+/** One placed segment of a bullet bar. */
+export type BulletSegment = BulletSegmentInput
+
+/** The fill, target position and segments of a bullet chart. */
+export type BulletChartLayout = BulletChartLayoutInput
+
+export type BulletChartOptions = Omit<BulletChartLayoutOptions, "value" | "max"> & {
+  anchor: ScenePosition
+  x: number
+  y: number
+  value: number
+  max: number
+  /** Fill colour. Defaults to `primary`. */
+  filledFg?: string
+  /** Track colour. Defaults to `line`. */
+  emptyFg?: string
+  /** Target-marker colour. Defaults to `muted`. */
+  targetFg?: string
+  /** Label colour. Defaults to `muted`. */
+  labelFg?: string
+}
+
+/**
+ * A bullet bar: a value fill with a target marker on the same track.
+ *
+ *   bulletChart({ anchor: "top-left", x: 2, y: 2, width: 20,
+ *                 value: 78, max: 100, target: 80, label: "78%" })
+ *
+ * The fill uses the shared meter maths; the target marker replaces the cell at
+ * its position, so a threshold stays visible inside or outside the fill.
+ * `bulletChartText()` returns the line without placement.
+ */
+export function bulletChart(options: BulletChartOptions): SceneNode[] {
+  const layout = bulletChartLayout(options)
+  return layout.segments.map((segment) => ({
+    kind: "text" as const,
+    anchor: options.anchor,
+    x: options.x + segment.x,
+    y: options.y,
+    text: segment.text,
+    fg:
+      segment.kind === "filled"
+        ? (options.filledFg ?? "primary")
+        : segment.kind === "target"
+          ? (options.targetFg ?? "muted")
+          : segment.kind === "label"
+            ? (options.labelFg ?? "muted")
+            : (options.emptyFg ?? "line"),
+  }))
+}
+
+/** The bullet bar text without placement. */
+export function bulletChartText(options: Omit<BulletChartOptions, "anchor" | "x" | "y" | "filledFg" | "emptyFg" | "targetFg" | "labelFg">): string {
+  return renderBulletChart(options)
 }
 
 export type FormOptions = {

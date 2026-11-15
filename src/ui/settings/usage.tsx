@@ -9,6 +9,7 @@ import type { BudgetConfig, BudgetPeriod } from "../../llm/budget";
 import type { RunRecord, UsageTotals } from "../../llm/usage";
 import type { ThemePalette } from "../theme";
 import { meterCells } from "../meter";
+import { bulletChartLayout } from "../bullet-chart";
 import { Bars } from "../shell/bars";
 import { Donut, DonutLegend } from "../shell/donut";
 import { donutSegments } from "../donut";
@@ -255,6 +256,12 @@ export function UsagePanel(props: {
     const spent = props.snapshot.spentMicroUsd / 1_000_000
     const columns = Math.max(8, Math.min(24, props.width - 34))
     const cells = meterCells(spent, budget.budget, columns)
+    const bar = bulletChartLayout({
+      value: spent,
+      max: budget.budget,
+      target: budget.budget * budget.warn_at,
+      width: columns,
+    })
     const percent = `${Math.round(cells.fraction * 100)}%`
     const suffix = ` · $${spent.toFixed(2)} of $${budget.budget.toFixed(2)}`
     const fixed = "spend ".length + columns + 1 + percent.length
@@ -264,7 +271,7 @@ export function UsagePanel(props: {
       : cells.fraction >= budget.warn_at
         ? palette().warning
         : palette().primary
-    return { cells, percent, suffix: fitText(suffix, room), tone }
+    return { cells, bar, percent, suffix: fitText(suffix, room), tone }
   }
 
   return (
@@ -287,12 +294,20 @@ export function UsagePanel(props: {
           <text fg={palette().muted} wrapMode="none">
             {"spend "}
           </text>
-          <text fg={meter()!.tone} wrapMode="none">
-            {"█".repeat(meter()!.cells.filled)}
-          </text>
-          <text fg={palette().line} wrapMode="none">
-            {"░".repeat(meter()!.cells.empty)}
-          </text>
+          {meter()!.bar.segments.map((segment) => (
+            <text
+              fg={
+                segment.kind === "target"
+                  ? palette().muted
+                  : segment.kind === "filled"
+                    ? meter()!.tone
+                    : palette().line
+              }
+              wrapMode="none"
+            >
+              {segment.text}
+            </text>
+          ))}
           <text fg={palette().muted} wrapMode="none">
             {` ${meter()!.percent}`}
           </text>
