@@ -108,9 +108,12 @@ export function menuLayout(options: MenuOptions): MenuLayout {
   const sections = options.sections
   const entryCount = sections.reduce((sum, section) => sum + section.entries.length, 0)
   const keys = sections.flatMap((section) => section.entries.map((entry) => `${keyPrefix}${entry.key ?? ""}`))
-  const keyWidth = Math.max(
-    0,
-    Math.floor(options.keyWidth ?? (keys.length === 0 ? 0 : Math.max(0, ...keys.map((key) => key.length)))),
+  const keyWidth = Math.min(
+    Math.max(
+      0,
+      Math.floor(options.keyWidth ?? (keys.length === 0 ? 0 : Math.max(0, ...keys.map((key) => key.length)))),
+    ),
+    Math.max(0, width - markerWidth - gap - 1),
   )
   if (width === 0 || sections.length === 0) {
     return { rows: [], width, hidden: 0, keyWidth, markerWidth, gap, selected: 0, entryCount }

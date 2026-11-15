@@ -191,6 +191,15 @@ requests merge.
 - `LOCKEDIN_PLUGINS*` and `LOCKEDIN_PLUGIN` are the supported environment
   names; the old `LOCKEDIN_EFFECTS*` names are retired.
 
+### Fixed
+
+- The new API elements no longer draw past narrow terminals: the matrix, data
+  table, definition list, status timeline, menu, outline, timeline, popover and
+  number stepper fit or drop columns instead of overflowing.
+- A non-finite wizard step falls back to the first step instead of throwing.
+- The Stats heatmap legend stays directly under the heatmap, and the Usage
+  run-size histogram scales its bucket count to the recorded runs.
+
 ### Removed
 
 - The in-app template and example galleries are no longer part of the packaged

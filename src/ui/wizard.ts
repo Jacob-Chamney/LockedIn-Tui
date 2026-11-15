@@ -67,7 +67,8 @@ export function wizardLayout(options: WizardOptions): WizardLayout {
   if (steps.length === 0 || width === 0) {
     return { segments: [], hidden: steps.length, current: 0, width, gap }
   }
-  const current = Math.max(0, Math.min(steps.length - 1, Math.round(options.current)))
+  const wanted = Number.isFinite(options.current) ? Math.round(options.current) : 0
+  const current = Math.max(0, Math.min(steps.length - 1, wanted))
   const segments: WizardSegment[] = []
   let x = 0
 

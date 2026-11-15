@@ -83,12 +83,12 @@ export function timelineRows(options: TimelineLayoutOptions): TimelineRow[] {
   if (entries.length === 0) return []
   const width = Math.max(1, Math.floor(options.width))
   const gap = clamp(Math.floor(options.gap ?? 1), 0, 4)
-  const timeWidth = clamp(
+  let timeWidth = clamp(
     Math.floor(options.timeWidth ?? Math.max(0, ...entries.map((entry) => entry.time.length))),
     0,
     Math.max(0, Math.floor(width / 3)),
   )
-  const glyphWidth = clamp(
+  let glyphWidth = clamp(
     Math.floor(
       options.glyphWidth ??
         Math.max(1, ...entries.map((entry) => (entry.glyph ?? "●").length)),
@@ -100,18 +100,29 @@ export function timelineRows(options: TimelineLayoutOptions): TimelineRow[] {
   const selected = options.selected ?? -1
   const selectedMarker = options.marker?.selected ?? "▸"
   const restMarker = options.marker?.rest ?? " "
-  const markerWidth = selectable ? Math.max(selectedMarker.length, restMarker.length) + 1 : 0
-  const columns =
-    markerWidth + timeWidth + (timeWidth > 0 ? gap : 0) + glyphWidth + gap
-  const contentWidth = Math.max(4, width - columns)
+  let markerWidth = selectable ? Math.max(selectedMarker.length, restMarker.length) + 1 : 0
+  let columnGap = gap
+  const columns = () =>
+    markerWidth +
+    (timeWidth > 0 ? timeWidth + columnGap : 0) +
+    (glyphWidth > 0 ? glyphWidth + columnGap : 0)
+  while (columns() + 1 > width) {
+    if (markerWidth > 0) markerWidth = 0
+    else if (timeWidth > 0) timeWidth = 0
+    else if (glyphWidth > 0) glyphWidth = 0
+    else if (columnGap > 0) columnGap = 0
+    else break
+  }
+  const contentWidth = Math.max(1, width - columns())
   const details = options.details !== false
   let y = 0
 
   return entries.map((entry, index) => {
     const detail = details && entry.detail ? fit(entry.detail, contentWidth) : undefined
-    const marker = selectable
-      ? `${index === selected ? selectedMarker : restMarker}`.padEnd(markerWidth)
-      : ""
+    const marker =
+      selectable && markerWidth > 0
+        ? `${index === selected ? selectedMarker : restMarker}`.padEnd(markerWidth)
+        : ""
     const row: TimelineRow = {
       index,
       y,
@@ -123,7 +134,7 @@ export function timelineRows(options: TimelineLayoutOptions): TimelineRow[] {
       tone: entry.tone ?? "info",
       timeWidth,
       glyphWidth,
-      gap,
+      gap: columnGap,
       contentWidth,
     }
     y += detail === undefined ? 1 : 2

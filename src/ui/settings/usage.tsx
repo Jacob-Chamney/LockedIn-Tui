@@ -374,14 +374,14 @@ export function UsagePanel(props: {
       {showHistogram() ? (
         <>
           <text fg={palette().secondary} wrapMode="none">
-            {"RUN SIZE"}
+            {"RUN SIZE · TOKENS"}
           </text>
           <Histogram
             theme={palette()}
             values={runSizes()}
             width={Math.min(24, chartWidth())}
             height={3}
-            bins={Math.min(24, chartWidth())}
+            bins={Math.max(2, Math.min(24, props.snapshot.runs.length * 3, chartWidth()))}
           />
         </>
       ) : null}

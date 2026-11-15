@@ -100,7 +100,7 @@ export function statusTimelineLayout(options: StatusTimelineOptions): StatusTime
   const visible = all.slice(0, maxEntries)
   const hidden = all.length - visible.length
   const timed = visible.filter((entry) => (entry.time ?? "") !== "")
-  const timeWidth = Math.max(
+  const wantedTimeWidth = Math.max(
     0,
     Math.floor(options.timeWidth ?? (timed.length === 0 ? 0 : Math.max(...timed.map((entry) => (entry.time ?? "").length)))),
   )
@@ -109,10 +109,20 @@ export function statusTimelineLayout(options: StatusTimelineOptions): StatusTime
     1,
     ...visible.map((entry) => entry.glyph?.length ?? statusTimelineGlyph(entry.state).length),
   )
-  if (width === 0 || visible.length === 0) {
-    return { rows: [], hidden, width, timeWidth, connectorWidth, glyphWidth, gap, height: 0 }
+  const base = connectorWidth + gap + glyphWidth + gap + 1
+  if (width === 0 || visible.length === 0 || width < base) {
+    return {
+      rows: [],
+      hidden,
+      width,
+      timeWidth: 0,
+      connectorWidth,
+      glyphWidth,
+      gap,
+      height: 0,
+    }
   }
-
+  const timeWidth = Math.min(wantedTimeWidth, Math.max(0, width - base - gap))
   const used =
     (timeWidth > 0 ? timeWidth + gap : 0) + connectorWidth + gap + glyphWidth + gap
   const labelWidth = Math.max(1, width - used)
@@ -125,7 +135,7 @@ export function statusTimelineLayout(options: StatusTimelineOptions): StatusTime
       kind: "entry",
       entryIndex,
       y,
-      time: (entry.time ?? "").padEnd(timeWidth),
+      time: fit(entry.time ?? "", timeWidth).padEnd(timeWidth),
       connector: last ? "└─" : "├─",
       glyph: (entry.glyph ?? statusTimelineGlyph(state)).padEnd(glyphWidth),
       label: fit(entry.label, labelWidth),

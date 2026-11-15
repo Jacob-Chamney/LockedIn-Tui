@@ -48,3 +48,10 @@ test("zero width and no columns are empty", () => {
   expect(dataTableLayout({ columns: COLUMNS, rows: ROWS, width: 0 }).rows).toEqual([])
   expect(dataTableLayout({ columns: [], rows: ROWS, width: 20 }).rows).toEqual([])
 })
+
+test("narrow widths clip instead of overflowing", () => {
+  for (const width of [3, 7, 9]) {
+    const lines = dataTableText({ columns: COLUMNS, rows: ROWS, width, selected: 0 })
+    for (const line of lines) expect(line.length).toBeLessThanOrEqual(width)
+  }
+})

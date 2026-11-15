@@ -93,12 +93,29 @@ export function numberStepperLayout(options: NumberStepperOptions): NumberSteppe
     }
   }
   const segments: NumberStepperSegment[] = []
-  const minus = `${glyphs.minus} `
+  if (width === 1) {
+    const shown = fit(label, 1)
+    return {
+      value,
+      min,
+      max,
+      step,
+      text: shown,
+      width,
+      disabled,
+      canDecrement,
+      canIncrement,
+      segments: [{ kind: "value", text: shown, x: 0, width: shown.length, enabled: !disabled }],
+    }
+  }
+  const minus = width >= 4 ? `${glyphs.minus} ` : glyphs.minus
   segments.push({ kind: "minus", text: minus, x: 0, width: minus.length, enabled: canDecrement })
-  const room = Math.max(0, width - minus.length - (glyphs.plus.length + 1))
-  const shown = fit(label, room)
-  segments.push({ kind: "value", text: shown, x: minus.length, width: shown.length, enabled: !disabled })
   const plusX = width - glyphs.plus.length
+  const room = Math.max(0, plusX - minus.length)
+  const shown = fit(label, room)
+  if (shown !== "") {
+    segments.push({ kind: "value", text: shown, x: minus.length, width: shown.length, enabled: !disabled })
+  }
   const gap = Math.max(0, plusX - (minus.length + shown.length))
   if (gap > 0) segments.push({ kind: "value", text: " ".repeat(gap), x: minus.length + shown.length, width: gap, enabled: !disabled })
   segments.push({ kind: "plus", text: glyphs.plus, x: plusX, width: glyphs.plus.length, enabled: canIncrement })
@@ -107,7 +124,7 @@ export function numberStepperLayout(options: NumberStepperOptions): NumberSteppe
     min,
     max,
     step,
-    text: fit(`${glyphs.minus} ${shown}${" ".repeat(Math.max(1, gap))}${glyphs.plus}`, width),
+    text: fit(segments.map((segment) => segment.text).join(""), width),
     width,
     disabled,
     canDecrement,

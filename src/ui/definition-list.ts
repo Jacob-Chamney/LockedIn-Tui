@@ -66,7 +66,10 @@ export function definitionRole(tone: DefinitionTone = "normal"): string {
 
 export function definitionListLayout(options: DefinitionListOptions): DefinitionListLayout {
   const width = Math.max(0, Math.floor(options.width))
-  const gap = Math.max(0, Math.min(8, Math.floor(options.gap ?? 2)))
+  const gap = Math.min(
+    Math.max(0, Math.min(8, Math.floor(options.gap ?? 2))),
+    Math.max(0, width - 1),
+  )
   const items = options.items
   if (width === 0 || items.length === 0) {
     return { rows: [], width, termWidth: 0, gap, height: 0, lines: [] }

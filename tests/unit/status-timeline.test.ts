@@ -61,3 +61,13 @@ test("labels fit, entries cap and zero width is empty", () => {
   expect(capped.hidden).toBe(1)
   expect(statusTimelineLayout({ entries: ENTRIES, width: 0 }).rows).toEqual([])
 })
+
+test("narrow widths drop the time column or return nothing", () => {
+  expect(statusTimelineLayout({ entries: ENTRIES, width: 3 }).rows).toEqual([])
+  for (const width of [6, 8, 10, 12]) {
+    const lines = statusTimelineText({ entries: ENTRIES, width })
+    for (const line of lines) expect(line.length).toBeLessThanOrEqual(width)
+  }
+  const seven = statusTimelineLayout({ entries: ENTRIES, width: 7 })
+  expect(seven.timeWidth).toBe(0)
+})

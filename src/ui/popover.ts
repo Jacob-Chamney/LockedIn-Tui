@@ -52,7 +52,7 @@ function fit(text: string, width: number): string {
 }
 
 export function popoverLayout(options: PopoverOptions): PopoverLayout {
-  const width = Math.max(6, Math.floor(options.width))
+  const width = Math.max(1, Math.floor(options.width))
   const innerWidth = Math.max(1, width - 4)
   const rows: PopoverRow[] = []
   if (options.title !== undefined && options.title !== "") {
@@ -69,7 +69,10 @@ export function popoverLayout(options: PopoverOptions): PopoverLayout {
     const key = item.key === undefined || item.key === "" ? "" : `[${item.key}] `
     rows.push({
       kind: "item",
-      text: `${marker}${key}${fit(item.label, Math.max(1, innerWidth - marker.length - key.length))}`,
+      text: fit(
+        `${marker}${key}${fit(item.label, Math.max(1, innerWidth - marker.length - key.length))}`,
+        innerWidth,
+      ),
       item,
       selected: index === selected,
     })

@@ -43,3 +43,8 @@ test("current is clamped, glyphs change and empty input stays empty", () => {
   expect(wizardLayout({ steps: [], current: 0, width: 40 })).toMatchObject({ segments: [], hidden: 0 })
   expect(wizardLayout({ steps: STEPS, current: 0, width: 0 }).segments).toEqual([])
 })
+
+test("a non-finite current step falls back to the first step", () => {
+  expect(wizardLayout({ steps: STEPS, current: Number.NaN, width: 40 })).toMatchObject({ current: 0 })
+  expect(wizardLayout({ steps: STEPS, current: Number.POSITIVE_INFINITY, width: 40 }).current).toBe(0)
+})

@@ -55,3 +55,16 @@ test("an empty popover still has a box", () => {
   expect(layout.rows).toEqual([])
   expect(layout.height).toBe(2)
 })
+
+test("narrow popovers respect the requested width", () => {
+  for (const width of [1, 2, 3]) {
+    const layout = popoverLayout({
+      width,
+      title: "actions",
+      body: "a longer body",
+      items: [{ id: "a", label: "edit" }],
+    })
+    expect(layout.width).toBe(width)
+    for (const row of layout.rows) expect(row.text.length).toBeLessThanOrEqual(width)
+  }
+})
