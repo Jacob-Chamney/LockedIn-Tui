@@ -11,6 +11,7 @@ import { WindowBody } from "../panels/floating-window"
 import { PanelEmpty } from "../panels/panel-frame"
 import { PanelWindow } from "../panels/panel-window"
 import { SelectableRow, selectionMark } from "../panels/select-list"
+import { radioBox } from "../radio"
 
 export type ThemesState = { cursor: number }
 
@@ -72,6 +73,9 @@ export function ThemeList(props: {
             <text fg={palette().primary} wrapMode="none">
               {mark.bar}
             </text>
+            <text fg={applied ? palette().primary : palette().muted} wrapMode="none">
+              {`${radioBox(applied)} `}
+            </text>
             {swatch(entry.palette).map((cell) => (
               <text fg={cell.fg} wrapMode="none">
                 {`${cell.glyph} `}
@@ -80,11 +84,7 @@ export function ThemeList(props: {
             <text fg={palette().foreground} wrapMode="none">
               {selected ? <b>{entry.label}</b> : entry.label}
             </text>
-            {applied ? (
-              <text fg={palette().muted} wrapMode="none">
-                {"  ✓"}
-              </text>
-            ) : null}
+
           </SelectableRow>
         )
       })}

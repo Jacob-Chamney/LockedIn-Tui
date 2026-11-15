@@ -30,6 +30,7 @@ import {
   menu,
   prompt,
   kpiStrip,
+  radio,
   legend,
   list,
   loop,
@@ -1485,4 +1486,46 @@ test("tooltip uses shared placement and clips long bodies", () => {
   expect(clipped[1]!.kind).toBe("text")
   if (clipped[1]!.kind !== "text") return
   expect(clipped[1]!.text.endsWith("…")).toBe(true)
+})
+
+test("radio draws markers, boxes and labels", () => {
+  const nodes = radio({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 30,
+    selected: 0,
+    items: [
+      { id: "lockedin", label: "LockedIn Crimson", checked: true },
+      { id: "dracula", label: "Dracula" },
+    ],
+  })
+  expect(nodes).toHaveLength(6)
+  expect(nodes[0]).toMatchObject({ x: 2, y: 3, text: "▌ ", fg: "primary" })
+  expect(nodes[1]).toMatchObject({ x: 4, y: 3, text: "(•)", fg: "success" })
+  expect(nodes[2]).toMatchObject({ x: 8, y: 3, text: "LockedIn Crimson", fg: "primary" })
+  expect(nodes[3]).toMatchObject({ x: 2, y: 4, text: "  " })
+  expect(nodes[4]).toMatchObject({ x: 4, y: 4, text: "( )", fg: "muted" })
+  expect(nodes[5]).toMatchObject({ x: 8, y: 4, text: "Dracula", fg: "foreground" })
+})
+
+test("radio honours glyph and colour overrides without a cursor", () => {
+  const nodes = radio({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 30,
+    glyphs: { on: "●", off: "○" },
+    onFg: "accent",
+    offFg: "secondary",
+    items: [
+      { id: "a", label: "one", checked: true },
+      { id: "b", label: "two" },
+    ],
+  })
+  expect(nodes).toHaveLength(4)
+  expect(nodes[0]).toMatchObject({ x: 0, text: "●", fg: "accent" })
+  expect(nodes[1]).toMatchObject({ x: 2, text: "one" })
+  expect(nodes[2]).toMatchObject({ x: 0, text: "○", fg: "secondary" })
+  expect(radio({ anchor: "top-left", x: 0, y: 0, width: 30, items: [] })).toEqual([])
 })
