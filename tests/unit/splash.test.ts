@@ -49,6 +49,14 @@ describe("startup splash", () => {
     }
   })
 
+  test("the field is sparse and gains a seal pulse while locking", () => {
+    const phaseZero = frame(0).rows.flat()
+    expect(phaseZero.filter((cell) => cell.ch.trim() !== "").length).toBeLessThan(
+      phaseZero.length / 4,
+    )
+    expect(frame(5).rows.flat().some((cell) => cell.ch === ".")).toBe(true)
+  })
+
   test("the shackle and body assemble before the lock closes", () => {
     expect(lockCells(0)).toHaveLength(0)
     expect(lockCells(1).length).toBeGreaterThan(0)

@@ -82,6 +82,8 @@ export type SettingsRow = {
   key?: string
   /** Read-only tags shown in the value column. */
   tags?: { labels: readonly string[]; invalid?: readonly boolean[] }
+  /** The row is adjusted with -/+ rather than an inline text edit. */
+  adjustOnly?: boolean
 }
 
 export type SettingsGroup = { id: string; title: string; rows: SettingsRow[] }
@@ -134,8 +136,8 @@ export function settingsGroups(view: SettingsView): SettingsGroup[] {
         { id: "providers", label: "Providers", value: text(activeProvider), hint: "the active provider; Enter links or replaces its key.", edit: "none" },
         { id: "chatModel", label: "Chat model", value: text(active.model), hint: "the active model; the provider is the row above.", edit: "none" },
         { id: "baseUrl", label: "Base URL", value: text(view.baseUrl), hint: "only needed for a custom endpoint; first-class providers use their own URL.", edit: "none" },
-        { id: "maxToolCalls", label: "Max tool calls", value: text(view.maxToolCalls), hint: "hard cap per turn; the loop stops at this count.", edit: "none" },
-        { id: "maxTokens", label: "Max tokens/request", value: text(view.maxTokensPerRequest, (n: number) => n.toLocaleString("en-US")), hint: "hard cap per request; the loop stops at this count.", edit: "none" },
+        { id: "maxToolCalls", label: "Max tool calls", value: text(view.maxToolCalls), hint: "hard cap per turn; the loop stops at this count; use -/+ to step it.", edit: "text", key: "models.max_tool_calls" },
+        { id: "maxTokens", label: "Max tokens/request", value: text(view.maxTokensPerRequest, (n: number) => n.toLocaleString("en-US")), hint: "hard cap per request; the loop stops at this count; use -/+ to step it.", edit: "text", key: "models.max_tokens_per_request" },
       ],
     },
     {
@@ -144,7 +146,7 @@ export function settingsGroups(view: SettingsView): SettingsGroup[] {
       rows: [
         { id: "budget", label: "Budget", value: budgetLabel(view.budgetUsd), hint: "day or month limit; zero means no limit.", edit: "text", key: "usage.budget" },
         { id: "period", label: "Period", value: text(view.period), hint: "when the budget counter resets.", edit: "none" },
-        { id: "warnAt", label: "Warn at", value: warnLabel(view.warnAt), hint: "the share of the budget that raises a warning.", edit: "none" },
+        { id: "warnAt", label: "Warn at", value: warnLabel(view.warnAt), hint: "the share of the budget that raises a warning; use -/+ to adjust it.", edit: "none", adjustOnly: true },
         { id: "pause", label: "Pause at limit", value: yesNo(view.pauseAtLimit), hint: "refuses a request at the limit; one override is allowed.", edit: "none" },
       ],
     },
@@ -155,7 +157,7 @@ export function settingsGroups(view: SettingsView): SettingsGroup[] {
         { id: "dataDir", label: "Data folder", value: text(view.dataDir), hint: "usage, stats and history; set at launch with --data-dir.", edit: "none" },
         { id: "backend", label: "Archive backend", value: text(view.archiveBackend), hint: "where archived sessions are pushed; switch it in Archive.", edit: "none" },
         { id: "archiveFolder", label: "Archive folder", value: text(view.archiveFolder), hint: "the folder that receives archives on the local backend.", edit: "text", key: "archive.folder" },
-        { id: "historyLimit", label: "History limit", value: text(view.historyLimit), hint: "how many Chill messages are kept locally; zero disables history.", edit: "none" },
+        { id: "historyLimit", label: "History limit", value: text(view.historyLimit), hint: "how many Chill messages are kept locally; zero disables history; use -/+ to step it.", edit: "text", key: "ui.chill_history_limit" },
       ],
     },
     {
@@ -247,6 +249,9 @@ export function move(state: SettingsState, delta: number, groups: SettingsGroup[
 export function beginEdit(state: SettingsState, groups: SettingsGroup[]): SettingsState {
   const current = selectedRow(groups, state.cursor)
   if (!current) return { ...state, notice: "no setting selected" }
+  if (current.row.adjustOnly) {
+    return { ...state, notice: `${current.row.label} is adjusted with -/+` }
+  }
   if (current.row.edit !== "text" || !current.row.key) {
     return { ...state, notice: `${current.row.label} is changed in its own screen` }
   }
@@ -276,10 +281,18 @@ export async function commitEdit(
   if (trimmed === "") {
     return { state: { ...state, notice: `${key} cannot be empty` }, refused: "empty" }
   }
-  const patch = key === "usage.budget" ? { [key]: Number(trimmed) } : { [key]: trimmed }
-  if (key === "usage.budget" && !Number.isFinite(Number(trimmed))) {
-    return { state: { ...state, notice: "budget must be a number" }, refused: "not a number" }
+  const numericKeys = new Set([
+    "usage.budget",
+    "models.max_tool_calls",
+    "models.max_tokens_per_request",
+    "ui.chill_history_limit",
+  ])
+  const numeric = numericKeys.has(key)
+  const number = Number(trimmed.replace(/,/g, ""))
+  if (numeric && !Number.isFinite(number)) {
+    return { state: { ...state, notice: `${key} must be a number` }, refused: "not a number" }
   }
+  const patch = numeric ? { [key]: number } : { [key]: trimmed }
   await save(patch)
   return { state: { ...state, editing: null, notice: null }, patch }
 }
@@ -317,16 +330,59 @@ export function footerHints(): string {
   return `${hints.join(" · ")} · h/l fold · v hint · -/+ step`
 }
 
-/** Adjust a numeric setting by `delta`; null when the row has no stepper. */
+function stepped(value: number, delta: number, step: number, min: number, max: number, precision = 0): number {
+  const scale = 10 ** precision
+  const next = Math.round((value + delta * step) * scale) / scale
+  return Math.max(min, Math.min(max, next))
+}
+
+/** Adjust a steppable setting by `delta`; null when the row has no stepper. */
 export function stepSetting(
   view: SettingsView,
   rowId: string,
   delta: number,
-): { patch: Record<string, unknown>; next: number } | null {
-  if (rowId !== "budget") return null
-  const next = Math.max(0, Math.min(1000, Math.round(view.budgetUsd + delta)))
-  if (next === view.budgetUsd) return null
-  return { patch: { "usage.budget": next }, next }
+): { patch: Record<string, unknown>; next?: number } | null {
+  if (rowId === "budget") {
+    const next = stepped(view.budgetUsd, Math.sign(delta), 1, 0, 1000)
+    return next === view.budgetUsd ? null : { patch: { "usage.budget": next }, next }
+  }
+  if (rowId === "warnAt") {
+    const next = stepped(view.warnAt, Math.sign(delta), 0.05, 0.05, 1, 2)
+    return next === view.warnAt ? null : { patch: { "usage.warn_at": next }, next }
+  }
+  if (rowId === "maxToolCalls") {
+    const next = stepped(view.maxToolCalls, Math.sign(delta), 1, 1, 128)
+    return next === view.maxToolCalls ? null : { patch: { "models.max_tool_calls": next }, next }
+  }
+  if (rowId === "maxTokens") {
+    const next = stepped(view.maxTokensPerRequest, Math.sign(delta), 1000, 1, 1_000_000)
+    return next === view.maxTokensPerRequest
+      ? null
+      : { patch: { "models.max_tokens_per_request": next }, next }
+  }
+  if (rowId === "historyLimit") {
+    const next = stepped(view.historyLimit, Math.sign(delta), 10, 0, 10_000)
+    return next === view.historyLimit ? null : { patch: { "ui.chill_history_limit": next }, next }
+  }
+  if (rowId === "period") {
+    const next = view.period === "day" ? "month" : "day"
+    return { patch: { "usage.period": next } }
+  }
+  return null
+}
+
+/** Enter on a row that toggles or picks: period and pause at limit. */
+export function activateSetting(
+  view: SettingsView,
+  rowId: string,
+): { patch: Record<string, unknown> } | null {
+  if (rowId === "period") {
+    return { patch: { "usage.period": view.period === "day" ? "month" : "day" } }
+  }
+  if (rowId === "pause") {
+    return { patch: { "usage.pause_at_limit": !view.pauseAtLimit } }
+  }
+  return null
 }
 
 /** The value column starts at the same cell for every row. */
@@ -459,9 +515,22 @@ export function SettingsPage(props: {
                     max: 1000,
                     step: 1,
                     text: budgetLabel(props.view.budgetUsd),
-                    width: 16,
+                    width: 14,
                   }
-                : undefined
+                : row.id === "maxToolCalls"
+                  ? { value: props.view.maxToolCalls, min: 1, max: 128, step: 1, width: 14 }
+                  : row.id === "maxTokens"
+                    ? {
+                        value: props.view.maxTokensPerRequest,
+                        min: 1,
+                        max: 1_000_000,
+                        step: 1000,
+                        text: props.view.maxTokensPerRequest.toLocaleString("en-US"),
+                        width: 14,
+                      }
+                    : row.id === "historyLimit"
+                      ? { value: props.view.historyLimit, min: 0, max: 10_000, step: 10, width: 14 }
+                      : undefined
             }
             segments={
               row.id === "period"

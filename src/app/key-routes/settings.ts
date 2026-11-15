@@ -6,6 +6,7 @@ import {
   emptySettingsView,
   selectedRow,
   settingsGroups,
+  activateSetting,
   stepSetting,
   toggleSection,
   visibleGroups,
@@ -54,6 +55,31 @@ export type SettingsKeyDeps = {
   openPluginManager?: () => void
   movePluginManager?: (delta: number) => void
   togglePluginManager?: () => void
+}
+
+/** Persist one settings patch, then mirror it into the local view. */
+function persistSettingsPatch(deps: SettingsKeyDeps, patch: Record<string, unknown>): void {
+  const update = () => deps.setSettingsView((view) => (view ? applyViewPatch(view, patch) : view))
+  const saved = deps.onConfigPatch?.(nestedPatch(patch))
+  if (saved === undefined) {
+    update()
+    return
+  }
+  void Promise.resolve(saved)
+    .then((response) => {
+      if (
+        response !== null &&
+        typeof response === "object" &&
+        "ok" in response &&
+        (response as { ok: boolean }).ok === false
+      ) {
+        const error = (response as { error?: { message?: string } }).error
+        deps.notify(error?.message ?? "the config could not be saved", "error")
+        return
+      }
+      update()
+    })
+    .catch((error) => deps.notify(String(error instanceof Error ? error.message : error), "error"))
 }
 
 export function handleSettingsKeys(
@@ -147,28 +173,7 @@ export function handleSettingsKeys(
       const result = row
         ? stepSetting(deps.settingsView() ?? emptySettingsView(), row.row.id, press.name === "+" ? 1 : -1)
         : null
-      if (result) {
-        const update = () => deps.setSettingsView((view) => (view ? applyViewPatch(view, result.patch) : view))
-        const saved = deps.onConfigPatch?.(nestedPatch(result.patch))
-        if (saved === undefined) update()
-        else {
-          void Promise.resolve(saved)
-            .then((response) => {
-              if (
-                response !== null &&
-                typeof response === "object" &&
-                "ok" in response &&
-                (response as { ok: boolean }).ok === false
-              ) {
-                const error = (response as { error?: { message?: string } }).error
-                deps.notify(error?.message ?? "the config could not be saved", "error")
-                return
-              }
-              update()
-            })
-            .catch((error) => deps.notify(String(error instanceof Error ? error.message : error), "error"))
-        }
-      }
+      if (result) persistSettingsPatch(deps, result.patch)
       event.preventDefault()
       return true
     }
@@ -218,6 +223,24 @@ export function handleSettingsKeys(
         deps.openPluginManager?.()
         event.preventDefault()
         return true
+      }
+      if (row?.row.id === "servers") {
+        deps.update({ ...state, pane: "plugins", mode: "normal" })
+        event.preventDefault()
+        return true
+      }
+      if (row?.row.id === "backend") {
+        deps.update({ ...state, pane: "archive", mode: "normal" })
+        event.preventDefault()
+        return true
+      }
+      if (row) {
+        const activation = activateSetting(deps.settingsView() ?? emptySettingsView(), row.row.id)
+        if (activation) {
+          persistSettingsPatch(deps, activation.patch)
+          event.preventDefault()
+          return true
+        }
       }
       deps.setSettingsState((current) => beginEdit(current, groups))
       event.preventDefault()

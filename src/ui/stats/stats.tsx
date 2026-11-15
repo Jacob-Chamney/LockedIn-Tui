@@ -12,7 +12,6 @@ import { createMemo } from "solid-js"
 import { parseBinding, type Binding } from "../keymap/registry"
 import type { StatsRange, StatsScope, StatsSummary } from "../../stats/types"
 import type { ThemePalette } from "../theme"
-import { LOCKED_IN_LOGO, LOCKED_IN_LOGO_COMPACT } from "../shell/brand"
 import { compactTokens } from "./big-number"
 import { buildHeatmap } from "./heatmap"
 import { HEATMAP_RAMP, heatmapLayout } from "../heatmap"
@@ -21,13 +20,12 @@ import { Distribution } from "../shell/distribution"
 import { Treemap } from "../shell/treemap"
 import { Delta } from "../shell/delta"
 import { LineChart } from "../shell/line-chart"
-import { Sparkbar } from "../shell/sparkbar"
 import { StatCard } from "../shell/stat-card"
 import { ProgressRing } from "../shell/progress-ring"
-import { sparklineText } from "../sparkline"
 import { tabLayout } from "../tabs"
 import { Bars } from "../shell/bars"
 import { Callout } from "../shell/callout"
+import { DefinitionList } from "../shell/definition-list"
 
 export type StatsView = {
   range: StatsRange
@@ -187,25 +185,21 @@ export function StatsPage(props: {
   summary: StatsSummary
 }) {
   const palette = () => props.theme
-  const showLogo = () => props.height >= 28
-  const logoLines = () =>
-    props.height >= 40 && props.width >= 66
-      ? LOCKED_IN_LOGO
-      : showLogo()
-        ? LOCKED_IN_LOGO_COMPACT
-        : []
   const tokens = () => props.summary.overview.input + props.summary.overview.output
   const total = () => compactTokens(tokens(), 0)
   const period = () => periodLabel(props.summary.period)
   const chartWidth = () => Math.max(28, Math.min(props.width - 8, 64))
+  const wideHero = () => props.width >= 100
+  const deltaWidth = () => (wideHero() ? Math.max(16, Math.min(40, props.width - 58)) : Math.min(props.width - 8, 48))
   const cellWidth = () => (props.width >= 120 ? 2 : 1)
   const maxWeeks = () => Math.max(1, Math.floor((props.width - 6) / cellWidth()))
   const heat = createMemo(() => buildHeatmap(props.summary.activity, props.summary.period, maxWeeks()))
   const grid = createMemo(() =>
     heatmapLayout({ weeks: heat().weeks, months: heat().months, cellWidth: cellWidth() }),
   )
-  const statsWidth = () => Math.max(24, Math.min(props.width - 4, Math.max(64, grid().width + 2)))
-  const statWidth = () => Math.max(8, Math.floor(statsWidth() / 3))
+  const statsWidth = () =>
+    wideHero() ? Math.min(64, Math.max(36, props.width - 48)) : Math.min(72, props.width - 4)
+  const statWidth = () => Math.max(10, Math.floor(statsWidth() / 3))
   /** Models sorted once, then sliced for the bars, share bar and treemap. */
   const sortedModels = createMemo(() =>
     props.summary.models
@@ -245,26 +239,12 @@ export function StatsPage(props: {
     }
     return values
   })
-  /**
-   * One glyph per day, bucketed to 60 columns for a long range. Daily buckets
-   * keep a short range informative: a fortnight is a trend, not two blocks.
-   */
-  const trend = createMemo(() => {
-    const values = dailyTokens()
-    return values.length > 0 && values.some((value) => value > 0)
-      ? sparklineText({ values, width: 60 })
-      : ""
-  })
   /** Days in the selected range, for the active-days ring. */
   const rangeDays = createMemo(() =>
     heat().weeks.reduce((sum, week) => sum + week.filter((day) => day !== null).length, 0),
   )
   const activeShare = createMemo(() =>
     rangeDays() === 0 ? 0 : Math.max(0, Math.min(1, props.summary.activeDays / rangeDays())),
-  )
-  /** Token totals per calendar week, for the compact column chart. */
-  const weeklyTokens = createMemo(() =>
-    heat().weeks.map((week) => week.reduce((sum, day) => sum + (day === null ? 0 : day.tokens), 0)),
   )
   /**
    * The last seven days against the seven before them. Only shown when the
@@ -337,49 +317,115 @@ export function StatsPage(props: {
         ) : null}
       </box>
 
-      <box flexGrow={1} minHeight={0} flexDirection="column" justifyContent="center" alignItems="center">
-        {logoLines().length > 0 ? (
-          <box flexDirection="column" alignItems="center" flexShrink={0}>
-            {logoLines().map((line) => (
-              <text fg={palette().primary} wrapMode="none">
-                {line}
+      <box flexGrow={1} minHeight={0} flexDirection="column" paddingTop={1}>
+        {wideHero() ? (
+          <box flexDirection="row" justifyContent="space-between" alignItems="flex-start" flexShrink={0}>
+            <box flexDirection="column" flexShrink={0}>
+              <text fg={palette().muted} wrapMode="none">
+                {Array.from("TOKENS").join(" ")}
               </text>
-            ))}
+              <text fg={palette().foreground} wrapMode="none">
+                <b>{total()}</b>
+              </text>
+              {tokenDelta() && props.height >= 34 ? (
+                <box marginTop={1}>
+                  <Delta
+                    theme={palette()}
+                    value={tokenDelta()!.value}
+                    label={tokenDelta()!.label}
+                    width={deltaWidth()}
+                  />
+                </box>
+              ) : null}
+            </box>
+            <box flexDirection="column" alignItems="flex-end" flexShrink={0}>
+              <box flexDirection="row" width={statsWidth()} flexShrink={0}>
+                <StatCard
+                  theme={palette()}
+                  value={`${props.summary.bestStreak} days`}
+                  label={label()}
+                  detail={props.height >= 34 ? "in a row" : undefined}
+                  width={statWidth()}
+                />
+                <StatCard
+                  theme={palette()}
+                  value={formatCount(props.summary.activeDays)}
+                  label="active days"
+                  detail={props.height >= 34 ? "in range" : undefined}
+                  width={statWidth()}
+                />
+                <StatCard
+                  theme={palette()}
+                  value={formatCount(props.summary.overview.runs)}
+                  label="sessions"
+                  detail={props.height >= 34 ? "recorded" : undefined}
+                  width={statWidth()}
+                />
+              </box>
+              {props.height >= 34 && props.width >= 120 && rangeDays() > 0 ? (
+                <box flexDirection="row" alignItems="center" marginTop={1} flexShrink={0}>
+                  <ProgressRing theme={palette()} value={activeShare()} size={6} />
+                  <box flexDirection="column" marginLeft={1}>
+                    <text fg={palette().muted} wrapMode="none">
+                      {"ACTIVE"}
+                    </text>
+                    <text fg={palette().foreground} wrapMode="none">
+                      {`${props.summary.activeDays}/${rangeDays()} days`}
+                    </text>
+                  </box>
+                </box>
+              ) : null}
+            </box>
           </box>
-        ) : null}
-        {logoLines().length > 0 ? <box height={1} flexShrink={0} /> : null}
-        <text fg={palette().foreground} wrapMode="none">
-          <b>{total()}</b>
-        </text>
-        <text fg={palette().muted} wrapMode="none">
-          {Array.from("TOKENS").join(" ")}
-        </text>
-        {trend() ? (
-          <text fg={palette().primary} wrapMode="none" flexShrink={0}>
-            {trend()}
-          </text>
-        ) : null}
-        {props.height >= 40 && props.width >= 70 && dailyTokens().some((value) => value > 0) ? (
-          <LineChart
-            theme={palette()}
-            values={dailyTokens()}
-            width={Math.min(props.width - 8, 60)}
-            height={4}
-            axisWidth={5}
-            labels={[compactTokens(Math.max(...dailyTokens())), "0"]}
-          />
-        ) : null}
-        {props.height >= 34 && props.width >= 60 && tokenDelta() ? (
-          <Delta
-            theme={palette()}
-            value={tokenDelta()!.value}
-            label={tokenDelta()!.label}
-            width={Math.min(props.width - 8, 48)}
-          />
-        ) : null}
-        {props.height >= 42 && props.width >= 80 ? null : <box height={1} flexShrink={0} />}
+        ) : (
+          <box flexDirection="column" flexShrink={0}>
+            <text fg={palette().muted} wrapMode="none">
+              {Array.from("TOKENS").join(" ")}
+            </text>
+            <text fg={palette().foreground} wrapMode="none">
+              <b>{total()}</b>
+            </text>
+            {tokenDelta() && props.height >= 34 ? (
+              <box marginTop={1}>
+                <Delta
+                  theme={palette()}
+                  value={tokenDelta()!.value}
+                  label={tokenDelta()!.label}
+                  width={deltaWidth()}
+                />
+              </box>
+            ) : null}
+            <box flexDirection="row" width={statsWidth()} marginTop={1} flexShrink={0}>
+              <StatCard
+                theme={palette()}
+                value={`${props.summary.bestStreak} days`}
+                label={label()}
+                detail={props.height >= 34 ? "in a row" : undefined}
+                width={statWidth()}
+              />
+              <StatCard
+                theme={palette()}
+                value={formatCount(props.summary.activeDays)}
+                label="active days"
+                detail={props.height >= 34 ? "in range" : undefined}
+                width={statWidth()}
+              />
+              <StatCard
+                theme={palette()}
+                value={formatCount(props.summary.overview.runs)}
+                label="sessions"
+                detail={props.height >= 34 ? "recorded" : undefined}
+                width={statWidth()}
+              />
+            </box>
+          </box>
+        )}
 
-        <box flexDirection="column" alignItems="center" flexShrink={0}>
+        <box height={1} flexShrink={0} />
+        <text fg={palette().secondary} wrapMode="none">
+          {"ACTIVITY"}
+        </text>
+        <box flexDirection="column" flexShrink={0}>
           <text fg={palette().muted} wrapMode="none">
             {`${"  "}${grid().months}`}
           </text>
@@ -410,86 +456,66 @@ export function StatsPage(props: {
             width={Math.min(props.width - 8, 60)}
           />
         ) : null}
-        {props.height >= 42 && props.width >= 60 && weeklyTokens().some((value) => value > 0) ? (
-          <box flexDirection="column" alignItems="center" width={chartWidth()} marginTop={1} flexShrink={0}>
-            <text fg={palette().muted} wrapMode="none">
-              {"BY WEEK"}
+
+        {props.height >= 40 && props.width >= 70 && dailyTokens().some((value) => value > 0) ? (
+          <box flexDirection="column" width={Math.min(props.width - 8, 72)} marginTop={1} flexShrink={0}>
+            <text fg={palette().secondary} wrapMode="none">
+              {"TOKENS OVER TIME"}
             </text>
-            <Sparkbar
+            <LineChart
               theme={palette()}
-              values={weeklyTokens()}
-              width={Math.min(props.width - 8, 60)}
-              height={2}
+              values={dailyTokens()}
+              width={Math.min(props.width - 8, 72)}
+              height={4}
+              axisWidth={5}
+              labels={[compactTokens(Math.max(...dailyTokens())), "0"]}
             />
           </box>
         ) : null}
-        <box height={1} flexShrink={0} />
 
-        <box flexDirection="row" alignItems="center" flexShrink={0}>
-          <box flexDirection="row" width={statsWidth()} flexShrink={0}>
-            <StatCard
-              theme={palette()}
-              value={`${props.summary.bestStreak} days`}
-              label={label()}
-              detail={props.height >= 34 ? "in a row" : undefined}
-              width={statWidth()}
-            />
-            <StatCard
-              theme={palette()}
-              value={formatCount(props.summary.activeDays)}
-              label={props.width < 60 ? "active" : "active days"}
-              detail={props.height >= 34 ? "in range" : undefined}
-              width={statWidth()}
-            />
-            <StatCard
-              theme={palette()}
-              value={formatCount(props.summary.overview.runs)}
-              label="sessions"
-              detail={props.height >= 34 ? "recorded" : undefined}
-              width={statWidth()}
-            />
-          </box>
-          {props.height >= 34 && props.width >= 120 && rangeDays() > 0 ? (
-            <box flexDirection="row" alignItems="center" marginLeft={2} flexShrink={0}>
-              <ProgressRing theme={palette()} value={activeShare()} size={6} />
-              <box flexDirection="column" marginLeft={1}>
-                <text fg={palette().muted} wrapMode="none">
-                  {"ACTIVE"}
-                </text>
-                <text fg={palette().foreground} wrapMode="none">
-                  {`${props.summary.activeDays}/${rangeDays()} days`}
-                </text>
-              </box>
-            </box>
-          ) : null}
-        </box>
-        {props.height >= 36 && props.width >= 60 && modelItems().length > 0 ? (
-          <box
-            flexDirection="column"
-            alignItems="center"
-            width={chartWidth()}
-            marginTop={1}
-            flexShrink={0}
-          >
-            <text fg={palette().muted} wrapMode="none">
+        {props.height >= 32 && props.width >= 60 && modelItems().length > 0 ? (
+          <box flexDirection="column" width={chartWidth()} marginTop={1} flexShrink={0}>
+            <text fg={palette().secondary} wrapMode="none">
               {"BY MODEL"}
             </text>
             {props.height >= 42 && props.width >= 80 ? (
-              <Treemap
-                theme={palette()}
-                items={treemapItems()}
-                width={chartWidth()}
-                height={3}
-              />
+              <Treemap theme={palette()} items={treemapItems()} width={chartWidth()} height={3} />
             ) : (
-              <Distribution theme={palette()} items={shareItems()} width={chartWidth()} />
+              <>
+                <Distribution theme={palette()} items={shareItems()} width={chartWidth()} />
+                <Bars
+                  theme={palette()}
+                  items={modelItems()}
+                  width={chartWidth()}
+                  labelWidth={22}
+                  valueWidth={4}
+                />
+              </>
             )}
-            <Bars
+          </box>
+        ) : null}
+        {props.height >= 30 && props.width >= 70 ? (
+          <box flexDirection="column" width={Math.min(props.width - 8, 72)} marginTop={1} flexShrink={0}>
+            <text fg={palette().secondary} wrapMode="none">
+              {"SUMMARY"}
+            </text>
+            <DefinitionList
               theme={palette()}
-              items={modelItems()}
-              width={chartWidth()}
-              labelWidth={22}
-              valueWidth={4}
+              width={Math.min(props.width - 8, 72)}
+              termWidth={8}
+              items={[
+                { term: "runs", description: formatCount(props.summary.overview.runs) },
+                {
+                  term: "failed",
+                  description: formatCount(props.summary.overview.failed),
+                  ...(props.summary.overview.failed > 0 ? { tone: "error" as const } : {}),
+                },
+                {
+                  term: "tokens",
+                  description: `${formatCount(props.summary.overview.input)} in · ${formatCount(props.summary.overview.output)} out`,
+                },
+                { term: "cost", description: costLabel(props.summary) },
+              ]}
             />
           </box>
         ) : null}

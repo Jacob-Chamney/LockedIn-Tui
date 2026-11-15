@@ -114,14 +114,75 @@ describe("rows and groups", () => {
     }
   })
 
-  test("stepSetting clamps the budget and leaves other rows alone", () => {
+  test("stepSetting adjusts every steppable row inside its limits", () => {
     expect(settings.stepSetting(VIEW, "budget", 1)).toEqual({
       patch: { "usage.budget": 6 },
       next: 6,
     })
     expect(settings.stepSetting({ ...VIEW, budgetUsd: 0 }, "budget", -1)).toBeNull()
-    expect(settings.stepSetting(VIEW, "warnAt", 1)).toBeNull()
     expect(settings.stepSetting({ ...VIEW, budgetUsd: 1000 }, "budget", 1)).toBeNull()
+    expect(settings.stepSetting(VIEW, "warnAt", 1)).toEqual({
+      patch: { "usage.warn_at": 0.85 },
+      next: 0.85,
+    })
+    expect(settings.stepSetting(VIEW, "maxToolCalls", 1)).toMatchObject({
+      patch: { "models.max_tool_calls": 25 },
+    })
+    expect(settings.stepSetting(VIEW, "maxTokens", -1)).toMatchObject({
+      patch: { "models.max_tokens_per_request": 31000 },
+    })
+    expect(settings.stepSetting(VIEW, "historyLimit", 1)).toMatchObject({
+      patch: { "ui.chill_history_limit": 30 },
+    })
+    expect(settings.stepSetting(VIEW, "period", 1)).toEqual({
+      patch: { "usage.period": "day" },
+    })
+  })
+
+  test("activateSetting flips period and pause at limit", () => {
+    expect(settings.activateSetting(VIEW, "period")).toEqual({
+      patch: { "usage.period": "day" },
+    })
+    expect(settings.activateSetting(VIEW, "pause")).toEqual({
+      patch: { "usage.pause_at_limit": false },
+    })
+    expect(settings.activateSetting({ ...VIEW, period: "day", pauseAtLimit: false }, "period")).toEqual({
+      patch: { "usage.period": "month" },
+    })
+    expect(settings.activateSetting(VIEW, "maxTokens")).toBeNull()
+  })
+
+  test("numeric rows edit as numbers and warn-at explains its keys", async () => {
+    const groups = settings.settingsGroups(VIEW)
+    const rows = settings.flatRows(groups)
+    const at = rows.findIndex((entry) => entry.row.id === "maxToolCalls")
+    const editing = settings.typeEdit(
+      settings.beginEdit({ ...settings.initialSettingsState, cursor: at }, groups),
+      "32",
+    )
+    const result = await settings.commitEdit(editing, async () => VIEW)
+    expect(result).toMatchObject({
+      patch: { "models.max_tool_calls": 32 },
+      state: { editing: null },
+    })
+
+    const warn = rows.findIndex((entry) => entry.row.id === "warnAt")
+    const refused = settings.beginEdit({ ...settings.initialSettingsState, cursor: warn }, groups)
+    expect(refused.notice).toBe("Warn at is adjusted with -/+")
+  })
+
+  test("numeric rows render steppers and warn-at stays adjustable", async () => {
+    const setup = await mount(120, 36)
+    try {
+      const maxTool = lines(setup).find((line) => line.includes("Max tool calls"))!
+      const maxTokens = lines(setup).find((line) => line.includes("Max tokens/request"))!
+      const history = lines(setup).find((line) => line.includes("History limit"))!
+      expect(maxTool).toContain("− 24")
+      expect(maxTokens).toContain("32,000")
+      expect(history).toContain("− 20")
+    } finally {
+      await setup.dispose()
+    }
   })
 
   test("MCP servers render as tags in the value column", async () => {
