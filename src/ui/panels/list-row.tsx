@@ -12,6 +12,7 @@ import { checklistBox } from "../checklist"
 import { Toggle } from "../shell/toggle"
 import { Slider } from "../shell/slider"
 import { StatusDot } from "../shell/status-dot"
+import { Segmented } from "../shell/segmented"
 import type { StatusState } from "../status-dot"
 
 export type ListRowTone = "normal" | "muted" | "error"
@@ -36,6 +37,8 @@ export function ListRow(props: {
   slider?: { value: number; min?: number; max?: number; label?: string; width?: number }
   /** A health dot before the label. */
   status?: { state: StatusState; label?: string }
+  /** A segmented control in the value column, for small exclusive choices. */
+  segments?: { options: readonly string[]; selected: number; width?: number }
   /** A second, muted line under the label. */
   detail?: string
   /** When set, the label is padded/truncated to this width. */
@@ -108,7 +111,14 @@ export function ListRow(props: {
         >
           {label()}
         </text>
-        {props.slider ? (
+        {props.segments ? (
+          <Segmented
+            theme={palette()}
+            options={props.segments.options}
+            selected={props.segments.selected}
+            width={props.segments.width ?? 14}
+          />
+        ) : props.slider ? (
           <Slider
             theme={palette()}
             value={props.slider.value}

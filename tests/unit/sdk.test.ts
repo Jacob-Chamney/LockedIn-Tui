@@ -49,6 +49,7 @@ import {
   notice,
   pingPong,
   scrollbar,
+  segmented,
   sidebarMain,
   skeleton,
   slider,
@@ -2105,4 +2106,40 @@ test("avatar fits narrow widths and honours colours", () => {
   expect(tight[0]).toMatchObject({ width: 2, color: "line" })
   expect(tight[1]).toMatchObject({ text: "[…", fg: "foreground" })
   expect(avatar({ anchor: "top-left", x: 0, y: 0, name: "Ada", width: 0 })).toEqual([])
+})
+
+test("segmented fills the selected segment and centres labels", () => {
+  const nodes = segmented({
+    anchor: "top-left",
+    x: 2,
+    y: 2,
+    width: 14,
+    options: ["day", "month"],
+    selected: 1,
+  })
+  expect(nodes).toHaveLength(4)
+  expect(nodes[0]).toMatchObject({ kind: "rect", x: 2, y: 2, width: 7, color: "surface" })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 2, text: "  day  ", fg: "muted" })
+  expect(nodes[2]).toMatchObject({ kind: "rect", x: 9, width: 7, color: "primary" })
+  expect(nodes[3]).toMatchObject({ kind: "text", x: 9, text: " month ", fg: "background" })
+})
+
+test("segmented honours colours and hides when too narrow", () => {
+  const nodes = segmented({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 10,
+    options: ["a", "b"],
+    selected: 0,
+    selectedBg: "accent",
+    bg: "line",
+    selectedFg: "warning",
+    fg: "secondary",
+  })
+  expect(nodes[0]).toMatchObject({ color: "accent" })
+  expect(nodes[1]).toMatchObject({ fg: "warning" })
+  expect(nodes[2]).toMatchObject({ color: "line" })
+  expect(nodes[3]).toMatchObject({ fg: "secondary" })
+  expect(segmented({ anchor: "top-left", x: 0, y: 0, width: 1, options: ["a", "b"], selected: 0 })).toEqual([])
 })

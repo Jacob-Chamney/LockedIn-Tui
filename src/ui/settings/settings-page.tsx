@@ -411,6 +411,15 @@ export function SettingsPage(props: {
                 ? { value: props.view.warnAt, label: warnLabel(props.view.warnAt), width: 18 }
                 : undefined
             }
+            segments={
+              row.id === "period"
+                ? {
+                    options: ["day", "month"],
+                    selected: props.view.period === "day" ? 0 : 1,
+                    width: 14,
+                  }
+                : undefined
+            }
           />
         )
       })}

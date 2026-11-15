@@ -55,6 +55,10 @@ import {
 } from "../src/ui/accordion"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
+import {
+  segmentedLayout,
+  type SegmentedOptions as SegmentedLayoutOptions,
+} from "../src/ui/segmented"
 import { avatarLayout, type AvatarTone as AvatarToneInput } from "../src/ui/avatar"
 import {
   statusDotLayout,
@@ -4171,6 +4175,56 @@ export function avatar(options: AvatarOptions): SceneNode[] {
       fg: options.fg ?? "background",
     },
   ]
+}
+
+export type SegmentedOptions = Omit<SegmentedLayoutOptions, "options"> & {
+  anchor: ScenePosition
+  x: number
+  y: number
+  options: readonly string[]
+  /** Selected fill. Defaults to `primary`. */
+  selectedBg?: string
+  /** Unselected fill. Defaults to `surface`. */
+  bg?: string
+  /** Selected text. Defaults to `background`. */
+  selectedFg?: string
+  /** Unselected text. Defaults to `muted`. */
+  fg?: string
+}
+
+/**
+ * A segmented control: equal-width, centred exclusive options.
+ *
+ *   segmented({ anchor: "top-left", x: 2, y: 2, width: 14,
+ *               options: ["day", "month"], selected: 1 })
+ *
+ * Segments split the width evenly and the selected one is filled. A width too
+ * small for the options draws nothing and reports hidden count via the layout.
+ */
+export function segmented(options: SegmentedOptions): SceneNode[] {
+  const layout = segmentedLayout(options)
+  const nodes: SceneNode[] = []
+  for (const segment of layout.segments) {
+    nodes.push({
+      kind: "rect",
+      anchor: options.anchor,
+      x: options.x + segment.x,
+      y: options.y,
+      width: segment.width,
+      height: 1,
+      fill: true,
+      color: segment.selected ? (options.selectedBg ?? "primary") : (options.bg ?? "surface"),
+    })
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + segment.x,
+      y: options.y,
+      text: segment.text,
+      fg: segment.selected ? (options.selectedFg ?? "background") : (options.fg ?? "muted"),
+    })
+  }
+  return nodes
 }
 
 export type FormOptions = {

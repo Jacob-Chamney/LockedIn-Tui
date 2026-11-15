@@ -103,6 +103,17 @@ describe("rows and groups", () => {
     expect(models.rows.find((row) => row.id === "chatModel")?.value).toBe("deepseek-v4.1-flash")
   })
 
+  test("Period renders a day/month segmented control", async () => {
+    const setup = await mount(120, 36)
+    try {
+      const row = lines(setup).find((line) => line.includes("Period"))!
+      expect(row).toContain("day")
+      expect(row).toContain("month")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("Warn at renders a slider at the threshold", async () => {
     const setup = await mount(120, 36)
     try {
