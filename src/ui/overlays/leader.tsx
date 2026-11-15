@@ -6,9 +6,10 @@
  * registry; this file only lays them out.
  */
 import { leaderKeyRows, GROUP_TITLES } from "../keymap/group"
-import { LEADER_SYMBOL, keyLabel, type GeneratedRow, type Group } from "../keymap/registry"
+import { LEADER_SYMBOL, keyLabel, type GeneratedRow } from "../keymap/registry"
 import type { ThemePalette } from "../theme"
 import { ModalFrame } from "./modal-frame"
+import { MenuList } from "../shell/menu"
 
 /** The key that completes the chord: the leader is already down. */
 export function chordKey(row: GeneratedRow): string {
@@ -30,27 +31,16 @@ export function LeaderMenu(props: {
   const boxHeight = () =>
     Math.min(totalRows() + 4, Math.max(8, props.height - 4))
 
-  const column = (groups: Array<{ group: Group; rows: GeneratedRow[] }>) => (
-    <box flexDirection="column" width={boxWidth() - 4}>
-      {groups.map((section) => (
-        <box flexDirection="column">
-          <text fg={palette().muted} wrapMode="none">
-            {GROUP_TITLES[section.group]}
-          </text>
-          {section.rows.map((row) => (
-            <box flexDirection="row">
-              <text fg={palette().secondary} wrapMode="none" width={5}>
-                {` ${chordKey(row)}`}
-              </text>
-              <text fg={palette().foreground} wrapMode="none">
-                {row.label}
-              </text>
-            </box>
-          ))}
-        </box>
-      ))}
-    </box>
-  )
+  const menuSections = () =>
+    sections().map((section) => ({
+      id: section.group,
+      title: GROUP_TITLES[section.group],
+      entries: section.rows.map((row) => ({
+        id: row.id,
+        key: chordKey(row),
+        label: row.label,
+      })),
+    }))
 
   return (
     <ModalFrame
@@ -66,7 +56,14 @@ export function LeaderMenu(props: {
       footer="Esc close"
     >
       <box flexDirection="column" flexGrow={1} minHeight={0}>
-        {column(sections())}
+        <MenuList
+          theme={palette()}
+          sections={menuSections()}
+          width={boxWidth() - 4}
+          keyPrefix=" "
+          keyWidth={5}
+          gap={0}
+        />
       </box>
     </ModalFrame>
   )

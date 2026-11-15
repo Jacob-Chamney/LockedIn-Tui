@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `menuList()` draws titled shortcut menus with fitted labels and meta; the
+  leader popup renders its registry rows with it.
 - `histogram()` counts values into equal-width bins and draws block columns;
   Usage shows a RUN SIZE chart on wide pages.
 - `treemap()` draws weighted tiles with fitted labels and percentages; Stats
