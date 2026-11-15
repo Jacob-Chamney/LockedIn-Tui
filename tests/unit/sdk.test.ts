@@ -65,6 +65,7 @@ import {
   table,
   tabs,
   timeline,
+  toasts,
   toggle,
   tooltip,
   transition,
@@ -2168,4 +2169,55 @@ test("rating shares the text helper and honours overrides", () => {
   expect(nodes[0]).toMatchObject({ text: "xx", fg: "accent" })
   expect(nodes[1]).toMatchObject({ text: ".", fg: "secondary" })
   expect(rating({ anchor: "top-left", x: 0, y: 0, value: 2, max: 0 })).toEqual([])
+})
+
+test("toasts draw a tone-coded rounded stack", () => {
+  const nodes = toasts({
+    anchor: "top-left",
+    x: 2,
+    y: 2,
+    width: 60,
+    toasts: [
+      { id: "a", text: "saved", tone: "info" },
+      { id: "b", text: "the request failed", tone: "error" },
+    ],
+  })
+  expect(nodes).toHaveLength(6)
+  expect(nodes[0]).toMatchObject({
+    kind: "box",
+    x: 2,
+    y: 2,
+    width: 20,
+    height: 3,
+    border: true,
+    borderStyle: "rounded",
+    bg: "panel",
+  })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 3, y: 3, text: "·", fg: "foreground" })
+  expect(nodes[2]).toMatchObject({ kind: "text", x: 5, y: 3, text: "saved" })
+  expect(nodes[3]).toMatchObject({ kind: "box", y: 6, width: 22, bg: "error" })
+  expect(nodes[4]).toMatchObject({ x: 3, y: 7, text: "×", fg: "background" })
+  expect(nodes[5]).toMatchObject({ x: 5, y: 7, text: "the request failed" })
+})
+
+test("toasts honour overrides and keep the newest", () => {
+  const nodes = toasts({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 40,
+    maxVisible: 1,
+    fill: "surface",
+    ink: "accent",
+    borderColor: "warning",
+    toasts: [
+      { id: "a", text: "old" },
+      { id: "b", text: "new", tone: "warn" },
+    ],
+  })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]).toMatchObject({ bg: "surface", borderColor: "warning" })
+  expect(nodes[1]).toMatchObject({ text: "!", fg: "accent" })
+  expect(nodes[2]).toMatchObject({ text: "new" })
+  expect(toasts({ anchor: "top-left", x: 0, y: 0, width: 40, toasts: [] })).toEqual([])
 })

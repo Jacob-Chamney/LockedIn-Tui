@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `toasts()` draws tone-coded message banners for plugin scenes; the host
+  notice surface shares the same tone and fitting layout.
 - `rating()` draws filled and empty level pips for plugin scenes; achievement
   detail shows the difficulty tier as pips.
 - `segmented()` draws exclusive option groups for plugin scenes; Settings

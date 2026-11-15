@@ -30,3 +30,29 @@ test("an error renders as a rounded bubble with the message", async () => {
     await setup.dispose()
   }
 })
+
+test("the notice surface keeps the newest four with their tones", async () => {
+  const notices = [
+    { id: "1", text: "first message", level: "info" as const, at: 0 },
+    { id: "2", text: "second message", level: "info" as const, at: 0 },
+    { id: "3", text: "third message", level: "warn" as const, at: 0 },
+    { id: "4", text: "fourth message", level: "error" as const, at: 0 },
+    { id: "5", text: "fifth message", level: "info" as const, at: 0 },
+  ]
+  const setup = await testRender(
+    () => <NoticeStack theme={crimson} width={80} notices={notices} now={0} />,
+    { width: 80, height: 24 },
+  )
+  try {
+    await setup.flush()
+    const frame = setup.captureCharFrame()
+    expect(frame).not.toContain("first message")
+    for (const text of ["second message", "third message", "fourth message", "fifth message"]) {
+      expect(frame).toContain(text)
+    }
+    expect(frame).toContain("!")
+    expect(frame).toContain("×")
+  } finally {
+    await setup.dispose()
+  }
+})
