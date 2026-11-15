@@ -399,7 +399,7 @@ export function KnowledgeWindow(props: {
         when={note()}
         fallback={
           <Show
-            when={!props.state.list && graphics()}
+            when={!props.state.list && graphics() && !empty()}
             fallback={
               <box flexDirection="column" height={bodyRows()} minHeight={0} flexShrink={0}>
                 <Show

@@ -72,7 +72,7 @@ describe("header", () => {
     try {
       const header = lines(setup)[1]!
       expect(header).toContain("folder")
-      expect(header).toContain("last privacy check private at 2026-11-01T14:00:00Z")
+      expect(header).toContain("last privacy check: private · 2026-11-01")
       expect(header).toContain("consent: given")
     } finally {
       await setup.dispose()

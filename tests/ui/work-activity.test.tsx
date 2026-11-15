@@ -246,7 +246,7 @@ describe("states and layout", () => {
       const out = lines(setup)
       expect(out.length).toBe(24)
       for (const line of out) expect(line.length).toBe(80)
-      expect(out.join("\n")).toContain("ACTIVITY ·")
+      expect(out.join("\n")).toContain("all kinds · all projects")
       expect(out.join("\n")).toContain("…")
     } finally {
       await setup.dispose()

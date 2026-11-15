@@ -213,6 +213,11 @@ requests merge.
 
 ### Fixed
 
+- An empty Knowledge vault now explains itself instead of showing a blank
+  canvas, and the MCP server list hides its empty policy table while showing
+  `a add`.
+- Archive's privacy line uses a readable date; Activity no longer repeats its
+  own title in the subtitle; the Models picker fits its empty hint and footer.
 - Two-option settings (Period and Pause at limit) toggle directly with Enter,
   keeping their control visible instead of opening adjustment mode.
 - Settings values now change only after Enter: arrows or hjkl adjust the open

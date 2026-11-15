@@ -67,7 +67,7 @@ export function clearFilters(view: ActivityView): ActivityView {
 export function headerLine(view: ActivityView, visible: number, skipped: number): string {
   const kind = view.filter.kind ?? "all kinds"
   const project = view.filter.project ?? "all projects"
-  return `ACTIVITY · ${kind} · ${project} · ${visible} shown${skipped > 0 ? ` · ${skipped} skipped` : ""}`
+  return `${kind} · ${project} · ${visible} shown${skipped > 0 ? ` · ${skipped} skipped` : ""}`
 }
 
 /** A decision is a word plus a glyph, so colour is never the only signal. */
