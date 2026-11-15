@@ -55,6 +55,11 @@ import {
 } from "../src/ui/accordion"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
+import {
+  sliderLayout,
+  type SliderGlyphs as SliderGlyphsInput,
+  type SliderLayout as SliderLayoutInput,
+} from "../src/ui/slider"
 import { chipLayout, type ChipItem as ChipItemInput } from "../src/ui/chips"
 import { toggleLayout, type ToggleLayout as ToggleLayoutInput } from "../src/ui/toggle"
 import {
@@ -3640,6 +3645,93 @@ export function chips(options: ChipsOptions): SceneNode[] {
         fg: options.hiddenFg ?? "muted",
       })
     }
+  }
+  return nodes
+}
+
+/** The track glyphs a `slider()` uses. */
+export type SliderGlyphs = SliderGlyphsInput
+
+/** The fitted track, knob and label of a `slider()`. */
+export type SliderLayout = SliderLayoutInput
+
+export type SliderOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Total width, including the label when shown. */
+  width: number
+  value: number
+  min?: number
+  max?: number
+  /** Value label; defaults to the rounded percentage. */
+  label?: string
+  /** Show the label; defaults true. */
+  showLabel?: boolean
+  labelWidth?: number
+  glyphs?: Partial<SliderGlyphs>
+  /** Filled-track colour. Defaults to `primary`. */
+  filledFg?: string
+  /** Knob colour. Defaults to `primary`. */
+  thumbFg?: string
+  /** Empty-track colour. Defaults to `line`. */
+  emptyFg?: string
+  /** Label colour. Defaults to `muted`. */
+  labelFg?: string
+}
+
+/**
+ * A horizontal slider: filled track, knob and a value label.
+ *
+ *   slider({ anchor: "top-left", x: 2, y: 2, width: 18, value: 0.8 })
+ *
+ * The knob sits at `round(fraction * (width - 1))`, so both ends are reachable.
+ * The label defaults to the rounded percentage and is fitted; `showLabel: false`
+ * gives a bare track. `glyphs` replaces the track marks.
+ */
+export function slider(options: SliderOptions): SceneNode[] {
+  const layout = sliderLayout(options)
+  if (layout.width === 0) return []
+  const nodes: SceneNode[] = []
+  const filled = layout.glyphs.filled.repeat(layout.filled)
+  if (filled !== "") {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      text: filled,
+      fg: options.filledFg ?? "primary",
+    })
+  }
+  nodes.push({
+    kind: "text",
+    anchor: options.anchor,
+    x: options.x + layout.filled,
+    y: options.y,
+    text: layout.glyphs.thumb,
+    fg: options.thumbFg ?? "primary",
+  })
+  const empty = layout.glyphs.empty.repeat(layout.empty)
+  if (empty !== "") {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + layout.filled + 1,
+      y: options.y,
+      text: empty,
+      fg: options.emptyFg ?? "line",
+    })
+  }
+  if (layout.label !== "") {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + layout.trackWidth + 1,
+      y: options.y,
+      text: layout.label,
+      fg: options.labelFg ?? "muted",
+    })
   }
   return nodes
 }
