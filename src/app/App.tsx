@@ -417,7 +417,7 @@ export function App(props: {
   const hints = () => usableRows(sides()[0]!)
   /** Key hints live in the status bar centre so they read as global chrome. */
   const paneHints = () =>
-    current().pane === "chat" && current().focus === "chat"
+    current().pane === "chat" && current().focus === "chat" && current().overlay === null
       ? ["Enter send", "⇧Enter newline", "Esc normal"]
       : undefined
 
@@ -3998,6 +3998,7 @@ export function App(props: {
     chapterText: chapterText(),
     bufferCount: buffers().length,
     swarms: swarms(),
+    activeProject: activeProject(),
     openSwarm: openSwarm(),
     agentSettings: agentSettings(),
     chatSettingsCursor: chatSettingsCursor(),

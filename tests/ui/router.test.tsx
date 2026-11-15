@@ -409,12 +409,11 @@ describe("vertical centring and the explorer", () => {
     const ui = await renderApp({ width: 120, height: 36, app: () => <App initial={{ pane: "swarms" } as never} /> })
     try {
       await ui.waitFor("LOCKEDIN")
-      expect(ui.frame()).toContain("no swarms yet")
+      expect(ui.frame()).toContain("no project open")
+      // The refusal comes before the name prompt, so nothing is typed and lost.
       await ui.press("n")
-      expect(ui.frame()).toContain("New swarm")
-      await ui.type("atlas")
-      await ui.press("return")
       await ui.waitUntil(() => ui.frame().includes("open a project first"))
+      expect(ui.frame()).not.toContain("New swarm")
       expect(ui.frame()).not.toContain("Agent in atlas")
     } finally {
       await ui.dispose()
@@ -561,6 +560,50 @@ describe("vertical centring and the explorer", () => {
       await ui.press("down")
       await ui.press("return")
       expect(ui.frame()).toContain("LockedIn Crimson")
+    } finally {
+      await ui.dispose()
+    }
+  })
+
+  test("the keys command opens the all-keys help overlay", async () => {
+    const ui = await renderApp({ width: 120, height: 36, app: () => <App /> })
+    try {
+      await ui.waitFor("LOCKEDIN")
+      await ui.press(":")
+      await ui.type("keys")
+      await ui.press("return")
+      await ui.waitFor("HELP")
+      expect(ui.frame()).toContain("generated from the keymap registry")
+      expect(ui.frame()).not.toContain("COMMAND")
+    } finally {
+      await ui.dispose()
+    }
+  })
+
+  test("a command that refuses still dismisses the palette", async () => {
+    const ui = await renderApp({ width: 120, height: 36, app: () => <App /> })
+    try {
+      await ui.waitFor("LOCKEDIN")
+      await ui.press(":")
+      await ui.type("chat-settings")
+      await ui.press("return")
+      await ui.waitUntil(() => ui.frame().includes("chat settings apply to sessions, not Chill"))
+      const status = ui.frame().split("\n").at(-1) ?? ""
+      expect(status).not.toContain("COMMAND")
+    } finally {
+      await ui.dispose()
+    }
+  })
+
+  test("the Data folder row says where it is set instead of opening a missing screen", async () => {
+    const ui = await renderApp({ width: 120, height: 36, app: () => <App initial={{ pane: "settings" } as never} /> })
+    try {
+      await ui.waitFor("LOCKEDIN")
+      for (let step = 0; step < 12; step++) await ui.press("down")
+      await ui.press("return")
+      await ui.waitUntil(() => ui.frame().includes("set at launch with --data-dir"))
+      expect(ui.frame()).toContain("Data folder")
+      expect(ui.frame()).not.toContain("changed in its own screen")
     } finally {
       await ui.dispose()
     }

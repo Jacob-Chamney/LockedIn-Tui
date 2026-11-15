@@ -27,8 +27,9 @@ export const ALIASES: Record<string, string> = {
   archive: "archive",
   themes: "themes",
   theme: "themes",
-  keybinds: "keybinds",
-  keys: "keybinds",
+  // The all-keys screen is the help overlay; `?` and `:keys` are one surface.
+  keybinds: "help",
+  keys: "help",
   tasks: "tasks",
   taskcenter: "tasks",
   task: "tasks",
@@ -57,7 +58,7 @@ export const ALIASES: Record<string, string> = {
 }
 
 /** Panels the shell owns that are not registry actions (no key of their own yet). */
-export const SHELL_PANELS = ["archive", "themes", "keybinds"] as const
+export const SHELL_PANELS = ["archive", "themes"] as const
 
 /** Shell verbs with no key of their own, dispatched by `App`. */
 export const SHELL_ACTIONS = [

@@ -73,3 +73,29 @@ test("the row label keeps its checkbox", () => {
   expect(manager.pluginRowLabel(STATE.items[1]!)).toBe("[ ] Two")
   expect(manager.pluginRowLabel(STATE.items[2]!)).toBe("[-] Three")
 })
+
+test("an empty manager says where plugins come from and hides the enable key", async () => {
+  const setup = await testRender(
+    () => (
+      <manager.PluginManagerPane
+        theme={crimson}
+        width={100}
+        height={24}
+        focused
+        state={{ ...STATE, items: [], loading: false }}
+      />
+    ),
+    { width: 100, height: 24 },
+  )
+  try {
+    await setup.flush()
+    await (setup.renderer as unknown as { loop: (skip: boolean) => Promise<void> }).loop(true)
+    const frame = setup.captureCharFrame()
+    expect(frame).toContain("no UI plugins found")
+    expect(frame).toContain("ui.plugins.dirs")
+    expect(frame).toContain("Esc back")
+    expect(frame).not.toContain("Space enable")
+  } finally {
+    await setup.dispose()
+  }
+})

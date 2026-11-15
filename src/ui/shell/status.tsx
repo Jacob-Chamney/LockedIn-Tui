@@ -66,6 +66,7 @@ export function StatusBar(props: {
     return PANE_LABEL[props.pane]
   }
   const note = () => {
+    if (props.overlay !== null) return ""
     if (props.note !== undefined) return props.note
     if (props.surfacePane !== undefined && props.surfacePane !== "chat") return ""
     return props.pane === "chat" && (props.context || "chill") === "chill" ? "read-only" : ""

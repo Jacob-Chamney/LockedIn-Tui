@@ -13,7 +13,6 @@ import {
   previewLimit,
   promptPreview,
   provenanceLine,
-  selectedRow,
   settingsRows,
   type SessionSettingsState,
 } from "./session-settings-model"
@@ -129,9 +128,6 @@ export function SessionSettingsPanel(props: {
                 </box>
               )
             })}
-            <text fg={palette().muted} wrapMode="word" marginTop={1}>
-              {selectedRow(props.state)?.detail ?? "Select an action."}
-            </text>
           </>
         )}
       </WindowBody>

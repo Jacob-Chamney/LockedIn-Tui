@@ -65,6 +65,8 @@ export function SourcesPanel(props: {
   title?: string
   /** Right-hand manifest heading. */
   manifestLabel?: string
+  /** Empty-state copy for the right column; instructions pickers are not sources. */
+  manifestEmpty?: string
   /** Creation also offers file instructions, so an empty review can continue. */
   allowInstructions?: boolean
 }) {
@@ -115,8 +117,8 @@ export function SourcesPanel(props: {
   }
   const hints = () => {
     if (props.view.editing) return ["↑↓ choose", "Enter apply", "Ctrl+F scope", "Esc"]
-    if (props.view.step === "review") return ["j/k", "d remove", "Enter", "Esc"]
-    if (props.view.focus === "sources") return ["j/k", "d remove", "Enter", "Esc"]
+    if (props.view.step === "review") return ["j/k move", "d remove", "Enter continue", "Esc back"]
+    if (props.view.focus === "sources") return ["j/k move", "d remove", "Enter reveal", "Tab back"]
     if (props.width >= 82) return footerHints(props.view)
     if (props.width >= 60) {
       return ["j/k move", "Space mark", "Enter open", "A folder", "r review", "/ search"]
@@ -143,7 +145,9 @@ export function SourcesPanel(props: {
         {`${props.view.focus === "sources" ? "▸" : " "} ${props.manifestLabel ?? "SOURCES"} · ${total()}`}
       </text>
       {total() === 0 ? (
-        <text fg={palette().muted} wrapMode="word">no sources yet · press Space to add one</text>
+        <text fg={palette().muted} wrapMode="word">
+          {props.manifestEmpty ?? "no sources yet · press Space to add one"}
+        </text>
       ) : (
         <>
           {existing().length > 0 ? <text fg={palette().muted} wrapMode="none">ALREADY ADDED</text> : null}

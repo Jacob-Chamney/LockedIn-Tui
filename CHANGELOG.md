@@ -213,6 +213,16 @@ requests merge.
 
 ### Fixed
 
+- `:keys` and `:keybinds` open the all-keys help overlay instead of a screen
+  that was never rendered; a command that refuses now dismisses the palette
+  before showing its warning.
+- Swarms and Agents say when no project or swarm is open instead of offering
+  keys that do nothing, and naming a swarm without a project no longer
+  discards the name.
+- Agent settings counts `1 agent`, and the Settings Data folder row says it is
+  set at launch instead of pointing at a screen that does not exist.
+- The instructions file picker no longer calls its file a source, and an empty
+  UI plugin manager says where plugins come from and hides `Space enable`.
 - An empty Knowledge vault now explains itself instead of showing a blank
   canvas, and the MCP server list hides its empty policy table while showing
   `a add`.

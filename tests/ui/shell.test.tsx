@@ -381,6 +381,21 @@ describe("status bar surface", () => {
     }
   })
 
+  test("help and command overlays hide the chat hints and note", async () => {
+    for (const overlay of ["help", "command"] as const) {
+      const { setup } = await mount(120, 36, { overlay } as never)
+      try {
+        const last = rows(setup).at(-1)!
+        expect(last).toContain(overlay.toUpperCase())
+        expect(last).not.toContain("Enter send")
+        expect(last).not.toContain("no model")
+        expect(last).not.toContain("read-only")
+      } finally {
+        await setup.dispose()
+      }
+    }
+  })
+
   test("a modal surface names itself instead of the chat behind it", async () => {
     const { setup } = await mount(120, 36, { pane: "stats" } as never)
     try {

@@ -125,7 +125,7 @@ export function settingsGroups(view: SettingsView): SettingsGroup[] {
       title: "USER",
       rows: [
         { id: "username", label: "Username", value: text(view.username), hint: "shown in the greeting and on saved notes.", edit: "text", key: "ui.username", control: "text" },
-        { id: "theme", label: "Theme", value: text(view.theme), hint: "the palette used everywhere; change it in Appearance.", edit: "none" },
+        { id: "theme", label: "Theme", value: text(view.theme), hint: "the palette used everywhere; Enter opens Themes.", edit: "none" },
         { id: "chat-settings", label: "Chat settings", value: "open", hint: "response length and tutor policy for chats.", edit: "none" },
       ],
     },

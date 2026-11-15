@@ -740,6 +740,13 @@ export function handlePaneKeys(
         }
       }
       if (state.pane === "swarms" && press.name === "n") {
+        // A swarm belongs to a project; refusing before the name prompt saves
+        // the user from typing a name the save then throws away.
+        if (!activeProject()) {
+          deps.notify("open a project first; a swarm belongs to a project", "warn")
+          event.preventDefault()
+          return true
+        }
         setPrompt({ title: "New swarm", hint: "Name it. You will add agents next.", value: "", kind: "swarm" })
         event.preventDefault()
         return true

@@ -92,6 +92,8 @@ export type PaneDeps = {
   chapterText: string
   bufferCount: number
   swarms: SwarmSummary[]
+  /** The project the shell is inside; a swarm cannot exist without one. */
+  activeProject: string | null
   openSwarm: string | null
   agentSettings: AgentSettingsState
   chatSettingsCursor: number
@@ -165,6 +167,12 @@ function emptySummary() {
 type PaneRenderer = (deps: PaneDeps, width: number, height: number, palette: ThemePalette) => unknown
 
 function listPane(id: PaneId, deps: PaneDeps, width: number, height: number, palette: ThemePalette): unknown {
+  const swarm = deps.swarms.find((entry) => entry.id === deps.openSwarm)
+  // A swarm belongs to a project and agents belong to a swarm. Keys that act
+  // on one were advertised with nothing open and did nothing; say what is
+  // missing instead of listing them.
+  const noSwarm = id === "agents" && !swarm
+  const noProject = id === "swarms" && !deps.activeProject
   return (
     <PanelList
       theme={palette}
@@ -175,14 +183,22 @@ function listPane(id: PaneId, deps: PaneDeps, width: number, height: number, pal
         id === "review"
           ? `${deps.listRows(id).length} due`
           : id === "agents"
-            ? `${deps.swarms.find((swarm) => swarm.id === deps.openSwarm)?.name ?? "no swarm"} · ${deps.listRows(id).length} agents`
+            ? `${swarm?.name ?? "no swarm"} · ${deps.listRows(id).length} agent${deps.listRows(id).length === 1 ? "" : "s"}`
             : undefined
       }
       detail={LIST_COPY[id] ?? ""}
       rows={deps.listRows(id)}
       cursor={deps.listCursors[id] ?? 0}
-      empty={LIST_EMPTY[id] ?? { line: "nothing here yet", hint: "" }}
-      hints={LIST_HINTS[id] ?? ["j/k move", "Esc close"]}
+      empty={
+        noProject
+          ? { line: "no project open", hint: "make a project with a swarm in Projects, then open it" }
+          : noSwarm
+            ? { line: "no swarm open", hint: "open a project with a swarm in Projects, then pick it here" }
+            : LIST_EMPTY[id] ?? { line: "nothing here yet", hint: "" }
+      }
+      hints={
+        noProject || noSwarm ? ["j/k move", "Esc close"] : LIST_HINTS[id] ?? ["j/k move", "Esc close"]
+      }
     />
   )
 }
@@ -236,6 +252,11 @@ const RENDERERS: Partial<Record<PaneId, PaneRenderer>> = {
       existing={deps.existingSources}
       title={deps.sourceTitle}
       manifestLabel={deps.sourceManifestLabel}
+      manifestEmpty={
+        deps.sourceManifestLabel === "INSTRUCTIONS"
+          ? "no instructions file yet · press Space to choose one"
+          : undefined
+      }
       allowInstructions={deps.sourceAllowInstructions}
       view={deps.sourceView ?? initialPickerView}
     />

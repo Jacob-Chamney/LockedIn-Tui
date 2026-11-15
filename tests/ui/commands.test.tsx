@@ -82,14 +82,16 @@ describe("aliases", () => {
 
   test("names without a key of their own still resolve to their surface", () => {
     // `archive` and `themes` are pane routes (they open from the Explorer or a
-    // command); only `keybinds` is a shell panel with no surface yet.
+    // command); the all-keys screen is the help overlay, so both names that
+    // used to point at a panel nobody rendered now open it.
     for (const name of ["archive", "themes"]) {
       const result = commands.resolveCommand(registry, name)
       expect({ name, result }).toEqual({ name, result: { kind: "action", id: name } })
       expect(registry.action(name)).toBeUndefined()
     }
-    const keybinds = commands.resolveCommand(registry, "keybinds")
-    expect(keybinds).toEqual({ kind: "panel", id: "keybinds" })
+    for (const name of ["keys", "keybinds"]) {
+      expect(commands.resolveCommand(registry, name)).toEqual({ kind: "action", id: "help" })
+    }
   })
 
   test("clear is a shell command that empties chill", () => {

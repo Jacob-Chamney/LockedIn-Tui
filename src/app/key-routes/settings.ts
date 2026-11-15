@@ -240,6 +240,16 @@ export function handleSettingsKeys(
         event.preventDefault()
         return true
       }
+      if (row?.row.id === "dataDir") {
+        // There is no data-folder screen: the path comes from the launch flag.
+        // Saying so beats "changed in its own screen", which does not exist.
+        deps.setSettingsState((current) => ({
+          ...current,
+          notice: "set at launch with --data-dir",
+        }))
+        event.preventDefault()
+        return true
+      }
       if (row) {
         const toggle = toggleSetting(deps.settingsView() ?? emptySettingsView(), row.row.id)
         if (toggle) {
