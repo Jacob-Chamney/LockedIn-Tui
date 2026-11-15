@@ -56,6 +56,13 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  popoverLayout,
+  popoverPosition,
+  type PopoverItem as PopoverItemInput,
+  type PopoverLayout as PopoverLayoutInput,
+  type PopoverRow as PopoverRowInput,
+} from "../src/ui/popover"
+import {
   tagCloudLayout,
   tagCloudText as renderTagCloud,
   type TagCloudItem as TagCloudItemInput,
@@ -5912,6 +5919,99 @@ export function tagCloud(options: TagCloudOptions): SceneNode[] {
 /** The tag cloud as plain lines. */
 export function tagCloudText(options: Omit<TagCloudOptions, "anchor" | "x" | "y" | "fg">): string[] {
   return renderTagCloud(options)
+}
+
+/** One selectable row in a `popover()`. */
+export type PopoverItem = PopoverItemInput
+
+/** One title, body or item row. */
+export type PopoverRow = PopoverRowInput
+
+/** The fitted rows and size of a popover. */
+export type PopoverLayout = PopoverLayoutInput
+
+export type PopoverOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Outer width, including borders and padding. */
+  width: number
+  title?: string
+  body?: string
+  items?: readonly PopoverItem[]
+  selected?: number
+  maxLines?: number
+  /** When both are given, place relative to the target and clamp. */
+  target?: import("../src/ui/tooltip").TooltipTarget
+  bounds?: { width: number; height: number }
+  gap?: number
+  prefer?: "below" | "above"
+  borderStyle?: "rounded" | "single" | "double"
+  borderColor?: string
+  bg?: string
+  titleFg?: string
+  bodyFg?: string
+  selectedFg?: string
+  fg?: string
+  disabledFg?: string
+}
+
+/**
+ * A bordered popover with a title, body and optional menu rows.
+ *
+ *   popover({ anchor: "top-left", x: 2, y: 2, width: 36,
+ *             title: "actions", body: "what this row does",
+ *             items: [{ id: "edit", key: "Enter", label: "edit" }] })
+ *
+ * Body text wraps to the inner width; menu labels fit. `selected` marks one
+ * item with `▸`. Pass `target`/`bounds` to flip and clamp like a tooltip.
+ */
+export function popover(options: PopoverOptions): SceneNode[] {
+  const layout = popoverLayout(options)
+  const placed =
+    options.target !== undefined && options.bounds !== undefined
+      ? popoverPosition({
+          target: options.target,
+          size: { width: layout.width, height: layout.height },
+          bounds: options.bounds,
+          ...(options.gap === undefined ? {} : { gap: options.gap }),
+          ...(options.prefer === undefined ? {} : { prefer: options.prefer }),
+        })
+      : { left: options.x, top: options.y, side: "below" as const }
+  const nodes: SceneNode[] = [
+    {
+      kind: "box",
+      anchor: options.anchor,
+      x: placed.left,
+      y: placed.top,
+      width: layout.width,
+      height: layout.height,
+      border: true,
+      borderStyle: options.borderStyle ?? "rounded",
+      borderColor: options.borderColor ?? "line",
+      bg: options.bg ?? "surface",
+    },
+  ]
+  layout.rows.forEach((row, index) => {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: placed.left + 2,
+      y: placed.top + 1 + index,
+      text: row.text,
+      fg:
+        row.kind === "title"
+          ? (options.titleFg ?? "primary")
+          : row.kind === "item"
+            ? row.item?.disabled
+              ? (options.disabledFg ?? "muted")
+              : row.selected
+                ? (options.selectedFg ?? "primary")
+                : (options.fg ?? "foreground")
+            : (options.bodyFg ?? "foreground"),
+    })
+  })
+  return nodes
 }
 
 export type FormOptions = {

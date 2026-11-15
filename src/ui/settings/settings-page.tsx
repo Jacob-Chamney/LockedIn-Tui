@@ -12,6 +12,8 @@ import { getProvider } from "../../llm/catalogue";
 import { ListRow } from "../panels/list-row";
 import { accordionRows } from "../accordion";
 import { Tooltip } from "../shell/tooltip";
+import { Popover } from "../shell/popover";
+import { popoverLayout } from "../popover";
 import { tooltipLayout } from "../tooltip";
 import { TwoColumnSurface } from "../panels/two-column";
 export type SettingsView = {
@@ -347,10 +349,26 @@ export function SettingsPage(props: {
   const cursor = () => clampCursor(rows(), props.state.cursor)
   const current = () => rows()[cursor()]?.row
   const tooltipWidth = () => Math.max(20, Math.min(props.width - 4, 70))
+  const usePopover = () => props.height >= 34
+  const popover = () =>
+    popoverLayout({
+      width: tooltipWidth(),
+      title: "? hint",
+      body: current()?.hint ?? "",
+      items: [
+        { id: "edit", key: "Enter", label: "edit" },
+        { id: "fold", key: "h/l", label: "fold" },
+        { id: "close", key: "v", label: "close" },
+      ],
+      selected: 0,
+      maxLines: 3,
+    })
   const tooltipHeight = () => {
     const row = current()
     if (!props.state.help || row === undefined) return 0
-    return tooltipLayout({ text: row.hint, width: tooltipWidth(), title: "hint", maxLines: 4 }).height
+    return usePopover()
+      ? popover().height
+      : tooltipLayout({ text: row.hint, width: tooltipWidth(), title: "hint", maxLines: 4 }).height
   }
   const accordion = () =>
     accordionRows({
@@ -458,13 +476,29 @@ export function SettingsPage(props: {
         )
       })}
       {props.state.help && current() ? (
-        <Tooltip
-          theme={palette()}
-          width={tooltipWidth()}
-          title="? hint"
-          text={current()!.hint}
-          maxLines={4}
-        />
+        usePopover() ? (
+          <Popover
+            theme={palette()}
+            width={tooltipWidth()}
+            title="? hint"
+            body={current()!.hint}
+            items={[
+              { id: "edit", key: "Enter", label: "edit" },
+              { id: "fold", key: "h/l", label: "fold" },
+              { id: "close", key: "v", label: "close" },
+            ]}
+            selected={0}
+            maxLines={3}
+          />
+        ) : (
+          <Tooltip
+            theme={palette()}
+            width={tooltipWidth()}
+            title="? hint"
+            text={current()!.hint}
+            maxLines={4}
+          />
+        )
       ) : null}
     </TwoColumnSurface>
   )

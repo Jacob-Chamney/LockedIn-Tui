@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `popover()` draws a bordered title/body/menu box with tooltip-style placement;
+  tall Settings pages show their hint as a popover.
 - `tagCloud()` wraps tags with an overflow count; the Knowledge reader shows the
   open note's tags.
 - `numberStepper()` draws an inline minus/value/plus control; Settings Budget is

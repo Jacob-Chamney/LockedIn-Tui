@@ -198,6 +198,20 @@ describe("rows and groups", () => {
     }
   })
 
+  test("a tall page shows the hint as a menu popover", async () => {
+    const help = { ...settings.initialSettingsState, help: true }
+    const setup = await mount(120, 36, VIEW, help)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("? hint")
+      expect(frame).toContain("▸ [Enter] edit")
+      expect(frame).toContain("[h/l] fold")
+      expect(frame).toContain("shown in the greeting and on saved notes.")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("the tooltip is hidden until asked for", async () => {
     const setup = await mount(70, 24)
     try {

@@ -42,6 +42,7 @@ import {
   log,
   menu,
   pagination,
+  popover,
   prompt,
   progressChip,
   kpiStrip,
@@ -2989,4 +2990,42 @@ test("tagCloud wraps, reports overflow and handles empty input", () => {
   expect(nodes[0]).toMatchObject({ fg: "muted" })
   expect(tagCloudText({ items: [{ label: "a" }], width: 10 })).toEqual(["#a"])
   expect(tagCloud({ anchor: "top-left", x: 0, y: 0, width: 10, items: [] })).toEqual([])
+})
+
+test("popover draws a bordered box with title, body and items", () => {
+  const nodes = popover({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 30,
+    title: "actions",
+    body: "what this row does",
+    items: [
+      { id: "edit", key: "Enter", label: "edit" },
+      { id: "close", key: "Esc", label: "close" },
+    ],
+    selected: 1,
+  })
+  expect(nodes).toHaveLength(5)
+  expect(nodes[0]).toMatchObject({ kind: "box", x: 2, y: 3, width: 30, height: 6, border: true })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 4, y: 4, text: "actions", fg: "primary" })
+  expect(nodes[2]).toMatchObject({ y: 5, text: "what this row does", fg: "foreground" })
+  expect(nodes[3]).toMatchObject({ y: 6, text: "  [Enter] edit", fg: "foreground" })
+  expect(nodes[4]).toMatchObject({ y: 7, text: "▸ [Esc] close", fg: "primary" })
+})
+
+test("popover places against a target and handles empty content", () => {
+  const nodes = popover({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 10,
+    body: "hi",
+    target: { x: 10, y: 18, width: 10, height: 1 },
+    bounds: { width: 40, height: 20 },
+  })
+  expect(nodes[0]).toMatchObject({ x: 10, y: 14, width: 10, height: 3 })
+  const empty = popover({ anchor: "top-left", x: 0, y: 0, width: 10 })
+  expect(empty).toHaveLength(1)
+  expect(empty[0]).toMatchObject({ kind: "box", height: 2 })
 })
