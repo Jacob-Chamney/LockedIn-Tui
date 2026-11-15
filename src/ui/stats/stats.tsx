@@ -16,6 +16,7 @@ import { buildHeatmap } from "./heatmap"
 import { HEATMAP_RAMP, heatmapLayout } from "../heatmap"
 import { Legend } from "../shell/legend"
 import { Distribution } from "../shell/distribution"
+import { Delta } from "../shell/delta"
 import { sparklineText } from "../sparkline"
 import { tabLayout } from "../tabs"
 import { Bars } from "../shell/bars"
@@ -253,6 +254,27 @@ export function StatsPage(props: {
       ? sparklineText({ values, width: 60 })
       : ""
   }
+  /** Non-null daily token totals inside the selected range. */
+  const dailyTokens = () => {
+    const values: number[] = []
+    for (const week of heat().weeks) {
+      for (const day of week) if (day) values.push(day.tokens)
+    }
+    return values
+  }
+  /**
+   * The last seven days against the seven before them. Only shown when the
+   * range has both weeks and the earlier week has something to compare with.
+   */
+  const tokenDelta = () => {
+    const values = dailyTokens()
+    if (values.length < 14) return null
+    const recent = values.slice(-7).reduce((sum, value) => sum + value, 0)
+    const prior = values.slice(-14, -7).reduce((sum, value) => sum + value, 0)
+    if (prior <= 0) return null
+    const value = ((recent - prior) / prior) * 100
+    return Number.isFinite(value) ? { value, label: "vs prior 7d" } : null
+  }
   const label = () => "best streak"
 
   return (
@@ -332,6 +354,14 @@ export function StatsPage(props: {
           <text fg={palette().primary} wrapMode="none">
             {trend()}
           </text>
+        ) : null}
+        {props.height >= 34 && props.width >= 60 && tokenDelta() ? (
+          <Delta
+            theme={palette()}
+            value={tokenDelta()!.value}
+            label={tokenDelta()!.label}
+            width={Math.min(props.width - 8, 48)}
+          />
         ) : null}
         <box height={1} flexShrink={0} />
 

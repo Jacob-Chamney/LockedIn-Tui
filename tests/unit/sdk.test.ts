@@ -19,6 +19,8 @@ import {
   confirm,
   createCursor,
   dashboard,
+  delta,
+  deltaText,
   diff,
   divider,
   distribution,
@@ -2346,4 +2348,25 @@ test("outline keeps the current item visible and honours colours", () => {
   expect(nodes).toHaveLength(1)
   expect(nodes[0]).toMatchObject({ text: "◇▸ Detail", fg: "accent" })
   expect(outline({ anchor: "top-left", x: 0, y: 0, width: 20, items: [] })).toEqual([])
+})
+
+test("delta draws a signed percentage in its tone", () => {
+  const nodes = delta({ anchor: "top-left", x: 2, y: 4, value: 12, label: "vs prior 7d" })
+  expect(nodes).toHaveLength(1)
+  expect(nodes[0]).toMatchObject({
+    kind: "text",
+    x: 2,
+    y: 4,
+    text: "▲ 12% vs prior 7d",
+    fg: "success",
+  })
+})
+
+test("delta flips the healthy direction and honours overrides", () => {
+  const spend = delta({ anchor: "top-left", x: 0, y: 0, value: 9, good: "down" })
+  expect(spend[0]).toMatchObject({ text: "▲ 9%", fg: "error" })
+  const flat = delta({ anchor: "top-left", x: 0, y: 0, value: 0, fg: "accent" })
+  expect(flat[0]).toMatchObject({ text: "— 0%", fg: "accent" })
+  expect(deltaText({ value: -5 })).toBe("▼ 5%")
+  expect(delta({ anchor: "top-left", x: 0, y: 0, value: 2, width: 0 })).toEqual([])
 })
