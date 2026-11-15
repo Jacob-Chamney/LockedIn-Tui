@@ -55,6 +55,15 @@ import {
 } from "../src/ui/accordion"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import {
+  definitionListLayout,
+  definitionListText as renderDefinitionList,
+  definitionRole,
+  type DefinitionItem as DefinitionItemInput,
+  type DefinitionListLayout as DefinitionListLayoutInput,
+  type DefinitionRow as DefinitionRowInput,
+  type DefinitionTone as DefinitionToneInput,
+} from "../src/ui/definition-list"
+import {
   statusTimelineLayout,
   statusTimelineRole,
   statusTimelineText as renderStatusTimeline,
@@ -6536,6 +6545,85 @@ export function statusTimeline(options: StatusTimelineOptions): SceneNode[] {
 /** The timeline as plain lines. */
 export function statusTimelineText(options: Omit<StatusTimelineOptions, "anchor" | "x" | "y" | "timeFg" | "connectorFg" | "fg" | "detailFg">): string[] {
   return renderStatusTimeline(options)
+}
+
+/** A definition row tone: normal, muted, error or warning. */
+export type DefinitionTone = DefinitionToneInput
+
+/** One term/description pair. */
+export type DefinitionItem = DefinitionItemInput
+
+/** One placed definition row. */
+export type DefinitionRow = DefinitionRowInput
+
+/** The rows, column width and lines of a definition list. */
+export type DefinitionListLayout = DefinitionListLayoutInput
+
+export type DefinitionListOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  items: readonly DefinitionItem[]
+  width: number
+  /** Term column width; defaults to the longest term. */
+  termWidth?: number
+  /** Spaces between the term and description; defaults 2. */
+  gap?: number
+  /** Wrapped description lines kept per row; omitted means all. */
+  maxLines?: number
+  /** Term colour. Defaults to `muted`. */
+  termFg?: string
+  /** Description colour for normal rows. Defaults to `foreground`. */
+  fg?: string
+}
+
+/**
+ * A definition list with a shared term column and wrapped descriptions.
+ *
+ *   definitionList({ anchor: "top-left", x: 2, y: 2, width: 40, items: [
+ *     { term: "today", description: "1652 tok · $0.0039" },
+ *     { term: "month", description: "11000 tok · $0.0420" },
+ *   ] })
+ * // today  1652 tok · $0.0039
+ * // month  11000 tok · $0.0420
+ *
+ * Descriptions wrap to the remaining width; continuation lines align under the
+ * first. A row tone overlays the description colour. `definitionListText()`
+ * returns the lines.
+ */
+export function definitionList(options: DefinitionListOptions): SceneNode[] {
+  const layout = definitionListLayout(options)
+  const nodes: SceneNode[] = []
+  let y = options.y
+  for (const row of layout.rows) {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y,
+      text: row.term,
+      fg: options.termFg ?? "muted",
+    })
+    const descriptionX = options.x + layout.termWidth + layout.gap
+    const detailFg = definitionRole(row.tone)
+    row.lines.forEach((line, index) => {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: descriptionX,
+        y: y + index,
+        text: line,
+        fg: row.tone === "normal" ? (options.fg ?? detailFg) : detailFg,
+      })
+    })
+    y += row.lines.length
+  }
+  return nodes
+}
+
+/** The definition list as plain lines. */
+export function definitionListText(options: Omit<DefinitionListOptions, "anchor" | "x" | "y" | "termFg" | "fg">): string[] {
+  return renderDefinitionList(options)
 }
 
 export type FormOptions = {

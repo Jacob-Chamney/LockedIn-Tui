@@ -13,6 +13,7 @@ import { bulletChartLayout } from "../bullet-chart";
 import { Bars } from "../shell/bars";
 import { Donut, DonutLegend } from "../shell/donut";
 import { StatusTimeline } from "../shell/status-timeline";
+import { DefinitionList } from "../shell/definition-list";
 import { donutSegments } from "../donut";
 import { Callout } from "../shell/callout";
 export type UsageSnapshot = {
@@ -299,12 +300,15 @@ export function UsagePanel(props: {
         {`${props.focused ? "▸" : " "} USAGE · ${budgetLabel(props.state.budget)}`}
       </text>
 
-      <text fg={palette().foreground} wrapMode="none">
-        {`today  ${totalsLine(props.snapshot.today)}`}
-      </text>
-      <text fg={palette().foreground} wrapMode="none">
-        {`month  ${totalsLine(props.snapshot.month)}`}
-      </text>
+      <DefinitionList
+        theme={palette()}
+        width={props.width - 2}
+        gap={2}
+        items={[
+          { term: "today", description: totalsLine(props.snapshot.today) },
+          { term: "month", description: totalsLine(props.snapshot.month) },
+        ]}
+      />
       <text fg={palette().foreground} wrapMode="none">
         {`warn at ${warnLabel(props.state.budget.warn_at)} · pause at limit ${props.state.budget.pause_at_limit ? "on" : "off"}`}
       </text>

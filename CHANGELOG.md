@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `definitionList()` draws a shared term column with wrapped descriptions;
+  Usage renders its totals with it.
 - `statusTimeline()` draws a vertical state rail with connectors and a detail
   row; Usage renders its run history with it.
 - `bulletChart()` draws a value fill with a target marker; the Usage spend meter

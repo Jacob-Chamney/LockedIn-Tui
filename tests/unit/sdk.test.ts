@@ -25,6 +25,8 @@ import {
   createCursor,
   dashboard,
   dataTable,
+  definitionList,
+  definitionListText,
   dataTableText,
   delta,
   deltaText,
@@ -3279,4 +3281,47 @@ test("statusTimeline caps entries, fits labels and honours colours", () => {
   })
   expect(lines).toEqual(["10:00 └─ ✓ first"])
   expect(statusTimeline({ anchor: "top-left", x: 0, y: 0, width: 0, entries: [] })).toEqual([])
+})
+
+test("definitionList draws a shared term column and descriptions", () => {
+  const nodes = definitionList({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 40,
+    items: [
+      { term: "today", description: "1652 tok · $0.0039" },
+      { term: "month", description: "11000 tok · $0.0420" },
+    ],
+  })
+  expect(nodes).toHaveLength(4)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, text: "today", fg: "muted" })
+  expect(nodes[1]).toMatchObject({ x: 9, y: 3, text: "1652 tok · $0.0039", fg: "foreground" })
+  expect(nodes[2]).toMatchObject({ x: 2, y: 4, text: "month" })
+  expect(nodes[3]).toMatchObject({ x: 9, y: 4, text: "11000 tok · $0.0420" })
+})
+
+test("definitionList wraps, tones and fits descriptions", () => {
+  const nodes = definitionList({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 20,
+    termFg: "accent",
+    fg: "secondary",
+    items: [{ term: "note", description: "one two three four five six seven eight" }],
+  })
+  expect(nodes[0]).toMatchObject({ text: "note", fg: "accent" })
+  expect(nodes[1]).toMatchObject({ fg: "secondary" })
+  expect(nodes.length).toBeGreaterThan(2)
+  const error = definitionList({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 20,
+    items: [{ term: "broken", description: "failed", tone: "error" }],
+  })
+  expect(error[1]).toMatchObject({ fg: "error" })
+  expect(definitionListText({ width: 20, items: [{ term: "a", description: "b" }] })).toEqual(["a  b"])
+  expect(definitionList({ anchor: "top-left", x: 0, y: 0, width: 0, items: [] })).toEqual([])
 })
