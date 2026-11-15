@@ -33,6 +33,7 @@ import {
   prompt,
   kpiStrip,
   keycaps,
+  kanban,
   radio,
   legend,
   list,
@@ -1666,4 +1667,52 @@ test("keycaps honour colours, truncation and empty chords", () => {
   expect(clipped).toHaveLength(2)
   expect(clipped[1]).toMatchObject({ text: "shift" })
   expect(keycaps({ anchor: "top-left", x: 0, y: 0, width: 14, chord: "" })).toEqual([])
+})
+
+test("kanban draws counted columns and selected cards", () => {
+  const nodes = kanban({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 21,
+    selected: "b",
+    columns: [
+      {
+        id: "active",
+        title: "ACTIVE",
+        cards: [
+          { id: "a", title: "build" },
+          { id: "b", title: "review" },
+        ],
+      },
+      { id: "done", title: "DONE", cards: [{ id: "c", title: "ship" }] },
+    ],
+  })
+  expect(nodes).toHaveLength(5)
+  expect(nodes[0]).toMatchObject({ x: 2, y: 3, text: "ACTIVE (2)", fg: "primary" })
+  expect(nodes[1]).toMatchObject({ x: 2, y: 4, text: "  build", fg: "foreground" })
+  expect(nodes[2]).toMatchObject({ x: 2, y: 5, text: "▌ review", fg: "primary" })
+  expect(nodes[3]).toMatchObject({ x: 13, y: 3, text: "DONE (1)" })
+  expect(nodes[4]).toMatchObject({ x: 13, y: 4, text: "  ship" })
+})
+
+test("kanban reports hidden cards and honours colours", () => {
+  const nodes = kanban({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 21,
+    maxCards: 1,
+    titleFg: "accent",
+    cardFg: "secondary",
+    hiddenFg: "warning",
+    columns: [
+      { id: "a", title: "A", cards: [{ id: "x", title: "one" }, { id: "y", title: "two" }] },
+      { id: "b", title: "B", cards: [] },
+    ],
+  })
+  expect(nodes[0]).toMatchObject({ text: "A (2)", fg: "accent" })
+  expect(nodes[1]).toMatchObject({ text: "  one", fg: "secondary" })
+  expect(nodes[2]).toMatchObject({ y: 2, text: "+1 more", fg: "warning" })
+  expect(kanban({ anchor: "top-left", x: 0, y: 0, width: 20, columns: [] })).toEqual([])
 })

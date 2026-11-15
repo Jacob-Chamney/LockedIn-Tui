@@ -56,6 +56,11 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  kanbanLayout,
+  type KanbanCard as KanbanCardInput,
+  type KanbanColumn as KanbanColumnInput,
+} from "../src/ui/kanban"
+import {
   diffRows,
   type DiffLine as DiffLineInput,
   type DiffOptions as DiffLayoutOptions,
@@ -3323,6 +3328,91 @@ export function keycaps(options: KeycapsOptions): SceneNode[] {
         y: options.y,
         text: token.text,
         fg: options.separatorFg ?? "muted",
+      })
+    }
+  }
+  return nodes
+}
+
+/** One card in a `kanban()` column. */
+export type KanbanCard = KanbanCardInput
+
+/** One titled column in a `kanban()`. */
+export type KanbanColumn = KanbanColumnInput
+
+export type KanbanOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Total width in cells. */
+  width: number
+  columns: readonly KanbanColumn[]
+  /** Spaces between columns; defaults to 1. */
+  gap?: number
+  /** Card id to mark with the cursor. */
+  selected?: string
+  /** Visible cards per column. */
+  maxCards?: number
+  /** Column-title colour. Defaults to `primary`. */
+  titleFg?: string
+  /** Default card colour. Defaults to `foreground`. */
+  cardFg?: string
+  /** Selected card colour. Defaults to `primary`. */
+  selectedFg?: string
+  /** Colour of the `+N more` row. Defaults to `muted`. */
+  hiddenFg?: string
+}
+
+/**
+ * A kanban board: titled columns with counted, single-line cards.
+ *
+ *   kanban({ anchor: "top-left", x: 2, y: 2, width: 90, selected: "t2",
+ *            columns: [
+ *              { id: "active", title: "ACTIVE", cards: [
+ *                { id: "t1", title: "build the parser" },
+ *                { id: "t2", title: "review the diff" },
+ *              ] },
+ *              { id: "done", title: "DONE", cards: [] },
+ *            ] })
+ *
+ * Columns split the width evenly; a selected card gets `▸ ` and every card is
+ * fitted to its column. `maxCards` keeps the first cards and adds `+N more`.
+ */
+export function kanban(options: KanbanOptions): SceneNode[] {
+  const layout = kanbanLayout(options)
+  const nodes: SceneNode[] = []
+  for (const column of layout.columns) {
+    const x = options.x + column.x
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x,
+      y: options.y,
+      text: column.title,
+      fg: options.titleFg ?? "primary",
+    })
+    column.cards.forEach((card, index) => {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x,
+        y: options.y + 1 + index,
+        text: card.text,
+        fg: card.selected
+          ? (options.selectedFg ?? "primary")
+          : card.tone === "foreground"
+            ? (options.cardFg ?? "foreground")
+            : card.tone,
+      })
+    })
+    if (column.hidden > 0) {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x,
+        y: options.y + 1 + column.cards.length,
+        text: `+${column.hidden} more`,
+        fg: options.hiddenFg ?? "muted",
       })
     }
   }

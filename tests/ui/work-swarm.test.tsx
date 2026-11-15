@@ -254,6 +254,29 @@ describe("layout and limits", () => {
     }
   })
 
+  test("a wide board groups lanes into counted status columns", async () => {
+    const setup = await mountBoard(200, 60)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("ACTIVE (2)")
+      expect(frame).toContain("DONE (1)")
+      expect(frame).toContain("STOPPED (2)")
+      expect(frame).toContain("▌ ")
+      expect(frame).toContain("read-only")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("a narrow board keeps one lane per row without columns", async () => {
+    const setup = await mountBoard(80, 24)
+    try {
+      expect(lines(setup).join("\n")).not.toContain("ACTIVE (2)")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("no control grants writes or commands", () => {
     for (const name of ["swarm.tsx", "board.tsx"]) {
       const source = readFileSync(join(import.meta.dir, "../../src/ui/work", name), "utf8")

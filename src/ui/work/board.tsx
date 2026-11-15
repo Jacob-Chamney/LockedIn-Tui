@@ -8,6 +8,7 @@
 import type { SwarmBoard, SwarmTask, SwarmTaskStatus } from "../../services/work/swarm"
 import { parseBinding, type Binding } from "../keymap/registry"
 import type { ThemePalette } from "../theme"
+import { Kanban } from "../shell/kanban"
 
 const GLYPH: Record<SwarmTaskStatus, string> = {
   pending: "…",
@@ -158,8 +159,30 @@ export function SwarmBoardPane(props: {
   notice?: string | null
 }) {
   const palette = () => props.theme
-  const columns = layoutFor(props.width) === "columns"
+  const wide = layoutFor(props.width) === "columns"
   const badge = retryBadge(props.board)
+  const selectedId = () => props.board.tasks[props.cursor]?.id
+  /** Cards are one lane line each; the board groups them by outcome. */
+  const kanbanColumns = () => {
+    const card = (task: SwarmTask) => ({
+      id: task.id,
+      title: laneLine(task, props.agents[task.agentId] ?? task.agentId),
+      tone: task.status === "failed" ? "error" : task.status === "cancelled" ? "muted" : "foreground",
+    })
+    const active = props.board.tasks.filter(
+      (task) => task.status === "pending" || task.status === "running" || task.status === "blocked",
+    )
+    return [
+      { id: "active", title: "ACTIVE", cards: active.map(card) },
+      { id: "done", title: "DONE", cards: props.board.tasks.filter((task) => task.status === "done").map(card) },
+      {
+        id: "stopped",
+        title: "STOPPED",
+        cards: props.board.tasks.filter((task) => task.status === "failed" || task.status === "cancelled").map(card),
+      },
+    ]
+  }
+  const maxCards = () => Math.max(1, props.height - 6 - (badge ? 1 : 0) - (props.notice ? 1 : 0))
 
   return (
     <box width={props.width} height={props.height} flexDirection="column" backgroundColor={palette().panel} paddingX={1}>
@@ -177,24 +200,34 @@ export function SwarmBoardPane(props: {
           {"no tasks in this run · press n to plan one"}
         </text>
       ) : (
-        <box flexDirection={columns ? "row" : "column"}>
-          {props.board.tasks.map((task, index) => (
-            <text
-              fg={
-                task.status === "failed"
-                  ? palette().error
-                  : task.status === "cancelled"
-                    ? palette().muted
-                    : index === props.cursor
-                      ? palette().primary
-                      : palette().foreground
-              }
-              wrapMode="none"
-            >
-              {`${index === props.cursor ? ">" : " "} ${laneLine(task, props.agents[task.agentId] ?? task.agentId)}`}
-            </text>
-          ))}
-        </box>
+        wide ? (
+          <Kanban
+            theme={palette()}
+            columns={kanbanColumns()}
+            width={props.width - 2}
+            selected={selectedId()}
+            maxCards={maxCards()}
+          />
+        ) : (
+          <box flexDirection="column">
+            {props.board.tasks.map((task, index) => (
+              <text
+                fg={
+                  task.status === "failed"
+                    ? palette().error
+                    : task.status === "cancelled"
+                      ? palette().muted
+                      : index === props.cursor
+                        ? palette().primary
+                        : palette().foreground
+                }
+                wrapMode="none"
+              >
+                {`${index === props.cursor ? ">" : " "} ${laneLine(task, props.agents[task.agentId] ?? task.agentId)}`}
+              </text>
+            ))}
+          </box>
+        )
       )}
 
       <text fg={palette().muted} wrapMode="none">

@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `kanban()` draws counted status columns with selectable cards for plugin
+  scenes; the wide Work swarm board groups lanes into ACTIVE/DONE/STOPPED.
 - `keycaps()` draws chords as filled caps for plugin scenes; the keybind editor
   styles its binding column with the same caps.
 - `skeleton()` draws ragged loading placeholders for plugin scenes; the plugin
