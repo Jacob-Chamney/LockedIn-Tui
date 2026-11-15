@@ -17,7 +17,7 @@ import { StatusDot } from "../shell/status-dot"
 import { Segmented } from "../shell/segmented"
 import { ProgressChip } from "../shell/progress-chip"
 import { TagInput } from "../shell/tag-input"
-import type { StatusState } from "../status-dot"
+import type { StatusDotGlyphs, StatusDotTones, StatusState } from "../status-dot"
 
 export type ListRowTone = "normal" | "muted" | "error"
 
@@ -30,7 +30,7 @@ export function ListRow(props: {
   /** Rendered after a fixed-width label; omitted for full-width rows. */
   value?: string
   /** A tone-coded chip instead of a plain value; takes precedence over `value`. */
-  badge?: { label: string; tone?: BadgeTone }
+  badge?: { label: string; tone?: BadgeTone; width?: number }
   /** A checkbox before the label, for checklist rows. */
   check?: { checked: boolean; disabled?: boolean }
   /** Background for the unselected row; selected rows always use the panel. */
@@ -44,7 +44,12 @@ export function ListRow(props: {
   /** An inline number stepper in the value column. */
   stepper?: { value: number; min?: number; max?: number; step?: number; text?: string; width?: number; disabled?: boolean }
   /** A health dot before the label. */
-  status?: { state: StatusState; label?: string }
+  status?: {
+    state: StatusState
+    label?: string
+    glyphs?: Partial<StatusDotGlyphs>
+    tones?: Partial<StatusDotTones>
+  }
   /** A segmented control in the value column, for small exclusive choices. */
   segments?: { options: readonly string[]; selected: number; width?: number }
   /** A compact done/total chip after the label. */
@@ -85,7 +90,13 @@ export function ListRow(props: {
         </text>
         {props.status ? (
           <>
-            <StatusDot theme={palette()} state={props.status.state} label={props.status.label} />
+            <StatusDot
+              theme={palette()}
+              state={props.status.state}
+              label={props.status.label}
+              glyphs={props.status.glyphs}
+              tones={props.status.tones}
+            />
             <text fg={palette().muted} wrapMode="none">
               {" "}
             </text>
@@ -202,9 +213,18 @@ export function ListRow(props: {
               theme={palette()}
               label={props.badge.label}
               tone={props.badge.tone}
-              width={40}
+              width={props.badge.width ?? 40}
             />
-            {props.active ? (
+            {props.value !== undefined ? (
+              <>
+                <text fg={palette().muted} wrapMode="none">
+                  {" "}
+                </text>
+                <text fg={valueFg()} wrapMode="none">
+                  {`${props.value}${marker()}`}
+                </text>
+              </>
+            ) : props.active ? (
               <text fg={palette().primary} wrapMode="none">
                 {marker()}
               </text>

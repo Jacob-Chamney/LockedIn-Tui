@@ -8,7 +8,7 @@
  */
 import type { ThemePalette } from "../theme";
 import { ListRow } from "./list-row";
-import type { StatusState } from "../status-dot";
+import type { StatusDotGlyphs, StatusDotTones, StatusState } from "../status-dot";
 export type SelectRow = {
   id: string
   label: string
@@ -17,7 +17,12 @@ export type SelectRow = {
   /** Muted rows are present but secondary; error rows name a failure. */
   tone?: "normal" | "muted" | "error"
   /** A health dot before the label. */
-  status?: { state: StatusState; label?: string }
+  status?: {
+    state: StatusState
+    label?: string
+    glyphs?: Partial<StatusDotGlyphs>
+    tones?: Partial<StatusDotTones>
+  }
   /** A compact done/total chip after the label. */
   progress?: { done: number; total: number; width?: number }
 }

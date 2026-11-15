@@ -162,6 +162,9 @@ requests merge.
 
 ### Changed
 
+- Provider settings rows, session-home coverage and task rows now use the
+  shared list and status elements; `ListRow` badges can sit beside a value and
+  status dots accept custom glyphs and tones.
 - Stats and Usage cache their heatmap, chart series and model shares, so
   repainting and resizing no longer rebuild the same derived data; large
   histograms use single-pass range/count scans instead of argument spreads.

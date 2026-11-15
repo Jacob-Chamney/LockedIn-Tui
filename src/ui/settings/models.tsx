@@ -14,7 +14,6 @@ import { isLoopbackUrl } from "../../llm/pricing";
 import type { ThemePalette } from "../theme";
 import { ListRow } from "../panels/list-row";
 import type { BadgeTone } from "../badges";
-import { Badge } from "../shell/badges";
 import { TwoColumnSurface } from "../panels/two-column";
 export type ValidationState =
   | { kind: "never" }
@@ -302,29 +301,15 @@ export function ModelsPanel(props: {
       ) : null}
 
       {props.state.rows.map((row, index) => (
-        <box flexDirection="row" height={1}>
-          <text
-            fg={
-              row.validation.kind === "failed"
-                ? palette().error
-                : index === props.cursor
-                  ? palette().primary
-                  : palette().foreground
-            }
-            wrapMode="none"
-          >
-            {`${index === props.cursor ? "▸" : " "} ${row.spec.label} `}
-          </text>
-          <Badge
-            theme={palette()}
-            label={providerBadge(row).label}
-            tone={providerBadge(row).tone}
-            width={20}
-          />
-          <text fg={palette().muted} wrapMode="none">
-            {` ${validationLine(row)}`}
-          </text>
-        </box>
+        <ListRow
+          theme={palette()}
+          selected={index === props.cursor}
+          label={row.spec.label}
+          labelWidth={22}
+          badge={{ ...providerBadge(row), width: 20 }}
+          value={validationLine(row)}
+          tone={row.validation.kind === "failed" ? "error" : "normal"}
+        />
       ))}
 
       {props.state.editing ? (
