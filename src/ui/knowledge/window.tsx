@@ -16,7 +16,8 @@ import { onAnimationTick, useRenderer } from "@opentui/solid"
 import type { KnowledgeGraph, KnowledgeNote } from "../../services/knowledge/graph"
 import { flattenTopics, GENERAL_TOPIC, topicsFor } from "../../services/knowledge/graph"
 import type { ThemePalette } from "../theme"
-import { MarkdownBody } from "../reader/markdown-body"
+import { MarkdownBody, blockCount } from "../reader/markdown-body"
+import { Scrollbar } from "../shell/scrollbar"
 import {
   breadcrumb,
   focusNode,
@@ -454,17 +455,26 @@ export function KnowledgeWindow(props: {
               {metaFor(open())}
             </text>
             <box
-              flexDirection="column"
+              flexDirection="row"
               flexGrow={1}
               minHeight={0}
               marginTop={1}
             >
-              <MarkdownBody
+              <box flexDirection="column" flexGrow={1} minHeight={0}>
+                <MarkdownBody
+                  theme={palette()}
+                  text={open().body}
+                  width={columns() - 4}
+                  height={Math.max(1, bodyRows() - 3)}
+                  scrollable
+                  offset={props.state.readingOffset}
+                />
+              </box>
+              <Scrollbar
                 theme={palette()}
-                text={open().body}
-                width={columns() - 4}
-                height={Math.max(1, bodyRows() - 3)}
-                scrollable
+                length={Math.max(1, bodyRows() - 3)}
+                content={blockCount(open().body)}
+                viewport={Math.max(1, bodyRows() - 3)}
                 offset={props.state.readingOffset}
               />
             </box>

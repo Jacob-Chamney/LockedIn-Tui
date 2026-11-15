@@ -133,6 +133,25 @@ describe("the knowledge window", () => {
     }
   })
 
+  test("a long note shows a proportional scrollbar in the reader", async () => {
+    const body = Array.from({ length: 40 }, (_, index) => `Paragraph ${index} with enough text to fill a block.`).join("\n\n")
+    const longNotes = [{ ...notes[0]!, body }, notes[1]!]
+    const longGraph: KnowledgeGraph = { ...GRAPH, notes: longNotes, topics: graph.buildTopics(longNotes) }
+    const state = {
+      ...knowledge.initialKnowledge,
+      reading: longNotes[0]!.id,
+      readingOffset: 5,
+    }
+    const setup = await mount(state, longGraph)
+    try {
+      const text = frame(setup)
+      expect(text).toContain("█")
+      expect(text).toContain("│")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("a corrupt index is shown as a diagnostic, not an empty page", async () => {
     const setup = await mount(
       { ...knowledge.initialKnowledge, focus: graph.topicId("Coding") },

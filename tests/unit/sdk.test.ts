@@ -44,6 +44,7 @@ import {
   mixHex,
   notice,
   pingPong,
+  scrollbar,
   sidebarMain,
   skeleton,
   slider,
@@ -1858,4 +1859,33 @@ test("slider hides the label and honours colours and glyphs", () => {
   expect(nodes[1]).toMatchObject({ x: 5, text: "O", fg: "warning" })
   expect(nodes[2]).toMatchObject({ x: 6, text: "----", fg: "secondary" })
   expect(slider({ anchor: "top-left", x: 0, y: 0, width: 0, value: 0.5 })).toEqual([])
+})
+
+test("scrollbar draws a proportional thumb on a vertical track", () => {
+  const nodes = scrollbar({ anchor: "top-left", x: 2, y: 3, length: 10, content: 100, viewport: 10, offset: 45 })
+  expect(nodes).toHaveLength(10)
+  expect(nodes[0]).toMatchObject({ x: 2, y: 3, text: "│", fg: "line" })
+  expect(nodes[4]).toMatchObject({ y: 7, text: "│" })
+  expect(nodes[5]).toMatchObject({ x: 2, y: 8, text: "█", fg: "primary" })
+  expect(nodes[9]).toMatchObject({ y: 12, text: "│" })
+})
+
+test("scrollbar can be horizontal, hidden when idle or forced", () => {
+  const nodes = scrollbar({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    length: 4,
+    content: 10,
+    viewport: 5,
+    offset: 5,
+    orientation: "horizontal",
+  })
+  expect(nodes).toHaveLength(4)
+  expect(nodes[0]).toMatchObject({ x: 0, text: "─" })
+  expect(nodes[2]).toMatchObject({ x: 2, text: "█" })
+  expect(scrollbar({ anchor: "top-left", x: 0, y: 0, length: 4, content: 3, viewport: 5, offset: 0 })).toEqual([])
+  const always = scrollbar({ anchor: "top-left", x: 0, y: 0, length: 3, content: 3, viewport: 5, offset: 0, always: true })
+  expect(always).toHaveLength(3)
+  expect(always.every((node) => node.kind === "text" && node.text === "█")).toBe(true)
 })

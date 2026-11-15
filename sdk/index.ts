@@ -56,6 +56,11 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  scrollbarLayout,
+  type ScrollbarGlyphs as ScrollbarGlyphsInput,
+  type ScrollbarOrientation as ScrollbarOrientationInput,
+} from "../src/ui/scrollbar"
+import {
   sliderLayout,
   type SliderGlyphs as SliderGlyphsInput,
   type SliderLayout as SliderLayoutInput,
@@ -3731,6 +3736,65 @@ export function slider(options: SliderOptions): SceneNode[] {
       y: options.y,
       text: layout.label,
       fg: options.labelFg ?? "muted",
+    })
+  }
+  return nodes
+}
+
+/** The track glyphs a `scrollbar()` uses. */
+export type ScrollbarGlyphs = ScrollbarGlyphsInput
+
+/** Vertical by default; horizontal draws across. */
+export type ScrollbarOrientation = ScrollbarOrientationInput
+
+export type ScrollbarOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Track length in cells. */
+  length: number
+  /** Total content units (rows or columns). */
+  content: number
+  /** Visible units. */
+  viewport: number
+  /** First visible unit. */
+  offset: number
+  /** Smallest thumb; defaults to 1. */
+  minThumb?: number
+  orientation?: ScrollbarOrientation
+  glyphs?: Partial<ScrollbarGlyphs>
+  /** Thumb colour. Defaults to `primary`. */
+  thumbFg?: string
+  /** Track colour. Defaults to `line`. */
+  trackFg?: string
+  /** Draw a full thumb when the content fits; defaults false (nothing is drawn). */
+  always?: boolean
+}
+
+/**
+ * A proportional scrollbar thumb on a track.
+ *
+ *   scrollbar({ anchor: "top-left", x: 40, y: 2, length: 20,
+ *               content: 100, viewport: 10, offset: 45 })
+ *
+ * The thumb length is `length * viewport / content` and its start follows the
+ * offset over the scrollable range. Vertical scrollbars draw one cell per row;
+ * horizontal ones draw one row. Nothing is drawn when the content fits unless
+ * `always: true`.
+ */
+export function scrollbar(options: ScrollbarOptions): SceneNode[] {
+  const layout = scrollbarLayout(options)
+  if (!layout.scrollable && options.always !== true) return []
+  const nodes: SceneNode[] = []
+  for (let index = 0; index < layout.length; index++) {
+    const thumb = index >= layout.thumbStart && index < layout.thumbStart + layout.thumbSize
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: layout.orientation === "vertical" ? options.x : options.x + index,
+      y: layout.orientation === "vertical" ? options.y + index : options.y,
+      text: thumb ? layout.glyphs.thumb : layout.glyphs.track,
+      fg: thumb ? (options.thumbFg ?? "primary") : (options.trackFg ?? "line"),
     })
   }
   return nodes
