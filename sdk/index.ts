@@ -56,6 +56,13 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  thresholdBarLayout,
+  thresholdBarText as renderThresholdBar,
+  type ThresholdBarLayout as ThresholdBarLayoutInput,
+  type ThresholdMarker as ThresholdMarkerInput,
+  type ThresholdSegment as ThresholdSegmentInput,
+} from "../src/ui/threshold-bar"
+import {
   rangeSliderLayout,
   rangeSliderText as renderRangeSlider,
   type RangeSliderGlyphs as RangeSliderGlyphsInput,
@@ -5700,6 +5707,81 @@ export function rangeSlider(options: RangeSliderOptions): SceneNode[] {
 /** The range slider text without placement. */
 export function rangeSliderText(options: Omit<RangeSliderOptions, "anchor" | "x" | "y">): string {
   return renderRangeSlider(options)
+}
+
+/** One tick on a `thresholdBar()`. */
+export type ThresholdMarker = ThresholdMarkerInput
+
+/** One track, marker, value or label segment. */
+export type ThresholdSegment = ThresholdSegmentInput
+
+/** The value position, marker positions and segments of a threshold bar. */
+export type ThresholdBarLayout = ThresholdBarLayoutInput
+
+export type ThresholdBarOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  width: number
+  value: number
+  min?: number
+  max?: number
+  markers?: readonly ThresholdMarker[]
+  label?: string
+  showLabel?: boolean
+  glyphs?: {
+    empty?: string
+    filled?: string
+    marker?: string
+    value?: string
+  }
+  /** Empty-track colour. Defaults to `line`. */
+  emptyFg?: string
+  /** Filled-track colour. Defaults to `primary`. */
+  filledFg?: string
+  /** Marker-tick colour. Defaults to `muted`. */
+  markerFg?: string
+  /** Value-handle colour. Defaults to `foreground`. */
+  valueFg?: string
+  /** Label colour. Defaults to `muted`. */
+  labelFg?: string
+}
+
+/**
+ * A threshold bar: a filled track, tick markers and a value handle.
+ *
+ *   thresholdBar({ anchor: "top-left", x: 2, y: 2, width: 30, value: 4.8,
+ *                  min: 1, max: 21, markers: [{ value: 4.5 }, { value: 7 }],
+ *                  label: "4.8:1 AA pass" })
+ *
+ * The track fills to the value; marker ticks replace the cell at their position
+ * and the value handle wins when it shares one. `label` follows the track when
+ * it fits; `glyphs` and tone colours override the marks.
+ */
+export function thresholdBar(options: ThresholdBarOptions): SceneNode[] {
+  const layout = thresholdBarLayout(options)
+  return layout.segments.map((segment) => ({
+    kind: "text" as const,
+    anchor: options.anchor,
+    x: options.x + segment.x,
+    y: options.y,
+    text: segment.text,
+    fg:
+      segment.kind === "label"
+        ? (options.labelFg ?? "muted")
+        : segment.kind === "empty"
+          ? (options.emptyFg ?? "line")
+          : segment.kind === "marker"
+            ? (options.markerFg ?? "muted")
+            : segment.kind === "value"
+              ? (options.valueFg ?? "foreground")
+              : (options.filledFg ?? "primary"),
+  }))
+}
+
+/** The threshold bar text without placement. */
+export function thresholdBarText(options: Omit<ThresholdBarOptions, "anchor" | "x" | "y">): string {
+  return renderThresholdBar(options)
 }
 
 export type FormOptions = {

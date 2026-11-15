@@ -230,7 +230,10 @@ describe("environment and layout", () => {
     }
     const wide = await mountPanel(200, 60, app({ usernameDraft: "ada" }))
     try {
-      expect(lines(wide).join("\n")).toContain("preview    ada")
+      const frame = lines(wide).join("\n")
+      expect(frame).toContain("preview    ada")
+      expect(frame).toContain("┊")
+      expect(frame).toContain("AA")
     } finally {
       await wide.dispose()
     }
