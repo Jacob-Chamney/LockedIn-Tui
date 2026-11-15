@@ -103,6 +103,21 @@ describe("rows and groups", () => {
     expect(models.rows.find((row) => row.id === "chatModel")?.value).toBe("deepseek-v4.1-flash")
   })
 
+  test("Pause at limit renders a switch and follows the value", async () => {
+    const on = await mount(120, 36)
+    try {
+      expect(lines(on).join("\n")).toContain("● yes")
+    } finally {
+      await on.dispose()
+    }
+    const off = await mount(120, 36, { ...VIEW, pauseAtLimit: false })
+    try {
+      expect(lines(off).join("\n")).toContain("○ no")
+    } finally {
+      await off.dispose()
+    }
+  })
+
   test("collapsed sections keep their header and hide their rows", async () => {
     const state = { ...settings.initialSettingsState, collapsed: ["models"] }
     const setup = await mount(120, 36, VIEW, state)

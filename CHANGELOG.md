@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `toggle()` draws a state pill for plugin scenes; Settings renders Pause at
+  limit as a yes/no switch.
 - `calendar()` draws a month grid with activity and today marks for plugin
   scenes; Recent shows a calendar of session dates.
 - `kanban()` draws counted status columns with selectable cards for plugin
