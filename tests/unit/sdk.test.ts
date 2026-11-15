@@ -73,6 +73,7 @@ import {
   swatches,
   table,
   tabs,
+  tagInput,
   timeline,
   toasts,
   toggle,
@@ -2448,4 +2449,42 @@ test("lineChart labels the axis and handles empty input", () => {
   expect(nodes[0]!.kind === "text" ? nodes[0]!.text.startsWith("  9│") : false).toBe(true)
   expect(nodes[2]!.kind === "text" ? nodes[2]!.text.startsWith("  0│") : false).toBe(true)
   expect(lineChart({ anchor: "top-left", x: 0, y: 0, width: 0, values: [1] })).toEqual([])
+})
+
+test("tagInput draws tags, the cursor and the input tail", () => {
+  const nodes = tagInput({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 40,
+    cursor: 1,
+    input: "src/",
+    tags: [
+      { id: "a", label: "notes" },
+      { id: "b", label: "files" },
+    ],
+  })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, text: "[notes ×]", fg: "secondary" })
+  expect(nodes[1]).toMatchObject({ x: 12, text: "▸[files ×]", fg: "primary" })
+  expect(nodes[2]).toMatchObject({ x: 23, text: "src/▏", fg: "foreground" })
+})
+
+test("tagInput reports overflow, invalid tags and colours", () => {
+  const nodes = tagInput({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 12,
+    invalidFg: "warning",
+    overflowFg: "accent",
+    tags: [
+      { id: "a", label: "notes", invalid: true },
+      { id: "b", label: "files" },
+    ],
+  })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[0]).toMatchObject({ text: "[notes ×]", fg: "warning" })
+  expect(nodes[1]).toMatchObject({ x: 10, text: "+1", fg: "accent" })
+  expect(tagInput({ anchor: "top-left", x: 0, y: 0, width: 0, tags: [] })).toEqual([])
 })

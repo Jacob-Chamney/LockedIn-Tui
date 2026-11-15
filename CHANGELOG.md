@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `tagInput()` draws bracketed tags with a cursor, validation tones and an
+  input tail; Settings shows configured MCP servers as tags.
 - `lineChart()` draws a scaled, linked series with fitted y-axis labels; the
   Stats hero plots daily tokens above the week comparison.
 - `avatarGroup()` stacks monograms with an overlap and overflow count; the
