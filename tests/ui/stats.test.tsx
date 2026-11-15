@@ -166,6 +166,8 @@ describe("the hero", () => {
       expect(frame).toContain("openai/gpt-4.1-mini")
       expect(frame).toContain("local/llama")
       expect(frame).toContain("29%")
+      expect(frame).toContain("78%")
+      expect(frame).toContain("22%")
       expect(frame).toContain("█")
     } finally {
       await setup.dispose()

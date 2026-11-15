@@ -15,6 +15,7 @@ import { compactTokens } from "./big-number"
 import { buildHeatmap } from "./heatmap"
 import { HEATMAP_RAMP, heatmapLayout } from "../heatmap"
 import { Legend } from "../shell/legend"
+import { Distribution } from "../shell/distribution"
 import { sparklineText } from "../sparkline"
 import { tabLayout } from "../tabs"
 import { Bars } from "../shell/bars"
@@ -215,6 +216,12 @@ export function StatsPage(props: {
     }))
   }
   const chartWidth = () => Math.max(28, Math.min(props.width - 8, 64))
+  /** The busiest models by tokens, as a stacked share. */
+  const shareItems = () =>
+    props.summary.models
+      .map((model) => ({ label: model.model, value: model.input + model.output }))
+      .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
+      .slice(0, 4)
   const rangeStrip = () =>
     tabLayout({
       tabs: RANGE_ORDER.map((label) => ({ label })),
@@ -385,6 +392,7 @@ export function StatsPage(props: {
             <text fg={palette().muted} wrapMode="none">
               {"BY MODEL"}
             </text>
+            <Distribution theme={palette()} items={shareItems()} width={chartWidth()} />
             <Bars
               theme={palette()}
               items={modelItems()}
