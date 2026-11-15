@@ -55,6 +55,15 @@ import {
 } from "../src/ui/accordion"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import {
+  statusTimelineLayout,
+  statusTimelineRole,
+  statusTimelineText as renderStatusTimeline,
+  type StatusTimelineEntry as StatusTimelineEntryInput,
+  type StatusTimelineLayout as StatusTimelineLayoutInput,
+  type StatusTimelineRow as StatusTimelineRowInput,
+  type StatusTimelineState as StatusTimelineStateInput,
+} from "../src/ui/status-timeline"
+import {
   bulletChartLayout,
   bulletChartText as renderBulletChart,
   type BulletChartGlyphs as BulletChartGlyphsInput,
@@ -6424,6 +6433,109 @@ export function bulletChart(options: BulletChartOptions): SceneNode[] {
 /** The bullet bar text without placement. */
 export function bulletChartText(options: Omit<BulletChartOptions, "anchor" | "x" | "y" | "filledFg" | "emptyFg" | "targetFg" | "labelFg">): string {
   return renderBulletChart(options)
+}
+
+/** The state a timeline entry shows. */
+export type StatusTimelineState = StatusTimelineStateInput
+
+/** One entry in a `statusTimeline()`. */
+export type StatusTimelineEntry = StatusTimelineEntryInput
+
+/** One placed timeline row. */
+export type StatusTimelineRow = StatusTimelineRowInput
+
+/** The rows and columns of a status timeline. */
+export type StatusTimelineLayout = StatusTimelineLayoutInput
+
+export type StatusTimelineOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  entries: readonly StatusTimelineEntry[]
+  width: number
+  /** Time column width; defaults to the longest time. */
+  timeWidth?: number
+  /** Spaces between columns; defaults 1. */
+  gap?: number
+  /** Render detail rows; defaults true. */
+  details?: boolean
+  /** Entries kept; omitted means all. */
+  maxEntries?: number
+  /** Time colour. Defaults to `muted`. */
+  timeFg?: string
+  /** Connector colour. Defaults to `line`. */
+  connectorFg?: string
+  /** Entry-label colour. Defaults to `foreground`. */
+  fg?: string
+  /** Detail-label colour. Defaults to `muted`. */
+  detailFg?: string
+}
+
+/**
+ * A vertical status timeline with connectors and state glyphs.
+ *
+ *   statusTimeline({ anchor: "top-left", x: 2, y: 2, width: 40, entries: [
+ *     { id: "a", time: "10:00", label: "first model", state: "success" },
+ *     { id: "b", time: "11:00", label: "second model", detail: "failed run", state: "error" },
+ *   ] })
+ *
+ * Entries draw a row; a detail connects below the entry. The last entry closes
+ * with `└─`. State glyphs and tones carry the status, so colour is not the only
+ * signal. `statusTimelineText()` returns the lines.
+ */
+export function statusTimeline(options: StatusTimelineOptions): SceneNode[] {
+  const layout = statusTimelineLayout(options)
+  const nodes: SceneNode[] = []
+  for (const row of layout.rows) {
+    const timeX = options.x
+    const connectorX = timeX + (row.timeWidth > 0 ? row.timeWidth + row.gap : 0)
+    const glyphX = connectorX + row.connectorWidth + row.gap
+    const labelX = glyphX + row.glyphWidth + row.gap
+    if (row.timeWidth > 0 && row.time.trim() !== "") {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: timeX,
+        y: options.y + row.y,
+        text: row.time,
+        fg: options.timeFg ?? "muted",
+      })
+    }
+    if (row.connector.trim() !== "") {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: connectorX,
+        y: options.y + row.y,
+        text: row.connector,
+        fg: options.connectorFg ?? "line",
+      })
+    }
+    if (row.glyph.trim() !== "") {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: glyphX,
+        y: options.y + row.y,
+        text: row.glyph,
+        fg: statusTimelineRole(row.state),
+      })
+    }
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: labelX,
+      y: options.y + row.y,
+      text: row.label,
+      fg: row.kind === "detail" ? (options.detailFg ?? "muted") : (options.fg ?? "foreground"),
+    })
+  }
+  return nodes
+}
+
+/** The timeline as plain lines. */
+export function statusTimelineText(options: Omit<StatusTimelineOptions, "anchor" | "x" | "y" | "timeFg" | "connectorFg" | "fg" | "detailFg">): string[] {
+  return renderStatusTimeline(options)
 }
 
 export type FormOptions = {

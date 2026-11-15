@@ -12,6 +12,7 @@ import { meterCells } from "../meter";
 import { bulletChartLayout } from "../bullet-chart";
 import { Bars } from "../shell/bars";
 import { Donut, DonutLegend } from "../shell/donut";
+import { StatusTimeline } from "../shell/status-timeline";
 import { donutSegments } from "../donut";
 import { Callout } from "../shell/callout";
 export type UsageSnapshot = {
@@ -225,7 +226,25 @@ export function UsagePanel(props: {
 }) {
   const palette = () => props.theme
   const reached = () => limitReached(props.snapshot, props.state.budget)
-  const breakdown = () => breakdownLinesFor(props.snapshot, props.width, props.state.expanded)
+  /**
+   * The run history as a vertical timeline. Wide panels and the expanded view
+   * show every run; narrow panels keep two and leave the rest behind Enter.
+   */
+  const visibleRuns = () =>
+    props.width >= 120 || props.state.expanded ? [...props.snapshot.runs] : [...props.snapshot.runs].slice(0, 2)
+  const timelineEntries = () =>
+    visibleRuns().map((run, index) => {
+      const cost =
+        run.costMicroUsd === null ? "cost unknown" : `$${(run.costMicroUsd / 1_000_000).toFixed(4)}`
+      const time = run.at.length >= 16 ? run.at.slice(11, 16) : run.at
+      return {
+        id: `${run.at}:${index}`,
+        time,
+        label: `${run.model}  ${run.input + run.output} tok  ${cost}`,
+        state: run.failed ? ("error" as const) : ("success" as const),
+        ...(run.failed ? { detail: "failed run" } : {}),
+      }
+    })
   /**
    * The busiest models in the record, as proportional bars. Percentages are
    * relative to the busiest one, so the chart fills the width even when the
@@ -347,11 +366,12 @@ export function UsagePanel(props: {
       <text fg={palette().secondary} wrapMode="none">
         {"BREAKDOWN"}
       </text>
-      {breakdown().map((line) => (
-        <text fg={line.includes("failed run") ? palette().error : palette().foreground} wrapMode="none">
-          {line}
-        </text>
-      ))}
+      <StatusTimeline
+        theme={palette()}
+        entries={timelineEntries()}
+        width={chartWidth()}
+        timeWidth={5}
+      />
       {props.width < 120 && !props.state.expanded && props.snapshot.runs.length > 2 ? (
         <text fg={palette().muted} wrapMode="none">
           {"… Enter expand"}

@@ -54,6 +54,20 @@ describe("totals", () => {
     }
   })
 
+  test("the run history reads as a status timeline", async () => {
+    const setup = await mount(120, 30)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("├─")
+      expect(frame).toContain("└─")
+      expect(frame).toContain("✓")
+      expect(frame).toContain("×")
+      expect(frame).toContain("failed run")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("a failed run is labelled in the breakdown, never hidden", async () => {
     const setup = await mount(120, 30)
     try {
