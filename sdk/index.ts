@@ -55,6 +55,7 @@ import {
 } from "../src/ui/accordion"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
+import { avatarLayout, type AvatarTone as AvatarToneInput } from "../src/ui/avatar"
 import {
   statusDotLayout,
   type StatusDotGlyphs as StatusDotGlyphsInput,
@@ -4117,6 +4118,59 @@ export function statusDot(options: StatusDotOptions): SceneNode[] {
     }
   }
   return nodes
+}
+
+/** The deterministic monogram tones. */
+export type AvatarTone = AvatarToneInput
+
+export type AvatarOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Available columns; defaults to the natural `[AB]` width. */
+  width?: number
+  name: string
+  /** Fixed tone, instead of the name hash. */
+  tone?: AvatarTone
+  /** Badge fill. Defaults to the tone. */
+  bg?: string
+  /** Initials colour. Defaults to `background`. */
+  fg?: string
+}
+
+/**
+ * A monogram avatar: `[AB]` on a tone-coloured badge.
+ *
+ *   avatar({ anchor: "top-left", x: 2, y: 2, name: "Ada Lovelace" })
+ *
+ * The initials are the first letters of the first and last words (or two
+ * characters of a single word); the tone is derived from the name, so the same
+ * agent keeps its colour. `width` fits the badge, and `tone`/`bg`/`fg`
+ * override the colours.
+ */
+export function avatar(options: AvatarOptions): SceneNode[] {
+  const layout = avatarLayout(options)
+  if (layout.width === 0) return []
+  return [
+    {
+      kind: "rect",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      width: layout.width,
+      height: 1,
+      fill: true,
+      color: options.bg ?? layout.tone,
+    },
+    {
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      text: layout.text,
+      fg: options.fg ?? "background",
+    },
+  ]
 }
 
 export type FormOptions = {

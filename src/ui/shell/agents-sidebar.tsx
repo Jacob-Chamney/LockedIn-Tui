@@ -10,6 +10,7 @@ import { stringWidth } from "bun"
 
 import type { ThemePalette } from "../theme"
 import type { AgentSummary } from "./explorer"
+import { avatarLayout, type AvatarLayout } from "../avatar"
 
 export type AgentsSidebarProps = {
   theme: ThemePalette
@@ -69,22 +70,51 @@ function padDisplay(value: string, width: number): string {
   return `${clipped}${" ".repeat(Math.max(0, width - stringWidth(clipped)))}`
 }
 
+export type RosterRow = {
+  id: string
+  agent: AgentSummary
+  selected: boolean
+  avatar: AvatarLayout
+  name: string
+  permission: string
+  isActive: boolean
+}
+
+/** Visible roster rows, each with a monogram and a clipped name. */
+export function rosterRows(
+  agents: readonly AgentSummary[],
+  cursor: number,
+  options: { width: number; rows: number; defaultAgentId?: string; activeAgentId?: string | null },
+): RosterRow[] {
+  const range = visibleAgentRange(agents.length, cursor, options.rows)
+  const avatarWidth = 4
+  const nameWidth = Math.max(4, options.width - 10)
+  return agents.slice(range.start, range.end).map((agent, offset) => {
+    const at = range.start + offset
+    const isDefault = agent.id === options.defaultAgentId
+    const isActive = agent.id === options.activeAgentId
+    return {
+      id: agent.id,
+      agent,
+      selected: at === cursor,
+      avatar: avatarLayout({ name: agent.name, width: avatarWidth }),
+      name: padDisplay(inline(agent.name), nameWidth),
+      permission: isDefault ? "●" : permissionMark(agent),
+      isActive,
+    }
+  })
+}
+
 /** One line per visible agent, already clipped to the sidebar width. */
 export function rosterLines(
   agents: readonly AgentSummary[],
   cursor: number,
   options: { width: number; rows: number; defaultAgentId?: string; activeAgentId?: string | null },
 ): string[] {
-  const range = visibleAgentRange(agents.length, cursor, options.rows)
-  const nameWidth = Math.max(6, options.width - 5)
-  return agents.slice(range.start, range.end).map((agent, offset) => {
-    const at = range.start + offset
-    const selected = at === cursor
-    const isDefault = agent.id === options.defaultAgentId
-    const isActive = agent.id === options.activeAgentId
-    const name = padDisplay(inline(agent.name), nameWidth)
-    return `${selected ? "▌" : " "}${name} ${isDefault ? "●" : permissionMark(agent)}${isActive ? "›" : " "}`
-  })
+  return rosterRows(agents, cursor, options).map(
+    (row) =>
+      `${row.selected ? "▌" : " "}${row.avatar.text} ${row.name} ${row.permission}${row.isActive ? "›" : " "}`,
+  )
 }
 
 export function AgentsSidebar(props: AgentsSidebarProps) {
@@ -93,13 +123,25 @@ export function AgentsSidebar(props: AgentsSidebarProps) {
   const rows = () => Math.max(1, props.height - 3)
   const body = () =>
     props.agents.length === 0
-      ? [" no agents yet", " n adds the first one"]
-      : rosterLines(props.agents, props.cursor, {
+      ? [" no agents yet", " n adds the first one"].map((line) => (
+          <text fg={props.focused ? palette().foreground : palette().muted} wrapMode="none">
+            {line}
+          </text>
+        ))
+      : rosterRows(props.agents, props.cursor, {
           width: props.width,
           rows: rows(),
           defaultAgentId: props.defaultAgentId,
           activeAgentId: props.activeAgentId,
-        })
+        }).map((row) => (
+          <text fg={props.focused ? palette().foreground : palette().muted} wrapMode="none">
+            <span style={{ fg: palette().primary }}>{row.selected ? "▌" : " "}</span>
+            <span style={{ fg: palette().background, bg: palette()[row.avatar.tone] }}>
+              {row.avatar.text}
+            </span>
+            {` ${row.name} ${row.permission}${row.isActive ? "›" : " "}`}
+          </text>
+        ))
   const footer = () =>
     props.focused
       ? " j/k · Enter settings · c chat"
@@ -118,11 +160,7 @@ export function AgentsSidebar(props: AgentsSidebarProps) {
       <text fg={props.focused ? palette().primary : palette().muted} wrapMode="none">
         {clipDisplay(`${props.focused ? "▸" : " "} AGENTS · ${inline(props.project)}`, props.width)}
       </text>
-      {body().map((line) => (
-        <text fg={props.focused ? palette().foreground : palette().muted} wrapMode="none">
-          {line}
-        </text>
-      ))}
+      {body()}
       <box flexGrow={1} minHeight={0} />
       <text fg={palette().muted} wrapMode="none">
         {footer()}
