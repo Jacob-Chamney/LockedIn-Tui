@@ -76,7 +76,7 @@ describe("server list", () => {
     const setup = await mount(140, 24, { cursor: 1, toolsOpen: true })
     try {
       const frame = lines(setup).join("\n")
-      expect(frame).toContain("read_note  read-only")
+      expect(frame).toContain("read_note   read-only")
       expect(frame).toContain("write_note  write-capable")
     } finally {
       await setup.dispose()
