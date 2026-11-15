@@ -14,6 +14,7 @@ import {
   card,
   checklist,
   chips,
+  codeBlock,
   confirm,
   createCursor,
   dashboard,
@@ -1968,4 +1969,45 @@ test("pagination supports counts, fallbacks and colours", () => {
   })
   expect(custom[0]).toMatchObject({ text: "x", fg: "accent" })
   expect(custom[2]).toMatchObject({ text: ".", fg: "secondary" })
+})
+
+test("codeBlock draws numbered gutters and code", () => {
+  const nodes = codeBlock({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 30,
+    language: "ts",
+    lines: ["const x = 1", "const y = 2"],
+  })
+  expect(nodes).toHaveLength(5)
+  expect(nodes[0]).toMatchObject({ x: 2, y: 3, text: "ts", fg: "muted" })
+  expect(nodes[1]).toMatchObject({ x: 2, y: 4, text: " 1 │ ", fg: "line" })
+  expect(nodes[2]).toMatchObject({ x: 7, y: 4, text: "const x = 1", fg: "foreground" })
+  expect(nodes[3]).toMatchObject({ x: 2, y: 5, text: " 2 │ " })
+  expect(nodes[4]).toMatchObject({ x: 7, y: 5, text: "const y = 2" })
+})
+
+test("codeBlock fits long lines and can hide numbers", () => {
+  const nodes = codeBlock({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 10,
+    lines: ["abcdefgh"],
+  })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[1]).toMatchObject({ x: 5, text: "abcd…" })
+
+  const plain = codeBlock({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 20,
+    showNumbers: false,
+    codeFg: "accent",
+    lines: ["x = 1"],
+  })
+  expect(plain).toHaveLength(1)
+  expect(plain[0]).toMatchObject({ x: 0, text: "x = 1", fg: "accent" })
 })

@@ -76,6 +76,11 @@ import {
   type SliderLayout as SliderLayoutInput,
 } from "../src/ui/slider"
 import { chipLayout, type ChipItem as ChipItemInput } from "../src/ui/chips"
+import {
+  codeBlockLayout,
+  codeGutter,
+  type CodeBlockOptions as CodeBlockLayoutOptions,
+} from "../src/ui/code-block"
 import { toggleLayout, type ToggleLayout as ToggleLayoutInput } from "../src/ui/toggle"
 import {
   calendarLayout,
@@ -3944,6 +3949,75 @@ export function pagination(options: PaginationOptions): SceneNode[] {
           ? (options.currentFg ?? "primary")
           : (options.otherFg ?? "muted"),
   }))
+}
+
+export type CodeBlockOptions = Omit<CodeBlockLayoutOptions, "lineCount"> & {
+  anchor: ScenePosition
+  x: number
+  y: number
+  lines: readonly string[]
+  /** A language label above the code. */
+  language?: string
+  /** Code colour. Defaults to `foreground`. */
+  codeFg?: string
+  /** Gutter colour. Defaults to `line`. */
+  gutterFg?: string
+  /** Language-label colour. Defaults to `muted`. */
+  languageFg?: string
+}
+
+/**
+ * Numbered code with a fitted content column.
+ *
+ *   codeBlock({ anchor: "top-left", x: 2, y: 2, width: 40,
+ *               language: "ts", lines: ["const x = 1", "const y = 2"] })
+ *
+ * The gutter is right-aligned digits plus ` │ `; long lines truncate with `…`
+ * at the content edge. `showNumbers: false` removes the gutter.
+ */
+export function codeBlock(options: CodeBlockOptions): SceneNode[] {
+  const layout = codeBlockLayout({ ...options, lineCount: options.lines.length })
+  const fit = (text: string) =>
+    text.length <= layout.contentWidth
+      ? text
+      : layout.contentWidth <= 1
+        ? "…"
+        : `${text.slice(0, layout.contentWidth - 1)}…`
+  const nodes: SceneNode[] = []
+  let y = options.y
+  if (options.language !== undefined && options.language !== "") {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y,
+      text: options.language,
+      fg: options.languageFg ?? "muted",
+    })
+    y += 1
+  }
+  options.lines.forEach((line, index) => {
+    const gutter = codeGutter(layout, index)
+    if (gutter !== "") {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x,
+        y: y + index,
+        text: gutter,
+        fg: options.gutterFg ?? "line",
+      })
+    }
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + layout.gutterWidth,
+      y: y + index,
+      text: fit(line),
+      fg: options.codeFg ?? "foreground",
+    })
+  })
+  return nodes
 }
 
 export type FormOptions = {

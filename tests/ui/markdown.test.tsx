@@ -1,7 +1,9 @@
 /** The course Markdown renderer: the subset a chapter actually uses. */
 import { describe, expect, test } from "bun:test"
 
-const { parseMarkdown, inlineText } = await import("../../src/ui/reader/markdown-body")
+const { parseMarkdown, inlineText, MarkdownBody } = await import("../../src/ui/reader/markdown-body")
+const { testRender } = await import("@opentui/solid")
+const { crimson } = await import("../../src/ui/theme")
 
 describe("parsing", () => {
   test("headings, quotes, checkboxes, bullets, code and rules", () => {
@@ -43,6 +45,31 @@ describe("parsing", () => {
   test("an unclosed fence still yields its code", () => {
     const blocks = parseMarkdown("```\nstill code")
     expect(blocks).toContainEqual({ kind: "code", text: "still code", language: "" })
+  })
+})
+
+describe("code blocks", () => {
+  test("a fenced block shows line-number gutters", async () => {
+    const setup = await testRender(
+      () => (
+        <MarkdownBody
+          theme={crimson}
+          text={"```ts\nconst x = 1\nconst y = 2\n```"}
+          width={40}
+          height={10}
+        />
+      ),
+      { width: 40, height: 10 },
+    )
+    try {
+      await setup.flush()
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain("1 │")
+      expect(frame).toContain("2 │")
+      expect(frame).toContain("const x = 1")
+    } finally {
+      await setup.dispose()
+    }
   })
 })
 

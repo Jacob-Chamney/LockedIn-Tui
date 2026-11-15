@@ -10,6 +10,7 @@
 import { For, createEffect, createMemo, createSignal } from "solid-js"
 import type { ThemePalette } from "../theme"
 import { plainLines, type SyntaxLine } from "../../services/syntax/lines"
+import { codeBlockLayout, codeGutter, fitCodeRuns } from "../code-block"
 import { syntaxTheme } from "../../services/syntax/theme"
 
 /* --------------------------------- blocks --------------------------------- */
@@ -189,8 +190,20 @@ export function codeLabel(language: string): string | null {
 }
 
 /** One fenced block, highlighted by Shiki from the current palette. */
-function CodeBlock(props: { theme: ThemePalette; block: Extract<MarkdownBlock, { kind: "code" }> }) {
+function CodeBlock(props: {
+  theme: ThemePalette
+  block: Extract<MarkdownBlock, { kind: "code" }>
+  width: number
+}) {
   const palette = () => props.theme
+  // A narrow chat bubble has no room for both the gutter and the code.
+  const showNumbers = () => props.width >= 30
+  const layout = () =>
+    codeBlockLayout({
+      lineCount: lines().length,
+      width: Math.max(1, props.width - 3),
+      showNumbers: showNumbers(),
+    })
   const language = () => codeLabel(props.block.language)
   const theme = createMemo(() => syntaxTheme(palette()))
   const [lines, setLines] = createSignal<SyntaxLine[]>(plainLines(props.block.text, palette().foreground))
@@ -227,15 +240,18 @@ function CodeBlock(props: { theme: ThemePalette; block: Extract<MarkdownBlock, {
           {language()}
         </text>
       ) : null}
-      <For each={lines()}>
-        {(line) => (
+      {lines().map((line, index) => (
+        <box flexDirection="row" height={1}>
+          <text fg={palette().line} wrapMode="none">
+            {codeGutter(layout(), index)}
+          </text>
           <text wrapMode="none">
-            <For each={line}>
+            <For each={showNumbers() ? fitCodeRuns(line, layout().contentWidth) : line}>
               {(run) => <span style={{ fg: run.color }}>{run.text}</span>}
             </For>
           </text>
-        )}
-      </For>
+        </box>
+      ))}
     </box>
   )
 }
@@ -324,7 +340,7 @@ export function MarkdownBody(props: {
           )
         }
         if (block.kind === "code") {
-          return <CodeBlock theme={palette()} block={block} />
+          return <CodeBlock theme={palette()} block={block} width={props.width} />
         }
         return <Inline theme={palette()} text={block.text} align={props.align} />
       })}
