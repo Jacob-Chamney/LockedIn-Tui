@@ -6,6 +6,7 @@ import {
   definePlugin,
   accordion,
   actionBar,
+  avatar,
   badges,
   bars,
   calendar,
@@ -2076,4 +2077,32 @@ test("statusDot fits labels and honours overrides", () => {
   expect(custom[0]).toMatchObject({ text: "!", fg: "accent" })
   expect(custom[1]).toMatchObject({ text: "down", fg: "secondary" })
   expect(statusDot({ anchor: "top-left", x: 0, y: 0, width: 0, state: "ok" })).toEqual([])
+})
+
+test("avatar draws a monogram badge", () => {
+  const nodes = avatar({
+    anchor: "top-left",
+    x: 2,
+    y: 2,
+    name: "Ada Lovelace",
+    tone: "accent",
+  })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[0]).toMatchObject({ kind: "rect", x: 2, y: 2, width: 4, height: 1, color: "accent" })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 2, y: 2, text: "[AL]", fg: "background" })
+})
+
+test("avatar fits narrow widths and honours colours", () => {
+  const tight = avatar({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    name: "Ada Lovelace",
+    width: 2,
+    bg: "line",
+    fg: "foreground",
+  })
+  expect(tight[0]).toMatchObject({ width: 2, color: "line" })
+  expect(tight[1]).toMatchObject({ text: "[…", fg: "foreground" })
+  expect(avatar({ anchor: "top-left", x: 0, y: 0, name: "Ada", width: 0 })).toEqual([])
 })

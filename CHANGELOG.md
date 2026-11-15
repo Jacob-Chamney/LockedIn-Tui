@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `avatar()` draws monogram badges for plugin scenes; agent roster rows show
+  tone-coloured initials.
 - `statusDot()` draws health glyphs and labels for plugin scenes; MCP server
   rows show a status dot.
 - `swatches()` draws solid colour cells for plugin scenes; the theme picker
