@@ -234,7 +234,6 @@ export function StatsPage(props: {
     return days.slice(-7)
   })
   const dayLabel = (date: string) => `${MONTH_NAMES[Number(date.slice(5, 7)) - 1]} ${date.slice(8)}`
-  const trendHeight = () => Math.max(4, Math.min(14, bodyHeight() - 18))
 
   const rangeStrip = () =>
     tabLayout({
@@ -310,6 +309,11 @@ export function StatsPage(props: {
   const showTrend = () => dailyTokens().some((value) => value > 0) && bodyHeight() >= 15
   /** The legend yields to the chart when the body has exactly one row to spare. */
   const showLegend = () => !showTrend() || bodyHeight() >= 16
+  /** A handful of weeks reads better as explicit days than as a tiny calendar. */
+  const shortWeeks = () => heat().weeks.length > 0 && heat().weeks.length <= 6
+  const activityHeight = () =>
+    1 + (shortWeeks() ? 1 + heat().weeks.length : 1 + 7) + (showLegend() ? 1 : 0)
+  const trendHeight = () => Math.max(4, Math.min(14, bodyHeight() - activityHeight() - 2))
   const showModels = () =>
     props.summary.models.length > 0 && bodyHeight() >= (twoColumn() ? 8 : 16)
   const showTools = () =>
@@ -330,8 +334,7 @@ export function StatsPage(props: {
     return models + tools + learning
   }
   /** The left column's own height, so the divider ends with the chart. */
-  const leftHeight = () =>
-    1 + 1 + 7 + (showLegend() ? 1 : 0) + (showTrend() ? 1 + 1 + trendHeight() : 0)
+  const leftHeight = () => activityHeight() + (showTrend() ? 1 + 1 + trendHeight() : 0)
   const lastRows = () =>
     Math.min(7, Math.max(0, Math.min(bodyHeight(), leftHeight()) - rightUsed() - 2))
   const showLastDays = () => twoColumn() && lastDays().length > 0 && lastRows() >= 2
@@ -389,7 +392,20 @@ export function StatsPage(props: {
     </box>
   )
 
-  const activity = () => (
+  const legend = () =>
+    showLegend() ? (
+      <Legend
+        theme={palette()}
+        items={HEATMAP_RAMP.map((glyph, level) => ({
+          glyph,
+          ...(level === 0 ? { label: "less" } : level === 4 ? { label: "more" } : {}),
+          tone: level === 0 ? "muted" : "primary",
+        }))}
+        width={leftContent()}
+      />
+    ) : null
+
+  const calendar = () => (
     <box flexDirection="column" flexShrink={0} width={leftContent()}>
       {sectionHead("ACTIVITY", `${props.summary.activeDays} active days`, leftContent())}
       <text fg={palette().muted} wrapMode="none">
@@ -407,19 +423,59 @@ export function StatsPage(props: {
           ))}
         </box>
       ))}
-      {showLegend() ? (
-        <Legend
-          theme={palette()}
-          items={HEATMAP_RAMP.map((glyph, level) => ({
-            glyph,
-            ...(level === 0 ? { label: "less" } : level === 4 ? { label: "more" } : {}),
-            tone: level === 0 ? "muted" : "primary",
-          }))}
-          width={leftContent()}
-        />
-      ) : null}
+      {legend()}
     </box>
   )
+
+  /** The Monday of a week, even when the period starts mid-week. */
+  const weekLabel = (week: Array<{ date: string } | null>): string => {
+    const index = week.findIndex((day) => day !== null)
+    if (index < 0) return ""
+    const date = new Date(`${week[index]!.date}T00:00:00Z`)
+    date.setUTCDate(date.getUTCDate() - index)
+    return dayLabel(date.toISOString().slice(0, 10))
+  }
+
+  /** Weeks across, weekdays down: a short range gets dates, not a key. */
+  const weekTable = () => (
+    <box flexDirection="column" flexShrink={0} width={leftContent()}>
+      {sectionHead("ACTIVITY", `${props.summary.activeDays} active days`, leftContent())}
+      <box flexDirection="row" height={1}>
+        <text fg={palette().muted} wrapMode="none">
+          {"       "}
+        </text>
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((name) => (
+          <text fg={palette().muted} wrapMode="none">
+            {`${name} `}
+          </text>
+        ))}
+      </box>
+      {heat().weeks.map((week, weekIndex) => {
+        const start = weekLabel(week)
+        return (
+          <box flexDirection="row" height={1}>
+            <text fg={palette().muted} wrapMode="none">
+              {`${start} `.padEnd(7)}
+            </text>
+            {week.map((day, dayIndex) => {
+              const cell = grid().cells[dayIndex]?.[weekIndex]
+              return (
+                <text
+                  fg={cell?.tone === "primary" ? palette().primary : palette().muted}
+                  wrapMode="none"
+                >
+                  {`${day === null || cell === undefined ? " " : cell.glyph.repeat(2)} `}
+                </text>
+              )
+            })}
+          </box>
+        )
+      })}
+      {legend()}
+    </box>
+  )
+
+  const activity = () => (shortWeeks() ? weekTable() : calendar())
 
   const trend = () => (
     <box flexDirection="column" flexShrink={0} width={leftContent()} marginTop={1}>
