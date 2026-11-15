@@ -10,6 +10,8 @@ import type { RunRecord, UsageTotals } from "../../llm/usage";
 import type { ThemePalette } from "../theme";
 import { meterCells } from "../meter";
 import { Bars } from "../shell/bars";
+import { Donut, DonutLegend } from "../shell/donut";
+import { donutSegments } from "../donut";
 import { Callout } from "../shell/callout";
 export type UsageSnapshot = {
   today: UsageTotals
@@ -239,6 +241,9 @@ export function UsagePanel(props: {
   };
   const chartWidth = () => Math.max(20, props.width - 2);
   const chartLabelWidth = () => Math.min(24, Math.max(10, Math.floor(chartWidth() / 3)));
+  /** Model shares, resolved once so the ring and legend agree. */
+  const shares = () => donutSegments(modelItems().map((item) => ({ label: item.label, value: item.value })));
+  const showDonut = () => modelItems().length > 1 && props.width >= 96 && props.height >= 26;
   /**
    * Spend against the period budget, as a cell meter. The bar warms at the
    * warn threshold and turns to the error tone at the limit; with no limit
@@ -302,6 +307,18 @@ export function UsagePanel(props: {
           <text fg={palette().secondary} wrapMode="none">
             {"BY MODEL"}
           </text>
+          {showDonut() ? (
+            <box flexDirection="row" alignItems="flex-start" flexShrink={0}>
+              <Donut theme={palette()} segments={shares()} size={8} />
+              <box flexDirection="column" marginLeft={2}>
+                <DonutLegend
+                  theme={palette()}
+                  segments={shares()}
+                  width={Math.min(32, Math.max(16, chartWidth() - 12))}
+                />
+              </box>
+            </box>
+          ) : null}
           <Bars
             theme={palette()}
             items={modelItems()}

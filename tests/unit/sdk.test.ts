@@ -28,6 +28,9 @@ import {
   deltaText,
   diff,
   divider,
+  donut,
+  donutLegendText,
+  donutText,
   distribution,
   ease,
   emptyState,
@@ -3135,4 +3138,51 @@ test("progressRing honours colours and the two extremes", () => {
   expect(full.every((node) => node.kind === "text" && node.fg === "accent")).toBe(true)
   const empty = progressRing({ anchor: "top-left", x: 0, y: 0, value: 0, size: 4, trackFg: "muted" })
   expect(empty.every((node) => node.kind === "text" && node.fg === "muted")).toBe(true)
+})
+
+test("donut draws segment runs around the ring", () => {
+  const nodes = donut({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    size: 8,
+    segments: [
+      { label: "notes", value: 3 },
+      { label: "files", value: 1 },
+    ],
+    tones: ["accent", "warning"],
+  })
+  expect(nodes.length).toBeGreaterThan(0)
+  for (const node of nodes) {
+    expect(node.kind).toBe("text")
+    if (node.kind !== "text") continue
+    expect(node.x).toBeGreaterThanOrEqual(2)
+    expect(node.y).toBeGreaterThanOrEqual(3)
+    expect(node.y).toBeLessThanOrEqual(6)
+    expect(node.fg === "accent" || node.fg === "warning").toBe(true)
+  }
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "accent")).toBe(true)
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "warning")).toBe(true)
+  expect(donutText({ size: 8, segments: [{ label: "a", value: 1 }] }).split("\n")).toHaveLength(4)
+})
+
+test("donut keeps an empty ring on the track and legends fit", () => {
+  const empty = donut({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    size: 8,
+    segments: [{ label: "none", value: 0 }],
+    trackFg: "muted",
+  })
+  expect(empty.every((node) => node.kind === "text" && node.fg === "muted")).toBe(true)
+  expect(
+    donutLegendText({
+      segments: [
+        { label: "notes", value: 3, index: 0, fraction: 0.75, percent: 75, start: 0, end: 0.75 },
+        { label: "files", value: 1, index: 1, fraction: 0.25, percent: 25, start: 0.75, end: 1 },
+      ],
+      width: 20,
+    }),
+  ).toEqual(["● notes          75%", "● files          25%"])
 })

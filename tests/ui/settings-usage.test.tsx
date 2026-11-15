@@ -180,6 +180,38 @@ describe("per-model usage", () => {
     }
   })
 
+  test("a model-share donut and legend sit above the bars on wide pages", async () => {
+    const runs = [
+      { model: "big/model", input: 900, output: 100, costMicroUsd: 12, at: "2026-11-01T10:00:00Z", failed: false, scope: "school" },
+      { model: "small/model", input: 100, output: 0, costMicroUsd: 1, at: "2026-11-01T11:00:00Z", failed: false, scope: "school" },
+    ]
+    const setup = await mount(120, 30, state(), snapshot({ runs: runs as never }))
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toMatch(/[\u2800-\u28ff]/)
+      expect(frame).toContain("● big/model")
+      expect(frame).toContain("91%")
+      expect(frame).toContain("9%")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("the narrow usage panel keeps the bars without the donut", async () => {
+    const runs = [
+      { model: "big/model", input: 900, output: 100, costMicroUsd: 12, at: "2026-11-01T10:00:00Z", failed: false, scope: "school" },
+      { model: "small/model", input: 100, output: 0, costMicroUsd: 1, at: "2026-11-01T11:00:00Z", failed: false, scope: "school" },
+    ]
+    const setup = await mount(80, 24, state(), snapshot({ runs: runs as never }))
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("BY MODEL")
+      expect(frame).not.toContain("● big/model")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("no runs means no chart", async () => {
     const setup = await mount(100, 30, state(), snapshot({ runs: [] }))
     try {

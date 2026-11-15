@@ -333,6 +333,18 @@ import {
   type SparklineReduce as SparklineReduceInput,
 } from "../src/ui/sparkline"
 import {
+  donutLayout,
+  donutLegendLayout,
+  donutSegments as resolveDonutSegments,
+  type DonutCell as DonutCellInput,
+  type DonutLayout as DonutLayoutInput,
+  type DonutLegendLayout as DonutLegendLayoutInput,
+  type DonutLegendOptions as DonutLegendLayoutOptions,
+  type DonutOptions as DonutLayoutOptions,
+  type DonutRow as DonutRowInput,
+  type DonutSegment as DonutSegmentLayout,
+} from "../src/ui/donut"
+import {
   progressRingLayout,
   progressRingText as renderProgressRing,
   type ProgressRingCell as ProgressRingCellInput,
@@ -6239,6 +6251,108 @@ export function progressRing(options: ProgressRingOptions): SceneNode[] {
 /** The ring rows without placement, top first. */
 export function progressRingText(options: Omit<ProgressRingOptions, "anchor" | "x" | "y" | "filledFg" | "trackFg">): string {
   return renderProgressRing(options)
+}
+
+/** One slice in a `donut()`. */
+export type DonutSegmentInput = import("../src/ui/donut").DonutSegmentInput
+
+/** One resolved slice with its share. */
+export type DonutSegment = DonutSegmentLayout
+
+/** One ring cell; `segment` is the slice index or -1 for the track. */
+export type DonutCell = DonutCellInput
+
+/** One ring row. */
+export type DonutRow = DonutRowInput
+
+/** The rows, slices and total of a donut. */
+export type DonutLayout = DonutLayoutInput
+
+/** One legend row. */
+export type DonutLegendRow = import("../src/ui/donut").DonutLegendRow
+
+/** The fitted legend rows and hidden count of a donut legend. */
+export type DonutLegendLayout = DonutLegendLayoutInput
+
+export type DonutOptions = Omit<DonutLayoutOptions, "segments"> & {
+  anchor: ScenePosition
+  x: number
+  y: number
+  segments: readonly DonutSegmentInput[]
+  /** Slice colours by index. Defaults to primary, secondary, success, warning, accent. */
+  tones?: readonly string[]
+  /** Colour for an empty ring. Defaults to `line`. */
+  trackFg?: string
+}
+
+const DONUT_TONES: readonly string[] = ["primary", "secondary", "success", "warning", "accent"]
+
+/** Resolve raw slices into shares, percentages and angular ranges. */
+export function donutSegments(segments: readonly DonutSegmentInput[]): DonutSegment[] {
+  return resolveDonutSegments(segments)
+}
+
+/**
+ * A multi-segment braille donut.
+ *
+ *   donut({ anchor: "top-left", x: 2, y: 2, segments: [
+ *     { label: "notes", value: 3 },
+ *     { label: "files", value: 1 },
+ *   ] })
+ *
+ * Each ring cell takes the slice that owns its angle; the centre stays hollow.
+ * `size` sets the character width and `thickness` the band. Pair it with
+ * `donutLegend()` for the percentages.
+ */
+export function donut(options: DonutOptions): SceneNode[] {
+  const layout = donutLayout(options)
+  const tones = options.tones ?? DONUT_TONES
+  const nodes: SceneNode[] = []
+  layout.rows.forEach((row, index) => {
+    let run: { x: number; text: string; segment: number } | null = null
+    const flush = () => {
+      if (run !== null && run.text !== "") {
+        nodes.push({
+          kind: "text",
+          anchor: options.anchor,
+          x: options.x + run.x,
+          y: options.y + index,
+          text: run.text,
+          fg:
+            run.segment < 0
+              ? (options.trackFg ?? "line")
+              : tones[run.segment % tones.length] ?? "primary",
+        })
+      }
+      run = null
+    }
+    for (const cell of row.cells) {
+      if (cell.text === " ") {
+        flush()
+        continue
+      }
+      if (run !== null && run.segment === cell.segment) {
+        run.text += cell.text
+      } else {
+        flush()
+        run = { x: cell.x, text: cell.text, segment: cell.segment }
+      }
+    }
+    flush()
+  })
+  return nodes
+}
+
+/** The donut rows without placement, top first. */
+export function donutText(options: DonutLayoutOptions): string {
+  return donutLayout(options)
+    .rows.map((row) => row.text)
+    .join("\n")
+}
+
+/** The legend rows without placement. */
+export function donutLegendText(options: DonutLegendLayoutOptions): string[] {
+  return donutLegendLayout(options).rows.map((row) => row.text)
 }
 
 export type FormOptions = {
