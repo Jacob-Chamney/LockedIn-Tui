@@ -86,6 +86,8 @@ import {
   swatches,
   table,
   tabs,
+  tagCloud,
+  tagCloudText,
   thresholdBar,
   thresholdBarText,
   tagInput,
@@ -2959,4 +2961,32 @@ test("numberStepper mutes controls at limits and honours overrides", () => {
   expect(disabled[0]).toMatchObject({ fg: "muted" })
   expect(numberStepperText({ value: 5, precision: 1 })).toBe("− 5.0 +")
   expect(numberStepper({ anchor: "top-left", x: 0, y: 0, width: 0, value: 1 })).toEqual([])
+})
+
+test("tagCloud draws wrapped rows", () => {
+  const nodes = tagCloud({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 20,
+    items: [{ label: "cpp" }, { label: "notes", count: 3 }],
+  })
+  expect(nodes).toHaveLength(1)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, text: "#cpp #notes 3", fg: "secondary" })
+})
+
+test("tagCloud wraps, reports overflow and handles empty input", () => {
+  const nodes = tagCloud({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 12,
+    maxRows: 2,
+    fg: "muted",
+    items: [{ label: "cpp" }, { label: "notes" }, { label: "long-tag" }, { label: "x" }],
+  })
+  expect(nodes.length).toBeGreaterThanOrEqual(1)
+  expect(nodes[0]).toMatchObject({ fg: "muted" })
+  expect(tagCloudText({ items: [{ label: "a" }], width: 10 })).toEqual(["#a"])
+  expect(tagCloud({ anchor: "top-left", x: 0, y: 0, width: 10, items: [] })).toEqual([])
 })

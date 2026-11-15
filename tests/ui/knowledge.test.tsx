@@ -126,6 +126,7 @@ describe("the knowledge window", () => {
       const text = frame(setup)
       expect(text).toContain("Smart vector growth")
       expect(text).toContain("Grow by 1.5x")
+      expect(text).toContain("#cpp")
       expect(text).toContain("reserve(n)")
       expect(text).toContain("Esc back")
     } finally {

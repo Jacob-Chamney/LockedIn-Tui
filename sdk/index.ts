@@ -56,6 +56,13 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  tagCloudLayout,
+  tagCloudText as renderTagCloud,
+  type TagCloudItem as TagCloudItemInput,
+  type TagCloudLayout as TagCloudLayoutInput,
+  type TagCloudRow as TagCloudRowInput,
+} from "../src/ui/tag-cloud"
+import {
   numberStepperLayout,
   numberStepperText as renderNumberStepper,
   type NumberStepperGlyphs as NumberStepperGlyphsInput,
@@ -5852,6 +5859,59 @@ export function numberStepper(options: NumberStepperOptions): SceneNode[] {
 /** The stepper text without placement. */
 export function numberStepperText(options: Omit<NumberStepperOptions, "anchor" | "x" | "y">): string {
   return renderNumberStepper(options)
+}
+
+/** One tag in a `tagCloud()`. */
+export type TagCloudItem = TagCloudItemInput
+
+/** One wrapped tag row. */
+export type TagCloudRow = TagCloudRowInput
+
+/** The rows, hidden count and text of a tag cloud. */
+export type TagCloudLayout = TagCloudLayoutInput
+
+export type TagCloudOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  items: readonly TagCloudItem[]
+  width: number
+  /** Visible rows; defaults 2. */
+  maxRows?: number
+  /** Spaces between tags; defaults 1. */
+  gap?: number
+  /** Prefix before each label; defaults `#`. */
+  prefix?: string
+  /** Tag colour. Defaults to `secondary`. */
+  fg?: string
+}
+
+/**
+ * A wrapped tag cloud with an overflow count.
+ *
+ *   tagCloud({ anchor: "top-left", x: 2, y: 2, width: 20,
+ *              items: [{ label: "cpp" }, { label: "notes", count: 3 }] })
+ * // #cpp #notes 3
+ *
+ * Tags flow left to right and wrap; a tag wider than the row is fitted. When
+ * `maxRows` is reached the tail becomes `+N`, so the cloud never grows past its
+ * allowance. `tagCloudText()` returns the lines.
+ */
+export function tagCloud(options: TagCloudOptions): SceneNode[] {
+  const layout = tagCloudLayout(options)
+  return layout.rows.map((row) => ({
+    kind: "text" as const,
+    anchor: options.anchor,
+    x: options.x,
+    y: options.y + row.index,
+    text: row.text,
+    fg: options.fg ?? "secondary",
+  }))
+}
+
+/** The tag cloud as plain lines. */
+export function tagCloudText(options: Omit<TagCloudOptions, "anchor" | "x" | "y" | "fg">): string[] {
+  return renderTagCloud(options)
 }
 
 export type FormOptions = {
