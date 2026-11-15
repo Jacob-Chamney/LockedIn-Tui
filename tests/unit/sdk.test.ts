@@ -84,6 +84,7 @@ import {
   transition,
   tree,
   window,
+  wizard,
 } from "../../sdk"
 
 test("the define helpers are identity", () => {
@@ -2617,4 +2618,40 @@ test("multiSelect uses a viewport and honours overrides", () => {
   expect(nodes[0]).toMatchObject({ y: 0, fg: "warning" })
   expect(nodes[3]).toMatchObject({ y: 3, fg: "secondary" })
   expect(multiSelect({ anchor: "top-left", x: 0, y: 0, width: 20, cursor: 0, items: [] })).toEqual([])
+})
+
+test("wizard draws numbered steps with state markers", () => {
+  const nodes = wizard({
+    anchor: "top-left",
+    x: 2,
+    y: 1,
+    width: 40,
+    current: 0,
+    steps: [
+      { id: "choose", label: "Choose" },
+      { id: "review", label: "Review" },
+    ],
+  })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 1, text: "● 1 Choose", fg: "primary" })
+  expect(nodes[1]).toMatchObject({ x: 14, text: "○ 2 Review", fg: "muted" })
+})
+
+test("wizard marks done steps and keeps the current step visible", () => {
+  const nodes = wizard({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 12,
+    current: 1,
+    doneFg: "success",
+    currentFg: "accent",
+    steps: [
+      { id: "choose", label: "Choose" },
+      { id: "review", label: "Review" },
+    ],
+  })
+  expect(nodes).toHaveLength(1)
+  expect(nodes[0]).toMatchObject({ text: "● 2 Review", fg: "accent" })
+  expect(wizard({ anchor: "top-left", x: 0, y: 0, width: 40, current: 0, steps: [] })).toEqual([])
 })

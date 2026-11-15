@@ -56,6 +56,14 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  wizardLayout,
+  type WizardGlyphs as WizardGlyphsInput,
+  type WizardLayout as WizardLayoutInput,
+  type WizardSegment as WizardSegmentInput,
+  type WizardStatus as WizardStatusInput,
+  type WizardStep as WizardStepInput,
+} from "../src/ui/wizard"
+import {
   multiSelectLayout,
   type MultiSelectGlyphs as MultiSelectGlyphsInput,
   type MultiSelectItem as MultiSelectItemInput,
@@ -5166,6 +5174,68 @@ export function multiSelect(options: MultiSelectOptions): SceneNode[] {
         : row.checked
           ? (options.checkedFg ?? "success")
           : (options.fg ?? "foreground"),
+  }))
+}
+
+/** `done`, `current` or `upcoming`. */
+export type WizardStatus = WizardStatusInput
+
+/** The markers a `wizard()` uses. */
+export type WizardGlyphs = WizardGlyphsInput
+
+/** One step in a `wizard()`. */
+export type WizardStep = WizardStepInput
+
+/** One placed step. */
+export type WizardSegment = WizardSegmentInput
+
+/** The placed steps and hidden count of a wizard strip. */
+export type WizardLayout = WizardLayoutInput
+
+export type WizardOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  width: number
+  steps: readonly WizardStep[]
+  /** Zero-based current step; clamped. */
+  current: number
+  /** Spaces between steps; defaults 2. */
+  gap?: number
+  glyphs?: Partial<WizardGlyphs>
+  /** Done-step colour. Defaults to `success`. */
+  doneFg?: string
+  /** Current-step colour. Defaults to `primary`. */
+  currentFg?: string
+  /** Upcoming-step colour. Defaults to `muted`. */
+  upcomingFg?: string
+}
+
+/**
+ * A horizontal wizard strip: numbered steps with done/current/upcoming markers.
+ *
+ *   wizard({ anchor: "top-left", x: 2, y: 1, width: 40, current: 1,
+ *            steps: [{ id: "choose", label: "Choose" }, { id: "review", label: "Review" }] })
+ *   // ✓ 1 Choose  ● 2 Review
+ *
+ * Steps are placed left to right; the first that does not fit ends the strip. If
+ * the current step would be cut off it is shown alone with a fitted label. The
+ * glyphs (`✓`, `●`, `○`) carry the state, so colour is never the only signal.
+ */
+export function wizard(options: WizardOptions): SceneNode[] {
+  const layout = wizardLayout(options)
+  return layout.segments.map((segment) => ({
+    kind: "text" as const,
+    anchor: options.anchor,
+    x: options.x + segment.x,
+    y: options.y,
+    text: segment.text,
+    fg:
+      segment.status === "done"
+        ? (options.doneFg ?? "success")
+        : segment.status === "current"
+          ? (options.currentFg ?? "primary")
+          : (options.upcomingFg ?? "muted"),
   }))
 }
 
