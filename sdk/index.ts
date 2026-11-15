@@ -55,6 +55,13 @@ import {
 } from "../src/ui/accordion"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import {
+  histogramLayout,
+  histogramText as renderHistogram,
+  type HistogramBin as HistogramBinInput,
+  type HistogramLayout as HistogramLayoutInput,
+  type HistogramOptions as HistogramLayoutOptions,
+} from "../src/ui/histogram"
+import {
   treemapLayout,
   type TreemapItem as TreemapItemInput,
   type TreemapLayout as TreemapLayoutInput,
@@ -6723,6 +6730,48 @@ export function treemap(options: TreemapOptions): SceneNode[] {
     }
   }
   return nodes
+}
+
+/** One counted bin in a `histogram()`. */
+export type HistogramBin = HistogramBinInput
+
+/** The rows, bins and range of a histogram. */
+export type HistogramLayout = HistogramLayoutInput
+
+export type HistogramOptions = Omit<HistogramLayoutOptions, "values"> & {
+  anchor: ScenePosition
+  x: number
+  y: number
+  values: readonly number[]
+  /** Bar colour. Defaults to `primary`. */
+  fg?: string
+}
+
+/**
+ * A histogram of values counted into equal-width bins.
+ *
+ *   histogram({ anchor: "top-left", x: 2, y: 2, width: 20, height: 3,
+ *               values: [1, 2, 2, 4] })
+ *
+ * Values span their own range; each column's height is its count relative to the
+ * busiest bin, and empty bins stay blank. `bins` caps the column count and
+ * `glyph` replaces `█`. `histogramText()` returns the rows.
+ */
+export function histogram(options: HistogramOptions): SceneNode[] {
+  const layout = histogramLayout(options)
+  return layout.rows.map((row, index) => ({
+    kind: "text" as const,
+    anchor: options.anchor,
+    x: options.x,
+    y: options.y + index,
+    text: row,
+    fg: options.fg ?? "primary",
+  }))
+}
+
+/** The histogram rows without placement, top first. */
+export function histogramText(options: HistogramLayoutOptions): string[] {
+  return renderHistogram(options)
 }
 
 export type FormOptions = {
