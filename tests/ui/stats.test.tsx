@@ -284,6 +284,30 @@ describe("the hero", () => {
     }
   })
 
+  test("a model treemap tiles the by-model block on tall pages", async () => {
+    const setup = await mount(140, 44)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("┌")
+      expect(frame).toContain("┐")
+      expect(frame).toContain("openai/gpt-4.1-mini 78%")
+      expect(frame).toContain("22%")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("the treemap gives way to the share bar on shorter pages", async () => {
+    const setup = await mount(140, 36)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("BY MODEL")
+      expect(frame).not.toContain("┌")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("the compact page omits the model chart", async () => {
     const setup = await mount(80, 24)
     try {
