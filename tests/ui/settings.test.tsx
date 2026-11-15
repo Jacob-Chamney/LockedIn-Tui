@@ -103,6 +103,16 @@ describe("rows and groups", () => {
     expect(models.rows.find((row) => row.id === "chatModel")?.value).toBe("deepseek-v4.1-flash")
   })
 
+  test("MCP servers render as tags in the value column", async () => {
+    const setup = await mount(120, 36)
+    try {
+      const row = lines(setup).find((line) => line.includes("MCP servers"))!
+      expect(row).toContain("[notes] [filesystem]")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("Period renders a day/month segmented control", async () => {
     const setup = await mount(120, 36)
     try {

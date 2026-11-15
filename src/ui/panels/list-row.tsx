@@ -14,6 +14,7 @@ import { Slider } from "../shell/slider"
 import { StatusDot } from "../shell/status-dot"
 import { Segmented } from "../shell/segmented"
 import { ProgressChip } from "../shell/progress-chip"
+import { TagInput } from "../shell/tag-input"
 import type { StatusState } from "../status-dot"
 
 export type ListRowTone = "normal" | "muted" | "error"
@@ -42,6 +43,8 @@ export function ListRow(props: {
   segments?: { options: readonly string[]; selected: number; width?: number }
   /** A compact done/total chip after the label. */
   progress?: { done: number; total: number; width?: number }
+  /** Read-only tags in the value column. */
+  tags?: { labels: readonly string[]; invalid?: readonly boolean[]; width?: number }
   /** A second, muted line under the label. */
   detail?: string
   /** When set, the label is padded/truncated to this width. */
@@ -114,6 +117,23 @@ export function ListRow(props: {
         >
           {label()}
         </text>
+        {props.tags ? (
+          <>
+            <text fg={palette().muted} wrapMode="none">
+              {" "}
+            </text>
+            <TagInput
+              theme={palette()}
+              tags={props.tags.labels.map((label, index) => ({
+                id: `${index}:${label}`,
+                label,
+                removable: false,
+                invalid: props.tags!.invalid?.[index] === true,
+              }))}
+              width={props.tags.width ?? 24}
+            />
+          </>
+        ) : null}
         {props.progress ? (
           <>
             <text fg={palette().muted} wrapMode="none">
@@ -127,7 +147,7 @@ export function ListRow(props: {
             />
           </>
         ) : null}
-        {props.segments ? (
+        {props.tags ? null : props.segments ? (
           <Segmented
             theme={palette()}
             options={props.segments.options}

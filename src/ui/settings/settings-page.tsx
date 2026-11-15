@@ -78,6 +78,8 @@ export type SettingsRow = {
   edit: "text" | "none"
   /** Config key the patch writes, when editable. */
   key?: string
+  /** Read-only tags shown in the value column. */
+  tags?: { labels: readonly string[]; invalid?: readonly boolean[] }
 }
 
 export type SettingsGroup = { id: string; title: string; rows: SettingsRow[] }
@@ -158,7 +160,14 @@ export function settingsGroups(view: SettingsView): SettingsGroup[] {
       id: "plugins",
       title: "PLUGINS",
       rows: [
-        { id: "servers", label: "MCP servers", value: view.pluginServers.length === 0 ? "none configured" : `${view.pluginServers.length} configured`, hint: "MCP servers available; enable them per command in MCP servers.", edit: "none" },
+        {
+          id: "servers",
+          label: "MCP servers",
+          value: view.pluginServers.length === 0 ? "none configured" : `${view.pluginServers.length} configured`,
+          hint: "MCP servers available; enable them per command in MCP servers.",
+          edit: "none",
+          ...(view.pluginServers.length === 0 ? {} : { tags: { labels: view.pluginServers } }),
+        },
         {
           id: "manage-plugins",
           label: "UI plugins",
@@ -400,6 +409,7 @@ export function SettingsPage(props: {
             label={row.label}
             value={editing ? `${props.state.editing!.draft}▏` : row.value}
             labelWidth={VALUE_COLUMN - 2}
+            tags={row.tags === undefined ? undefined : { ...row.tags, width: VALUE_COLUMN }}
             background={palette().surface}
             toggle={
               row.id === "pause"

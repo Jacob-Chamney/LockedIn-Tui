@@ -56,6 +56,13 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  tagInputLayout,
+  type TagInputLayout as TagInputLayoutInput,
+  type TagItem as TagItemInput,
+  type TagSegment as TagSegmentInput,
+  type TagTone as TagToneInput,
+} from "../src/ui/tag-input"
+import {
   lineChartLayout,
   type LineChartGlyphs as LineChartGlyphsInput,
   type LineChartLayout as LineChartLayoutInput,
@@ -4851,6 +4858,97 @@ export function lineChart(options: LineChartOptions): SceneNode[] {
     text: row,
     fg: options.fg ?? "primary",
   }))
+}
+
+/** The visual tone of one tag. */
+export type TagTone = TagToneInput
+
+/** One tag in a `tagInput()`. */
+export type TagItem = TagItemInput
+
+/** One placed tag, with its cursor and validation state. */
+export type TagSegment = TagSegmentInput
+
+/** The placed tags, overflow and input tail of a field. */
+export type TagInputLayout = TagInputLayoutInput
+
+export type TagInputOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  width: number
+  tags: readonly TagItem[]
+  /** Active tag; -1 or omitted means no cursor. */
+  cursor?: number
+  /** Draft text after the tags; omit for a read-only field. */
+  input?: string
+  placeholder?: string
+  /** Removing marker; defaults `×`. */
+  marker?: string
+  /** Spaces between tags; defaults 1. */
+  gap?: number
+  /** Normal tag colour. Defaults to `secondary`. */
+  fg?: string
+  /** Cursor tag colour. Defaults to `primary`. */
+  activeFg?: string
+  /** Invalid tag colour. Defaults to `error`. */
+  invalidFg?: string
+  /** Input tail colour. Defaults to `foreground`. */
+  inputFg?: string
+  /** Overflow-count colour. Defaults to `muted`. */
+  overflowFg?: string
+}
+
+/**
+ * A tag field: bracketed tokens, a cursor tag and an optional input tail.
+ *
+ *   tagInput({ anchor: "top-left", x: 2, y: 2, width: 30, cursor: 1,
+ *              tags: [{ id: "a", label: "notes" }, { id: "b", label: "files" }],
+ *              input: "src/", placeholder: "add a path" })
+ *
+ * Invalid tags use the error tone and valid ones the normal tone; the cursor tag
+ * uses the active tone. Tags fit left to right and the first that does not fit
+ * becomes `+N`; the input tail keeps a caret. Omit `input` for a read-only field.
+ */
+export function tagInput(options: TagInputOptions): SceneNode[] {
+  const layout = tagInputLayout(options)
+  const nodes: SceneNode[] = []
+  for (const segment of layout.segments) {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + segment.x,
+      y: options.y,
+      text: segment.text,
+      fg:
+        segment.tone === "invalid"
+          ? (options.invalidFg ?? "error")
+          : segment.tone === "active"
+            ? (options.activeFg ?? "primary")
+            : (options.fg ?? "secondary"),
+    })
+  }
+  if (layout.overflow !== "") {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + layout.overflowX,
+      y: options.y,
+      text: layout.overflow,
+      fg: options.overflowFg ?? "muted",
+    })
+  }
+  if (layout.inputText !== "") {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + layout.inputX,
+      y: options.y,
+      text: layout.inputText,
+      fg: options.inputFg ?? "foreground",
+    })
+  }
+  return nodes
 }
 
 export type FormOptions = {
