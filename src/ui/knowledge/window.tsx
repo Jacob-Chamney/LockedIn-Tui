@@ -18,6 +18,8 @@ import { flattenTopics, GENERAL_TOPIC, topicsFor } from "../../services/knowledg
 import type { ThemePalette } from "../theme"
 import { MarkdownBody, blockCount, parseMarkdown } from "../reader/markdown-body"
 import { Outline } from "../shell/outline"
+import { TagCloud } from "../shell/tag-cloud"
+import { tagCloudLayout } from "../tag-cloud"
 import { Scrollbar } from "../shell/scrollbar"
 import {
   breadcrumb,
@@ -104,7 +106,15 @@ export function KnowledgeWindow(props: {
     return current
   }
   const outlineRows = () => (outlineItems().length > 0 ? 1 : 0)
-  const readerHeight = () => Math.max(1, bodyRows() - 3 - outlineRows())
+  const tags = () => note()?.tags ?? []
+  const cloud = () =>
+    tagCloudLayout({
+      items: tags().map((label) => ({ label })),
+      width: columns() - 4,
+      maxRows: 1,
+    })
+  const tagRows = () => (tags().length > 0 ? cloud().rows.length : 0)
+  const readerHeight = () => Math.max(1, bodyRows() - 3 - outlineRows() - tagRows())
   const bodyRows = () =>
     Math.max(
       3,
@@ -474,6 +484,14 @@ export function KnowledgeWindow(props: {
             <text fg={palette().muted} wrapMode="none">
               {metaFor(open())}
             </text>
+            {tags().length > 0 ? (
+              <TagCloud
+                theme={palette()}
+                items={tags().map((label) => ({ label }))}
+                width={columns() - 4}
+                maxRows={1}
+              />
+            ) : null}
             {outlineItems().length > 0 ? (
               <Outline
                 theme={palette()}

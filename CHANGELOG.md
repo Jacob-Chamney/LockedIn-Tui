@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `tagCloud()` wraps tags with an overflow count; the Knowledge reader shows the
+  open note's tags.
 - `numberStepper()` draws an inline minus/value/plus control; Settings Budget is
   steppable with `-`/`+`.
 - `thresholdBar()` draws a marked threshold scale; Appearance shows username
