@@ -11,6 +11,7 @@ import { stringWidth } from "bun"
 import type { ThemePalette } from "../theme"
 import type { AgentSummary } from "./explorer"
 import { avatarLayout, type AvatarLayout } from "../avatar"
+import { AvatarGroup } from "./avatar-group"
 
 export type AgentsSidebarProps = {
   theme: ThemePalette
@@ -119,8 +120,8 @@ export function rosterLines(
 
 export function AgentsSidebar(props: AgentsSidebarProps) {
   const palette = () => props.theme
-  // Header, footer and a blank row leave the rest for the roster.
-  const rows = () => Math.max(1, props.height - 3)
+  // Header, optional group, footer and a blank row leave the rest for the roster.
+  const rows = () => Math.max(1, props.height - (props.agents.length > 0 ? 4 : 3))
   const body = () =>
     props.agents.length === 0
       ? [" no agents yet", " n adds the first one"].map((line) => (
@@ -160,6 +161,15 @@ export function AgentsSidebar(props: AgentsSidebarProps) {
       <text fg={props.focused ? palette().primary : palette().muted} wrapMode="none">
         {clipDisplay(`${props.focused ? "▸" : " "} AGENTS · ${inline(props.project)}`, props.width)}
       </text>
+      {props.agents.length > 0 ? (
+        <AvatarGroup
+          theme={palette()}
+          items={props.agents.map((agent) => ({ id: agent.id, name: agent.name }))}
+          width={Math.max(4, props.width - 2)}
+          avatarWidth={4}
+          overlap={0}
+        />
+      ) : null}
       {body()}
       <box flexGrow={1} minHeight={0} />
       <text fg={palette().muted} wrapMode="none">

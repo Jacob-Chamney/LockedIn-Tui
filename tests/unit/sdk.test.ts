@@ -7,6 +7,7 @@ import {
   accordion,
   actionBar,
   avatar,
+  avatarGroup,
   badges,
   bars,
   calendar,
@@ -2369,4 +2370,44 @@ test("delta flips the healthy direction and honours overrides", () => {
   expect(flat[0]).toMatchObject({ text: "— 0%", fg: "accent" })
   expect(deltaText({ value: -5 })).toBe("▼ 5%")
   expect(delta({ anchor: "top-left", x: 0, y: 0, value: 2, width: 0 })).toEqual([])
+})
+
+test("avatarGroup draws stacked monograms at overlapping offsets", () => {
+  const nodes = avatarGroup({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 20,
+    items: [
+      { id: "a", name: "Ada Lovelace" },
+      { id: "b", name: "Builder" },
+    ],
+  })
+  expect(nodes).toHaveLength(4)
+  expect(nodes[0]).toMatchObject({ kind: "rect", x: 2, y: 3, width: 4, height: 1 })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 2, text: "[AL]", fg: "background" })
+  expect(nodes[2]).toMatchObject({ x: 5, width: 4 })
+  expect(nodes[3]).toMatchObject({ x: 5, text: "[BU]" })
+})
+
+test("avatarGroup reports overflow and honours colours", () => {
+  const nodes = avatarGroup({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 14,
+    fg: "surface",
+    overflowFg: "warning",
+    items: [
+      { id: "a", name: "Ada Lovelace" },
+      { id: "b", name: "Builder" },
+      { id: "c", name: "Writer" },
+      { id: "d", name: "Reviewer" },
+      { id: "e", name: "Planner" },
+    ],
+  })
+  expect(nodes).toHaveLength(7)
+  expect(nodes[1]).toMatchObject({ fg: "surface" })
+  expect(nodes[6]).toMatchObject({ x: 11, text: "+2", fg: "warning" })
+  expect(avatarGroup({ anchor: "top-left", x: 0, y: 0, width: 20, items: [] })).toEqual([])
 })

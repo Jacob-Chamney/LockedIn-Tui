@@ -49,3 +49,46 @@ test("the roster renders a monogram before each name", async () => {
     await setup.dispose()
   }
 })
+
+test("the header stacks the project's monograms", async () => {
+  const agents = [
+    { id: "a1", name: "Ada Lovelace", task: "", model: "", permissions: "read-only" as const },
+    { id: "a2", name: "Builder", task: "", model: "", permissions: "write" as const },
+  ]
+  const setup = await testRender(
+    () => (
+      <AgentsSidebar theme={crimson} width={28} height={10} focused project="Atlas" agents={agents} cursor={0} />
+    ),
+    { width: 28, height: 10 },
+  )
+  try {
+    await setup.flush()
+    const header = setup.captureCharFrame().split("\n")[1]!
+    expect(header).toContain("[AL][BU]")
+  } finally {
+    await setup.dispose()
+  }
+})
+
+test("a crowded header reports the agents that do not fit", async () => {
+  const agents = Array.from({ length: 10 }, (_, index) => ({
+    id: `a${index}`,
+    name: `Agent ${index + 1}`,
+    task: "",
+    model: "",
+    permissions: "read-only" as const,
+  }))
+  const setup = await testRender(
+    () => (
+      <AgentsSidebar theme={crimson} width={28} height={18} focused project="Atlas" agents={agents} cursor={0} />
+    ),
+    { width: 28, height: 18 },
+  )
+  try {
+    await setup.flush()
+    const header = setup.captureCharFrame().split("\n")[1]!
+    expect(header).toContain("+5")
+  } finally {
+    await setup.dispose()
+  }
+})
