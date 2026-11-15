@@ -62,22 +62,50 @@ describe("the palette", () => {
     }
   })
 
-  test("Tab cycles the list without typing", async () => {
+  test("Tab completes the selected command into the query", async () => {
     const { ui, api } = await open()
     try {
       await ui.press("t")
-      const count = commands.filterCommands(registry, "t", 10).length
+      const matches = commands.filterCommands(registry, "t", 10)
       expect(api().state().commandIndex).toBe(0)
       await ui.press("tab")
-      expect(api().state().commandIndex).toBe(1)
-      // Wraps at the end, so Tab alone can reach every row.
-      for (let step = 1; step < count; step++) await ui.press("tab")
+      // The line now reads the exact command, and the row stays selected.
+      expect(api().state().commandQuery).toBe(matches[0]!.name)
       expect(api().state().commandIndex).toBe(0)
-      // Shift+Tab goes back.
-      await ui.press("tab", { shift: true })
-      expect(api().state().commandIndex).toBe(count - 1)
-      // The query is untouched: Tab moves the selection, it does not complete.
-      expect(api().state().commandQuery).toBe("t")
+      expect(ui.frame()).toContain(`:${matches[0]!.name}`)
+    } finally {
+      await ui.dispose()
+    }
+  })
+
+  test("Tab completes whichever row the arrows reached, and Enter runs it", async () => {
+    const { ui, api } = await open()
+    try {
+      await ui.press("t")
+      const matches = commands.filterCommands(registry, "t", 10)
+      await ui.press("down")
+      const chosen = matches[1]!
+      await ui.press("tab")
+      expect(api().state().commandQuery).toBe(chosen.name)
+      await ui.press("return")
+      expect(api().state().overlay).toBe(null)
+      if (chosen.target === "tasks") expect(ui.frame()).toContain("TASK CENTRE")
+    } finally {
+      await ui.dispose()
+    }
+  })
+
+  test("a partial line does not run the first match on Enter", async () => {
+    const { ui, api } = await open()
+    try {
+      await ui.press(":")
+      await ui.type("the")
+      await ui.press("return")
+      // The bar stays open with the nearest-command hint; nothing was chosen.
+      await ui.waitUntil(() => ui.frame().includes('No command "the"'))
+      expect(api().state().overlay).toBe("command")
+      expect(api().state().commandQuery).toBe("the")
+      expect(api().state().pane).toBe("chat")
     } finally {
       await ui.dispose()
     }

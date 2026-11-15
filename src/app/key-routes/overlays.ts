@@ -21,19 +21,26 @@ export function handleOverlayKeys(
   if (state.overlay === "command") {
     const matches = filterCommands(deps.registry, state.commandQuery, 10)
     if (press.name === ":") {
-      deps.update({ ...state, commandQuery: "", commandMessage: null, commandIndex: 0 })
+      deps.update({
+        ...state,
+        commandQuery: "",
+        commandMessage: null,
+        commandIndex: 0,
+        commandPicked: false,
+      })
       event.preventDefault()
       return true
     }
     if (press.name === "escape") {
       deps.update(reduce(state, { type: "close-overlay" }))
     } else if (press.name === "tab") {
-      if (matches.length > 0) {
-        const delta = press.shift ? -1 : 1
-        deps.update(reduce(state, { type: "command-cycle", delta, count: matches.length }))
-      }
+      // Completion, not selection: fill the line with the highlighted command.
+      const choice = matches[state.commandIndex] ?? matches[0]
+      if (choice) deps.update(reduce(state, { type: "command-complete", value: choice.name }))
     } else if (press.name === "return") {
-      const pick = matches[state.commandIndex] ?? matches[0]
+      // A partial line is not a choice. Only an exact command, or a row the
+      // user actually arrowed to, runs; otherwise the bar explains the typo.
+      const pick = state.commandPicked ? matches[state.commandIndex] : undefined
       const run = (text: string) => {
         const result = resolveCommand(deps.registry, text)
         if (result.kind === "action") {
