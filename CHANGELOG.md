@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `rangeSlider()` draws a two-handle track with a filled span and label;
+  Settings shows Warn at as a range to the limit.
 - `matrix()` draws a fitted labelled grid; the MCP policy matrix uses the same
   layout with muted locked rows.
 - `statCard()` draws a fitted value/label/detail card; Stats counters use it and

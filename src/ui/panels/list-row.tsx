@@ -11,6 +11,7 @@ import { Badge } from "../shell/badges"
 import { checklistBox } from "../checklist"
 import { Toggle } from "../shell/toggle"
 import { Slider } from "../shell/slider"
+import { RangeSlider } from "../shell/range-slider"
 import { StatusDot } from "../shell/status-dot"
 import { Segmented } from "../shell/segmented"
 import { ProgressChip } from "../shell/progress-chip"
@@ -37,6 +38,8 @@ export function ListRow(props: {
   toggle?: { on: boolean; onLabel?: string; offLabel?: string }
   /** A slider in the value column, for ranged rows. */
   slider?: { value: number; min?: number; max?: number; label?: string; width?: number }
+  /** A dual-handle range in the value column. */
+  range?: { values: readonly [number, number]; min?: number; max?: number; label?: string; width?: number }
   /** A health dot before the label. */
   status?: { state: StatusState; label?: string }
   /** A segmented control in the value column, for small exclusive choices. */
@@ -147,7 +150,16 @@ export function ListRow(props: {
             />
           </>
         ) : null}
-        {props.tags ? null : props.segments ? (
+        {props.tags ? null : props.range ? (
+          <RangeSlider
+            theme={palette()}
+            values={props.range.values}
+            width={props.range.width ?? 18}
+            min={props.range.min}
+            max={props.range.max}
+            label={props.range.label}
+          />
+        ) : props.segments ? (
           <Segmented
             theme={palette()}
             options={props.segments.options}
