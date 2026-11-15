@@ -162,6 +162,10 @@ requests merge.
 
 ### Changed
 
+- The Stats page is grouped into hero, ACTIVITY, TOKENS OVER TIME, BY MODEL and
+  SUMMARY sections; the oversized logo and duplicate trend charts are gone.
+- The startup splash uses a sparse scan-lit field and a seal pulse as the lock
+  closes.
 - Chat send keys moved from the composer footer into the centre of the status
   bar as plain, unhighlighted hints; the composer placeholder is shorter.
 - Provider settings rows, session-home coverage and task rows now use the
@@ -203,6 +207,12 @@ requests merge.
 
 ### Fixed
 
+- Settings controls now do what they show: Period and Pause toggle with Enter,
+  Warn at and the numeric limits step with `-`/`+`, and max tool calls, max
+  tokens and history can be edited numerically. Period, warning and pause
+  patches update the panel immediately.
+- The MCP servers and Archive backend rows open their own screens instead of
+  reporting that they are changed elsewhere.
 - The new API elements no longer draw past narrow terminals: the matrix, data
   table, definition list, status timeline, menu, outline, timeline, popover and
   number stepper fit or drop columns instead of overflowing.

@@ -107,21 +107,19 @@ describe("the hero", () => {
     }
   })
 
-  test("a token trend line sits under the total", async () => {
+  test("the hero puts the token total and its delta on the left", async () => {
     const setup = await mount(140, 44)
     try {
-      const out = lines(setup)
-      const tokens = out.findIndex((line) => line.includes("T O K E N S"))
-      expect(tokens).toBeGreaterThanOrEqual(0)
-      const trend = out[tokens + 1]!.trim()
-      expect(trend).toMatch(/^[▁▂▃▄▅▆▇█]+$/)
-      expect(trend.length).toBeGreaterThan(4)
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("T O K E N S")
+      expect(frame).toContain("24K")
+      expect(frame).toContain("▼ 20% vs prior 7d")
     } finally {
       await setup.dispose()
     }
   })
 
-  test("no trend line is drawn for an empty range", async () => {
+  test("an empty range draws no trend section or week comparison", async () => {
     const empty = summary({
       overview: { runs: 0, failed: 0, input: 0, output: 0 },
       activity: [],
@@ -129,9 +127,9 @@ describe("the hero", () => {
     })
     const setup = await mount(140, 44, { summary: empty })
     try {
-      const out = lines(setup)
-      const tokens = out.findIndex((line) => line.includes("T O K E N S"))
-      expect(out[tokens + 1]!.trim()).toBe("")
+      const frame = lines(setup).join("\n")
+      expect(frame).not.toContain("TOKENS OVER TIME")
+      expect(frame).not.toContain("vs prior 7d")
     } finally {
       await setup.dispose()
     }
@@ -181,38 +179,25 @@ describe("the hero", () => {
     }
   })
 
-  test("weekly token columns sit under the heatmap on tall pages", async () => {
+  test("the tokens-over-time section charts the daily series", async () => {
     const setup = await mount(140, 44)
     try {
       const out = lines(setup)
-      const label = out.findIndex((line) => line.includes("BY WEEK"))
+      const label = out.findIndex((line) => line.includes("TOKENS OVER TIME"))
       expect(label).toBeGreaterThan(-1)
-      const chart = out.slice(label + 1, label + 3).join("\n")
-      expect(chart).toMatch(/[█ ]+/)
-      expect(chart).toContain("█")
-    } finally {
-      await setup.dispose()
-    }
-  })
-
-  test("the compact page omits the weekly columns", async () => {
-    const setup = await mount(80, 24)
-    try {
-      expect(lines(setup).join("\n")).not.toContain("BY WEEK")
-    } finally {
-      await setup.dispose()
-    }
-  })
-
-  test("the hero charts the daily token series", async () => {
-    const setup = await mount(140, 44)
-    try {
-      const out = lines(setup)
-      const tokens = out.findIndex((line) => line.includes("T O K E N S"))
-      const chart = out.slice(tokens + 1, tokens + 8).join("\n")
+      const chart = out.slice(label + 1, label + 6).join("\n")
       expect(chart).toContain("│")
       expect(chart).toContain("•")
       expect(chart).toMatch(/[\d.]+K│/)
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("the compact page omits the trend section", async () => {
+    const setup = await mount(80, 24)
+    try {
+      expect(lines(setup).join("\n")).not.toContain("TOKENS OVER TIME")
     } finally {
       await setup.dispose()
     }
@@ -268,17 +253,15 @@ describe("the hero", () => {
     }
   })
 
-  test("per-model bars appear when the page has room", async () => {
+  test("the model shares appear when the page has room", async () => {
     const setup = await mount(140, 44)
     try {
       const frame = lines(setup).join("\n")
       expect(frame).toContain("BY MODEL")
       expect(frame).toContain("openai/gpt-4.1-mini")
-      expect(frame).toContain("local/llama")
-      expect(frame).toContain("29%")
+      expect(frame).toContain("local/l…")
       expect(frame).toContain("78%")
       expect(frame).toContain("22%")
-      expect(frame).toContain("█")
     } finally {
       await setup.dispose()
     }
@@ -289,9 +272,22 @@ describe("the hero", () => {
     try {
       const out = lines(setup)
       const legend = out.findIndex((line) => line.includes("less"))
-      const byWeek = out.findIndex((line) => line.includes("BY WEEK"))
+      const trend = out.findIndex((line) => line.includes("TOKENS OVER TIME"))
       expect(legend).toBeGreaterThan(-1)
-      expect(byWeek).toBeGreaterThan(legend)
+      expect(trend).toBeGreaterThan(legend)
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("a tall page ends with a summary block", async () => {
+    const setup = await mount(140, 44)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("SUMMARY")
+      expect(frame).toContain("runs      12")
+      expect(frame).toContain("18,240 in · 6,110 out")
+      expect(frame).toContain("$0.1284")
     } finally {
       await setup.dispose()
     }
@@ -473,7 +469,7 @@ describe("layout", () => {
     }
   })
 
-  test("the hero label is centred and the header sits at the edges", async () => {
+  test("the header sits at the edges and the hero reads from the left", async () => {
     const setup = await mount(140, 44)
     try {
       const out = lines(setup)
@@ -481,8 +477,7 @@ describe("layout", () => {
       const tokens = out.find((line) => line.includes("T O K E N S"))!
       expect(header.indexOf("lockedin")).toBeLessThan(8)
       expect(header).toContain("Jan – Nov 2026")
-      expect(tokens.indexOf("T O K E N S")).toBeGreaterThan(20)
-      expect(tokens.length - tokens.indexOf("T O K E N S")).toBeGreaterThan(20)
+      expect(tokens.indexOf("T O K E N S")).toBeLessThan(8)
     } finally {
       await setup.dispose()
     }

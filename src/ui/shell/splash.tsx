@@ -234,17 +234,48 @@ export function splashFrame(input: {
   const tick = Math.max(0, Math.floor(input.tick))
   const layout = lockLayout(width, height, phase)
 
+  /**
+   * A sparse field rather than a full wall of glyphs: one cell in five carries
+   * a mark, the lock's neighbourhood wakes up more often, and a scan row moves
+   * down the screen. The result reads as depth instead of noise.
+   */
+  const lockCenterX = layout.lockX + layout.lockW / 2
+  const lockCenterY = layout.lockY + layout.lockH / 2
+  const halo = Math.max(7, layout.lockW * 0.58)
+  const scanRow = ((tick * 2) % (height + 6)) - 3
   const rows: SplashCell[][] = []
   for (let y = 0; y < height; y++) {
     const row: SplashCell[] = []
     for (let x = 0; x < width; x++) {
       const n = hash(x, y, tick, phase)
+      const dx = x - lockCenterX
+      const dy = (y - lockCenterY) * 1.8
+      const nearLock = Math.hypot(dx, dy) < halo
+      const sparkle = n % 23 === 0
+      const scan = Math.abs(y - scanRow) <= 0 && n % 3 === 0
+      const visible = sparkle || (nearLock && n % 9 === 0) || scan
       row.push({
-        ch: glyph(x, y, tick, phase),
-        tone: n % 31 === 0 ? "fieldBright" : "field",
+        ch: visible ? glyph(x, y, tick, phase) : " ",
+        tone: sparkle || n % 61 === 0 ? "fieldBright" : "field",
       })
     }
     rows.push(row)
+  }
+
+  /** A brief seal pulse around the body as the shackle seats. */
+  if (phase >= 4) {
+    const pulseR = layout.lockW * 0.56 + (phase === 5 ? (tick % 3) * 0.7 : 0)
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const dx = x - lockCenterX
+        const dy = (y - lockCenterY) * 1.8
+        if (Math.abs(Math.hypot(dx, dy) - pulseR) > 0.8) continue
+        const localX = x - layout.lockX
+        const localY = y - layout.lockY
+        if (localX >= 0 && localY >= 0 && localX < layout.lockW && localY < layout.lockH) continue
+        if (hash(x, y, tick, phase + 11) % 2 === 0) rows[y]![x] = { ch: ".", tone: "fieldBright" }
+      }
+    }
   }
 
   if (phase > 0) {

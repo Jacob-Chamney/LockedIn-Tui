@@ -54,4 +54,15 @@ describe("settings patches", () => {
     expect(view.budgetUsd).toBe(12)
     expect(view.username).toBe("")
   })
+
+  test("usage period, warning and pause patches reach the view", () => {
+    const view = applyViewPatch(emptySettingsView(), {
+      "usage.period": "day",
+      "usage.warn_at": 0.65,
+      "usage.pause_at_limit": false,
+    })
+    expect(view.period).toBe("day")
+    expect(view.warnAt).toBe(0.65)
+    expect(view.pauseAtLimit).toBe(false)
+  })
 })

@@ -26,6 +26,9 @@ export function applyViewPatch(view: SettingsView, patch: Record<string, unknown
     else if (key === "models.max_tool_calls") next.maxToolCalls = Number(value)
     else if (key === "models.max_tokens_per_request") next.maxTokensPerRequest = Number(value)
     else if (key === "usage.budget") next.budgetUsd = Number(value)
+    else if (key === "usage.period") next.period = String(value) as SettingsView["period"]
+    else if (key === "usage.warn_at") next.warnAt = Number(value)
+    else if (key === "usage.pause_at_limit") next.pauseAtLimit = Boolean(value)
     else if (key === "archive.folder") next.archiveFolder = String(value)
     else if (key === "ui.chill_history_limit") next.historyLimit = Number(value)
     else if (key === "ui.response_style") next.responseStyle = String(value)
