@@ -7,6 +7,7 @@ import {
   selectedRow,
   settingsGroups,
   stepSetting,
+  toggleSetting,
   toggleSection,
   visibleGroups,
   typeEdit,
@@ -238,6 +239,14 @@ export function handleSettingsKeys(
         deps.update({ ...state, pane: "archive", mode: "normal" })
         event.preventDefault()
         return true
+      }
+      if (row) {
+        const toggle = toggleSetting(deps.settingsView() ?? emptySettingsView(), row.row.id)
+        if (toggle) {
+          persistSettingsPatch(deps, toggle.patch)
+          event.preventDefault()
+          return true
+        }
       }
       deps.setSettingsState((current) => beginEdit(current, groups))
       event.preventDefault()
