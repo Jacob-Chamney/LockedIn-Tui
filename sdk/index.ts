@@ -56,6 +56,12 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  comboboxLayout,
+  type ComboboxLayout as ComboboxLayoutInput,
+  type ComboboxOption as ComboboxOptionInput,
+  type ComboboxRow as ComboboxRowInput,
+} from "../src/ui/combobox"
+import {
   tagInputLayout,
   type TagInputLayout as TagInputLayoutInput,
   type TagItem as TagItemInput,
@@ -4949,6 +4955,54 @@ export function tagInput(options: TagInputOptions): SceneNode[] {
     })
   }
   return nodes
+}
+
+/** One option in a `combobox()`. */
+export type ComboboxOption = ComboboxOptionInput
+
+/** One placed suggestion row. */
+export type ComboboxRow = ComboboxRowInput
+
+/** The rows, match count and selection of a combobox. */
+export type ComboboxLayout = ComboboxLayoutInput
+
+export type ComboboxOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  width: number
+  options: readonly ComboboxOption[]
+  query: string
+  selected?: number
+  /** Rows kept; defaults to 8. */
+  maxRows?: number
+  marker?: string
+  /** Selected-row colour. Defaults to `primary`. */
+  selectedFg?: string
+  /** Other rows. Defaults to `foreground`. */
+  fg?: string
+}
+
+/**
+ * A query-filtered suggestion list with one selected row.
+ *
+ *   combobox({ anchor: "top-left", x: 2, y: 3, width: 40, query: "ses",
+ *              options: [{ id: "sessions", label: "Lock-in sessions" }] })
+ *
+ * Ranking is prefix-first with one row per group; meta is right-aligned when it
+ * fits. The selected row is marked and coloured. The command palette uses the
+ * same ranking and layout.
+ */
+export function combobox(options: ComboboxOptions): SceneNode[] {
+  const layout = comboboxLayout(options)
+  return layout.rows.map((row) => ({
+    kind: "text" as const,
+    anchor: options.anchor,
+    x: options.x,
+    y: options.y + row.index,
+    text: row.text,
+    fg: row.selected ? (options.selectedFg ?? "primary") : (options.fg ?? "foreground"),
+  }))
 }
 
 export type FormOptions = {

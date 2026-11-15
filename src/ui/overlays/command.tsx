@@ -6,7 +6,7 @@
  */
 import type { ThemePalette } from "../theme"
 import type { CommandEntry } from "../shell/commands"
-import { SelectList } from "../panels/select-list"
+import { Combobox } from "../shell/combobox"
 import { ModalFrame } from "./modal-frame"
 
 export function CommandBar(props: {
@@ -55,16 +55,18 @@ export function CommandBar(props: {
       footerTone={props.message ? "warning" : "muted"}
     >
       <box flexDirection="column" flexGrow={1} minHeight={0}>
-        <SelectList
+        <Combobox
           theme={palette()}
-          variant="inline"
-          labelWidth={Math.max(10, boxWidth() - 22)}
-          cursor={props.index}
-          rows={props.matches.slice(0, rows()).map((entry) => ({
+          options={props.matches.map((entry) => ({
             id: entry.name,
             label: entry.name,
+            description: entry.label,
             meta: entry.alias ? `→ ${entry.label}` : entry.label,
           }))}
+          query={props.query}
+          width={Math.max(10, boxWidth() - 4)}
+          selected={props.index}
+          maxRows={rows()}
         />
       </box>
     </ModalFrame>
