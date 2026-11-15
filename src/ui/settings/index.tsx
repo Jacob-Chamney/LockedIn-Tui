@@ -26,6 +26,7 @@ export {
   warnLabel,
   commitEdit,
   stepSetting,
+  toggleSetting,
   intentFor as settingsIntentFor,
   footerHints as settingsFooterHints,
   type SettingsView,

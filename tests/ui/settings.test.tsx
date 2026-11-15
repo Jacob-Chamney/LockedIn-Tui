@@ -134,12 +134,21 @@ describe("rows and groups", () => {
     expect(settings.stepSetting(VIEW, "historyLimit", 1)).toMatchObject({
       patch: { "ui.chill_history_limit": 30 },
     })
-    expect(settings.stepSetting(VIEW, "period", 1)).toEqual({
+    expect(settings.stepSetting(VIEW, "period", 1)).toBeNull()
+    expect(settings.stepSetting(VIEW, "pause", 1)).toBeNull()
+  })
+
+  test("two-option settings toggle on Enter", () => {
+    expect(settings.toggleSetting(VIEW, "period")).toEqual({
       patch: { "usage.period": "day" },
     })
-    expect(settings.stepSetting(VIEW, "pause", 1)).toEqual({
+    expect(settings.toggleSetting({ ...VIEW, period: "day" }, "period")).toEqual({
+      patch: { "usage.period": "month" },
+    })
+    expect(settings.toggleSetting(VIEW, "pause")).toEqual({
       patch: { "usage.pause_at_limit": false },
     })
+    expect(settings.toggleSetting(VIEW, "warnAt")).toBeNull()
   })
 
   test("Enter opens text fields for typing and other controls for arrows", () => {

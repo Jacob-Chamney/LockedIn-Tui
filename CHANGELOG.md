@@ -207,6 +207,8 @@ requests merge.
 
 ### Fixed
 
+- Two-option settings (Period and Pause at limit) toggle directly with Enter,
+  keeping their control visible instead of opening adjustment mode.
 - Settings values now change only after Enter: arrows or hjkl adjust the open
   value, and `+`/`-` no longer change settings.
 - Settings controls now do what they show: Period and Pause toggle with Enter,

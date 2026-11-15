@@ -22,33 +22,33 @@ async function openSettings(patches: Record<string, unknown>[]) {
   return ui
 }
 
-test("period, warn-at and pause adjust after Enter with hjkl", async () => {
+test("two-option rows toggle immediately and warn-at adjusts with hjkl", async () => {
   const patches: Record<string, unknown>[] = []
   const ui = await openSettings(patches)
   try {
     // username, theme, chat settings, providers, chat model, base URL,
     // max tool calls, max tokens, budget, period.
     for (let step = 0; step < 9; step++) await ui.press("down")
-    await ui.press("enter") // open period for adjustment
-    await ui.press("l") // increment/toggle
+    await ui.press("enter") // period toggles directly
     await ui.waitUntil(() => patches.some((patch) => "usage" in patch && "period" in (patch.usage as object)))
-    await ui.press("enter") // done
+    expect(ui.frame()).toContain("day   month")
 
     await ui.press("down") // warn at
-    await ui.press("enter")
+    await ui.press("enter") // opens adjustment
+    expect(ui.frame()).toContain("adjust")
     await ui.press("j")
+    await ui.press("j")
+    await ui.press("k")
     await ui.waitUntil(() =>
       patches.some((patch) => "usage" in patch && "warn_at" in (patch.usage as object)),
     )
     await ui.press("enter")
 
     await ui.press("down") // pause at limit
-    await ui.press("enter")
-    await ui.press("k")
+    await ui.press("enter") // toggles directly
     await ui.waitUntil(() =>
       patches.some((patch) => "usage" in patch && "pause_at_limit" in (patch.usage as object)),
     )
-    await ui.press("enter")
   } finally {
     await ui.dispose()
   }

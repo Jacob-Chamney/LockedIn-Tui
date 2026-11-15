@@ -252,6 +252,9 @@ export function move(state: SettingsState, delta: number, groups: SettingsGroup[
 export function beginEdit(state: SettingsState, groups: SettingsGroup[]): SettingsState {
   const current = selectedRow(groups, state.cursor)
   if (!current) return { ...state, notice: "no setting selected" }
+  if (current.row.control === "toggle" || current.row.control === "enum") {
+    return { ...state, editing: null, adjusting: null, notice: `${current.row.label} toggles with Enter` }
+  }
   if (current.row.control !== undefined && current.row.control !== "text") {
     return {
       ...state,
@@ -372,9 +375,16 @@ export function stepSetting(
     const next = stepped(view.historyLimit, Math.sign(delta), 10, 0, 10_000)
     return next === view.historyLimit ? null : { patch: { "ui.chill_history_limit": next }, next }
   }
+  return null
+}
+
+/** Enter on a two-option row flips it immediately; no adjustment mode. */
+export function toggleSetting(
+  view: SettingsView,
+  rowId: string,
+): { patch: Record<string, unknown> } | null {
   if (rowId === "period") {
-    const next = view.period === "day" ? "month" : "day"
-    return { patch: { "usage.period": next } }
+    return { patch: { "usage.period": view.period === "day" ? "month" : "day" } }
   }
   if (rowId === "pause") {
     return { patch: { "usage.pause_at_limit": !view.pauseAtLimit } }
