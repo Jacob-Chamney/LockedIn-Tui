@@ -333,6 +333,14 @@ import {
   type SparklineReduce as SparklineReduceInput,
 } from "../src/ui/sparkline"
 import {
+  progressRingLayout,
+  progressRingText as renderProgressRing,
+  type ProgressRingCell as ProgressRingCellInput,
+  type ProgressRingLayout as ProgressRingLayoutInput,
+  type ProgressRingOptions as ProgressRingLayoutOptions,
+  type ProgressRingRow as ProgressRingRowInput,
+} from "../src/ui/progress-ring"
+import {
   sparkbarLayout,
   sparkbarText as renderSparkbar,
   type SparkbarLayout as SparkbarLayoutInput,
@@ -6160,6 +6168,77 @@ export function sparkbar(options: SparkbarOptions): SceneNode[] {
 /** The sparkbar rows without placement, top first. */
 export function sparkbarText(options: SparkbarLayoutOptions): string[] {
   return renderSparkbar(options)
+}
+
+/** One braille cell in a `progressRing()`. */
+export type ProgressRingCell = ProgressRingCellInput
+
+/** One ring row. */
+export type ProgressRingRow = ProgressRingRowInput
+
+/** The rows, percentage and label of a progress ring. */
+export type ProgressRingLayout = ProgressRingLayoutInput
+
+export type ProgressRingOptions = Omit<ProgressRingLayoutOptions, "value"> & {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Progress from 0 to 1; clamped. */
+  value: number
+  /** Filled-arc colour. Defaults to `primary`. */
+  filledFg?: string
+  /** Track colour. Defaults to `line`. */
+  trackFg?: string
+}
+
+/**
+ * A braille progress ring with a percentage label.
+ *
+ *   progressRing({ anchor: "top-left", x: 2, y: 2, value: 0.64 })
+ *   // a ring with roughly 64% of the arc filled
+ *
+ * The centre stays hollow. Cells on the progress arc use `filledFg` and the
+ * remaining ring uses `trackFg`; the label carries the number. `progressRingText`
+ * returns the rows without placement.
+ */
+export function progressRing(options: ProgressRingOptions): SceneNode[] {
+  const layout = progressRingLayout(options)
+  const nodes: SceneNode[] = []
+  layout.rows.forEach((row, index) => {
+    let run: { x: number; text: string; filled: boolean } | null = null
+    const flush = () => {
+      if (run !== null && run.text !== "") {
+        nodes.push({
+          kind: "text",
+          anchor: options.anchor,
+          x: options.x + run.x,
+          y: options.y + index,
+          text: run.text,
+          fg: run.filled ? (options.filledFg ?? "primary") : (options.trackFg ?? "line"),
+        })
+      }
+      run = null
+    }
+    for (const cell of row.cells) {
+      if (cell.text === " ") {
+        flush()
+        continue
+      }
+      if (run !== null && run.filled === cell.filled) {
+        run.text += cell.text
+      } else {
+        flush()
+        run = { x: cell.x, text: cell.text, filled: cell.filled }
+      }
+    }
+    flush()
+  })
+  return nodes
+}
+
+/** The ring rows without placement, top first. */
+export function progressRingText(options: Omit<ProgressRingOptions, "anchor" | "x" | "y" | "filledFg" | "trackFg">): string {
+  return renderProgressRing(options)
 }
 
 export type FormOptions = {

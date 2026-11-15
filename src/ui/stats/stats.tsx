@@ -20,6 +20,7 @@ import { Delta } from "../shell/delta"
 import { LineChart } from "../shell/line-chart"
 import { Sparkbar } from "../shell/sparkbar"
 import { StatCard } from "../shell/stat-card"
+import { ProgressRing } from "../shell/progress-ring"
 import { sparklineText } from "../sparkline"
 import { tabLayout } from "../tabs"
 import { Bars } from "../shell/bars"
@@ -245,6 +246,14 @@ export function StatsPage(props: {
       ? sparklineText({ values, width: 60 })
       : ""
   }
+  /** Days in the selected range, for the active-days ring. */
+  const rangeDays = () =>
+    heat().weeks.reduce(
+      (sum, week) => sum + week.filter((day) => day !== null).length,
+      0,
+    )
+  const activeShare = () =>
+    rangeDays() === 0 ? 0 : Math.max(0, Math.min(1, props.summary.activeDays / rangeDays()))
   /** Token totals per calendar week, for the compact column chart. */
   const weeklyTokens = () =>
     heat().weeks.map((week) =>
@@ -417,28 +426,43 @@ export function StatsPage(props: {
         ) : null}
         <box height={1} flexShrink={0} />
 
-        <box flexDirection="row" width={statsWidth()} flexShrink={0}>
-          <StatCard
-            theme={palette()}
-            value={`${props.summary.bestStreak} days`}
-            label={label()}
-            detail={props.height >= 34 ? "in a row" : undefined}
-            width={statWidth()}
-          />
-          <StatCard
-            theme={palette()}
-            value={formatCount(props.summary.activeDays)}
-            label={props.width < 60 ? "active" : "active days"}
-            detail={props.height >= 34 ? "in range" : undefined}
-            width={statWidth()}
-          />
-          <StatCard
-            theme={palette()}
-            value={formatCount(props.summary.overview.runs)}
-            label="sessions"
-            detail={props.height >= 34 ? "recorded" : undefined}
-            width={statWidth()}
-          />
+        <box flexDirection="row" alignItems="center" flexShrink={0}>
+          <box flexDirection="row" width={statsWidth()} flexShrink={0}>
+            <StatCard
+              theme={palette()}
+              value={`${props.summary.bestStreak} days`}
+              label={label()}
+              detail={props.height >= 34 ? "in a row" : undefined}
+              width={statWidth()}
+            />
+            <StatCard
+              theme={palette()}
+              value={formatCount(props.summary.activeDays)}
+              label={props.width < 60 ? "active" : "active days"}
+              detail={props.height >= 34 ? "in range" : undefined}
+              width={statWidth()}
+            />
+            <StatCard
+              theme={palette()}
+              value={formatCount(props.summary.overview.runs)}
+              label="sessions"
+              detail={props.height >= 34 ? "recorded" : undefined}
+              width={statWidth()}
+            />
+          </box>
+          {props.height >= 34 && props.width >= 120 && rangeDays() > 0 ? (
+            <box flexDirection="row" alignItems="center" marginLeft={2} flexShrink={0}>
+              <ProgressRing theme={palette()} value={activeShare()} size={6} />
+              <box flexDirection="column" marginLeft={1}>
+                <text fg={palette().muted} wrapMode="none">
+                  {"ACTIVE"}
+                </text>
+                <text fg={palette().foreground} wrapMode="none">
+                  {`${props.summary.activeDays}/${rangeDays()} days`}
+                </text>
+              </box>
+            </box>
+          ) : null}
         </box>
         {props.height >= 36 && props.width >= 60 && modelItems().length > 0 ? (
           <box
