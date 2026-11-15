@@ -30,6 +30,7 @@ import {
   menu,
   prompt,
   kpiStrip,
+  legend,
   list,
   loop,
   meter,
@@ -1398,4 +1399,39 @@ test("breadcrumbs elide the middle and honour colours", () => {
   expect(nodes[2]).toMatchObject({ fg: "secondary" })
   expect(nodes[4]).toMatchObject({ fg: "warning" })
   expect(breadcrumbs({ anchor: "top-left", x: 0, y: 0, width: 0, items: ["Chat"] })).toEqual([])
+})
+
+test("legend places glyphs and labels with their tones", () => {
+  const nodes = legend({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 20,
+    items: [
+      { glyph: "·", label: "less", tone: "muted" },
+      { glyph: "█", label: "more", tone: "primary" },
+    ],
+  })
+  expect(nodes).toHaveLength(4)
+  expect(nodes[0]).toMatchObject({ x: 2, y: 3, text: "·", fg: "muted" })
+  expect(nodes[1]).toMatchObject({ x: 4, y: 3, text: "less", fg: "muted" })
+  expect(nodes[2]).toMatchObject({ x: 10, y: 3, text: "█", fg: "primary" })
+  expect(nodes[3]).toMatchObject({ x: 12, y: 3, text: "more", fg: "muted" })
+})
+
+test("legend can hide labels and override colours", () => {
+  const nodes = legend({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 10,
+    labels: false,
+    gap: 1,
+    tone: "warning",
+    items: [{ glyph: "a" }, { glyph: "b" }],
+  })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[0]).toMatchObject({ x: 0, text: "a", fg: "warning" })
+  expect(nodes[1]).toMatchObject({ x: 2, text: "b", fg: "warning" })
+  expect(legend({ anchor: "top-left", x: 0, y: 0, width: 10, items: [] })).toEqual([])
 })

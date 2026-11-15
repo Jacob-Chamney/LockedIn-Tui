@@ -13,7 +13,8 @@ import type { ThemePalette } from "../theme"
 import { LOCKED_IN_LOGO, LOCKED_IN_LOGO_COMPACT } from "../shell/brand"
 import { compactTokens } from "./big-number"
 import { buildHeatmap } from "./heatmap"
-import { heatmapLayout } from "../heatmap"
+import { HEATMAP_RAMP, heatmapLayout } from "../heatmap"
+import { Legend } from "../shell/legend"
 import { sparklineText } from "../sparkline"
 import { tabLayout } from "../tabs"
 import { Bars } from "../shell/bars"
@@ -347,6 +348,17 @@ export function StatsPage(props: {
             </box>
           ))}
         </box>
+        {props.height >= 30 ? (
+          <Legend
+            theme={palette()}
+            items={HEATMAP_RAMP.map((glyph, level) => ({
+              glyph,
+              ...(level === 0 ? { label: "less" } : level === 4 ? { label: "more" } : {}),
+              tone: level === 0 ? "muted" : "primary",
+            }))}
+            width={Math.min(props.width - 8, 60)}
+          />
+        ) : null}
         <box height={1} flexShrink={0} />
 
         <box

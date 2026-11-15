@@ -55,6 +55,7 @@ import {
 } from "../src/ui/accordion"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
+import { legendLayout, type LegendItem as LegendItemInput } from "../src/ui/legend"
 import {
   breadcrumbs as breadcrumbLayout,
   type BreadcrumbSegment as BreadcrumbSegmentInput,
@@ -2836,6 +2837,66 @@ export function breadcrumbs(options: BreadcrumbsOptions): SceneNode[] {
                 : (options.fg ?? "muted"),
     })
     x += segment.text.length
+  }
+  return nodes
+}
+
+/** One glyph and optional label in a `legend()`. */
+export type LegendItem = LegendItemInput
+
+export type LegendOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Available columns for the whole row. */
+  width: number
+  items: readonly LegendItem[]
+  /** Spaces between entries; defaults to 2. */
+  gap?: number
+  /** Draw labels; defaults true. */
+  labels?: boolean
+  /** Tone for items without one. Defaults to `muted`. */
+  tone?: string
+  /** Label colour. Defaults to `muted`. */
+  labelFg?: string
+}
+
+/**
+ * A single-row legend of coloured glyphs and labels.
+ *
+ *   legend({ anchor: "top-left", x: 2, y: 12, width: 40, items: [
+ *     { glyph: "·", label: "less", tone: "muted" },
+ *     { glyph: "░", tone: "muted" },
+ *     { glyph: "▒", tone: "primary" },
+ *     { glyph: "█", label: "more", tone: "primary" },
+ *   ] })
+ *
+ * Entries are placed left to right with `gap`; the first entry that does not
+ * fit ends the row rather than clipping a swatch. `labels: false` shows glyphs
+ * only.
+ */
+export function legend(options: LegendOptions): SceneNode[] {
+  const segments = legendLayout(options)
+  const nodes: SceneNode[] = []
+  for (const segment of segments) {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + segment.x,
+      y: options.y,
+      text: segment.glyph,
+      fg: segment.tone,
+    })
+    if (segment.label !== "") {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x + segment.x + segment.glyph.length + 1,
+        y: options.y,
+        text: segment.label,
+        fg: options.labelFg ?? "muted",
+      })
+    }
   }
   return nodes
 }
