@@ -56,6 +56,10 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  calendarLayout,
+  type CalendarCell as CalendarCellInput,
+} from "../src/ui/calendar"
+import {
   kanbanLayout,
   type KanbanCard as KanbanCardInput,
   type KanbanColumn as KanbanColumnInput,
@@ -3416,6 +3420,93 @@ export function kanban(options: KanbanOptions): SceneNode[] {
       })
     }
   }
+  return nodes
+}
+
+/** One day cell in a `calendar()`. */
+export type CalendarCell = CalendarCellInput
+
+export type CalendarOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Grid width in cells. */
+  width: number
+  /** Any ISO date in the month to show. */
+  month: string
+  /** ISO dates with activity. */
+  marked?: readonly string[]
+  /** ISO date to mark as today. */
+  today?: string
+  /** Week starts Monday; defaults true. */
+  mondayFirst?: boolean
+  /** Columns per day; defaults to 3. */
+  cellWidth?: number
+  /** Title colour. Defaults to `primary`. */
+  titleFg?: string
+  /** Weekday-header colour. Defaults to `muted`. */
+  weekdayFg?: string
+  /** Activity-day colour. Defaults to `primary`. */
+  markedFg?: string
+  /** Today colour. Defaults to `warning`. */
+  todayFg?: string
+  /** Ordinary day colour. Defaults to `muted`. */
+  dayFg?: string
+  /** Optional background for today's cell. */
+  todayBg?: string
+}
+
+/**
+ * A month grid with weekday headers and activity/today marks.
+ *
+ *   calendar({ anchor: "top-left", x: 2, y: 2, width: 21, month: "2026-11-01",
+ *              marked: ["2026-11-05"], today: "2026-11-10" })
+ *
+ * Today wins over an activity mark for colour. The grid is Monday-first by
+ * default; `mondayFirst: false` starts on Sunday. Invalid months draw nothing.
+ */
+export function calendar(options: CalendarOptions): SceneNode[] {
+  const layout = calendarLayout(options)
+  if (layout.weeks.length === 0) return []
+  const nodes: SceneNode[] = [
+    {
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      text: layout.title,
+      fg: options.titleFg ?? "primary",
+    },
+  ]
+  layout.weekdays.forEach((label, column) => {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + column * layout.cellWidth,
+      y: options.y + 1,
+      text: label,
+      fg: options.weekdayFg ?? "muted",
+    })
+  })
+  layout.weeks.forEach((week, row) => {
+    week.forEach((cell, column) => {
+      if (cell.day === null) return
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x + column * layout.cellWidth,
+        y: options.y + 2 + row,
+        text: cell.glyph,
+        fg:
+          cell.today
+            ? (options.todayFg ?? "warning")
+            : cell.marked
+              ? (options.markedFg ?? "primary")
+              : (options.dayFg ?? "muted"),
+        ...(cell.today && options.todayBg !== undefined ? { bg: options.todayBg } : {}),
+      })
+    })
+  })
   return nodes
 }
 

@@ -62,6 +62,7 @@ describe("loaded lists reach the menus", () => {
     try {
       await ui.waitFor("lock-in · Physics unit 4")
       expect(ui.frame()).toContain("skill · learn cpp")
+      expect(ui.frame()).toContain("November 2026")
     } finally {
       await ui.dispose()
     }

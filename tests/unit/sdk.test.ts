@@ -7,6 +7,7 @@ import {
   accordion,
   badges,
   bars,
+  calendar,
   breadcrumbs,
   callout,
   card,
@@ -1715,4 +1716,49 @@ test("kanban reports hidden cards and honours colours", () => {
   expect(nodes[1]).toMatchObject({ text: "  one", fg: "secondary" })
   expect(nodes[2]).toMatchObject({ y: 2, text: "+1 more", fg: "warning" })
   expect(kanban({ anchor: "top-left", x: 0, y: 0, width: 20, columns: [] })).toEqual([])
+})
+
+test("calendar draws the month, weekdays and marked days", () => {
+  const nodes = calendar({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 21,
+    month: "2026-11-15",
+    marked: ["2026-11-05"],
+    today: "2026-11-10",
+    todayBg: "surface",
+  })
+  expect(nodes).toHaveLength(38)
+  expect(nodes[0]).toMatchObject({ x: 2, y: 3, text: "November 2026", fg: "primary" })
+  expect(nodes[1]).toMatchObject({ x: 2, y: 4, text: "Mo", fg: "muted" })
+  const day1 = nodes.find((node) => node.kind === "text" && node.text === " 1" && node.y === 5)!
+  expect(day1).toMatchObject({ x: 20, fg: "muted" })
+  const day5 = nodes.find((node) => node.kind === "text" && node.text === " 5" && node.y === 6)!
+  expect(day5).toMatchObject({ x: 11, fg: "primary" })
+  const today = nodes.find((node) => node.kind === "text" && node.text === "10")!
+  expect(today).toMatchObject({ x: 5, y: 7, fg: "warning", bg: "surface" })
+})
+
+test("calendar honours Sunday-first, colours and invalid months", () => {
+  const sunday = calendar({ anchor: "top-left", x: 0, y: 0, width: 21, month: "2026-11-01", mondayFirst: false })
+  expect(sunday[1]).toMatchObject({ text: "Su" })
+  const day1 = sunday.find((node) => node.kind === "text" && node.text === " 1")!
+  expect(day1).toMatchObject({ x: 0, y: 2 })
+
+  const custom = calendar({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 21,
+    month: "2026-11-01",
+    marked: ["2026-11-02"],
+    titleFg: "accent",
+    markedFg: "success",
+    dayFg: "foreground",
+  })
+  expect(custom[0]).toMatchObject({ fg: "accent" })
+  const marked = custom.find((node) => node.kind === "text" && node.text === " 2")!
+  expect(marked).toMatchObject({ fg: "success" })
+  expect(calendar({ anchor: "top-left", x: 0, y: 0, width: 21, month: "nope" })).toEqual([])
 })
