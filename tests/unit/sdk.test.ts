@@ -50,6 +50,7 @@ import {
   loop,
   meter,
   mixHex,
+  outline,
   notice,
   pingPong,
   scrollbar,
@@ -2307,4 +2308,42 @@ test("divider fits a wide label and honours colours", () => {
   const custom = divider({ anchor: "top-left", x: 0, y: 0, width: 6, glyph: "=", lineFg: "warning" })
   expect(custom[0]).toMatchObject({ text: "======", fg: "warning" })
   expect(divider({ anchor: "top-left", x: 0, y: 0, width: 0 })).toEqual([])
+})
+
+test("outline marks depth and the current section", () => {
+  const nodes = outline({
+    anchor: "top-left",
+    x: 2,
+    y: 1,
+    width: 60,
+    current: 1,
+    items: [
+      { id: "a", label: "Intro", depth: 1 },
+      { id: "b", label: "Detail", depth: 2 },
+      { id: "c", label: "Deep", depth: 3 },
+    ],
+  })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 1, text: "◆  Intro", fg: "muted" })
+  expect(nodes[1]).toMatchObject({ x: 12, y: 1, text: "◇▸ Detail", fg: "primary" })
+  expect(nodes[2]).toMatchObject({ x: 23, y: 1, text: "·  Deep", fg: "muted" })
+})
+
+test("outline keeps the current item visible and honours colours", () => {
+  const nodes = outline({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 14,
+    current: 1,
+    currentFg: "accent",
+    fg: "secondary",
+    items: [
+      { id: "a", label: "Intro", depth: 1 },
+      { id: "b", label: "Detail", depth: 2 },
+    ],
+  })
+  expect(nodes).toHaveLength(1)
+  expect(nodes[0]).toMatchObject({ text: "◇▸ Detail", fg: "accent" })
+  expect(outline({ anchor: "top-left", x: 0, y: 0, width: 20, items: [] })).toEqual([])
 })
