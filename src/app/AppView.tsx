@@ -47,6 +47,8 @@ export type AppViewProps = {
     activeAgentId?: string | null
   } | null
   paneTitle?: string
+  /** Plain key hints for the active surface, shown in the status bar centre. */
+  paneHints?: string[]
   hints: GeneratedRow[]
   overlayRows: GeneratedRow[]
   context: string
@@ -110,6 +112,7 @@ export function AppView(props: AppViewProps) {
         explorerDetail={props.explorerDetail}
         agentSidebar={props.agentSidebar}
         paneTitle={props.paneTitle}
+        paneHints={props.paneHints}
         hints={props.hints}
         overlayRows={props.overlayRows}
         context={props.context}

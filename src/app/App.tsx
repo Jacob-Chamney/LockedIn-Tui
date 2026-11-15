@@ -415,6 +415,11 @@ export function App(props: {
   }
 
   const hints = () => usableRows(sides()[0]!)
+  /** Key hints live in the status bar centre so they read as global chrome. */
+  const paneHints = () =>
+    current().pane === "chat"
+      ? ["Enter send", "⇧Enter newline", "Esc normal"]
+      : undefined
 
   const paneTitle = () => PANE_TITLES[current().pane]
 
@@ -5389,6 +5394,7 @@ export function App(props: {
       }
       paneTitle={paneTitle()}
       hints={hints()}
+      paneHints={paneHints()}
       overlayRows={leaderRows()}
       context={contextLabel()}
       tokens={usage().tokens}

@@ -162,6 +162,8 @@ requests merge.
 
 ### Changed
 
+- Chat send keys moved from the composer footer into the centre of the status
+  bar as plain, unhighlighted hints; the composer placeholder is shorter.
 - Provider settings rows, session-home coverage and task rows now use the
   shared list and status elements; `ListRow` badges can sit beside a value and
   status dots accept custom glyphs and tones.

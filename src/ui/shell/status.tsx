@@ -42,6 +42,8 @@ export function StatusBar(props: {
   overlay: Overlay
   context: string
   hints: GeneratedRow[]
+  /** Plain key hints shown in the centre of the bar. */
+  keyHints?: string[]
   tokens: number
   /** `null` when no price is known — never rendered as `$0.0000`. */
   cost: number | null
@@ -86,6 +88,26 @@ export function StatusBar(props: {
     return out
   }
   const chipWidth = () => chips().reduce((sum, chip) => sum + chip.text.length, 0)
+  const hintLine = () => (props.keyHints ?? []).join(" · ")
+  const leftWidth = () => {
+    const parts = layout()
+    return (
+      chipWidth() +
+      (parts.showPlugin ? parts.pluginText.length : 0) +
+      (parts.showNote ? parts.noteText.length : 0)
+    )
+  }
+  const tailWidth = () => layout().tail.length
+  const rightWidth = () => (layout().usageText ? layout().usageText.length + 3 : 0) + tailWidth()
+  /**
+   * Usage keeps its full text; when the keys do not fit beside it, the centre
+   * stays empty instead of clipping either side.
+   */
+  const centreText = () => {
+    if (hintLine() === "") return ""
+    const room = props.width - leftWidth() - rightWidth() - 2
+    return room >= hintLine().length + 2 ? hintLine() : ""
+  }
   const tailFull = "␣ · ? help"
   const tailMid = "? help"
   const tailShort = "?"
@@ -124,7 +146,7 @@ export function StatusBar(props: {
       backgroundColor={palette().surface}
       justifyContent="space-between"
     >
-      <box flexDirection="row">
+      <box flexDirection="row" flexShrink={0}>
         {chips().map((chip) => (
           <text fg={chip.fg} bg={chip.bg} wrapMode="none">
             {chip.text}
@@ -165,7 +187,14 @@ export function StatusBar(props: {
           </text>
         ) : null}
       </box>
-      <box flexDirection="row">
+      <box flexGrow={1} minWidth={0} flexDirection="row" justifyContent="center">
+        {centreText() !== "" ? (
+          <text fg={palette().muted} wrapMode="none">
+            {centreText()}
+          </text>
+        ) : null}
+      </box>
+      <box flexDirection="row" flexShrink={0}>
         {layout().usageText ? (
           <>
             <text fg={palette().muted} wrapMode="none">
