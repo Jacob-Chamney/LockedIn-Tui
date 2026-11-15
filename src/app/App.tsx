@@ -5288,12 +5288,16 @@ export function App(props: {
         ...managerState().rows.map((row) => ({
           id: `lockin:${row.id}`,
           label: `lock-in · ${row.name}`,
-          detail: `${row.sources} source${row.sources === 1 ? "" : "s"} · ${row.steps.done}/${row.steps.total} steps`,
+          detail: `${row.sources} source${row.sources === 1 ? "" : "s"}`,
+          progress: { done: row.steps.done, total: row.steps.total },
         })),
         ...skillsState().goals.map((goal) => ({
           id: `skill:${goal.id}`,
           label: `skill · ${goal.name}`,
-          detail: `${goal.chapters ? `${goal.chapters.done}/${goal.chapters.total} chapters` : `${goal.stage.done}/${goal.stage.total} stages`} · ${goal.chats} chat${goal.chats === 1 ? "" : "s"}`,
+          detail: `${goal.chats} chat${goal.chats === 1 ? "" : "s"}`,
+          progress: goal.chapters
+            ? { done: goal.chapters.done, total: goal.chapters.total }
+            : { done: goal.stage.done, total: goal.stage.total },
         })),
         ...projects().map((project) => ({
           id: `project:${project.id}`,

@@ -18,6 +18,8 @@ export type SelectRow = {
   tone?: "normal" | "muted" | "error"
   /** A health dot before the label. */
   status?: { state: StatusState; label?: string }
+  /** A compact done/total chip after the label. */
+  progress?: { done: number; total: number; width?: number }
 }
 
 /** The row chrome selection always uses, for rows with custom cells. */
@@ -75,6 +77,7 @@ export function SelectList(props: {
             labelWidth={props.labelWidth}
             tone={row.tone === "error" ? "error" : row.tone === "muted" ? "muted" : "normal"}
             status={row.status}
+            progress={row.progress}
           />
         ))}
       </box>
@@ -91,6 +94,7 @@ export function SelectList(props: {
           detail={row.detail}
           tone={row.tone === "error" ? "error" : row.tone === "muted" ? "muted" : "normal"}
           status={row.status}
+          progress={row.progress}
         />
       ))}
     </box>
