@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `numberStepper()` draws an inline minus/value/plus control; Settings Budget is
+  steppable with `-`/`+`.
 - `thresholdBar()` draws a marked threshold scale; Appearance shows username
   contrast against AA/AAA ticks.
 - `rangeSlider()` draws a two-handle track with a filled span and label;

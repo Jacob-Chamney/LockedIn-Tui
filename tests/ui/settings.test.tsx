@@ -103,6 +103,27 @@ describe("rows and groups", () => {
     expect(models.rows.find((row) => row.id === "chatModel")?.value).toBe("deepseek-v4.1-flash")
   })
 
+  test("Budget renders an inline number stepper", async () => {
+    const setup = await mount(120, 36)
+    try {
+      const row = lines(setup).find((line) => line.includes("Budget"))!
+      expect(row).toContain("− $5.00")
+      expect(row).toContain("+")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("stepSetting clamps the budget and leaves other rows alone", () => {
+    expect(settings.stepSetting(VIEW, "budget", 1)).toEqual({
+      patch: { "usage.budget": 6 },
+      next: 6,
+    })
+    expect(settings.stepSetting({ ...VIEW, budgetUsd: 0 }, "budget", -1)).toBeNull()
+    expect(settings.stepSetting(VIEW, "warnAt", 1)).toBeNull()
+    expect(settings.stepSetting({ ...VIEW, budgetUsd: 1000 }, "budget", 1)).toBeNull()
+  })
+
   test("MCP servers render as tags in the value column", async () => {
     const setup = await mount(120, 36)
     try {
@@ -200,6 +221,7 @@ describe("rows and groups", () => {
   test("the footer names the fold and hint keys", () => {
     expect(settings.settingsFooterHints()).toContain("h/l fold")
     expect(settings.settingsFooterHints()).toContain("v hint")
+    expect(settings.settingsFooterHints()).toContain("-/+ step")
   })
 
   test("the value column is aligned across rows", () => {

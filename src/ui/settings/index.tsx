@@ -25,6 +25,7 @@ export {
   budgetLabel,
   warnLabel,
   commitEdit,
+  stepSetting,
   intentFor as settingsIntentFor,
   footerHints as settingsFooterHints,
   type SettingsView,
