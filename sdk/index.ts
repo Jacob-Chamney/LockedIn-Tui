@@ -332,6 +332,13 @@ import {
   type SparklineOptions as SparklineInput,
   type SparklineReduce as SparklineReduceInput,
 } from "../src/ui/sparkline"
+import {
+  sparkbarLayout,
+  sparkbarText as renderSparkbar,
+  type SparkbarLayout as SparkbarLayoutInput,
+  type SparkbarOptions as SparkbarLayoutOptions,
+  type SparkbarReduce as SparkbarReduceInput,
+} from "../src/ui/sparkbar"
 
 export type {
   CommandPermission,
@@ -6111,6 +6118,48 @@ export function dataTable(options: DataTableOptions): SceneNode[] {
 /** The data table as plain lines, header and rule first. */
 export function dataTableText(options: Omit<DataTableOptions, "anchor" | "x" | "y" | "headerFg" | "ruleFg" | "selectedFg" | "fg">): string[] {
   return renderDataTable(options)
+}
+
+/** How a series collapses into a sparkbar column. */
+export type SparkbarReduce = SparkbarReduceInput
+
+/** The rows, buckets and levels of a sparkbar. */
+export type SparkbarLayout = SparkbarLayoutInput
+
+export type SparkbarOptions = Omit<SparkbarLayoutOptions, "values"> & {
+  anchor: ScenePosition
+  x: number
+  y: number
+  values: readonly number[]
+  /** Column colour. Defaults to `primary`. */
+  fg?: string
+}
+
+/**
+ * A compact column chart of stacked block glyphs.
+ *
+ *   sparkbar({ anchor: "top-left", x: 2, y: 2, width: 20, height: 2,
+ *             values: [1, 3, 7, 2] })
+ *
+ * Values bucket to the chart width (`sum`, `max` or `mean`), and each column is
+ * a whole number of cells measured from the bottom. `max` pins the scale and
+ * `glyph` replaces `█`. `sparkbarText()` returns the rows without placement.
+ */
+export function sparkbar(options: SparkbarOptions): SceneNode[] {
+  const layout = sparkbarLayout(options)
+  return layout.rows.map((row, index) => ({
+    kind: "text" as const,
+    anchor: options.anchor,
+    x: options.x,
+    y: options.y + index,
+    text: row,
+    fg: options.fg ?? "primary",
+  }))
+}
+
+/** The sparkbar rows without placement, top first. */
+export function sparkbarText(options: SparkbarLayoutOptions): string[] {
+  return renderSparkbar(options)
 }
 
 export type FormOptions = {
