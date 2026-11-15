@@ -317,7 +317,7 @@ export function StatsPage(props: {
         ) : null}
       </box>
 
-      <box flexGrow={1} minHeight={0} flexDirection="column" paddingTop={1}>
+      <box flexGrow={1} minHeight={0} flexDirection="column" justifyContent="center" paddingTop={1}>
         {wideHero() ? (
           <box flexDirection="row" justifyContent="space-between" alignItems="flex-start" flexShrink={0}>
             <box flexDirection="column" flexShrink={0}>
@@ -423,7 +423,7 @@ export function StatsPage(props: {
 
         <box height={1} flexShrink={0} />
         <text fg={palette().secondary} wrapMode="none">
-          {"ACTIVITY"}
+          {`ACTIVITY · ${rangeDays()} DAY${rangeDays() === 1 ? "" : "S"}`}
         </text>
         <box flexDirection="column" flexShrink={0}>
           <text fg={palette().muted} wrapMode="none">
@@ -458,16 +458,16 @@ export function StatsPage(props: {
         ) : null}
 
         {props.height >= 40 && props.width >= 70 && dailyTokens().some((value) => value > 0) ? (
-          <box flexDirection="column" width={Math.min(props.width - 8, 72)} marginTop={1} flexShrink={0}>
+          <box flexDirection="column" width={Math.min(props.width - 8, 110)} marginTop={1} flexShrink={0}>
             <text fg={palette().secondary} wrapMode="none">
-              {"TOKENS OVER TIME"}
+              {`TOKENS OVER TIME · ${dailyTokens().length} DAY${dailyTokens().length === 1 ? "" : "S"}`}
             </text>
             <LineChart
               theme={palette()}
               values={dailyTokens()}
-              width={Math.min(props.width - 8, 72)}
-              height={4}
-              axisWidth={5}
+              width={Math.min(props.width - 8, 110)}
+              height={props.height >= 44 ? 5 : 4}
+              axisWidth={6}
               labels={[compactTokens(Math.max(...dailyTokens())), "0"]}
             />
           </box>
@@ -476,7 +476,7 @@ export function StatsPage(props: {
         {props.height >= 32 && props.width >= 60 && modelItems().length > 0 ? (
           <box flexDirection="column" width={chartWidth()} marginTop={1} flexShrink={0}>
             <text fg={palette().secondary} wrapMode="none">
-              {"BY MODEL"}
+              {`BY MODEL · ${modelItems().length}`}
             </text>
             {props.height >= 42 && props.width >= 80 ? (
               <Treemap theme={palette()} items={treemapItems()} width={chartWidth()} height={3} />

@@ -388,7 +388,7 @@ export function ShellLayout(props: LayoutProps) {
               width={props.width}
               height={props.height}
               backgroundColor={palette().background}
-              opacity={0.6}
+              opacity={0.82}
             />
             {/* A full-body row that centres its child: rounding can never
                 leave the popup a cell off, and it is centred on both axes. */}
@@ -451,16 +451,21 @@ export function ShellLayout(props: LayoutProps) {
         theme={props.theme}
         width={props.width}
         pane={props.state.focus}
+        surfacePane={props.state.pane}
         paneTitle={props.paneTitle}
         note={
           props.paneNote ??
-          (props.state.focus === "chat"
+          (props.state.pane === "chat" && props.state.focus === "chat"
             ? props.chat?.model
               ? "read-only"
               : "no model"
             : undefined)
         }
-        noteTone={props.state.focus === "chat" && !props.chat?.model ? "warn" : "muted"}
+        noteTone={
+          props.state.pane === "chat" && props.state.focus === "chat" && !props.chat?.model
+            ? "warn"
+            : "muted"
+        }
         toolMode={props.toolMode}
         mode={props.state.mode}
         overlay={props.state.overlay}
