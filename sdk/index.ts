@@ -56,6 +56,14 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  statusBannerLayout,
+  statusBannerStyle,
+  statusBannerText as renderStatusBanner,
+  type StatusBannerLayout as StatusBannerLayoutInput,
+  type StatusBannerStyle as StatusBannerStyleInput,
+  type StatusBannerTone as StatusBannerToneInput,
+} from "../src/ui/status-banner"
+import {
   wizardLayout,
   type WizardGlyphs as WizardGlyphsInput,
   type WizardLayout as WizardLayoutInput,
@@ -5237,6 +5245,72 @@ export function wizard(options: WizardOptions): SceneNode[] {
           ? (options.currentFg ?? "primary")
           : (options.upcomingFg ?? "muted"),
   }))
+}
+
+/** The state a status banner shows. */
+export type StatusBannerTone = StatusBannerToneInput
+
+/** The fill/ink roles and glyph for a banner tone. */
+export type StatusBannerStyle = StatusBannerStyleInput
+
+/** The fitted message, action and glyph of a banner. */
+export type StatusBannerLayout = StatusBannerLayoutInput
+
+export type StatusBannerOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  width: number
+  message: string
+  tone?: StatusBannerTone
+  /** Right-aligned hint, such as `Esc clear`. */
+  action?: string
+  /** Fill override. */
+  bg?: string
+  /** Text override. */
+  fg?: string
+}
+
+/**
+ * A one-line filled status banner.
+ *
+ *   statusBanner({ anchor: "top-left", x: 2, y: 3, width: 40,
+ *                  tone: "warning", message: "choose a source" })
+ *   // ! choose a source
+ *
+ * The glyph and tone carry the state (`·`, `✓`, `!`, `×`). An action is
+ * right-aligned when it fits; the message is fitted between them. `bg`/`fg`
+ * override the tone colours, and `statusBannerText()` returns the line.
+ */
+export function statusBanner(options: StatusBannerOptions): SceneNode[] {
+  const layout = statusBannerLayout(options)
+  if (layout.width === 0) return []
+  const style = statusBannerStyle(layout.tone)
+  return [
+    {
+      kind: "rect",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      width: layout.width,
+      height: 1,
+      fill: true,
+      color: options.bg ?? style.fill,
+    },
+    {
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      text: layout.text,
+      fg: options.fg ?? style.ink,
+    },
+  ]
+}
+
+/** The banner text without placement. */
+export function statusBannerText(options: Omit<StatusBannerOptions, "anchor" | "x" | "y">): string {
+  return renderStatusBanner(options)
 }
 
 export type FormOptions = {
