@@ -5010,6 +5010,12 @@ export function App(props: {
     return explorerRowsFor({
       session: buffer.kind === "session" ? { name: buffer.label } : null,
       skill: buffer.kind === "skill" ? { name: buffer.label } : null,
+      counts: {
+        sessions: managerState().rows.length,
+        goals: skillsState().goals.length,
+        projects: projects().length,
+        recent: managerState().rows.length + skillsState().goals.length + projects().length,
+      },
     })
   }
   const [explorerCursor, setExplorerCursor] = createSignal(firstItem(explorerRows()))

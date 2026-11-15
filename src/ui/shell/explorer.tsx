@@ -13,6 +13,7 @@
 import type { ThemePalette } from "../theme"
 import type { PaneId } from "./state"
 import { treeRows, type TreeItem } from "../tree"
+import { CountBadge } from "./count-badge"
 
 export type ExplorerItem = {
   kind: "item"
@@ -23,6 +24,8 @@ export type ExplorerItem = {
   pane: PaneId
   /** Set for an agent row: opening it selects that agent's chat. */
   agentId?: string
+  /** Small count shown at the right of the row. */
+  count?: number
 }
 
 export type ExplorerSection = { kind: "section"; key: string; label: string }
@@ -52,6 +55,13 @@ export type ExplorerInput = {
   session?: { name: string } | null
   /** The open skill session, so the Explorer names the buffer in force. */
   skill?: { name: string } | null
+  /** Counts for the global rows; zero or omitted hides the badge. */
+  counts?: {
+    sessions?: number
+    goals?: number
+    projects?: number
+    recent?: number
+  }
 }
 
 export function explorerRows(input: ExplorerInput = {}): ExplorerRow[] {
@@ -98,17 +108,45 @@ export function explorerRows(input: ExplorerInput = {}): ExplorerRow[] {
   }
 
   rows.push(
-    { kind: "item", key: "sessions", label: "Lock-in sessions", detail: "Source-bound study sessions", pane: "manager" },
-    { kind: "item", key: "goals", label: "Skill sessions", detail: "Goals, curricula and lessons", pane: "skills" },
+    {
+      kind: "item",
+      key: "sessions",
+      label: "Lock-in sessions",
+      detail: "Source-bound study sessions",
+      pane: "manager",
+      ...(input.counts?.sessions === undefined ? {} : { count: input.counts.sessions }),
+    },
+    {
+      kind: "item",
+      key: "goals",
+      label: "Skill sessions",
+      detail: "Goals, curricula and lessons",
+      pane: "skills",
+      ...(input.counts?.goals === undefined ? {} : { count: input.counts.goals }),
+    },
   )
 
   rows.push(
     { kind: "section", key: "sec:productivity", label: "PRODUCTIVITY" },
-    { kind: "item", key: "projects", label: "Projects", detail: "A folder with one agent or a swarm", pane: "projects" },
+    {
+      kind: "item",
+      key: "projects",
+      label: "Projects",
+      detail: "A folder with one agent or a swarm",
+      pane: "projects",
+      ...(input.counts?.projects === undefined ? {} : { count: input.counts.projects }),
+    },
   )
   rows.push(
     { kind: "divider", key: "div:tools" },
-    { kind: "item", key: "recent", label: "Recent", detail: "Previous lock-in, skill and project sessions", pane: "recent" },
+    {
+      kind: "item",
+      key: "recent",
+      label: "Recent",
+      detail: "Previous lock-in, skill and project sessions",
+      pane: "recent",
+      ...(input.counts?.recent === undefined ? {} : { count: input.counts.recent }),
+    },
     { kind: "item", key: "stats", label: "Stats", detail: "Usage, cost and learning counters", pane: "stats" },
     { kind: "item", key: "achievements", label: "Achievements", detail: "Unlocked milestones and share cards", pane: "achievements" },
     { kind: "item", key: "archive", label: "Archive", detail: "Archive and restore sessions", pane: "archive" },
@@ -155,6 +193,8 @@ export function Explorer(props: {
   /** Keep the cursor row inside the pane instead of slicing from row zero. */
   const start = () =>
     Math.max(0, Math.min(Math.max(0, props.rows.length - size()), props.cursor - Math.floor(size() / 2)))
+  const hasCounts = () =>
+    props.rows.some((row) => row.kind === "item" && (row.count ?? 0) > 0)
   const tree = () =>
     treeRows({
       items: props.rows.map((row, index): TreeItem => {
@@ -166,7 +206,7 @@ export function Explorer(props: {
         }
         return { id: row.key, label: row.label, depth: 1 }
       }),
-      width: Math.max(1, props.width - 2),
+      width: Math.max(1, props.width - 2 - (hasCounts() ? 7 : 0)),
       selected: props.cursor,
       carets: false,
     })
@@ -219,6 +259,18 @@ export function Explorer(props: {
             >
               {section ? <b>{row.label}</b> : row.label}
             </text>
+            {(() => {
+              const item = props.rows.find(
+                (candidate) => candidate.kind === "item" && candidate.key === row.id,
+              )
+              if (item === undefined || item.kind !== "item" || (item.count ?? 0) <= 0) return null
+              return (
+                <>
+                  <box flexGrow={1} minWidth={0} />
+                  <CountBadge theme={palette()} count={item.count!} tone={row.selected ? "info" : "muted"} />
+                </>
+              )
+            })()}
           </box>
         )
       })}
