@@ -55,6 +55,20 @@ import {
 } from "../src/ui/accordion"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import {
+  menuLayout,
+  menuRole,
+  menuText as renderMenu,
+  type MenuEntry as MenuEntryInput,
+  type MenuLayout as MenuLayoutInput,
+  type MenuOptions as MenuLayoutOptions,
+  type MenuPart as MenuPartInput,
+  type MenuPartKind as MenuPartKindInput,
+  type MenuRow as MenuRowInput,
+  type MenuRowKind as MenuRowKindInput,
+  type MenuSection as MenuSectionInput,
+  type MenuTone as MenuToneInput,
+} from "../src/ui/menu"
+import {
   histogramLayout,
   histogramText as renderHistogram,
   type HistogramBin as HistogramBinInput,
@@ -6772,6 +6786,98 @@ export function histogram(options: HistogramOptions): SceneNode[] {
 /** The histogram rows without placement, top first. */
 export function histogramText(options: HistogramLayoutOptions): string[] {
   return renderHistogram(options)
+}
+
+/** A menu row tone. */
+export type MenuTone = MenuToneInput
+
+/** A shortcut, label and optional meta in a `menu()`. */
+export type MenuEntry = MenuEntryInput
+
+/** A titled group of menu entries. */
+export type MenuSection = MenuSectionInput
+
+/** The kind of a menu row. */
+export type MenuRowKind = MenuRowKindInput
+
+/** The kind of one rendered menu part. */
+export type MenuPartKind = MenuPartKindInput
+
+/** One rendered menu part. */
+export type MenuPart = MenuPartInput
+
+/** One placed menu row. */
+export type MenuRow = MenuRowInput
+
+/** The rows, column widths and selection of a menu. */
+export type MenuLayout = MenuLayoutInput
+
+export type MenuOptions = Omit<MenuLayoutOptions, "sections"> & {
+  anchor: ScenePosition
+  x: number
+  y: number
+  sections: readonly MenuSection[]
+  /** Key colour. Defaults to `secondary`. */
+  keyFg?: string
+  /** Entry-label colour. Defaults to the row tone. */
+  fg?: string
+  /** Heading colour. Defaults to `muted`. */
+  headingFg?: string
+  /** Meta colour. Defaults to `muted`. */
+  metaFg?: string
+  /** Separator colour. Defaults to `line`. */
+  separatorFg?: string
+  /** Disabled-label colour. Defaults to `muted`. */
+  disabledFg?: string
+}
+
+/**
+ * A menu with section headings, shortcut keys and right-aligned meta.
+ *
+ *   menuList({ anchor: "top-left", x: 2, y: 2, width: 30, sections: [
+ *     { id: "context", title: "CONTEXT", entries: [
+ *       { id: "down", key: "j", label: "move down" },
+ *       { id: "up", key: "k", label: "move up", meta: "pane" },
+ *     ] },
+ *   ] })
+ *
+ * `selectable` adds a marker column and `selected` marks one entry. Labels
+ * shrink to leave room for keys and meta; `menuText()` returns the lines.
+ */
+export function menuList(options: MenuOptions): SceneNode[] {
+  const layout = menuLayout(options)
+  const nodes: SceneNode[] = []
+  layout.rows.forEach((row, index) => {
+    for (const part of row.parts) {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x + part.x,
+        y: options.y + index,
+        text: part.text,
+        fg:
+          part.kind === "heading"
+            ? (options.headingFg ?? "muted")
+            : part.kind === "separator"
+              ? (options.separatorFg ?? "line")
+              : part.kind === "key" || part.kind === "marker"
+                ? (options.keyFg ?? "secondary")
+                : part.kind === "meta"
+                  ? (options.metaFg ?? "muted")
+                  : row.disabled
+                    ? (options.disabledFg ?? "muted")
+                    : row.tone === "normal"
+                      ? (options.fg ?? menuRole(row.tone))
+                      : menuRole(row.tone),
+      })
+    }
+  })
+  return nodes
+}
+
+/** The menu as plain lines. */
+export function menuListText(options: Omit<MenuOptions, "anchor" | "x" | "y" | "keyFg" | "fg" | "headingFg" | "metaFg" | "separatorFg" | "disabledFg">): string[] {
+  return renderMenu(options)
 }
 
 export type FormOptions = {

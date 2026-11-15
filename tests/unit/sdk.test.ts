@@ -72,6 +72,8 @@ import {
   loop,
   meter,
   matrix,
+  menuList,
+  menuListText,
   mixHex,
   multiSelect,
   numberStepper,
@@ -3408,4 +3410,63 @@ test("histogram honours glyphs, bins and empty input", () => {
   expect(nodes[0]).toMatchObject({ text: "##", fg: "accent" })
   expect(histogramText({ values: [1, 2], width: 4, height: 1 })).toHaveLength(1)
   expect(histogram({ anchor: "top-left", x: 0, y: 0, width: 10, values: [] })).toEqual([])
+})
+
+test("menuList draws headings, shortcut keys, labels and meta", () => {
+  const nodes = menuList({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 30,
+    sections: [
+      {
+        id: "context",
+        title: "CONTEXT",
+        entries: [
+          { id: "a", key: "j", label: "move down" },
+          { id: "b", key: "k", label: "move up", meta: "pane" },
+        ],
+      },
+    ],
+  })
+  expect(nodes.length).toBeGreaterThan(5)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, text: "CONTEXT", fg: "muted" })
+  expect(nodes[1]).toMatchObject({ x: 2, y: 4, text: "j ", fg: "secondary" })
+  expect(nodes[2]).toMatchObject({ x: 4, y: 4, text: "move down", fg: "foreground" })
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "muted" && node.text.includes("pane"))).toBe(true)
+})
+
+test("menuList marks a selection, fits and honours colours", () => {
+  const nodes = menuList({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 20,
+    selectable: true,
+    selected: 1,
+    keyPrefix: " ",
+    keyWidth: 5,
+    gap: 0,
+    keyFg: "accent",
+    fg: "warning",
+    headingFg: "secondary",
+    metaFg: "error",
+    sections: [
+      {
+        id: "s",
+        title: "S",
+        entries: [
+          { id: "a", key: "j", label: "one" },
+          { id: "b", key: "k", label: "two", meta: "x" },
+        ],
+      },
+    ],
+  })
+  expect(nodes.some((node) => node.kind === "text" && node.text === "▸ ")).toBe(true)
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "accent")).toBe(true)
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "warning")).toBe(true)
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "secondary")).toBe(true)
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "error")).toBe(true)
+  expect(menuListText({ width: 30, sections: [{ id: "s", title: "S", entries: [{ id: "a", key: "j", label: "one" }] }] })).toEqual(["S", "j one"])
+  expect(menuList({ anchor: "top-left", x: 0, y: 0, width: 20, sections: [] })).toEqual([])
 })
