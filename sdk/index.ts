@@ -56,6 +56,11 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  textFieldLayout,
+  textFieldText as renderTextField,
+  type TextFieldLayout as TextFieldLayoutInput,
+} from "../src/ui/text-field"
+import {
   comboboxLayout,
   type ComboboxLayout as ComboboxLayoutInput,
   type ComboboxOption as ComboboxOptionInput,
@@ -5003,6 +5008,93 @@ export function combobox(options: ComboboxOptions): SceneNode[] {
     text: row.text,
     fg: row.selected ? (options.selectedFg ?? "primary") : (options.fg ?? "foreground"),
   }))
+}
+
+/** The pieces and fitted text of a `textField()`. */
+export type TextFieldLayout = TextFieldLayoutInput
+
+export type TextFieldOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  width: number
+  value: string
+  prefix?: string
+  /** Right-aligned context, such as a scope label. */
+  suffix?: string
+  /** Spaces before the suffix; defaults to 1. */
+  suffixGap?: number
+  placeholder?: string
+  /** Draw the caret; defaults true. */
+  cursor?: boolean
+  invalid?: boolean
+  /** Prefix colour. Defaults to `primary`. */
+  prefixFg?: string
+  /** Value colour. Defaults to `foreground`. */
+  valueFg?: string
+  /** Placeholder colour. Defaults to `muted`. */
+  placeholderFg?: string
+  /** Caret colour. Defaults to `muted`. */
+  caretFg?: string
+  /** Suffix colour. Defaults to `muted`. */
+  suffixFg?: string
+  /** Invalid value/prefix colour. Defaults to `error`. */
+  invalidFg?: string
+}
+
+/**
+ * A single-line text field with a prefix, caret and right-aligned suffix.
+ *
+ *   textField({ anchor: "top-left", x: 2, y: 1, width: 40, prefix: "> ",
+ *               value: "unit-4", suffix: "scope: notes" })
+ *
+ * Long values are tail-truncated so the caret stays visible. The suffix is
+ * right-aligned when it fits and dropped otherwise. `invalid` only changes the
+ * tone; validation belongs to the caller. `textFieldText()` returns the line.
+ */
+export function textField(options: TextFieldOptions): SceneNode[] {
+  const layout = textFieldLayout(options)
+  if (layout.width === 0) return []
+  const valueInk = layout.invalid
+    ? (options.invalidFg ?? "error")
+    : layout.placeholder !== ""
+      ? (options.placeholderFg ?? "muted")
+      : (options.valueFg ?? "foreground")
+  const nodes: SceneNode[] = []
+  if (layout.prefix !== "") {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      text: layout.prefix,
+      fg: layout.invalid ? (options.invalidFg ?? "error") : (options.prefixFg ?? "primary"),
+    })
+  }
+  nodes.push({
+    kind: "text",
+    anchor: options.anchor,
+    x: options.x + layout.prefix.length,
+    y: options.y,
+    text: `${layout.value}${layout.caret}`,
+    fg: valueInk,
+  })
+  if (layout.suffix !== "") {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + layout.width - layout.suffix.length,
+      y: options.y,
+      text: layout.suffix,
+      fg: options.suffixFg ?? "muted",
+    })
+  }
+  return nodes
+}
+
+/** The field text without placement. */
+export function textFieldText(options: Omit<TextFieldOptions, "anchor" | "x" | "y">): string {
+  return renderTextField(options)
 }
 
 export type FormOptions = {

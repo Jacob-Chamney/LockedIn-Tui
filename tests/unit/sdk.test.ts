@@ -75,6 +75,7 @@ import {
   table,
   tabs,
   tagInput,
+  textField,
   timeline,
   toasts,
   toggle,
@@ -2528,4 +2529,46 @@ test("combobox aligns meta and filters by query", () => {
   expect(nodes[0]).toMatchObject({ text: "▸ alpha      → first", fg: "accent" })
   const none = combobox({ anchor: "top-left", x: 0, y: 0, width: 20, query: "zzz", options: [] })
   expect(none).toEqual([])
+})
+
+test("textField draws the prefix, caret and right-aligned suffix", () => {
+  const nodes = textField({
+    anchor: "top-left",
+    x: 2,
+    y: 1,
+    width: 30,
+    prefix: "> ",
+    value: "unit-4",
+    suffix: "scope: notes",
+  })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 1, text: "> ", fg: "primary" })
+  expect(nodes[1]).toMatchObject({ x: 4, text: "unit-4▏", fg: "foreground" })
+  expect(nodes[2]).toMatchObject({ x: 20, text: "scope: notes", fg: "muted" })
+})
+
+test("textField handles placeholders, invalid values and zero width", () => {
+  const placeholder = textField({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 20,
+    value: "",
+    placeholder: "find a file",
+    cursor: false,
+  })
+  expect(placeholder).toHaveLength(1)
+  expect(placeholder[0]).toMatchObject({ text: "find a file", fg: "muted" })
+  const invalid = textField({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 20,
+    prefix: "> ",
+    value: "nope",
+    invalid: true,
+  })
+  expect(invalid[0]).toMatchObject({ fg: "error" })
+  expect(invalid[1]).toMatchObject({ fg: "error" })
+  expect(textField({ anchor: "top-left", x: 0, y: 0, width: 0, value: "x" })).toEqual([])
 })

@@ -23,7 +23,6 @@ import {
   displayPath,
   emptyState,
   formatBytes,
-  inputLine,
   reviewEntries,
   rowFor,
   scopeLabel,
@@ -31,6 +30,7 @@ import {
 } from "./sources-model";
 import type { PickerView } from "./sources-model";
 import { footerHints } from "./sources-keys";
+import { TextField } from "../../shell/text-field";
 
 function fit(text: string, width: number): string {
   if (width <= 0) return ""
@@ -216,12 +216,17 @@ export function SourcesPanel(props: {
       footer={<WindowFooter theme={palette()} hints={hints()} width={props.width} />}
     >
       <WindowBody>
-        <text fg={props.view.editing ? palette().accent : palette().muted} wrapMode="none">
-          {fit(
-            `${inputLine(props.view)}    scope: ${scopeLabel(props.state, props.view)}`,
-            Math.max(8, props.width - 4),
-          )}
-        </text>
+        <TextField
+          theme={palette()}
+          width={Math.max(8, props.width - 4)}
+          prefix="> "
+          value={props.view.query}
+          placeholder="Path or filter — press / to type"
+          cursor={props.view.editing}
+          suffix={`scope: ${scopeLabel(props.state, props.view)}`}
+          suffixGap={4}
+          invalid={props.view.error !== null}
+        />
 
         {showingSources() ? (
           <box flexGrow={1} minHeight={0} flexDirection="column" paddingTop={1}>
