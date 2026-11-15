@@ -137,6 +137,27 @@ describe("the hero", () => {
     }
   })
 
+  test("the heatmap legend labels the ramp", async () => {
+    const setup = await mount(140, 44)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("· less")
+      expect(frame).toContain("█ more")
+      expect(frame).toContain("░")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("the compact page omits the legend", async () => {
+    const setup = await mount(80, 24)
+    try {
+      expect(lines(setup).join("\n")).not.toContain("less")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("per-model bars appear when the page has room", async () => {
     const setup = await mount(140, 44)
     try {
