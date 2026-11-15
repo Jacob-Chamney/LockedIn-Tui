@@ -12,6 +12,7 @@ import { PanelEmpty } from "../panels/panel-frame"
 import { PanelWindow } from "../panels/panel-window"
 import { SelectableRow, selectionMark } from "../panels/select-list"
 import { radioBox } from "../radio"
+import { Swatches } from "../shell/swatches"
 
 export type ThemesState = { cursor: number }
 
@@ -76,11 +77,21 @@ export function ThemeList(props: {
             <text fg={applied ? palette().primary : palette().muted} wrapMode="none">
               {`${radioBox(applied)} `}
             </text>
-            {swatch(entry.palette).map((cell) => (
-              <text fg={cell.fg} wrapMode="none">
-                {`${cell.glyph} `}
-              </text>
-            ))}
+            <Swatches
+              theme={palette()}
+              colors={[
+                entry.palette.background,
+                entry.palette.primary,
+                entry.palette.secondary,
+                entry.palette.accent,
+              ]}
+              width={14}
+              cellWidth={2}
+              gap={1}
+            />
+            <text fg={palette().foreground} wrapMode="none">
+              {" "}
+            </text>
             <text fg={palette().foreground} wrapMode="none">
               {selected ? <b>{entry.label}</b> : entry.label}
             </text>
