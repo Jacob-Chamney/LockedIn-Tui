@@ -7,6 +7,7 @@
  * package manager, never spawns a process and never writes config itself.
  */
 import { parseBinding, type Binding } from "../../keymap/registry"
+import type { StatusState } from "../../status-dot"
 
 export type ServerStatus = "connected" | "stopped" | { failed: string }
 
@@ -50,6 +51,12 @@ export function cellLabel(command: Command, server: ServerRow): string {
 export function statusLabel(server: ServerRow): string {
   if (typeof server.status === "object") return `× failed: ${server.status.failed}`
   return server.status === "connected" ? "✓ connected" : "○ stopped"
+}
+
+/** The health dot state for a server. */
+export function serverHealth(server: ServerRow): StatusState {
+  if (typeof server.status === "object") return "error"
+  return server.status === "connected" ? "ok" : "idle"
 }
 
 export function serverLine(server: ServerRow): string {

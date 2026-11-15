@@ -53,6 +53,7 @@ import {
   slider,
   sparkline,
   sparklineText,
+  statusDot,
   stepper,
   stats,
   status,
@@ -2044,4 +2045,35 @@ test("swatches fit narrow rows and honour gap/cell width", () => {
   })
   expect(custom.map((node) => (node.kind === "rect" ? node.x : -1))).toEqual([0, 5])
   expect(swatches({ anchor: "top-left", x: 0, y: 0, width: 10, colors: [] })).toEqual([])
+})
+
+test("statusDot draws the glyph and an optional label", () => {
+  const nodes = statusDot({
+    anchor: "top-left",
+    x: 2,
+    y: 2,
+    state: "ok",
+    label: "connected",
+  })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 2, text: "●", fg: "success" })
+  expect(nodes[1]).toMatchObject({ x: 4, y: 2, text: "connected", fg: "muted" })
+})
+
+test("statusDot fits labels and honours overrides", () => {
+  const tight = statusDot({ anchor: "top-left", x: 0, y: 0, width: 5, state: "warn", label: "slow" })
+  expect(tight[1]).toMatchObject({ x: 2, text: "sl…" })
+  const custom = statusDot({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    state: "error",
+    glyphs: { error: "!" },
+    tones: { error: "accent" },
+    labelFg: "secondary",
+    label: "down",
+  })
+  expect(custom[0]).toMatchObject({ text: "!", fg: "accent" })
+  expect(custom[1]).toMatchObject({ text: "down", fg: "secondary" })
+  expect(statusDot({ anchor: "top-left", x: 0, y: 0, width: 0, state: "ok" })).toEqual([])
 })

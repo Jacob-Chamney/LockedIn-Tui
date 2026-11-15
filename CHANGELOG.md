@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `statusDot()` draws health glyphs and labels for plugin scenes; MCP server
+  rows show a status dot.
 - `swatches()` draws solid colour cells for plugin scenes; the theme picker
   shows four palette tokens per row.
 - `codeBlock()` draws numbered code with a fitted content column for plugin

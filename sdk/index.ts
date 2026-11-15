@@ -56,6 +56,12 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  statusDotLayout,
+  type StatusDotGlyphs as StatusDotGlyphsInput,
+  type StatusDotTones as StatusDotTonesInput,
+  type StatusState as StatusStateInput,
+} from "../src/ui/status-dot"
+import {
   paginationLayout,
   type PaginationGlyphs as PaginationGlyphsInput,
   type PaginationStyle as PaginationStyleInput,
@@ -4050,6 +4056,67 @@ export function swatches(options: SwatchesOptions): SceneNode[] {
     fill: true,
     color: cell.color,
   }))
+}
+
+/** Health states a `statusDot()` understands. */
+export type StatusState = StatusStateInput
+
+export type StatusDotGlyphs = StatusDotGlyphsInput
+
+export type StatusDotTones = StatusDotTonesInput
+
+export type StatusDotOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  state: StatusState
+  /** Optional text after the glyph. */
+  label?: string
+  /** Available columns; defaults to the natural text width. */
+  width?: number
+  glyphs?: Partial<StatusDotGlyphs>
+  tones?: Partial<StatusDotTones>
+  /** Label colour. Defaults to `muted`. */
+  labelFg?: string
+}
+
+/**
+ * A health dot with an optional label.
+ *
+ *   statusDot({ anchor: "top-left", x: 2, y: 2, state: "ok", label: "connected" })
+ *
+ * Shapes differ per state (`●`, `▲`, `×`, `○`, `◆`) and tones follow the palette
+ * (`success`, `warning`, `error`, `muted`, `primary`), so colour is never the
+ * only signal. The label is fitted to `width`.
+ */
+export function statusDot(options: StatusDotOptions): SceneNode[] {
+  const layout = statusDotLayout(options)
+  if (layout.width === 0) return []
+  const nodes: SceneNode[] = [
+    {
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      text: layout.glyph,
+      fg: layout.tone,
+    },
+  ]
+  if (layout.label !== "") {
+    const room = options.width === undefined ? layout.label.length : Math.max(0, layout.width - layout.glyph.length - 1)
+    const label = room <= 0 ? "" : layout.label.length <= room ? layout.label : room === 1 ? "…" : `${layout.label.slice(0, room - 1)}…`
+    if (label !== "") {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x + layout.glyph.length + 1,
+        y: options.y,
+        text: label,
+        fg: options.labelFg ?? "muted",
+      })
+    }
+  }
+  return nodes
 }
 
 export type FormOptions = {
