@@ -35,6 +35,18 @@ describe("the row model", () => {
     expect(rows.some((row) => row.kind === "divider")).toBe(true)
   })
 
+  test("session and project counts travel on the item rows", () => {
+    const rows = explore.explorerRows({ counts: { sessions: 120, goals: 2, projects: 5, recent: 127 } })
+    const count = (key: string) => {
+      const row = rows.find((candidate) => candidate.kind === "item" && candidate.key === key)
+      return row && row.kind === "item" ? row.count : undefined
+    }
+    expect(count("sessions")).toBe(120)
+    expect(count("goals")).toBe(2)
+    expect(count("projects")).toBe(5)
+    expect(count("recent")).toBe(127)
+  })
+
   test("the cursor only stops on items and skips headers", () => {
     const rows = explore.explorerRows({})
     let cursor = explore.firstItem(rows)
@@ -104,6 +116,18 @@ describe("rendering", () => {
   function lines(setup: { captureCharFrame: () => string }): string[] {
     return setup.captureCharFrame().split("\n")
   }
+
+  test("counts render as right-aligned badges with a 99+ cap", async () => {
+    const rows = explore.explorerRows({ counts: { sessions: 120 } })
+    const setup = await mount(rows, explore.firstItem(rows))
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("99+")
+      expect(frame).not.toContain("120")
+    } finally {
+      await setup.dispose()
+    }
+  })
 
   test("items hang off their section with tree guides", async () => {
     const rows = explore.explorerRows({})

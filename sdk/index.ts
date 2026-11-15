@@ -56,6 +56,13 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  countBadgeLayout,
+  countBadgeStyle,
+  type CountBadgeLayout as CountBadgeLayoutInput,
+  type CountBadgeStyle as CountBadgeStyleInput,
+  type CountBadgeTone as CountBadgeToneInput,
+} from "../src/ui/count-badge"
+import {
   splitButtonLayout,
   splitButtonText as renderSplitButton,
   type SplitAction as SplitActionInput,
@@ -5420,6 +5427,68 @@ export function splitButton(options: SplitButtonOptions): SceneNode[] {
 /** The split button text without placement. */
 export function splitButtonText(options: Omit<SplitButtonOptions, "anchor" | "x" | "y">): string {
   return renderSplitButton(options)
+}
+
+/** The tone a count badge uses. */
+export type CountBadgeTone = CountBadgeToneInput
+
+/** The fill/ink pair for a badge tone. */
+export type CountBadgeStyle = CountBadgeStyleInput
+
+/** The padded display, overflow flag and width of a badge. */
+export type CountBadgeLayout = CountBadgeLayoutInput
+
+export type CountBadgeOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  count: number
+  /** Highest count shown exactly; above it becomes `max+`. Defaults 99. */
+  max?: number
+  /** Spaces on each side of the number; defaults 1. */
+  pad?: number
+  tone?: CountBadgeTone
+  /** Available columns; defaults to the natural width. */
+  width?: number
+  /** Fill override. */
+  bg?: string
+  /** Text override. */
+  fg?: string
+}
+
+/**
+ * A numeric count badge with a 99+ overflow.
+ *
+ *   countBadge({ anchor: "top-left", x: 2, y: 1, count: 3 })
+ *   //  3
+ *
+ * The badge is one space each side by default, shows `${max}+` above the cap,
+ * and fits to `width` when given. `bg`/`fg` override the tone colours.
+ */
+export function countBadge(options: CountBadgeOptions): SceneNode[] {
+  const layout = countBadgeLayout(options)
+  const style = countBadgeStyle(layout.tone)
+  if (layout.width === 0) return []
+  return [
+    {
+      kind: "rect",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      width: layout.width,
+      height: 1,
+      fill: true,
+      color: options.bg ?? style.bg,
+    },
+    {
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      text: layout.text,
+      fg: options.fg ?? style.fg,
+    },
+  ]
 }
 
 export type FormOptions = {

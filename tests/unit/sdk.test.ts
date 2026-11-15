@@ -18,6 +18,7 @@ import {
   chips,
   codeBlock,
   combobox,
+  countBadge,
   confirm,
   createCursor,
   dashboard,
@@ -2733,4 +2734,26 @@ test("splitButton drops the second half and honours disabled colours", () => {
   })
   expect(disabled[0]).toMatchObject({ color: "line" })
   expect(disabled[1]).toMatchObject({ fg: "warning" })
+})
+
+test("countBadge fills a padded number", () => {
+  const nodes = countBadge({ anchor: "top-left", x: 2, y: 1, count: 3 })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[0]).toMatchObject({ kind: "rect", x: 2, y: 1, width: 3, height: 1, color: "primary" })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 2, y: 1, text: " 3 ", fg: "background" })
+})
+
+test("countBadge overflows at the cap and honours overrides", () => {
+  const nodes = countBadge({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    count: 120,
+    tone: "warning",
+    bg: "panel",
+    fg: "accent",
+  })
+  expect(nodes[0]).toMatchObject({ width: 5, color: "panel" })
+  expect(nodes[1]).toMatchObject({ text: " 99+ ", fg: "accent" })
+  expect(countBadge({ anchor: "top-left", x: 0, y: 0, count: 3, width: 0 })).toEqual([])
 })
