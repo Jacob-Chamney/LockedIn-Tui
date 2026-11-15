@@ -10,6 +10,7 @@ import type { ThemePalette } from "../theme";
 import { computeCoverage } from "../../domain/coverage";
 import { coverageFor, coverageRow, coverageSummary, gapRows, homeRows, showHome, sourceSummary, stepsLine, outputsLine, type HomeBlockId, type HomeRow, type OutputState, type SessionHome } from "../../domain/session-home";
 import type { Binding } from "../keymap/registry";
+import { StatusDot } from "../shell/status-dot";
 export {
   computeCoverage,
   coverageFor,
@@ -93,12 +94,13 @@ export function SessionHomePane(props: {
             {`COVERAGE · ${coverageSummary(report())}`}
           </text>
           {report().sources.map((entry) => (
-            <text
-              fg={entry.referenced ? palette().foreground : palette().warning}
-              wrapMode="none"
-            >
-              {`${entry.referenced ? "✓" : "!"} ${coverageRow(entry)}`}
-            </text>
+            <StatusDot
+              theme={palette()}
+              state={entry.referenced ? "ok" : "warn"}
+              label={coverageRow(entry)}
+              glyphs={{ ok: "✓", warn: "!" }}
+              labelFg={entry.referenced ? "foreground" : "warning"}
+            />
           ))}
           {gapRows(report()).map((line) => (
             <text fg={palette().warning} wrapMode="none">

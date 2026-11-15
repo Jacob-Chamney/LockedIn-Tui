@@ -9,7 +9,11 @@ import { WindowBody } from "../../panels/floating-window"
 import { PanelEmpty } from "../../panels/panel-frame"
 import { PanelWindow } from "../../panels/panel-window"
 import { SelectList } from "../../panels/select-list"
+import { StatusDot } from "../../shell/status-dot"
 import { footerHints } from "./tasks-keys"
+import type { StatusState } from "../../status-dot"
+
+const TASK_GLYPHS = { info: "▸", ok: "✓", error: "×", idle: "—", warn: "▲" }
 
 export type TaskGlyph = { glyph: string; word: string }
 
@@ -47,6 +51,19 @@ export function emptyCopy(): string {
   return "no background work · start a chat or a generation to see it here"
 }
 
+export function taskState(task: TaskRecord): StatusState {
+  switch (task.status) {
+    case "running":
+      return "info"
+    case "done":
+      return "ok"
+    case "failed":
+      return "error"
+    case "cancelled":
+      return "idle"
+  }
+}
+
 export function cancelNotice(outcome: string, task: TaskRecord | undefined): string {
   if (outcome === "already-finished") return `${task?.label ?? "That task"} already finished; nothing to cancel.`
   if (outcome === "needs-confirmation") return "This task already produced output. Press c again to stop it."
@@ -79,16 +96,15 @@ export function TaskList(props: {
             visibleCount={Math.max(1, props.height - 8)}
             rows={tasks().map((task) => ({
               id: task.id,
-              label: rowText(task, props.now),
+              label: `${task.label}  ${elapsedLabel(task, props.now)}`,
+              status: { state: taskState(task), glyphs: TASK_GLYPHS },
               tone: task.status === "failed" ? "error" : isTerminal(task.status) ? "muted" : "normal",
             }))}
           />
         </WindowBody>
       )}
       {selected()?.error ? (
-        <text fg={palette().error} wrapMode="none">
-          {`× ${selected()!.error}`}
-        </text>
+        <StatusDot theme={palette()} state="error" label={selected()!.error} labelFg="error" />
       ) : null}
     </>
   )
