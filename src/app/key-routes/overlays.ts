@@ -34,17 +34,21 @@ export function handleOverlayKeys(
       }
     } else if (press.name === "return") {
       const pick = matches[state.commandIndex] ?? matches[0]
-      if (pick) {
-        const result = resolveCommand(deps.registry, pick.name)
-        if (result.kind === "action") deps.dispatch(result.id)
-        else if (result.kind === "panel") deps.update(reduce(state, { type: "panel-open", id: result.id }))
-        else deps.update(reduce(state, { type: "command-message", message: result.message }))
-      } else {
-        const result = resolveCommand(deps.registry, state.commandQuery)
-        if (result.kind === "action") deps.dispatch(result.id)
-        else if (result.kind === "panel") deps.update(reduce(state, { type: "panel-open", id: result.id }))
-        else deps.update(reduce(state, { type: "command-message", message: result.message }))
+      const run = (text: string) => {
+        const result = resolveCommand(deps.registry, text)
+        if (result.kind === "action") {
+          // The palette is a launcher, not a place: dismiss it even when the
+          // action refuses (a warning toast reads over the chat, not the bar).
+          deps.update(reduce(state, { type: "close-overlay" }))
+          deps.dispatch(result.id)
+        } else if (result.kind === "panel") {
+          deps.update(reduce(state, { type: "panel-open", id: result.id }))
+        } else {
+          deps.update(reduce(state, { type: "command-message", message: result.message }))
+        }
       }
+      if (pick) run(pick.name)
+      else run(state.commandQuery)
     } else if (event.name === "down") {
       deps.update(reduce(state, { type: "command-move", delta: 1, count: matches.length }))
     } else if (event.name === "up") {

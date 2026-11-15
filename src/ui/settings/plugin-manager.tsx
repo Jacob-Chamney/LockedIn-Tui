@@ -117,7 +117,7 @@ export function PluginManagerPane(props: {
       focused={props.focused}
       title="UI plugins"
       meta={props.state.loading ? "discovering…" : `${props.state.items.length} discovered`}
-      hints={["j/k move · Space enable · Esc back"]}
+      hints={props.state.items.length === 0 ? ["Esc back"] : ["j/k move · Space enable · Esc back"]}
       notice={props.state.notice}
       detail={
         current()
@@ -153,7 +153,7 @@ export function PluginManagerPane(props: {
       ) : null}
       {!props.state.loading && props.state.items.length === 0 ? (
         <text fg={palette().muted} wrapMode="none">
-          no plugins found in ui.plugins.dirs
+          no UI plugins found · set ui.plugins.dirs in config.toml
         </text>
       ) : null}
       {visible().map((item) => (

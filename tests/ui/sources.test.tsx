@@ -52,6 +52,8 @@ async function mount(width: number, height: number, props: Record<string, unknow
         state={pickerState((props.state as Record<string, unknown>) ?? {}) as never}
         view={(props.view as never) ?? model.initialView}
         existing={(props.existing as string[]) ?? []}
+        manifestLabel={props.manifestLabel as string | undefined}
+        manifestEmpty={props.manifestEmpty as string | undefined}
         parent="input"
       />
     ),
@@ -105,6 +107,26 @@ describe("browse", () => {
     }
   })
 
+  test("an instructions picker does not call its file a source", async () => {
+    const instructions = await mount(100, 24, {
+      manifestLabel: "INSTRUCTIONS",
+      manifestEmpty: "no instructions file yet · press Space to choose one",
+    })
+    try {
+      const frame = rows(instructions).join("\n")
+      expect(frame).toContain("no instructions file yet")
+      expect(frame).not.toContain("no sources yet")
+    } finally {
+      await instructions.dispose()
+    }
+    const sources = await mount(100, 24)
+    try {
+      expect(rows(sources).join("\n")).toContain("no sources yet")
+    } finally {
+      await sources.dispose()
+    }
+  })
+
   test("the wizard marks the choose step and the review step", async () => {
     const browse = await mount(100, 24)
     try {
@@ -121,6 +143,7 @@ describe("browse", () => {
       const frame = rows(review).join("\n")
       expect(frame).toContain("✓ 1 Choose")
       expect(frame).toContain("● 2 Review")
+      expect(frame).toContain("Enter continue")
     } finally {
       await review.dispose()
     }
@@ -401,6 +424,7 @@ describe("preview and the right pane", () => {
       const frame = rows(setup).join("\n")
       expect(frame).toContain("▸ SOURCES")
       expect(frame).toContain("d remove")
+      expect(frame).toContain("Enter reveal")
       expect(frame).toContain("lecture-4.md")
     } finally {
       await setup.dispose()

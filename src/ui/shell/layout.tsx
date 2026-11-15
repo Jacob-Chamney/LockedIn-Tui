@@ -455,14 +455,17 @@ export function ShellLayout(props: LayoutProps) {
         paneTitle={props.paneTitle}
         note={
           props.paneNote ??
-          (props.state.pane === "chat" && props.state.focus === "chat"
+          (props.state.overlay === null && props.state.pane === "chat" && props.state.focus === "chat"
             ? props.chat?.model
               ? "read-only"
               : "no model"
             : undefined)
         }
         noteTone={
-          props.state.pane === "chat" && props.state.focus === "chat" && !props.chat?.model
+          props.state.overlay === null &&
+          props.state.pane === "chat" &&
+          props.state.focus === "chat" &&
+          !props.chat?.model
             ? "warn"
             : "muted"
         }
