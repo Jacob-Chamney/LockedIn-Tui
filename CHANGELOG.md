@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `statusBanner()` draws a filled one-line status with a tone glyph and action
+  slot; Sources shows blocked and failed states with it.
 - `wizard()` draws numbered steps with done/current/upcoming markers; the
   Sources picker shows its Choose/Review flow.
 - `multiSelect()` draws a checked list with a cursor, fitted labels and a

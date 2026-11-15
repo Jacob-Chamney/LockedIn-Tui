@@ -72,6 +72,8 @@ import {
   stepper,
   stats,
   status,
+  statusBanner,
+  statusBannerText,
   swatches,
   table,
   tabs,
@@ -2654,4 +2656,36 @@ test("wizard marks done steps and keeps the current step visible", () => {
   expect(nodes).toHaveLength(1)
   expect(nodes[0]).toMatchObject({ text: "● 2 Review", fg: "accent" })
   expect(wizard({ anchor: "top-left", x: 0, y: 0, width: 40, current: 0, steps: [] })).toEqual([])
+})
+
+test("statusBanner fills a single line and right-aligns its action", () => {
+  const nodes = statusBanner({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 20,
+    tone: "warning",
+    message: "choose a source",
+    action: "Esc",
+  })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[0]).toMatchObject({ kind: "rect", x: 2, y: 3, width: 20, height: 1, fill: true, color: "warning" })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 2, y: 3, text: "! choose a sour… Esc", fg: "background" })
+})
+
+test("statusBanner honours overrides and empty widths", () => {
+  const nodes = statusBanner({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 20,
+    message: "done",
+    tone: "success",
+    bg: "panel",
+    fg: "accent",
+  })
+  expect(nodes[0]).toMatchObject({ color: "panel" })
+  expect(nodes[1]).toMatchObject({ text: "✓ done", fg: "accent" })
+  expect(statusBannerText({ width: 20, message: "plain" })).toBe("· plain")
+  expect(statusBanner({ anchor: "top-left", x: 0, y: 0, width: 0, message: "x" })).toEqual([])
 })

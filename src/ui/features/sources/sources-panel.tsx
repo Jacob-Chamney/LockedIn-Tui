@@ -33,6 +33,7 @@ import { footerHints } from "./sources-keys";
 import { TextField } from "../../shell/text-field";
 import { MultiSelectList } from "../../shell/multi-select";
 import { Wizard } from "../../shell/wizard";
+import { StatusBanner } from "../../shell/status-banner";
 
 function fit(text: string, width: number): string {
   if (width <= 0) return ""
@@ -317,9 +318,18 @@ export function SourcesPanel(props: {
           </box>
         )}
 
-        <text fg={blocked() ? palette().warning : status().tone} wrapMode="none">
-          {blocked() ? `! ${blocked()}` : status().text}
-        </text>
+        {props.view.error !== null || blocked() ? (
+          <StatusBanner
+            theme={palette()}
+            tone={props.view.error !== null ? "error" : "warning"}
+            message={props.view.error ?? blocked() ?? ""}
+            width={Math.max(8, props.width - 4)}
+          />
+        ) : (
+          <text fg={status().tone} wrapMode="none">
+            {status().text}
+          </text>
+        )}
       </WindowBody>
     </FloatingWindow>
   )

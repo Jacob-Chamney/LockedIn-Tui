@@ -83,6 +83,28 @@ describe("browse", () => {
     }
   })
 
+  test("blocked and failed states render as filled banners", async () => {
+    const blocked = await mount(100, 24, {
+      view: { ...model.initialView, step: "review" },
+    })
+    try {
+      const frame = rows(blocked).join("\n")
+      expect(frame).toContain("!")
+      expect(frame).toContain("mark at least one file")
+    } finally {
+      await blocked.dispose()
+    }
+    const failed = await mount(100, 24, {
+      view: { ...model.initialView, error: "permission denied" },
+    })
+    try {
+      const frame = rows(failed).join("\n")
+      expect(frame).toContain("× permission denied")
+    } finally {
+      await failed.dispose()
+    }
+  })
+
   test("the wizard marks the choose step and the review step", async () => {
     const browse = await mount(100, 24)
     try {
