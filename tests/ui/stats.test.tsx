@@ -217,9 +217,7 @@ describe("activity and trend", () => {
       expect(trend).toBeGreaterThan(calendar)
       expect(out[trend]).toContain("peak 3.2K/day")
       const chart = out.slice(trend + 1, trend + 6).join("\n")
-      expect(chart).toContain("│")
-      expect(chart).toContain("•")
-      expect(chart).toMatch(/3\.2K│/)
+      expect(chart).toMatch(/[\u2800-\u28ff]/)
     } finally {
       await setup.dispose()
     }
@@ -238,14 +236,15 @@ describe("activity and trend", () => {
     }
   })
 
-  test("a short range names the days and dates instead of a tiny calendar", async () => {
+  test("a short range charts daily activity with dates, not a tiny calendar", async () => {
     const setup = await mount(105, 26, { summary: shortSummary() })
     try {
       const frame = lines(setup).join("\n")
-      expect(frame).toContain("Mon Tue Wed Thu Fri Sat Sun")
-      expect(frame).toContain("Oct 26")
-      expect(frame).toContain("Nov 02")
-      expect(frame).toContain("Nov 09")
+      expect(frame).toMatch(/[\u2800-\u28ff]/)
+      expect(frame).toContain("Nov 01")
+      expect(frame).toContain("Nov 15")
+      expect(frame).toContain("10 active · 3-day streak")
+      expect(frame).not.toContain("Mon Tue Wed")
       expect(frame).not.toContain("Jan Feb Mar")
     } finally {
       await setup.dispose()

@@ -88,6 +88,8 @@ import {
   sidebarMain,
   skeleton,
   slider,
+  brailleChart,
+  brailleChartText,
   sparkbar,
   sparkbarText,
   sparkline,
@@ -3102,6 +3104,26 @@ test("sparkbar draws one row per level", () => {
   expect(nodes).toHaveLength(2)
   expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, text: "  █", fg: "primary" })
   expect(nodes[1]).toMatchObject({ y: 4, text: "███" })
+})
+
+test("brailleChart draws sub-cell rows at the anchor", () => {
+  const nodes = brailleChart({
+    anchor: "top-left",
+    x: 1,
+    y: 2,
+    width: 2,
+    height: 2,
+    values: [1, 4],
+    mode: "bar",
+  })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 1, y: 2, fg: "primary" })
+  expect(nodes[1]).toMatchObject({ y: 3 })
+  for (const node of nodes) {
+    expect(node.kind).toBe("text")
+    if (node.kind === "text") expect(node.text).toHaveLength(2)
+  }
+  expect(brailleChartText({ values: [], width: 3, height: 1 })).toEqual(["   "])
 })
 
 test("sparkbar shares buckets, glyphs and colours", () => {

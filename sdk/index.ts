@@ -424,6 +424,13 @@ import {
   type SparkbarOptions as SparkbarLayoutOptions,
   type SparkbarReduce as SparkbarReduceInput,
 } from "../src/ui/sparkbar"
+import {
+  brailleChartLayout,
+  brailleChartText as renderBrailleChart,
+  type BrailleChartLayout as BrailleChartLayoutInput,
+  type BrailleChartMode as BrailleChartModeInput,
+  type BrailleChartOptions as BrailleChartLayoutOptions,
+} from "../src/ui/braille-chart"
 
 export type {
   CommandPermission,
@@ -6245,6 +6252,49 @@ export function sparkbar(options: SparkbarOptions): SceneNode[] {
 /** The sparkbar rows without placement, top first. */
 export function sparkbarText(options: SparkbarLayoutOptions): string[] {
   return renderSparkbar(options)
+}
+
+/** How a braille chart renders its series. */
+export type BrailleChartMode = BrailleChartModeInput
+
+/** The rows, scale and buckets of a braille chart. */
+export type BrailleChartLayout = BrailleChartLayoutInput
+
+export type BrailleChartOptions = Omit<BrailleChartLayoutOptions, "values"> & {
+  anchor: ScenePosition
+  x: number
+  y: number
+  values: readonly number[]
+  /** Chart colour. Defaults to `primary`. */
+  fg?: string
+}
+
+/**
+ * A sub-cell chart: bars or a filled area on a 2×4 braille grid.
+ *
+ *   brailleChart({ anchor: "top-left", x: 2, y: 2, width: 20, height: 4,
+ *                  values: [1, 4, 2, 9], mode: "area" })
+ *
+ * Each cell is eight dots, so a short series stays smooth. Bars hold each
+ * value over its own slice; areas interpolate between values. Fully covered
+ * cells become `█`, so a bar reads as a bar and only its edge is dotted.
+ * `brailleChartText()` returns the rows without placement.
+ */
+export function brailleChart(options: BrailleChartOptions): SceneNode[] {
+  const layout = brailleChartLayout(options)
+  return layout.rows.map((row, index) => ({
+    kind: "text" as const,
+    anchor: options.anchor,
+    x: options.x,
+    y: options.y + index,
+    text: row,
+    fg: options.fg ?? "primary",
+  }))
+}
+
+/** The braille chart rows without placement, top first. */
+export function brailleChartText(options: BrailleChartLayoutOptions): string[] {
+  return renderBrailleChart(options)
 }
 
 /** One braille cell in a `progressRing()`. */
