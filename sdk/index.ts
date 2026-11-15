@@ -56,6 +56,14 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  statCardLayout,
+  statCardToneRole,
+  type StatCardAlign as StatCardAlignInput,
+  type StatCardLayout as StatCardLayoutInput,
+  type StatCardRow as StatCardRowInput,
+  type StatCardTone as StatCardToneInput,
+} from "../src/ui/stat-card"
+import {
   countBadgeLayout,
   countBadgeStyle,
   type CountBadgeLayout as CountBadgeLayoutInput,
@@ -5489,6 +5497,55 @@ export function countBadge(options: CountBadgeOptions): SceneNode[] {
       fg: options.fg ?? style.fg,
     },
   ]
+}
+
+/** The value colour for a `statCard()`. */
+export type StatCardTone = StatCardToneInput
+
+/** Card alignment. */
+export type StatCardAlign = StatCardAlignInput
+
+/** One fitted line in a stat card. */
+export type StatCardRow = StatCardRowInput
+
+/** The fitted rows and tone of a stat card. */
+export type StatCardLayout = StatCardLayoutInput
+
+export type StatCardOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  value: string
+  label: string
+  /** An optional third line under the label. */
+  detail?: string
+  width: number
+  tone?: StatCardTone
+  align?: StatCardAlign
+  /** Label/detail colour. Defaults to `muted`. */
+  mutedFg?: string
+}
+
+/**
+ * A stat card: a large value, a label and an optional detail.
+ *
+ *   statCard({ anchor: "top-left", x: 2, y: 2, width: 20,
+ *              value: "14 days", label: "best streak", detail: "in a row" })
+ *
+ * Lines are fitted to the card width and aligned left, centre or right. The
+ * value uses the tone; the label and detail use `mutedFg`. The Stats counters
+ * use the same layout.
+ */
+export function statCard(options: StatCardOptions): SceneNode[] {
+  const layout = statCardLayout(options)
+  return layout.rows.map((row, index) => ({
+    kind: "text" as const,
+    anchor: options.anchor,
+    x: options.x + row.x,
+    y: options.y + index,
+    text: row.text,
+    fg: row.kind === "value" ? statCardToneRole(layout.tone) : (options.mutedFg ?? "muted"),
+  }))
 }
 
 export type FormOptions = {

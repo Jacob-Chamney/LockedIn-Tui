@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `statCard()` draws a fitted value/label/detail card; Stats counters use it and
+  add detail lines on tall pages.
 - `countBadge()` draws a padded numeric pill with a 99+ overflow; Explorer rows
   show session and project counts.
 - `splitButton()` pairs a primary and secondary action with fitted keycaps; the
