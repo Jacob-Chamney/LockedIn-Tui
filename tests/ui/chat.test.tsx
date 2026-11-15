@@ -273,7 +273,7 @@ describe("composer", () => {
   test("the placeholder is the documented copy", async () => {
     const setup = await mount(100, 24, chat.initialChat("ada", "m"))
     try {
-      expect(rows(setup).join("\n")).toContain("Ask anything…  Enter send · Shift+Enter newline")
+      expect(rows(setup).join("\n")).toContain("Ask anything…")
     } finally {
       await setup.dispose()
     }
@@ -436,7 +436,6 @@ describe("response style strip", () => {
     try {
       const skillFrame = rows(skillSetup).join("\n")
       expect(skillFrame).toContain("style: brief  tutor: socratic")
-      expect(skillFrame).toContain("[Enter] send")
     } finally {
       await skillSetup.dispose()
     }
@@ -592,12 +591,12 @@ describe("chat bubbles", () => {
   })
 })
 
-test("the composer footer splits send from the newline alternative", async () => {
+test("the composer leaves the send hints to the status bar", async () => {
   const setup = await mount(100, 30, chat.initialChat("ada", "m"))
   try {
     const frame = rows(setup).join("\n")
-    expect(frame).toContain("[Enter] send│[⇧Enter] newline")
-    expect(frame).toContain("[Esc] normal")
+    expect(frame).not.toContain("[Enter] send")
+    expect(frame).not.toContain("[Esc] normal")
   } finally {
     await setup.dispose()
   }

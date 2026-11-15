@@ -466,6 +466,7 @@ export function ShellLayout(props: LayoutProps) {
         overlay={props.state.overlay}
         context={props.context}
         hints={props.hints}
+        keyHints={props.paneHints}
         tokens={props.tokens}
         cost={props.cost}
         durationMs={props.durationMs}

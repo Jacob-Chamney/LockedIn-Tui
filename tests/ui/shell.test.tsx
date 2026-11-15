@@ -342,3 +342,27 @@ describe("P1-SH-09 hints come from the registry", () => {
     }
   })
 })
+
+describe("status bar key hints", () => {
+  test("chat hints sit in the bar centre as plain text", async () => {
+    const { setup } = await mount(200, 60)
+    try {
+      const frame = rows(setup).join("\n")
+      expect(frame).toContain("Enter send · ⇧Enter newline · Esc normal")
+      expect(frame).toContain("? help")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("a narrow bar keeps the counters and hides the key hints", async () => {
+    const { setup } = await mount(100, 24)
+    try {
+      const frame = rows(setup).join("\n")
+      expect(frame).toContain("cost unknown")
+      expect(frame).not.toContain("Enter send")
+    } finally {
+      await setup.dispose()
+    }
+  })
+})

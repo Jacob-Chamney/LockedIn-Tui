@@ -108,7 +108,7 @@ export const COMPOSER_MAX_ROWS = 5
 
 export { COST_UNKNOWN, formatCost } from "../../llm/pricing"
 
-export const PLACEHOLDER = "Ask anything…  Enter send · Shift+Enter newline"
+export const PLACEHOLDER = "Ask anything…"
 export const NO_MODEL_COPY = "no model configured"
 export const STOP_LINE = "Esc stop"
 

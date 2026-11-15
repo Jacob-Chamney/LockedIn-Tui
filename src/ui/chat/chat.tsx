@@ -19,8 +19,6 @@ import { Bubble, useAfterFirstFrame, useCellSize } from "./bubble";
 import { useThinkingPulse } from "./pulse"
 import { ChipList } from "../shell/chips"
 import { ActionBar } from "../shell/action-bar";
-import { SplitButton } from "../shell/split-button";
-import { splitButtonLayout } from "../split-button";
 import { bubbleColumns } from "./bubble-geometry";
 import { COMPOSER_CURSOR, PLACEHOLDER, STOP_LINE, THINKING_LINE, canSend, composerRows, composerText, greeting, hiddenCount, hints as hintList, mountedMessages, newMessagesMarker, pasteLabel, pasteRows, stopMarker, streamingText, thinkingLine, waitingForModel, type ChatState, type Message } from "./model";
 export function ChatPane(props: {
@@ -129,23 +127,8 @@ export function ChatPane(props: {
       actions: Array<{ id: string; key?: string; label: string; disabled?: boolean }>
     }> = []
     if (caps.length > 0) groups.push({ id: "caps", actions: caps })
-    if (!compact()) {
-      groups.push({
-        id: "keys",
-        actions: [{ id: "normal", key: "Esc", label: "normal" }],
-      })
-    }
     return groups
   }
-  const sendBlocked = () => {
-    const result = send()
-    return !result.ok && result.reason !== "nothing to send"
-  }
-  const split = () => ({
-    primary: { key: "Enter", label: "send" },
-    secondary: { key: "⇧Enter", label: "newline" },
-  })
-  const splitWidth = () => splitButtonLayout(split()).width
   /** Prefer whichever semantic text token reads best on the user bubble. */
   const userInk = () => {
     const onBackground = contrastRatio(palette().background, palette().primary)
@@ -527,28 +510,11 @@ export function ChatPane(props: {
         ) : null}
       </box>
 
-      <box paddingX={1} flexShrink={0} flexDirection="row" height={1}>
-        {compact() ? (
+      {actionGroups().length > 0 ? (
+        <box paddingX={1} flexShrink={0} flexDirection="row" height={1}>
           <ActionBar theme={palette()} groups={actionGroups()} width={fullWidth()} />
-        ) : (
-          <>
-            <SplitButton
-              theme={palette()}
-              primary={split().primary}
-              secondary={split().secondary}
-              disabled={sendBlocked()}
-            />
-            <text fg={palette().muted} wrapMode="none">
-              {"  "}
-            </text>
-            <ActionBar
-              theme={palette()}
-              groups={actionGroups()}
-              width={Math.max(1, fullWidth() - splitWidth() - 2)}
-            />
-          </>
-        )}
-      </box>
+        </box>
+      ) : null}
 
     </box>
   )
