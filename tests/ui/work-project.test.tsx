@@ -169,6 +169,8 @@ describe("change review", () => {
         for (const line of out) expect(line.length).toBe(w)
         expect(out.join("\n")).toContain("src/a.ts · 3 hunks")
         expect(out.join("\n")).toContain("@@ -1,2 +1,2 @@")
+        expect(out.join("\n")).toContain("- old")
+        expect(out.join("\n")).toContain("+ new")
       } finally {
         await setup.dispose()
       }
