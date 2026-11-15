@@ -32,6 +32,7 @@ import type { PickerView } from "./sources-model";
 import { footerHints } from "./sources-keys";
 import { TextField } from "../../shell/text-field";
 import { MultiSelectList } from "../../shell/multi-select";
+import { Wizard } from "../../shell/wizard";
 
 function fit(text: string, width: number): string {
   if (width <= 0) return ""
@@ -75,7 +76,7 @@ export function SourcesPanel(props: {
   const showPreview = () => props.height >= 24 && !showingSources()
   const previewRows = () => Math.max(3, Math.min(8, Math.floor(props.height * 0.22)))
   const listSize = () =>
-    Math.max(3, props.height - 10 - (showPreview() ? previewRows() : 0))
+    Math.max(3, props.height - 11 - (showPreview() ? previewRows() : 0))
   const start = () => windowStart(props.view.cursor, entries().length, listSize())
   const multiItems = () =>
     entries().map((entry, index) => {
@@ -228,6 +229,15 @@ export function SourcesPanel(props: {
       footer={<WindowFooter theme={palette()} hints={hints()} width={props.width} />}
     >
       <WindowBody>
+        <Wizard
+          theme={palette()}
+          steps={[
+            { id: "choose", label: "Choose" },
+            { id: "review", label: "Review" },
+          ]}
+          current={props.view.step === "review" ? 1 : 0}
+          width={Math.max(8, props.width - 4)}
+        />
         <TextField
           theme={palette()}
           width={Math.max(8, props.width - 4)}

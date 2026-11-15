@@ -83,6 +83,27 @@ describe("browse", () => {
     }
   })
 
+  test("the wizard marks the choose step and the review step", async () => {
+    const browse = await mount(100, 24)
+    try {
+      const frame = rows(browse).join("\n")
+      expect(frame).toContain("● 1 Choose")
+      expect(frame).toContain("○ 2 Review")
+    } finally {
+      await browse.dispose()
+    }
+    const review = await mount(100, 24, {
+      view: { ...model.initialView, step: "review" },
+    })
+    try {
+      const frame = rows(review).join("\n")
+      expect(frame).toContain("✓ 1 Choose")
+      expect(frame).toContain("● 2 Review")
+    } finally {
+      await review.dispose()
+    }
+  })
+
   test("every file row is selectable, whatever its extension", async () => {
     const setup = await mount(100, 24)
     try {
