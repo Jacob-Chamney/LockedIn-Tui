@@ -91,6 +91,7 @@ describe("budget", () => {
       expect(frame).toContain("$3.90 of $5.00")
       expect(frame).toContain("█")
       expect(frame).toContain("░")
+      expect(frame).toContain("┊")
     } finally {
       await setup.dispose()
     }

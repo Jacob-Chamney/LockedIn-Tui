@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `bulletChart()` draws a value fill with a target marker; the Usage spend meter
+  marks its warn threshold with it.
 - `donut()` draws a multi-segment braille ring with a fitted legend; Usage shows
   model shares as a donut above its bars.
 - `progressRing()` draws a braille progress annulus; Stats shows active days as

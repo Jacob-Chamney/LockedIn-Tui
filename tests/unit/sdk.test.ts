@@ -12,6 +12,8 @@ import {
   bars,
   calendar,
   breadcrumbs,
+  bulletChart,
+  bulletChartText,
   callout,
   card,
   checklist,
@@ -3185,4 +3187,46 @@ test("donut keeps an empty ring on the track and legends fit", () => {
       width: 20,
     }),
   ).toEqual(["● notes          75%", "● files          25%"])
+})
+
+test("bulletChart draws fill, target, track and label segments", () => {
+  const nodes = bulletChart({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 20,
+    value: 78,
+    max: 100,
+    target: 80,
+    label: "78%",
+  })
+  expect(nodes.length).toBeGreaterThan(2)
+  expect(nodes.every((node) => node.kind === "text" && node.y === 3)).toBe(true)
+  expect(nodes.some((node) => node.kind === "text" && node.text.includes("█"))).toBe(true)
+  expect(nodes.some((node) => node.kind === "text" && node.text === "┊")).toBe(true)
+  expect(nodes.some((node) => node.kind === "text" && node.text === " 78%")).toBe(true)
+  expect(nodes[0]).toMatchObject({ x: 2, fg: "primary" })
+})
+
+test("bulletChart honours segment colours and zero width", () => {
+  const nodes = bulletChart({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 10,
+    value: 2,
+    max: 4,
+    target: 3,
+    filledFg: "accent",
+    emptyFg: "secondary",
+    targetFg: "warning",
+    label: "half",
+    labelFg: "foreground",
+  })
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "accent")).toBe(true)
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "secondary")).toBe(true)
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "warning")).toBe(true)
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "foreground")).toBe(true)
+  expect(bulletChartText({ value: 2, max: 4, width: 10, showLabel: false })).toBe("█████░░░░░")
+  expect(bulletChart({ anchor: "top-left", x: 0, y: 0, width: 0, value: 1, max: 2 })).toEqual([])
 })
