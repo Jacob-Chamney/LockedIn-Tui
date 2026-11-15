@@ -197,6 +197,7 @@ describe("help matches the registry", () => {
       // One group per page: CONTEXT first, then GLOBAL and SYSTEM on Tab.
       expect(frame).toContain("CONTEXT")
       expect(frame).toContain("1/3")
+      expect(frame).toContain("● ○ ○")
       expect(frame).not.toContain("SYSTEM")
     } finally {
       await setup.dispose()

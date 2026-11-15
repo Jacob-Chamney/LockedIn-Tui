@@ -56,6 +56,11 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  paginationLayout,
+  type PaginationGlyphs as PaginationGlyphsInput,
+  type PaginationStyle as PaginationStyleInput,
+} from "../src/ui/pagination"
+import {
   actionBarLayout,
   type ActionGroup as ActionGroupInput,
   type ActionItem as ActionItemInput,
@@ -3888,6 +3893,57 @@ export function actionBar(options: ActionBarOptions): SceneNode[] {
     }
   }
   return nodes
+}
+
+/** The glyphs a dot-style `pagination()` uses. */
+export type PaginationGlyphs = PaginationGlyphsInput
+
+/** `dots`, `numbers` or a plain `count`. */
+export type PaginationStyle = PaginationStyleInput
+
+export type PaginationOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Available columns; 0 means unlimited. */
+  width?: number
+  /** Zero-based current page. */
+  page: number
+  total: number
+  style?: PaginationStyle
+  glyphs?: Partial<PaginationGlyphs>
+  /** Current-page colour. Defaults to `primary`. */
+  currentFg?: string
+  /** Other-page colour. Defaults to `muted`. */
+  otherFg?: string
+  /** Count-fallback colour. Defaults to `foreground`. */
+  countFg?: string
+}
+
+/**
+ * A page indicator: dots, numbers or a count.
+ *
+ *   pagination({ anchor: "top-left", x: 2, y: 0, width: 12, page: 0, total: 3 })
+ *   // ● ○ ○
+ *
+ * The current page is clamped. A dot or number row that does not fit `width`
+ * falls back to a fitted `current/total` count, so the indicator never clips.
+ */
+export function pagination(options: PaginationOptions): SceneNode[] {
+  const layout = paginationLayout(options)
+  return layout.tokens.map((token) => ({
+    kind: "text" as const,
+    anchor: options.anchor,
+    x: options.x + token.x,
+    y: options.y,
+    text: token.text,
+    fg:
+      token.kind === "count"
+        ? (options.countFg ?? "foreground")
+        : token.current
+          ? (options.currentFg ?? "primary")
+          : (options.otherFg ?? "muted"),
+  }))
 }
 
 export type FormOptions = {
