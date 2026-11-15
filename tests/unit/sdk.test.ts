@@ -41,6 +41,8 @@ import {
   keycaps,
   kanban,
   radio,
+  rating,
+  ratingText,
   legend,
   list,
   loop,
@@ -2142,4 +2144,28 @@ test("segmented honours colours and hides when too narrow", () => {
   expect(nodes[2]).toMatchObject({ color: "line" })
   expect(nodes[3]).toMatchObject({ fg: "secondary" })
   expect(segmented({ anchor: "top-left", x: 0, y: 0, width: 1, options: ["a", "b"], selected: 0 })).toEqual([])
+})
+
+test("rating splits filled and empty pips", () => {
+  const nodes = rating({ anchor: "top-left", x: 2, y: 3, value: 3, max: 5 })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, text: "●●●", fg: "primary" })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 5, y: 3, text: "○○", fg: "line" })
+})
+
+test("rating shares the text helper and honours overrides", () => {
+  expect(ratingText({ value: 2, max: 4 })).toBe("●●○○")
+  const nodes = rating({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    value: 2,
+    max: 3,
+    glyphs: { filled: "x", empty: "." },
+    filledFg: "accent",
+    emptyFg: "secondary",
+  })
+  expect(nodes[0]).toMatchObject({ text: "xx", fg: "accent" })
+  expect(nodes[1]).toMatchObject({ text: ".", fg: "secondary" })
+  expect(rating({ anchor: "top-left", x: 0, y: 0, value: 2, max: 0 })).toEqual([])
 })

@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `rating()` draws filled and empty level pips for plugin scenes; achievement
+  detail shows the difficulty tier as pips.
 - `segmented()` draws exclusive option groups for plugin scenes; Settings
   renders Period as a day/month control.
 - `avatar()` draws monogram badges for plugin scenes; agent roster rows show

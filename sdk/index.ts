@@ -61,6 +61,12 @@ import {
 } from "../src/ui/segmented"
 import { avatarLayout, type AvatarTone as AvatarToneInput } from "../src/ui/avatar"
 import {
+  ratingLayout,
+  ratingText as renderRating,
+  type RatingGlyphs as RatingGlyphsInput,
+  type RatingLayout as RatingLayoutInput,
+} from "../src/ui/rating"
+import {
   statusDotLayout,
   type StatusDotGlyphs as StatusDotGlyphsInput,
   type StatusDotTones as StatusDotTonesInput,
@@ -4222,6 +4228,67 @@ export function segmented(options: SegmentedOptions): SceneNode[] {
       y: options.y,
       text: segment.text,
       fg: segment.selected ? (options.selectedFg ?? "background") : (options.fg ?? "muted"),
+    })
+  }
+  return nodes
+}
+
+/** The glyphs a `rating()` uses. */
+export type RatingGlyphs = RatingGlyphsInput
+
+/** The filled/empty count and text of a `rating()`. */
+export type RatingLayout = RatingLayoutInput
+
+export type RatingOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Level, clamped to 0..max. */
+  value: number
+  /** Number of pips; defaults to 5. */
+  max?: number
+  glyphs?: Partial<RatingGlyphs>
+  /** Filled-pip colour. Defaults to `primary`. */
+  filledFg?: string
+  /** Empty-pip colour. Defaults to `line`. */
+  emptyFg?: string
+}
+
+/**
+ * A level drawn as filled and empty pips.
+ *
+ *   rating({ anchor: "top-left", x: 2, y: 2, value: 3, max: 5 })
+ *   // ●●●○○
+ *
+ * Filled pips use `filledFg` and empty pips `emptyFg`; `glyphs` replaces the
+ * marks. The text is the level, so colour is never the only signal.
+ */
+/** The pip text for a level, without placement. */
+export function ratingText(options: Omit<RatingOptions, "anchor" | "x" | "y">): string {
+  return renderRating(options)
+}
+
+export function rating(options: RatingOptions): SceneNode[] {
+  const layout = ratingLayout(options)
+  const nodes: SceneNode[] = []
+  if (layout.filled > 0) {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      text: layout.text.slice(0, layout.filled),
+      fg: options.filledFg ?? "primary",
+    })
+  }
+  if (layout.empty > 0) {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + layout.filled,
+      y: options.y,
+      text: layout.text.slice(layout.filled),
+      fg: options.emptyFg ?? "line",
     })
   }
   return nodes
