@@ -55,6 +55,7 @@ import {
 } from "../src/ui/accordion"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
+import { chipLayout, type ChipItem as ChipItemInput } from "../src/ui/chips"
 import { toggleLayout, type ToggleLayout as ToggleLayoutInput } from "../src/ui/toggle"
 import {
   calendarLayout,
@@ -3567,6 +3568,80 @@ export function toggle(options: ToggleOptions): SceneNode[] {
       fg: options.on ? (options.onFg ?? "background") : (options.offFg ?? "foreground"),
     },
   ]
+}
+
+/** One token in a `chips()` row. */
+export type ChipItem = ChipItemInput
+
+export type ChipsOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Available columns. */
+  width: number
+  items: readonly ChipItem[]
+  /** Spaces between chips; defaults to 1. */
+  gap?: number
+  /** Removing marker; defaults to `×`. */
+  marker?: string
+  /** Inactive chip text. Defaults to `foreground`. */
+  fg?: string
+  /** Active chip text. Defaults to `background`. */
+  activeFg?: string
+  /** Hidden-count colour. Defaults to `muted`. */
+  hiddenFg?: string
+}
+
+/**
+ * A row of bracketed chips, optionally removable.
+ *
+ *   chips({ anchor: "top-left", x: 2, y: 2, width: 40, items: [
+ *     { id: "a", label: "a.png", removable: true },
+ *     { id: "b", label: "b.png", removable: true, active: true },
+ *   ] })
+ *
+ * Active chips use the primary fill by default; others use the surface. The
+ * first chip that does not fit ends the row and `+N` reports the rest.
+ */
+export function chips(options: ChipsOptions): SceneNode[] {
+  const layout = chipLayout(options)
+  const nodes: SceneNode[] = []
+  for (const chip of layout.chips) {
+    nodes.push({
+      kind: "rect",
+      anchor: options.anchor,
+      x: options.x + chip.x,
+      y: options.y,
+      width: chip.width,
+      height: 1,
+      fill: true,
+      color: chip.tone,
+    })
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + chip.x,
+      y: options.y,
+      text: chip.text,
+      fg: chip.active ? (options.activeFg ?? "background") : (options.fg ?? "foreground"),
+    })
+  }
+  if (layout.hidden > 0 && layout.chips.length > 0) {
+    const last = layout.chips[layout.chips.length - 1]!
+    const at = last.x + last.width + layout.gap
+    const text = `+${layout.hidden}`
+    if (at + text.length <= layout.width) {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x + at,
+        y: options.y,
+        text,
+        fg: options.hiddenFg ?? "muted",
+      })
+    }
+  }
+  return nodes
 }
 
 export type FormOptions = {

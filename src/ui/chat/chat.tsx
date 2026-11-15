@@ -16,9 +16,10 @@ import type { ScrollApi } from "../scroll";
 import { MarkdownBody } from "../reader/markdown-body";
 import { LOGO_MIN_WIDTH, LOCKED_IN_LOGO, LOCKED_IN_TAGLINE } from "../shell/brand";
 import { Bubble, useAfterFirstFrame, useCellSize } from "./bubble";
-import { useThinkingPulse } from "./pulse";
+import { useThinkingPulse } from "./pulse"
+import { ChipList } from "../shell/chips";
 import { bubbleColumns } from "./bubble-geometry";
-import { COMPOSER_CURSOR, PLACEHOLDER, STOP_LINE, THINKING_LINE, canSend, chipLabel, composerRows, composerText, greeting, hiddenCount, hints as hintList, mountedMessages, newMessagesMarker, pasteLabel, pasteRows, stopMarker, streamingText, thinkingLine, waitingForModel, type ChatState, type Message } from "./model";
+import { COMPOSER_CURSOR, PLACEHOLDER, STOP_LINE, THINKING_LINE, canSend, composerRows, composerText, greeting, hiddenCount, hints as hintList, mountedMessages, newMessagesMarker, pasteLabel, pasteRows, stopMarker, streamingText, thinkingLine, waitingForModel, type ChatState, type Message } from "./model";
 export function ChatPane(props: {
   theme: ThemePalette
   width: number
@@ -414,9 +415,16 @@ export function ChatPane(props: {
       ) : null}
 
       {props.state.attachments.length > 0 ? (
-        <text fg={palette().secondary} wrapMode="none">
-          {props.state.attachments.map(chipLabel).join(" ")}
-        </text>
+        <ChipList
+          theme={palette()}
+          width={fullWidth()}
+          items={props.state.attachments.map((file, index) => ({
+            id: `${file.name}:${index}`,
+            label: file.name,
+            removable: true,
+            active: index === props.state.attachments.length - 1,
+          }))}
+        />
       ) : null}
 
       {/* The stop hint sits directly above the composer: Esc acts on the input,
