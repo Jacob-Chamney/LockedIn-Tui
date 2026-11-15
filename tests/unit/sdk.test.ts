@@ -95,6 +95,8 @@ import {
   status,
   statusBanner,
   statusBannerText,
+  statusTimeline,
+  statusTimelineText,
   swatches,
   table,
   tabs,
@@ -3229,4 +3231,52 @@ test("bulletChart honours segment colours and zero width", () => {
   expect(nodes.some((node) => node.kind === "text" && node.fg === "foreground")).toBe(true)
   expect(bulletChartText({ value: 2, max: 4, width: 10, showLabel: false })).toBe("█████░░░░░")
   expect(bulletChart({ anchor: "top-left", x: 0, y: 0, width: 0, value: 1, max: 2 })).toEqual([])
+})
+
+test("statusTimeline draws time, rail, glyph and label columns", () => {
+  const nodes = statusTimeline({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 40,
+    entries: [
+      { id: "a", time: "10:00", label: "first model", state: "success" },
+      { id: "b", time: "11:00", label: "second model", detail: "failed run", state: "error" },
+    ],
+  })
+  expect(nodes.length).toBeGreaterThan(6)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, text: "10:00", fg: "muted" })
+  expect(nodes[1]).toMatchObject({ x: 8, y: 3, text: "├─", fg: "line" })
+  expect(nodes[2]).toMatchObject({ x: 11, y: 3, text: "✓", fg: "success" })
+  expect(nodes[3]).toMatchObject({ x: 13, y: 3, text: "first model", fg: "foreground" })
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "error" && node.text === "×")).toBe(true)
+  expect(nodes.some((node) => node.kind === "text" && node.text === "failed run" && node.fg === "muted")).toBe(true)
+})
+
+test("statusTimeline caps entries, fits labels and honours colours", () => {
+  const nodes = statusTimeline({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 18,
+    maxEntries: 1,
+    timeFg: "accent",
+    connectorFg: "secondary",
+    fg: "warning",
+    detailFg: "foreground",
+    entries: [
+      { id: "a", time: "10:00", label: "a very long model name", detail: "failed run", state: "error" },
+      { id: "b", time: "11:00", label: "second" },
+    ],
+  })
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "accent")).toBe(true)
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "secondary")).toBe(true)
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "warning")).toBe(true)
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "foreground")).toBe(true)
+  const lines = statusTimelineText({
+    width: 40,
+    entries: [{ id: "a", time: "10:00", label: "first", state: "success" }],
+  })
+  expect(lines).toEqual(["10:00 └─ ✓ first"])
+  expect(statusTimeline({ anchor: "top-left", x: 0, y: 0, width: 0, entries: [] })).toEqual([])
 })
