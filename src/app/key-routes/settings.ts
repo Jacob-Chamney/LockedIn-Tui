@@ -6,7 +6,6 @@ import {
   emptySettingsView,
   selectedRow,
   settingsGroups,
-  activateSetting,
   stepSetting,
   toggleSection,
   visibleGroups,
@@ -164,16 +163,22 @@ export function handleSettingsKeys(
       event.preventDefault()
       return true
     }
-    if (press.name === "-" || press.name === "+") {
-      const groups = visibleGroups(
-        settingsGroups(deps.settingsView() ?? emptySettingsView()),
-        deps.settingsState().collapsed ?? [],
-      )
-      const row = selectedRow(groups, deps.settingsState().cursor)
-      const result = row
-        ? stepSetting(deps.settingsView() ?? emptySettingsView(), row.row.id, press.name === "+" ? 1 : -1)
-        : null
-      if (result) persistSettingsPatch(deps, result.patch)
+    const adjusting = deps.settingsState().adjusting
+    if (adjusting) {
+      if (press.name === "escape" || press.name === "return") {
+        deps.setSettingsState((current) => cancelEdit(current))
+      } else {
+        const delta =
+          press.name === "down" || press.name === "right" || press.name === "j" || press.name === "l"
+            ? 1
+            : press.name === "up" || press.name === "left" || press.name === "k" || press.name === "h"
+              ? -1
+              : 0
+        if (delta !== 0) {
+          const result = stepSetting(deps.settingsView() ?? emptySettingsView(), adjusting.rowId, delta)
+          if (result) persistSettingsPatch(deps, result.patch)
+        }
+      }
       event.preventDefault()
       return true
     }
@@ -233,14 +238,6 @@ export function handleSettingsKeys(
         deps.update({ ...state, pane: "archive", mode: "normal" })
         event.preventDefault()
         return true
-      }
-      if (row) {
-        const activation = activateSetting(deps.settingsView() ?? emptySettingsView(), row.row.id)
-        if (activation) {
-          persistSettingsPatch(deps, activation.patch)
-          event.preventDefault()
-          return true
-        }
       }
       deps.setSettingsState((current) => beginEdit(current, groups))
       event.preventDefault()

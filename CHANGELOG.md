@@ -207,6 +207,8 @@ requests merge.
 
 ### Fixed
 
+- Settings values now change only after Enter: arrows or hjkl adjust the open
+  value, and `+`/`-` no longer change settings.
 - Settings controls now do what they show: Period and Pause toggle with Enter,
   Warn at and the numeric limits step with `-`/`+`, and max tool calls, max
   tokens and history can be edited numerically. Period, warning and pause

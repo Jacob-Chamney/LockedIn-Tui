@@ -137,38 +137,27 @@ describe("rows and groups", () => {
     expect(settings.stepSetting(VIEW, "period", 1)).toEqual({
       patch: { "usage.period": "day" },
     })
-  })
-
-  test("activateSetting flips period and pause at limit", () => {
-    expect(settings.activateSetting(VIEW, "period")).toEqual({
-      patch: { "usage.period": "day" },
-    })
-    expect(settings.activateSetting(VIEW, "pause")).toEqual({
+    expect(settings.stepSetting(VIEW, "pause", 1)).toEqual({
       patch: { "usage.pause_at_limit": false },
     })
-    expect(settings.activateSetting({ ...VIEW, period: "day", pauseAtLimit: false }, "period")).toEqual({
-      patch: { "usage.period": "month" },
-    })
-    expect(settings.activateSetting(VIEW, "maxTokens")).toBeNull()
   })
 
-  test("numeric rows edit as numbers and warn-at explains its keys", async () => {
+  test("Enter opens text fields for typing and other controls for arrows", () => {
     const groups = settings.settingsGroups(VIEW)
     const rows = settings.flatRows(groups)
-    const at = rows.findIndex((entry) => entry.row.id === "maxToolCalls")
-    const editing = settings.typeEdit(
-      settings.beginEdit({ ...settings.initialSettingsState, cursor: at }, groups),
-      "32",
-    )
-    const result = await settings.commitEdit(editing, async () => VIEW)
-    expect(result).toMatchObject({
-      patch: { "models.max_tool_calls": 32 },
-      state: { editing: null },
-    })
+    const username = rows.findIndex((entry) => entry.row.id === "username")
+    const typed = settings.beginEdit({ ...settings.initialSettingsState, cursor: username }, groups)
+    expect(typed.editing).toMatchObject({ id: "username", draft: "ada" })
+
+    const maxTool = rows.findIndex((entry) => entry.row.id === "maxToolCalls")
+    const adjusted = settings.beginEdit({ ...settings.initialSettingsState, cursor: maxTool }, groups)
+    expect(adjusted.editing).toBeNull()
+    expect(adjusted.adjusting).toEqual({ id: "maxToolCalls", rowId: "maxToolCalls" })
+    expect(adjusted.notice).toContain("↑↓ or j/k adjust")
 
     const warn = rows.findIndex((entry) => entry.row.id === "warnAt")
-    const refused = settings.beginEdit({ ...settings.initialSettingsState, cursor: warn }, groups)
-    expect(refused.notice).toBe("Warn at is adjusted with -/+")
+    const range = settings.beginEdit({ ...settings.initialSettingsState, cursor: warn }, groups)
+    expect(range.adjusting).toEqual({ id: "warnAt", rowId: "warnAt" })
   })
 
   test("numeric rows render steppers and warn-at stays adjustable", async () => {
@@ -265,7 +254,7 @@ describe("rows and groups", () => {
     try {
       const frame = lines(setup).join("\n")
       expect(frame).toContain("? hint")
-      expect(frame).toContain("▸ [Enter] edit")
+      expect(frame).toContain("▸ [Enter] change")
       expect(frame).toContain("[h/l] fold")
       expect(frame).toContain("shown in the greeting and on saved notes.")
     } finally {
@@ -296,7 +285,8 @@ describe("rows and groups", () => {
   test("the footer names the fold and hint keys", () => {
     expect(settings.settingsFooterHints()).toContain("h/l fold")
     expect(settings.settingsFooterHints()).toContain("v hint")
-    expect(settings.settingsFooterHints()).toContain("-/+ step")
+    expect(settings.settingsFooterHints()).not.toContain("-/+")
+    expect(settings.settingsFooterHints()).not.toContain("Enter edit")
   })
 
   test("the value column is aligned across rows", () => {
@@ -432,7 +422,7 @@ describe("keys", () => {
     expect(settings.settingsIntentFor("k")).toBe("up")
     expect(settings.settingsIntentFor("return")).toBe("edit")
     expect(settings.settingsIntentFor("escape")).toBe("cancel")
-    expect(settings.settingsFooterHints()).toContain("Enter edit")
+    expect(settings.settingsFooterHints()).toContain("Enter change")
 
     const source = readFileSync(join(import.meta.dir, "../../src/ui/settings/settings-page.tsx"), "utf8")
     expect(source).not.toMatch(/space\+[a-z]/i)
