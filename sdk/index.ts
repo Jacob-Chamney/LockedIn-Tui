@@ -56,6 +56,13 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  rangeSliderLayout,
+  rangeSliderText as renderRangeSlider,
+  type RangeSliderGlyphs as RangeSliderGlyphsInput,
+  type RangeSliderLayout as RangeSliderLayoutInput,
+  type RangeSliderSegment as RangeSliderSegmentInput,
+} from "../src/ui/range-slider"
+import {
   matrixLayout,
   matrixText as renderMatrix,
   type MatrixLayout as MatrixLayoutInput,
@@ -5632,6 +5639,67 @@ export function matrix(options: MatrixOptions): SceneNode[] {
 /** The matrix as plain lines, header first. */
 export function matrixText(options: Omit<MatrixOptions, "anchor" | "x" | "y" | "showHeader" | "headerFg" | "fg" | "mutedFg" | "errorFg">): string[] {
   return renderMatrix(options)
+}
+
+/** The track glyphs a `rangeSlider()` uses. */
+export type RangeSliderGlyphs = RangeSliderGlyphsInput
+
+/** One track, handle, fill or label segment. */
+export type RangeSliderSegment = RangeSliderSegmentInput
+
+/** The handles, segments and label of a range slider. */
+export type RangeSliderLayout = RangeSliderLayoutInput
+
+export type RangeSliderOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  width: number
+  values: readonly [number, number]
+  min?: number
+  max?: number
+  label?: string
+  showLabel?: boolean
+  glyphs?: Partial<RangeSliderGlyphs>
+  /** Empty-track colour. Defaults to `line`. */
+  emptyFg?: string
+  /** Filled-span and handle colour. Defaults to `primary`. */
+  filledFg?: string
+  /** Label colour. Defaults to `muted`. */
+  labelFg?: string
+}
+
+/**
+ * A dual-handle range slider with a filled span and value label.
+ *
+ *   rangeSlider({ anchor: "top-left", x: 2, y: 2, width: 18,
+ *                 values: [0.8, 1] })
+ *   // ───────●━● 80%–100%
+ *
+ * Values are clamped and ordered; the span between handles is filled and the
+ * outside stays empty. Both values may collapse to one handle. `label` replaces
+ * the percentage span, and `glyphs`/colours override the marks.
+ */
+export function rangeSlider(options: RangeSliderOptions): SceneNode[] {
+  const layout = rangeSliderLayout(options)
+  return layout.segments.map((segment) => ({
+    kind: "text" as const,
+    anchor: options.anchor,
+    x: options.x + segment.x,
+    y: options.y,
+    text: segment.text,
+    fg:
+      segment.kind === "label"
+        ? (options.labelFg ?? "muted")
+        : segment.kind === "empty"
+          ? (options.emptyFg ?? "line")
+          : (options.filledFg ?? "primary"),
+  }))
+}
+
+/** The range slider text without placement. */
+export function rangeSliderText(options: Omit<RangeSliderOptions, "anchor" | "x" | "y">): string {
+  return renderRangeSlider(options)
 }
 
 export type FormOptions = {

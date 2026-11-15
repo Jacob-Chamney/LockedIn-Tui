@@ -48,6 +48,8 @@ import {
   keycaps,
   kanban,
   radio,
+  rangeSlider,
+  rangeSliderText,
   rating,
   ratingText,
   legend,
@@ -2831,4 +2833,38 @@ test("matrix can hide the header and handles empty input", () => {
   expect(nodes).toHaveLength(1)
   expect(nodes[0]).toMatchObject({ y: 0, text: "a  c  " })
   expect(matrix({ anchor: "top-left", x: 0, y: 0, width: 40, rows: [], columns: [], cells: [] })).toEqual([])
+})
+
+test("rangeSlider draws empty track, handles, fill and label", () => {
+  const nodes = rangeSlider({
+    anchor: "top-left",
+    x: 2,
+    y: 2,
+    width: 18,
+    values: [0.8, 1],
+  })
+  expect(nodes).toHaveLength(6)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 2, text: "──────", fg: "line" })
+  expect(nodes[1]).toMatchObject({ x: 8, text: "●", fg: "primary" })
+  expect(nodes[2]).toMatchObject({ x: 9, text: "━", fg: "primary" })
+  expect(nodes[3]).toMatchObject({ x: 10, text: "●", fg: "primary" })
+  expect(nodes[4]).toMatchObject({ x: 11, text: " " })
+  expect(nodes[5]).toMatchObject({ x: 12, text: "80%–100%", fg: "muted" })
+})
+
+test("rangeSlider honours overrides and empty widths", () => {
+  const nodes = rangeSlider({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 14,
+    values: [0.5, 0.5],
+    showLabel: false,
+    emptyFg: "secondary",
+    filledFg: "accent",
+  })
+  expect(nodes[0]).toMatchObject({ fg: "secondary" })
+  expect(nodes[1]).toMatchObject({ fg: "accent" })
+  expect(rangeSliderText({ width: 20, values: [0, 1] })).toContain("0%–100%")
+  expect(rangeSlider({ anchor: "top-left", x: 0, y: 0, width: 0, values: [0, 1] })).toEqual([])
 })

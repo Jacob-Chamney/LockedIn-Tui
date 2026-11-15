@@ -124,12 +124,12 @@ describe("rows and groups", () => {
     }
   })
 
-  test("Warn at renders a slider at the threshold", async () => {
+  test("Warn at renders a two-handle range to the limit", async () => {
     const setup = await mount(120, 36)
     try {
       const row = lines(setup).find((line) => line.includes("Warn at"))!
-      expect(row).toContain("80%")
-      expect(row).toContain("●")
+      expect(row).toContain("80%–100%")
+      expect(row.match(/●/g)).toHaveLength(2)
       expect(row).toMatch(/[━─]/)
     } finally {
       await setup.dispose()

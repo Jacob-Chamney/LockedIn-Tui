@@ -416,9 +416,9 @@ export function SettingsPage(props: {
                 ? { on: props.view.pauseAtLimit, onLabel: "yes", offLabel: "no" }
                 : undefined
             }
-            slider={
+            range={
               row.id === "warnAt"
-                ? { value: props.view.warnAt, label: warnLabel(props.view.warnAt), width: 18 }
+                ? { values: [props.view.warnAt, 1], width: 18 }
                 : undefined
             }
             segments={
