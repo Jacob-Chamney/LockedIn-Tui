@@ -67,6 +67,9 @@ export type ShellState = {
   commandQuery: string
   /** Which suggestion is selected; Tab completes it, Enter runs it. */
   commandIndex: number
+  /** True once arrows moved the selection, so Enter runs that row rather than
+   *  guessing the first match for a partial query. */
+  commandPicked: boolean
   /** One actionable line shown under the bar; the bar stays open. */
   commandMessage: string | null
   /** The shell panel opened by a command (archive, themes, keybinds). */
@@ -86,6 +89,7 @@ export const initialShellState: ShellState = {
   leaderPending: false,
   commandQuery: "",
   commandIndex: 0,
+  commandPicked: false,
   commandMessage: null,
   panel: null,
   pane: "chat",
@@ -100,7 +104,7 @@ export type ShellEvent =
   | { type: "command-open" }
   | { type: "command-input"; value: string }
   | { type: "command-move"; delta: number; count: number }
-  | { type: "command-cycle"; delta: number; count: number }
+  | { type: "command-complete"; value: string }
   | { type: "command-message"; message: string | null }
   | { type: "panel-open"; id: string }
   /** Enter in a chooser: take the picked item into its full surface. */
@@ -163,6 +167,7 @@ export function reduce(state: ShellState, event: ShellEvent): ShellState {
         mode: "normal",
         commandQuery: "",
         commandIndex: 0,
+        commandPicked: false,
         commandMessage: null,
       }
 
@@ -175,23 +180,36 @@ export function reduce(state: ShellState, event: ShellEvent): ShellState {
         commandQuery: "",
         commandMessage: null,
         commandIndex: 0,
+        commandPicked: false,
         leaderPending: false,
       }
 
     case "command-input":
-      return { ...state, commandQuery: event.value, commandMessage: null, commandIndex: 0 }
+      return {
+        ...state,
+        commandQuery: event.value,
+        commandMessage: null,
+        commandIndex: 0,
+        commandPicked: false,
+      }
 
-    case "command-cycle": {
-      if (event.count <= 0) return { ...state, commandIndex: 0 }
-      const next = (state.commandIndex + event.delta + event.count) % event.count
-      return { ...state, commandIndex: next }
-    }
+    case "command-complete":
+      // Tab fills the query with the selected command; the row stays selected
+      // and Enter can run the exact name that is now on the line.
+      return {
+        ...state,
+        commandQuery: event.value,
+        commandMessage: null,
+        commandIndex: 0,
+        commandPicked: false,
+      }
 
     case "command-move": {
-      if (event.count <= 0) return { ...state, commandIndex: 0 }
+      if (event.count <= 0) return { ...state, commandIndex: 0, commandPicked: false }
       return {
         ...state,
         commandIndex: Math.max(0, Math.min(event.count - 1, state.commandIndex + event.delta)),
+        commandPicked: true,
       }
     }
 

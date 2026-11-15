@@ -50,7 +50,7 @@ export function CommandBar(props: {
         </box>
       }
       footer={
-        props.message ? `! ${props.message}` : "Tab cycle · ↑↓ move · Enter run · Esc close"
+        props.message ? `! ${props.message}` : "Tab complete · ↑↓ move · Enter run · Esc close"
       }
       footerTone={props.message ? "warning" : "muted"}
     >

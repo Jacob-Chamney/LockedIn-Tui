@@ -162,6 +162,9 @@ requests merge.
 
 ### Changed
 
+- The command palette completes with `Tab`: it fills the line with the selected
+  command, and Enter no longer runs the first suggestion for a partial line —
+  it names the nearest command and leaves the bar open.
 - The status bar names the open surface (STATS, SETTINGS, EXPLORER) and shows
   chat hints and notes only while the chat itself is focused; the modal backdrop
   dims the chat more strongly.
