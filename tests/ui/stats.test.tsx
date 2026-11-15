@@ -160,6 +160,29 @@ describe("the hero", () => {
     }
   })
 
+  test("weekly token columns sit under the heatmap on tall pages", async () => {
+    const setup = await mount(140, 44)
+    try {
+      const out = lines(setup)
+      const label = out.findIndex((line) => line.includes("BY WEEK"))
+      expect(label).toBeGreaterThan(-1)
+      const chart = out.slice(label + 1, label + 3).join("\n")
+      expect(chart).toMatch(/[█ ]+/)
+      expect(chart).toContain("█")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("the compact page omits the weekly columns", async () => {
+    const setup = await mount(80, 24)
+    try {
+      expect(lines(setup).join("\n")).not.toContain("BY WEEK")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("the hero charts the daily token series", async () => {
     const setup = await mount(140, 44)
     try {

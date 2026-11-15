@@ -18,6 +18,7 @@ import { Legend } from "../shell/legend"
 import { Distribution } from "../shell/distribution"
 import { Delta } from "../shell/delta"
 import { LineChart } from "../shell/line-chart"
+import { Sparkbar } from "../shell/sparkbar"
 import { StatCard } from "../shell/stat-card"
 import { sparklineText } from "../sparkline"
 import { tabLayout } from "../tabs"
@@ -244,6 +245,11 @@ export function StatsPage(props: {
       ? sparklineText({ values, width: 60 })
       : ""
   }
+  /** Token totals per calendar week, for the compact column chart. */
+  const weeklyTokens = () =>
+    heat().weeks.map((week) =>
+      week.reduce((sum, day) => sum + (day === null ? 0 : day.tokens), 0),
+    )
   /** Non-null daily token totals inside the selected range. */
   const dailyTokens = () => {
     const values: number[] = []
@@ -385,6 +391,19 @@ export function StatsPage(props: {
             </box>
           ))}
         </box>
+        {props.height >= 42 && props.width >= 60 && weeklyTokens().some((value) => value > 0) ? (
+          <box flexDirection="column" alignItems="center" width={chartWidth()} marginTop={1} flexShrink={0}>
+            <text fg={palette().muted} wrapMode="none">
+              {"BY WEEK"}
+            </text>
+            <Sparkbar
+              theme={palette()}
+              values={weeklyTokens()}
+              width={Math.min(props.width - 8, 60)}
+              height={2}
+            />
+          </box>
+        ) : null}
         {props.height >= 30 ? (
           <Legend
             theme={palette()}

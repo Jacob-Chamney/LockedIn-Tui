@@ -73,6 +73,8 @@ import {
   sidebarMain,
   skeleton,
   slider,
+  sparkbar,
+  sparkbarText,
   sparkline,
   sparklineText,
   spinner,
@@ -3068,4 +3070,35 @@ test("dataTable hides its header and honours colours", () => {
   expect(nodes).toHaveLength(1)
   expect(nodes[0]).toMatchObject({ text: "one", fg: "secondary" })
   expect(dataTableText({ columns: [{ label: "A" }], rows: [["one"]], width: 10 })).toEqual(["A  ", "──────────", "one"])
+})
+
+test("sparkbar draws one row per level", () => {
+  const nodes = sparkbar({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 3,
+    height: 2,
+    values: [1, 2, 4],
+  })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, text: "  █", fg: "primary" })
+  expect(nodes[1]).toMatchObject({ y: 4, text: "███" })
+})
+
+test("sparkbar shares buckets, glyphs and colours", () => {
+  expect(sparkbarText({ values: [1, 2, 3, 4], width: 2, height: 1 })).toEqual(["██"])
+  const nodes = sparkbar({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 2,
+    height: 1,
+    values: [1, 2],
+    max: 4,
+    glyph: "#",
+    fg: "accent",
+  })
+  expect(nodes[0]).toMatchObject({ text: "##", fg: "accent" })
+  expect(sparkbar({ anchor: "top-left", x: 0, y: 0, width: 0, values: [1] })).toEqual([])
 })

@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `sparkbar()` draws compact whole-cell columns from a series; Stats shows
+  weekly token totals under its heatmap.
 - `dataTable()` fits columns, draws a header rule and supports row selection;
   the MCP tool list uses it.
 - `popover()` draws a bordered title/body/menu box with tooltip-style placement;
