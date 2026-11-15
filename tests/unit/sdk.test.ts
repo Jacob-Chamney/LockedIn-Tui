@@ -12,6 +12,7 @@ import {
   callout,
   card,
   checklist,
+  chips,
   confirm,
   createCursor,
   dashboard,
@@ -1789,4 +1790,42 @@ test("toggle honours labels, colours and fitting", () => {
   const clipped = toggle({ anchor: "top-left", x: 0, y: 0, width: 3, on: true })
   expect(clipped[1]).toMatchObject({ text: "● …" })
   expect(toggle({ anchor: "top-left", x: 0, y: 0, width: 0, on: true })).toEqual([])
+})
+
+test("chips fill bracketed tokens and mark the active one", () => {
+  const nodes = chips({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 30,
+    items: [
+      { id: "a", label: "a.png", removable: true },
+      { id: "b", label: "b.png", removable: true, active: true },
+    ],
+  })
+  expect(nodes).toHaveLength(4)
+  expect(nodes[0]).toMatchObject({ kind: "rect", x: 2, y: 3, width: 9, color: "surface" })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 2, text: "[a.png ×]", fg: "foreground" })
+  expect(nodes[2]).toMatchObject({ x: 12, width: 9, color: "primary" })
+  expect(nodes[3]).toMatchObject({ x: 12, text: "[b.png ×]", fg: "background" })
+})
+
+test("chips report hidden tokens and honour overrides", () => {
+  const nodes = chips({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 10,
+    marker: "x",
+    fg: "secondary",
+    hiddenFg: "warning",
+    items: [
+      { id: "a", label: "a", removable: true },
+      { id: "b", label: "b", removable: true },
+    ],
+  })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[1]).toMatchObject({ text: "[a x]", fg: "secondary" })
+  expect(nodes[2]).toMatchObject({ x: 8, text: "+1", fg: "warning" })
+  expect(chips({ anchor: "top-left", x: 0, y: 0, width: 20, items: [] })).toEqual([])
 })
