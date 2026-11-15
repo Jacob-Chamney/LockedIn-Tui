@@ -56,6 +56,14 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  deltaLayout,
+  deltaText as renderDelta,
+  type DeltaDirection as DeltaDirectionInput,
+  type DeltaGlyphs as DeltaGlyphsInput,
+  type DeltaLayout as DeltaLayoutInput,
+  type DeltaTone as DeltaToneInput,
+} from "../src/ui/delta"
+import {
   outlineLayout,
   type OutlineGlyphs as OutlineGlyphsInput,
   type OutlineItem as OutlineItemInput,
@@ -4641,6 +4649,64 @@ export function outline(options: OutlineOptions): SceneNode[] {
     text: segment.text,
     fg: segment.current ? (options.currentFg ?? "primary") : (options.fg ?? "muted"),
   }))
+}
+
+/** `up`, `down` or `flat`. */
+export type DeltaDirection = DeltaDirectionInput
+
+/** The semantic tone a delta chooses: success, error or muted. */
+export type DeltaTone = DeltaToneInput
+
+/** The direction glyphs a `delta()` uses. */
+export type DeltaGlyphs = DeltaGlyphsInput
+
+/** The rounded value, direction, tone and fitted text of a delta. */
+export type DeltaLayout = DeltaLayoutInput
+
+export type DeltaOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Signed percentage; rounded for display. */
+  value: number
+  /** Optional context after the number, e.g. `vs prior 7d`. */
+  label?: string
+  /** Which direction is healthy; defaults to `up`. */
+  good?: "up" | "down"
+  width?: number
+  glyphs?: Partial<DeltaGlyphs>
+  /** Colour override; otherwise the tone decides. */
+  fg?: string
+}
+
+/**
+ * A signed percentage with a direction glyph.
+ *
+ *   delta({ anchor: "top-left", x: 2, y: 4, value: 12, label: "vs prior 7d" })
+ *   // ▲ 12% vs prior 7d
+ *
+ * A rise is success and a fall error by default; pass `good: "down"` when a
+ * decrease is the healthy direction (spending, latency). Flat stays muted.
+ * `deltaText()` returns the string without placement.
+ */
+export function delta(options: DeltaOptions): SceneNode[] {
+  const layout = deltaLayout(options)
+  if (layout.width === 0) return []
+  return [
+    {
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      text: layout.text,
+      fg: options.fg ?? layout.tone,
+    },
+  ]
+}
+
+/** The delta text without placement. */
+export function deltaText(options: Omit<DeltaOptions, "anchor" | "x" | "y">): string {
+  return renderDelta(options)
 }
 
 export type FormOptions = {

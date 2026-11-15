@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `delta()` draws a signed percentage with direction glyphs and semantic tone;
+  the Stats hero compares the latest seven days with the prior seven.
 - `outline()` draws a one-row contents with depth and current markers for plugin
   scenes; the Knowledge reader builds one from note headings.
 - `divider()` draws a rule with an optional centred label for plugin scenes;

@@ -137,6 +137,26 @@ describe("the hero", () => {
     }
   })
 
+  test("the token hero compares the latest week with the one before", async () => {
+    const setup = await mount(140, 44)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("vs prior 7d")
+      expect(frame).toMatch(/[▲▼—] \d+% vs prior 7d/)
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("the compact page omits the week comparison", async () => {
+    const setup = await mount(80, 24)
+    try {
+      expect(lines(setup).join("\n")).not.toContain("vs prior 7d")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("the heatmap legend labels the ramp", async () => {
     const setup = await mount(140, 44)
     try {
