@@ -7,6 +7,7 @@ import {
   accordion,
   badges,
   bars,
+  breadcrumbs,
   callout,
   card,
   checklist,
@@ -1358,4 +1359,43 @@ test("checklist honours glyph and colour overrides", () => {
   })
   expect(nodes[0]).toMatchObject({ text: "Y", fg: "warning" })
   expect(nodes[2]).toMatchObject({ text: "-", fg: "line" })
+})
+
+test("breadcrumbs lay out each segment and fit the trail", () => {
+  const nodes = breadcrumbs({
+    anchor: "top-left",
+    x: 2,
+    y: 0,
+    width: 20,
+    items: ["CHILL", "Chat"],
+  })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]).toMatchObject({ x: 2, y: 0, text: "CHILL", fg: "muted" })
+  expect(nodes[1]).toMatchObject({ x: 7, text: " › ", fg: "muted" })
+  expect(nodes[2]).toMatchObject({ x: 10, text: "Chat", fg: "foreground" })
+})
+
+test("breadcrumbs elide the middle and honour colours", () => {
+  const nodes = breadcrumbs({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 16,
+    items: ["CHILL", "Physics", "Chat"],
+    rootFg: "accent",
+    currentFg: "warning",
+    separatorFg: "line",
+    ellipsisFg: "secondary",
+  })
+  expect(nodes.map((node) => (node.kind === "text" ? node.text : ""))).toEqual([
+    "CHILL",
+    " › ",
+    "…",
+    " › ",
+    "Chat",
+  ])
+  expect(nodes[0]).toMatchObject({ fg: "accent" })
+  expect(nodes[2]).toMatchObject({ fg: "secondary" })
+  expect(nodes[4]).toMatchObject({ fg: "warning" })
+  expect(breadcrumbs({ anchor: "top-left", x: 0, y: 0, width: 0, items: ["Chat"] })).toEqual([])
 })

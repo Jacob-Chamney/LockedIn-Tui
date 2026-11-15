@@ -7,7 +7,8 @@
  */
 import { Show } from "solid-js";
 import type { GeneratedRow } from "../keymap/registry";
-import type { ThemePalette } from "../theme";
+import type { ThemePalette } from "../theme"
+import { breadcrumbs as breadcrumbLayout } from "../breadcrumbs";
 import { Explorer, type ExplorerRow } from "./explorer";
 import { AgentsSidebar } from "./agents-sidebar";
 import { LeaderMenu } from "../overlays/leader";
@@ -157,10 +158,11 @@ export function TopBar(props: {
   const fit = (text: string, max: number) =>
     max <= 0 ? "" : text.length <= max ? text : max === 1 ? "…" : `${text.slice(0, max - 1)}…`
   // `WORK › Demo project › Chat`, the order `docs/ui-notes.md` documents.
-  const trail = () =>
-    [(props.context ?? "CHILL").toUpperCase(), props.active ?? null, props.paneTitle ?? "Chat"]
-      .filter(Boolean)
-      .join(" › ")
+  const trailItems = () =>
+    [(props.context ?? "CHILL").toUpperCase(), props.active ?? null, props.paneTitle ?? "Chat"].filter(
+      (item): item is string => Boolean(item),
+    )
+  const crumbs = () => breadcrumbLayout({ items: trailItems(), width: trailMax() })
   const updateText = () => {
     const update = props.update
     if (!update) return null
@@ -191,8 +193,22 @@ export function TopBar(props: {
           <b>LOCKEDIN</b>
         </text>
         <text fg={palette().muted} wrapMode="none">
-          {` › ${fit(trail(), trailMax())}`}
+          {" › "}
         </text>
+        {crumbs().segments.map((segment) => (
+          <text
+            fg={
+              segment.kind === "separator"
+                ? palette().muted
+                : segment.last
+                  ? palette().foreground
+                  : palette().muted
+            }
+            wrapMode="none"
+          >
+            {segment.text}
+          </text>
+        ))}
       </box>
       <box flexDirection="row" flexShrink={0}>
         {updateText() ? (
