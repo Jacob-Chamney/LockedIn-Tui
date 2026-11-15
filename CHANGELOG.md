@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `multiSelect()` draws a checked list with a cursor, fitted labels and a
+  viewport; the Sources picker uses it for its file list.
 - `textField()` draws a single-line input with a caret, suffix and invalid tone;
   the Sources search line uses the same field.
 - `combobox()` filters and fits suggestion lists with a selected row; the

@@ -56,6 +56,13 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  multiSelectLayout,
+  type MultiSelectGlyphs as MultiSelectGlyphsInput,
+  type MultiSelectItem as MultiSelectItemInput,
+  type MultiSelectLayout as MultiSelectLayoutInput,
+  type MultiSelectRow as MultiSelectRowInput,
+} from "../src/ui/multi-select"
+import {
   textFieldLayout,
   textFieldText as renderTextField,
   type TextFieldLayout as TextFieldLayoutInput,
@@ -5095,6 +5102,71 @@ export function textField(options: TextFieldOptions): SceneNode[] {
 /** The field text without placement. */
 export function textFieldText(options: Omit<TextFieldOptions, "anchor" | "x" | "y">): string {
   return renderTextField(options)
+}
+
+/** The checkbox glyphs a `multiSelect()` uses. */
+export type MultiSelectGlyphs = MultiSelectGlyphsInput
+
+/** One row in a `multiSelect()`. */
+export type MultiSelectItem = MultiSelectItemInput
+
+/** One placed row. */
+export type MultiSelectRow = MultiSelectRowInput
+
+/** The visible rows and hidden counts of a multi-select list. */
+export type MultiSelectLayout = MultiSelectLayoutInput
+
+export type MultiSelectOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  width: number
+  items: readonly MultiSelectItem[]
+  cursor: number
+  offset?: number
+  rows?: number
+  glyphs?: Partial<MultiSelectGlyphs>
+  marker?: string
+  /** Checked-row colour. Defaults to `success`. */
+  checkedFg?: string
+  /** Selected row colour. Defaults to `primary`. */
+  selectedFg?: string
+  /** Ordinary row colour. Defaults to `foreground`. */
+  fg?: string
+  /** Disabled row colour. Defaults to `muted`. */
+  disabledFg?: string
+}
+
+/**
+ * A multi-select list with checked, selected and disabled rows.
+ *
+ *   multiSelect({ anchor: "top-left", x: 2, y: 2, width: 40, cursor: 1,
+ *                 items: [
+ *                   { id: "a", label: "notes.md", checked: true },
+ *                   { id: "b", label: "diagram.png", checked: false, meta: "12 KB" },
+ *                 ] })
+ *
+ * Rows share a cursor/box prefix, labels fit and meta is right-aligned when it
+ * fits. `offset`/`rows` form a viewport; checked, selected and disabled rows
+ * choose their tones. The Sources picker uses the same layout with its mark
+ * glyphs.
+ */
+export function multiSelect(options: MultiSelectOptions): SceneNode[] {
+  const layout = multiSelectLayout(options)
+  return layout.rows.map((row) => ({
+    kind: "text" as const,
+    anchor: options.anchor,
+    x: options.x,
+    y: options.y + (row.index - (layout.rows[0]?.index ?? 0)),
+    text: row.text,
+    fg: row.disabled
+      ? (options.disabledFg ?? "muted")
+      : row.selected
+        ? (options.selectedFg ?? "primary")
+        : row.checked
+          ? (options.checkedFg ?? "success")
+          : (options.fg ?? "foreground"),
+  }))
 }
 
 export type FormOptions = {

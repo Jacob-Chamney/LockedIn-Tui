@@ -31,6 +31,7 @@ import {
 import type { PickerView } from "./sources-model";
 import { footerHints } from "./sources-keys";
 import { TextField } from "../../shell/text-field";
+import { MultiSelectList } from "../../shell/multi-select";
 
 function fit(text: string, width: number): string {
   if (width <= 0) return ""
@@ -76,7 +77,18 @@ export function SourcesPanel(props: {
   const listSize = () =>
     Math.max(3, props.height - 10 - (showPreview() ? previewRows() : 0))
   const start = () => windowStart(props.view.cursor, entries().length, listSize())
-  const visible = () => entries().slice(start(), start() + listSize())
+  const multiItems = () =>
+    entries().map((entry, index) => {
+      const row = rowFor(entry, index === props.view.cursor)
+      return {
+        id: entry.path,
+        label: entry.name,
+        checked: entry.marked,
+        disabled: !entry.selectable && entry.kind !== "directory",
+        meta: row.detail,
+        ...(entry.kind === "directory" ? { box: "▸" } : {}),
+      }
+    })
   const leftWidth = () => (narrow() ? Math.max(20, props.width - 4) : Math.max(34, Math.floor((props.width - 4) * 0.58)))
   const rightWidth = () => Math.max(20, props.width - leftWidth() - 3)
   const existing = () => props.existing ?? []
@@ -258,21 +270,20 @@ export function SourcesPanel(props: {
                       : `! ${emptyState(props.state, props.parent)}`}
                 </text>
               ) : (
-                visible().map((entry, offset) => {
-                  const index = start() + offset
-                  const row = rowFor(entry, index === props.view.cursor)
-                  const label = `${row.glyph} ${shortPath(entry.name, Math.max(8, leftWidth() - 20))}`
-                  return (
-                    <ListRow
-                      theme={palette()}
-                      selected={index === props.view.cursor}
-                      label={label}
-                      labelWidth={Math.max(10, leftWidth() - 14)}
-                      value={row.detail}
-                      tone={listFocused() && !row.dim ? "normal" : "muted"}
-                    />
-                  )
-                })
+                <MultiSelectList
+                  theme={palette()}
+                  items={multiItems()}
+                  width={Math.max(10, leftWidth() - 2)}
+                  cursor={props.view.cursor}
+                  offset={start()}
+                  rows={listSize()}
+                  glyphs={{ checked: "◉", unchecked: "○", disabled: "·" }}
+                  marker="▌ "
+                  checkedFg={listFocused() ? "success" : "muted"}
+                  selectedFg={listFocused() ? "primary" : "foreground"}
+                  fg={listFocused() ? "foreground" : "muted"}
+                  disabledFg="muted"
+                />
               )}
 
               {showPreview() ? (

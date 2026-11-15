@@ -55,6 +55,7 @@ import {
   loop,
   meter,
   mixHex,
+  multiSelect,
   outline,
   notice,
   pingPong,
@@ -2571,4 +2572,49 @@ test("textField handles placeholders, invalid values and zero width", () => {
   expect(invalid[0]).toMatchObject({ fg: "error" })
   expect(invalid[1]).toMatchObject({ fg: "error" })
   expect(textField({ anchor: "top-left", x: 0, y: 0, width: 0, value: "x" })).toEqual([])
+})
+
+test("multiSelect draws checked, selected and disabled rows", () => {
+  const nodes = multiSelect({
+    anchor: "top-left",
+    x: 2,
+    y: 2,
+    width: 40,
+    cursor: 1,
+    items: [
+      { id: "a", label: "notes.md", checked: true },
+      { id: "b", label: "diagram.png", checked: false, meta: "12 KB" },
+      { id: "c", label: "blocked.bin", checked: false, disabled: true },
+    ],
+  })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 2, fg: "success" })
+  expect(nodes[0]!.kind === "text" ? nodes[0]!.text.startsWith("  [x] notes.md") : false).toBe(true)
+  expect(nodes[1]).toMatchObject({ y: 3, fg: "primary" })
+  expect(nodes[1]!.kind === "text" ? nodes[1]!.text.startsWith("▌ [ ] diagram.png") : false).toBe(true)
+  expect(nodes[2]).toMatchObject({ y: 4, fg: "muted" })
+})
+
+test("multiSelect uses a viewport and honours overrides", () => {
+  const nodes = multiSelect({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 20,
+    cursor: 0,
+    rows: 4,
+    checkedFg: "accent",
+    selectedFg: "warning",
+    disabledFg: "secondary",
+    items: [
+      { id: "a", label: "one", checked: true },
+      { id: "b", label: "two", checked: false },
+      { id: "c", label: "three", checked: false },
+      { id: "d", label: "four", checked: false, disabled: true },
+    ],
+  })
+  expect(nodes).toHaveLength(4)
+  expect(nodes[0]).toMatchObject({ y: 0, fg: "warning" })
+  expect(nodes[3]).toMatchObject({ y: 3, fg: "secondary" })
+  expect(multiSelect({ anchor: "top-left", x: 0, y: 0, width: 20, cursor: 0, items: [] })).toEqual([])
 })
