@@ -61,7 +61,7 @@ test("discovery shows skeleton rows", async () => {
     await setup.flush()
     await (setup.renderer as unknown as { loop: (skip: boolean) => Promise<void> }).loop(true)
     const frame = setup.captureCharFrame()
-    expect(frame).toContain("discovering plugins…")
+    expect(frame).toMatch(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏] discovering plugins…/)
     expect(frame).toContain("░")
   } finally {
     await setup.dispose()

@@ -56,6 +56,12 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  spinnerLayout,
+  spinnerText as renderSpinner,
+  type SpinnerGlyphs as SpinnerGlyphsInput,
+  type SpinnerLayout as SpinnerLayoutInput,
+} from "../src/ui/spinner"
+import {
   progressChipLayout,
   progressChipStyle,
   type ProgressChipGlyphs as ProgressChipGlyphsInput,
@@ -4458,6 +4464,57 @@ export function progressChip(options: ProgressChipOptions): SceneNode[] {
       fg: options.fg ?? style.fg,
     },
   ]
+}
+
+/** The glyph cycle a `spinner()` uses. */
+export type SpinnerGlyphs = SpinnerGlyphsInput
+
+/** The frame, label and fitted text of a `spinner()`. */
+export type SpinnerLayout = SpinnerLayoutInput
+
+export type SpinnerOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Frame index; wrapped into the glyph list. */
+  frame: number
+  /** Text after the glyph. */
+  label?: string
+  frames?: SpinnerGlyphs
+  /** Available columns; defaults to the natural text width. */
+  width?: number
+  /** Glyph and label colour. Defaults to `muted`. */
+  fg?: string
+}
+
+/**
+ * A spinner line: one braille frame and an optional label.
+ *
+ *   spinner({ anchor: "top-left", x: 2, y: 2, frame: 0, label: "loading" })
+ *   // ⠋ loading
+ *
+ * The caller owns the clock: increment `frame` on each tick and the glyph
+ * advances. The index wraps, so no clamp is needed; `frames` replaces the
+ * default ten-frame cycle and `spinnerText()` returns the string unplaced.
+ */
+export function spinner(options: SpinnerOptions): SceneNode[] {
+  const layout = spinnerLayout(options)
+  if (layout.width === 0) return []
+  return [
+    {
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      text: layout.text,
+      fg: options.fg ?? "muted",
+    },
+  ]
+}
+
+/** The spinner text for a frame, without placement. */
+export function spinnerText(options: Omit<SpinnerOptions, "anchor" | "x" | "y">): string {
+  return renderSpinner(options)
 }
 
 export type FormOptions = {
