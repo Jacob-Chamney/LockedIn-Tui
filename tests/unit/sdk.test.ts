@@ -17,6 +17,7 @@ import {
   checklist,
   chips,
   codeBlock,
+  combobox,
   confirm,
   createCursor,
   dashboard,
@@ -2487,4 +2488,44 @@ test("tagInput reports overflow, invalid tags and colours", () => {
   expect(nodes[0]).toMatchObject({ text: "[notes ×]", fg: "warning" })
   expect(nodes[1]).toMatchObject({ x: 10, text: "+1", fg: "accent" })
   expect(tagInput({ anchor: "top-left", x: 0, y: 0, width: 0, tags: [] })).toEqual([])
+})
+
+test("combobox draws filtered, selected rows", () => {
+  const nodes = combobox({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 24,
+    query: "",
+    selected: 1,
+    maxRows: 2,
+    options: [
+      { id: "sessions", label: "Lock-in sessions" },
+      { id: "session", label: "Session settings", secondary: true, group: "sessions" },
+      { id: "settings", label: "Open settings" },
+    ],
+  })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, fg: "foreground" })
+  expect(nodes[0]!.kind === "text" ? nodes[0]!.text.startsWith("  Lock-in sessions") : false).toBe(true)
+  expect(nodes[1]).toMatchObject({ x: 2, y: 4, fg: "primary" })
+  expect(nodes[1]!.kind === "text" ? nodes[1]!.text.startsWith("▸ Session settings") : false).toBe(true)
+})
+
+test("combobox aligns meta and filters by query", () => {
+  const nodes = combobox({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 20,
+    query: "alpha",
+    selected: 0,
+    selectedFg: "accent",
+    fg: "secondary",
+    options: [{ id: "a", label: "alpha", meta: "→ first" }],
+  })
+  expect(nodes).toHaveLength(1)
+  expect(nodes[0]).toMatchObject({ text: "▸ alpha      → first", fg: "accent" })
+  const none = combobox({ anchor: "top-left", x: 0, y: 0, width: 20, query: "zzz", options: [] })
+  expect(none).toEqual([])
 })

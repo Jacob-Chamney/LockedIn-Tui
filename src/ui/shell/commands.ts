@@ -7,6 +7,7 @@
  */
 import { bindingLabel, type Action, type KeymapRegistry } from "../keymap/registry"
 import { PANE_FOR_ACTION } from "./state"
+import { rankOptions } from "../combobox"
 
 /**
  * Aliases the command line accepts. Targets are either a registry action id or
@@ -148,34 +149,14 @@ export function allCommands(registry: KeymapRegistry): CommandEntry[] {
   return out.sort((a, b) => a.name.localeCompare(b.name))
 }
 
-/** Live filter: prefix matches first, then substring matches, then aliases. */
+/** Live filter: prefix matches first, then substring matches, then labels. */
 export function filterCommands(registry: KeymapRegistry, query: string, limit = 8): CommandEntry[] {
-  const text = query.trim().toLowerCase()
-  const commands = allCommands(registry)
-  if (!text) return commands.slice(0, limit)
-  // Exact id, then real actions before aliases, then substring, then label.
-  const exact = commands.filter((c) => c.name === text)
-  const prefix = commands.filter((c) => c.name !== text && c.name.startsWith(text) && !c.alias)
-  const aliasPrefix = commands.filter((c) => c.name !== text && c.name.startsWith(text) && c.alias)
-  const contains = commands.filter(
-    (c) => !c.name.startsWith(text) && c.name.includes(text) && !c.alias,
-  )
-  const byLabel = commands.filter(
-    (c) => !c.name.includes(text) && c.label.toLowerCase().includes(text),
-  )
-  // Typing is prefix-first: while a prefix matches, show only those — the user
-  // asked for "everything that starts with t", not everything containing it.
-  const prefixes = [...prefix, ...aliasPrefix]
-  const ranked = prefixes.length > 0 ? [...exact, ...prefixes] : [...exact, ...contains, ...byLabel]
-  // One row per destination: an alias and its target are the same command.
-  const seen = new Set<string>()
-  const unique: CommandEntry[] = []
-  for (const entry of ranked) {
-    if (seen.has(entry.target)) continue
-    seen.add(entry.target)
-    unique.push(entry)
-  }
-  return unique.slice(0, limit)
+  return rankOptions(allCommands(registry), query, {
+    id: (entry) => entry.name,
+    label: (entry) => entry.label,
+    secondary: (entry) => entry.alias,
+    group: (entry) => entry.target,
+  }).slice(0, limit)
 }
 
 export type CommandResult =
