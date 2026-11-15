@@ -47,6 +47,8 @@ import {
   popover,
   prompt,
   progressChip,
+  progressRing,
+  progressRingText,
   kpiStrip,
   keycaps,
   kanban,
@@ -3101,4 +3103,36 @@ test("sparkbar shares buckets, glyphs and colours", () => {
   })
   expect(nodes[0]).toMatchObject({ text: "##", fg: "accent" })
   expect(sparkbar({ anchor: "top-left", x: 0, y: 0, width: 0, values: [1] })).toEqual([])
+})
+
+test("progressRing draws filled and track runs", () => {
+  const nodes = progressRing({ anchor: "top-left", x: 2, y: 3, value: 0.5, size: 6 })
+  expect(nodes.length).toBeGreaterThan(0)
+  for (const node of nodes) {
+    expect(node.kind).toBe("text")
+    if (node.kind !== "text") continue
+    expect(node.x).toBeGreaterThanOrEqual(2)
+    expect(node.y).toBeGreaterThanOrEqual(3)
+    expect(node.y).toBeLessThanOrEqual(5)
+    expect(node.fg === "primary" || node.fg === "line").toBe(true)
+  }
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "primary")).toBe(true)
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "line")).toBe(true)
+  expect(progressRingText({ value: 0.5, size: 6 }).split("\n")).toHaveLength(3)
+})
+
+test("progressRing honours colours and the two extremes", () => {
+  const full = progressRing({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    value: 1,
+    size: 4,
+    filledFg: "accent",
+    trackFg: "muted",
+  })
+  expect(full.length).toBeGreaterThan(0)
+  expect(full.every((node) => node.kind === "text" && node.fg === "accent")).toBe(true)
+  const empty = progressRing({ anchor: "top-left", x: 0, y: 0, value: 0, size: 4, trackFg: "muted" })
+  expect(empty.every((node) => node.kind === "text" && node.fg === "muted")).toBe(true)
 })

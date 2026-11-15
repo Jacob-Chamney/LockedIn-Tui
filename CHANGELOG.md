@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `progressRing()` draws a braille progress annulus; Stats shows active days as
+  a ring beside its counters.
 - `sparkbar()` draws compact whole-cell columns from a series; Stats shows
   weekly token totals under its heatmap.
 - `dataTable()` fits columns, draws a header rule and supports row selection;

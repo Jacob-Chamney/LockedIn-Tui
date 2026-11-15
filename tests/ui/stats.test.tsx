@@ -160,6 +160,27 @@ describe("the hero", () => {
     }
   })
 
+  test("an active-days ring sits beside the counters on wide pages", async () => {
+    const setup = await mount(140, 44)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("ACTIVE")
+      expect(frame).toMatch(/[\u2800-\u28ff]/)
+      expect(frame).toContain("days")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("the ring is omitted on narrow pages", async () => {
+    const setup = await mount(100, 44)
+    try {
+      expect(lines(setup).join("\n")).not.toContain("ACTIVE")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("weekly token columns sit under the heatmap on tall pages", async () => {
     const setup = await mount(140, 44)
     try {
