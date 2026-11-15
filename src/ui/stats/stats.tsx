@@ -18,6 +18,7 @@ import { Legend } from "../shell/legend"
 import { Distribution } from "../shell/distribution"
 import { Delta } from "../shell/delta"
 import { LineChart } from "../shell/line-chart"
+import { StatCard } from "../shell/stat-card"
 import { sparklineText } from "../sparkline"
 import { tabLayout } from "../tabs"
 import { Bars } from "../shell/bars"
@@ -172,20 +173,6 @@ export function periodLabel(period: { from: string; to: string }): string {
   return `${fromMonth} ${from.getFullYear()} – ${toMonth} ${to.getFullYear()}`
 }
 
-function StatColumn(props: { theme: ThemePalette; value: string; label: string }) {
-  const palette = () => props.theme
-  return (
-    <box flexDirection="column" alignItems="center" flexGrow={1}>
-      <text fg={palette().foreground} wrapMode="none">
-        <b>{props.value}</b>
-      </text>
-      <text fg={palette().muted} wrapMode="none">
-        {props.label}
-      </text>
-    </box>
-  )
-}
-
 export function StatsPage(props: {
   theme: ThemePalette
   width: number
@@ -218,6 +205,8 @@ export function StatsPage(props: {
     }))
   }
   const chartWidth = () => Math.max(28, Math.min(props.width - 8, 64))
+  const statsWidth = () => Math.max(24, Math.min(props.width - 4, Math.max(64, grid().width + 2)))
+  const statWidth = () => Math.max(8, Math.floor(statsWidth() / 3))
   /** The busiest models by tokens, as a stacked share. */
   const shareItems = () =>
     props.summary.models
@@ -409,18 +398,28 @@ export function StatsPage(props: {
         ) : null}
         <box height={1} flexShrink={0} />
 
-        <box
-          flexDirection="row"
-          width={Math.max(24, Math.min(props.width - 4, Math.max(64, grid().width + 2)))}
-          flexShrink={0}
-        >
-          <StatColumn theme={palette()} value={`${props.summary.bestStreak} days`} label={label()} />
-          <StatColumn
+        <box flexDirection="row" width={statsWidth()} flexShrink={0}>
+          <StatCard
+            theme={palette()}
+            value={`${props.summary.bestStreak} days`}
+            label={label()}
+            detail={props.height >= 34 ? "in a row" : undefined}
+            width={statWidth()}
+          />
+          <StatCard
             theme={palette()}
             value={formatCount(props.summary.activeDays)}
             label={props.width < 60 ? "active" : "active days"}
+            detail={props.height >= 34 ? "in range" : undefined}
+            width={statWidth()}
           />
-          <StatColumn theme={palette()} value={formatCount(props.summary.overview.runs)} label="sessions" />
+          <StatCard
+            theme={palette()}
+            value={formatCount(props.summary.overview.runs)}
+            label="sessions"
+            detail={props.height >= 34 ? "recorded" : undefined}
+            width={statWidth()}
+          />
         </box>
         {props.height >= 36 && props.width >= 60 && modelItems().length > 0 ? (
           <box

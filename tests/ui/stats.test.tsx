@@ -137,6 +137,29 @@ describe("the hero", () => {
     }
   })
 
+  test("stat cards carry their detail on a tall page", async () => {
+    const setup = await mount(140, 44)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("in a row")
+      expect(frame).toContain("in range")
+      expect(frame).toContain("recorded")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("the compact page keeps two-line stat cards", async () => {
+    const setup = await mount(80, 24)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).not.toContain("in a row")
+      expect(frame).toContain("best streak")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("the hero charts the daily token series", async () => {
     const setup = await mount(140, 44)
     try {

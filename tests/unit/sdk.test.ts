@@ -69,6 +69,7 @@ import {
   sparklineText,
   spinner,
   spinnerText,
+  statCard,
   splitButton,
   splitButtonText,
   statusDot,
@@ -2756,4 +2757,38 @@ test("countBadge overflows at the cap and honours overrides", () => {
   expect(nodes[0]).toMatchObject({ width: 5, color: "panel" })
   expect(nodes[1]).toMatchObject({ text: " 99+ ", fg: "accent" })
   expect(countBadge({ anchor: "top-left", x: 0, y: 0, count: 3, width: 0 })).toEqual([])
+})
+
+test("statCard draws a fitted value, label and detail", () => {
+  const nodes = statCard({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 20,
+    value: "14 days",
+    label: "best streak",
+    detail: "in a row",
+    tone: "success",
+  })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 8, y: 3, text: "14 days", fg: "success" })
+  expect(nodes[1]).toMatchObject({ x: 6, y: 4, text: "best streak", fg: "muted" })
+  expect(nodes[2]).toMatchObject({ x: 8, y: 5, text: "in a row", fg: "muted" })
+})
+
+test("statCard aligns and handles empty widths", () => {
+  const nodes = statCard({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 20,
+    value: "3",
+    label: "sessions",
+    align: "right",
+    mutedFg: "secondary",
+  })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[0]).toMatchObject({ x: 19, fg: "foreground" })
+  expect(nodes[1]).toMatchObject({ x: 12, fg: "secondary" })
+  expect(statCard({ anchor: "top-left", x: 0, y: 0, width: 0, value: "x", label: "y" })).toEqual([])
 })
