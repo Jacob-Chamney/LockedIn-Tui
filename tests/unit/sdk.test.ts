@@ -60,6 +60,8 @@ import {
   matrix,
   mixHex,
   multiSelect,
+  numberStepper,
+  numberStepperText,
   outline,
   notice,
   pingPong,
@@ -2913,4 +2915,48 @@ test("thresholdBar honours overrides and empty widths", () => {
   expect(nodes.some((node) => node.kind === "text" && node.fg === "secondary")).toBe(true)
   expect(thresholdBarText({ width: 20, value: 0.5, label: "half" })).toContain("half")
   expect(thresholdBar({ anchor: "top-left", x: 0, y: 0, width: 0, value: 0 })).toEqual([])
+})
+
+test("numberStepper draws minus, value and plus segments", () => {
+  const nodes = numberStepper({
+    anchor: "top-left",
+    x: 2,
+    y: 2,
+    width: 12,
+    value: 5,
+    min: 0,
+    max: 10,
+    text: "$5.00",
+  })
+  expect(nodes).toHaveLength(4)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 2, text: "− ", fg: "primary" })
+  expect(nodes[1]).toMatchObject({ x: 4, text: "$5.00", fg: "foreground" })
+  expect(nodes[2]).toMatchObject({ x: 9, text: "    " })
+  expect(nodes[3]).toMatchObject({ x: 13, text: "+", fg: "primary" })
+})
+
+test("numberStepper mutes controls at limits and honours overrides", () => {
+  const low = numberStepper({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    value: 0,
+    min: 0,
+    max: 10,
+    controlFg: "accent",
+    valueFg: "warning",
+    disabledFg: "secondary",
+  })
+  expect(low[0]).toMatchObject({ fg: "secondary" })
+  expect(low[1]).toMatchObject({ fg: "warning" })
+  const disabled = numberStepper({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    value: 5,
+    disabled: true,
+  })
+  expect(disabled[0]).toMatchObject({ fg: "muted" })
+  expect(numberStepperText({ value: 5, precision: 1 })).toBe("− 5.0 +")
+  expect(numberStepper({ anchor: "top-left", x: 0, y: 0, width: 0, value: 1 })).toEqual([])
 })

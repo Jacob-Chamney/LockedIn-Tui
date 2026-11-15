@@ -312,7 +312,19 @@ export function footerHints(): string {
   const hints = SETTINGS_PAGE_KEYS.filter((entry) => entry.footer && entry.intent !== "cancel").map(
     (entry) => (entry.footer === "j/k move" ? "j/k" : entry.footer),
   )
-  return `${hints.join(" · ")} · h/l fold · v hint`
+  return `${hints.join(" · ")} · h/l fold · v hint · -/+ step`
+}
+
+/** Adjust a numeric setting by `delta`; null when the row has no stepper. */
+export function stepSetting(
+  view: SettingsView,
+  rowId: string,
+  delta: number,
+): { patch: Record<string, unknown>; next: number } | null {
+  if (rowId !== "budget") return null
+  const next = Math.max(0, Math.min(1000, Math.round(view.budgetUsd + delta)))
+  if (next === view.budgetUsd) return null
+  return { patch: { "usage.budget": next }, next }
 }
 
 /** The value column starts at the same cell for every row. */
@@ -419,6 +431,18 @@ export function SettingsPage(props: {
             range={
               row.id === "warnAt"
                 ? { values: [props.view.warnAt, 1], width: 18 }
+                : undefined
+            }
+            stepper={
+              row.id === "budget"
+                ? {
+                    value: props.view.budgetUsd,
+                    min: 0,
+                    max: 1000,
+                    step: 1,
+                    text: budgetLabel(props.view.budgetUsd),
+                    width: 16,
+                  }
                 : undefined
             }
             segments={

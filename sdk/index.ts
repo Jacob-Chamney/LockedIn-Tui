@@ -56,6 +56,13 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  numberStepperLayout,
+  numberStepperText as renderNumberStepper,
+  type NumberStepperGlyphs as NumberStepperGlyphsInput,
+  type NumberStepperLayout as NumberStepperLayoutInput,
+  type NumberStepperSegment as NumberStepperSegmentInput,
+} from "../src/ui/number-stepper"
+import {
   thresholdBarLayout,
   thresholdBarText as renderThresholdBar,
   type ThresholdBarLayout as ThresholdBarLayoutInput,
@@ -5782,6 +5789,69 @@ export function thresholdBar(options: ThresholdBarOptions): SceneNode[] {
 /** The threshold bar text without placement. */
 export function thresholdBarText(options: Omit<ThresholdBarOptions, "anchor" | "x" | "y">): string {
   return renderThresholdBar(options)
+}
+
+/** The minus/plus glyphs a `numberStepper()` uses. */
+export type NumberStepperGlyphs = NumberStepperGlyphsInput
+
+/** One stepper control or value segment. */
+export type NumberStepperSegment = NumberStepperSegmentInput
+
+/** The clamped value, text and enabled controls of a stepper. */
+export type NumberStepperLayout = NumberStepperLayoutInput
+
+export type NumberStepperOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  value: number
+  min?: number
+  max?: number
+  step?: number
+  precision?: number
+  text?: string
+  width?: number
+  disabled?: boolean
+  glyphs?: Partial<NumberStepperGlyphs>
+  /** Enabled control colour. Defaults to `primary`. */
+  controlFg?: string
+  /** Value colour. Defaults to `foreground`. */
+  valueFg?: string
+  /** Disabled/at-limit control colour. Defaults to `muted`. */
+  disabledFg?: string
+}
+
+/**
+ * An inline number stepper: `− value +`.
+ *
+ *   numberStepper({ anchor: "top-left", x: 2, y: 2, width: 12,
+ *                   value: 5, min: 0, max: 10, text: "$5.00" })
+ *   // − $5.00 +
+ *
+ * Values clamp to `min`/`max`; a control turns muted at its limit or when the
+ * stepper is disabled. `precision` formats the default value text and `text`
+ * replaces it. The whole line is fitted to `width`.
+ */
+export function numberStepper(options: NumberStepperOptions): SceneNode[] {
+  const layout = numberStepperLayout(options)
+  return layout.segments.map((segment) => ({
+    kind: "text" as const,
+    anchor: options.anchor,
+    x: options.x + segment.x,
+    y: options.y,
+    text: segment.text,
+    fg:
+      segment.kind === "value"
+        ? (options.valueFg ?? "foreground")
+        : segment.enabled
+          ? (options.controlFg ?? "primary")
+          : (options.disabledFg ?? "muted"),
+  }))
+}
+
+/** The stepper text without placement. */
+export function numberStepperText(options: Omit<NumberStepperOptions, "anchor" | "x" | "y">): string {
+  return renderNumberStepper(options)
 }
 
 export type FormOptions = {

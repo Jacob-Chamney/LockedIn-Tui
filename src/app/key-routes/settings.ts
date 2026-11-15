@@ -6,6 +6,7 @@ import {
   emptySettingsView,
   selectedRow,
   settingsGroups,
+  stepSetting,
   toggleSection,
   visibleGroups,
   typeEdit,
@@ -132,6 +133,40 @@ export function handleSettingsKeys(
         const character = typedCharacter(press)
         if (character !== null) {
           deps.setSettingsState((current) => typeEdit(current, (current.editing?.draft ?? "") + character))
+        }
+      }
+      event.preventDefault()
+      return true
+    }
+    if (press.name === "-" || press.name === "+") {
+      const groups = visibleGroups(
+        settingsGroups(deps.settingsView() ?? emptySettingsView()),
+        deps.settingsState().collapsed ?? [],
+      )
+      const row = selectedRow(groups, deps.settingsState().cursor)
+      const result = row
+        ? stepSetting(deps.settingsView() ?? emptySettingsView(), row.row.id, press.name === "+" ? 1 : -1)
+        : null
+      if (result) {
+        const update = () => deps.setSettingsView((view) => (view ? applyViewPatch(view, result.patch) : view))
+        const saved = deps.onConfigPatch?.(nestedPatch(result.patch))
+        if (saved === undefined) update()
+        else {
+          void Promise.resolve(saved)
+            .then((response) => {
+              if (
+                response !== null &&
+                typeof response === "object" &&
+                "ok" in response &&
+                (response as { ok: boolean }).ok === false
+              ) {
+                const error = (response as { error?: { message?: string } }).error
+                deps.notify(error?.message ?? "the config could not be saved", "error")
+                return
+              }
+              update()
+            })
+            .catch((error) => deps.notify(String(error instanceof Error ? error.message : error), "error"))
         }
       }
       event.preventDefault()

@@ -12,6 +12,7 @@ import { checklistBox } from "../checklist"
 import { Toggle } from "../shell/toggle"
 import { Slider } from "../shell/slider"
 import { RangeSlider } from "../shell/range-slider"
+import { NumberStepper } from "../shell/number-stepper"
 import { StatusDot } from "../shell/status-dot"
 import { Segmented } from "../shell/segmented"
 import { ProgressChip } from "../shell/progress-chip"
@@ -40,6 +41,8 @@ export function ListRow(props: {
   slider?: { value: number; min?: number; max?: number; label?: string; width?: number }
   /** A dual-handle range in the value column. */
   range?: { values: readonly [number, number]; min?: number; max?: number; label?: string; width?: number }
+  /** An inline number stepper in the value column. */
+  stepper?: { value: number; min?: number; max?: number; step?: number; text?: string; width?: number; disabled?: boolean }
   /** A health dot before the label. */
   status?: { state: StatusState; label?: string }
   /** A segmented control in the value column, for small exclusive choices. */
@@ -150,7 +153,18 @@ export function ListRow(props: {
             />
           </>
         ) : null}
-        {props.tags ? null : props.range ? (
+        {props.tags ? null : props.stepper ? (
+          <NumberStepper
+            theme={palette()}
+            value={props.stepper.value}
+            width={props.stepper.width ?? 16}
+            min={props.stepper.min}
+            max={props.stepper.max}
+            step={props.stepper.step}
+            text={props.stepper.text}
+            disabled={props.stepper.disabled}
+          />
+        ) : props.range ? (
           <RangeSlider
             theme={palette()}
             values={props.range.values}
