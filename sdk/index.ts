@@ -66,6 +66,7 @@ import {
   type DistributionSegment as DistributionSegmentInput,
 } from "../src/ui/distribution"
 import { legendLayout, type LegendItem as LegendItemInput } from "../src/ui/legend"
+import { keycapLayout, type KeycapToken as KeycapTokenInput } from "../src/ui/keycaps"
 import { skeletonLines, type SkeletonLine as SkeletonLineInput } from "../src/ui/skeleton"
 import {
   radioRows,
@@ -3262,6 +3263,70 @@ export function skeleton(options: SkeletonOptions): SceneNode[] {
     text: line.text,
     fg: options.tone ?? "muted",
   }))
+}
+
+/** One cap or separator in a `keycaps()` chord. */
+export type KeycapToken = KeycapTokenInput
+
+export type KeycapsOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Available columns for the chord. */
+  width: number
+  /** Display chord, e.g. `␣ c`, `shift+r`, or `g`. */
+  chord: string
+  /** Cap fill. Defaults to `line`. */
+  capBg?: string
+  /** Cap label colour. Defaults to `background`. */
+  capFg?: string
+  /** Separator colour. Defaults to `muted`. */
+  separatorFg?: string
+}
+
+/**
+ * A chord drawn as filled keycaps.
+ *
+ *   keycaps({ anchor: "top-left", x: 2, y: 1, width: 14, chord: "shift+r" })
+ *
+ * Caps and separators concatenate to the original chord, so styling does not
+ * change the text. A chord wider than `width` drops trailing tokens.
+ */
+export function keycaps(options: KeycapsOptions): SceneNode[] {
+  const layout = keycapLayout(options)
+  const nodes: SceneNode[] = []
+  for (const token of layout.tokens) {
+    if (token.kind === "cap") {
+      nodes.push({
+        kind: "rect",
+        anchor: options.anchor,
+        x: options.x + token.x,
+        y: options.y,
+        width: token.width,
+        height: 1,
+        fill: true,
+        color: options.capBg ?? "line",
+      })
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x + token.x,
+        y: options.y,
+        text: token.text,
+        fg: options.capFg ?? "background",
+      })
+    } else {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x + token.x,
+        y: options.y,
+        text: token.text,
+        fg: options.separatorFg ?? "muted",
+      })
+    }
+  }
+  return nodes
 }
 
 export type FormOptions = {
