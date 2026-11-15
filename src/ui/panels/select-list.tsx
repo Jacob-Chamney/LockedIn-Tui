@@ -8,6 +8,7 @@
  */
 import type { ThemePalette } from "../theme";
 import { ListRow } from "./list-row";
+import type { StatusState } from "../status-dot";
 export type SelectRow = {
   id: string
   label: string
@@ -15,6 +16,8 @@ export type SelectRow = {
   meta?: string
   /** Muted rows are present but secondary; error rows name a failure. */
   tone?: "normal" | "muted" | "error"
+  /** A health dot before the label. */
+  status?: { state: StatusState; label?: string }
 }
 
 /** The row chrome selection always uses, for rows with custom cells. */
@@ -71,6 +74,7 @@ export function SelectList(props: {
             value={row.meta}
             labelWidth={props.labelWidth}
             tone={row.tone === "error" ? "error" : row.tone === "muted" ? "muted" : "normal"}
+            status={row.status}
           />
         ))}
       </box>
@@ -86,6 +90,7 @@ export function SelectList(props: {
           label={row.label}
           detail={row.detail}
           tone={row.tone === "error" ? "error" : row.tone === "muted" ? "muted" : "normal"}
+          status={row.status}
         />
       ))}
     </box>

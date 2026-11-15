@@ -8,6 +8,7 @@ import {
   footerHints,
   gateCopy,
   lockedReason,
+  serverHealth,
   serverLine,
   standingNote,
   statusLabel,
@@ -43,6 +44,7 @@ export function PluginList(props: {
             id: server.name,
             label: serverLine(server),
             tone: typeof server.status === "object" ? "error" : "normal",
+            status: { state: serverHealth(server) },
           }))}
         />
       )}

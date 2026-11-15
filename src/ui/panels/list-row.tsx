@@ -11,6 +11,8 @@ import { Badge } from "../shell/badges"
 import { checklistBox } from "../checklist"
 import { Toggle } from "../shell/toggle"
 import { Slider } from "../shell/slider"
+import { StatusDot } from "../shell/status-dot"
+import type { StatusState } from "../status-dot"
 
 export type ListRowTone = "normal" | "muted" | "error"
 
@@ -32,6 +34,8 @@ export function ListRow(props: {
   toggle?: { on: boolean; onLabel?: string; offLabel?: string }
   /** A slider in the value column, for ranged rows. */
   slider?: { value: number; min?: number; max?: number; label?: string; width?: number }
+  /** A health dot before the label. */
+  status?: { state: StatusState; label?: string }
   /** A second, muted line under the label. */
   detail?: string
   /** When set, the label is padded/truncated to this width. */
@@ -64,6 +68,14 @@ export function ListRow(props: {
         <text fg={palette().primary} wrapMode="none" width={2}>
           {props.selected ? "▌ " : "  "}
         </text>
+        {props.status ? (
+          <>
+            <StatusDot theme={palette()} state={props.status.state} label={props.status.label} />
+            <text fg={palette().muted} wrapMode="none">
+              {" "}
+            </text>
+          </>
+        ) : null}
         {props.check ? (
           <text
             fg={

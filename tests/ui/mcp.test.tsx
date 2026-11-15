@@ -46,12 +46,18 @@ describe("server list", () => {
     const setup = await mount(140, 24)
     try {
       const frame = lines(setup).join("\n")
-      expect(frame).toContain("◉ web-search  stdio  ✓ connected  1 tool")
-      expect(frame).toContain("◉ notes  stdio  ✓ connected  2 tools")
+      expect(frame).toContain("● ◉ web-search  stdio  ✓ connected  1 tool")
+      expect(frame).toContain("● ◉ notes  stdio  ✓ connected  2 tools")
       expect(frame).toContain("2 of 3 enabled")
     } finally {
       await setup.dispose()
     }
+  })
+
+  test("server health maps to dot states", () => {
+    expect(plugins.serverHealth(servers()[0]!)).toBe("ok")
+    expect(plugins.serverHealth({ ...servers()[0]!, status: "stopped" })).toBe("idle")
+    expect(plugins.serverHealth({ ...servers()[0]!, status: { failed: "boom" } })).toBe("error")
   })
 
   test("a failed server shows its reason and the list still works", async () => {
