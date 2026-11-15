@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `tooltip()` draws a bordered, wrapped help box with target-aware placement for
+  plugin scenes; Settings shows the selected row's hint with `v`.
 - `legend()` lays out coloured glyphs and labels for plugin scenes; the Stats
   heatmap shows a `less … more` ramp using the same layout.
 - `breadcrumbs()` fits and elides a trail for plugin scenes; the top bar uses

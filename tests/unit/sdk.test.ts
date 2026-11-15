@@ -46,6 +46,7 @@ import {
   table,
   tabs,
   timeline,
+  tooltip,
   transition,
   tree,
   window,
@@ -1434,4 +1435,54 @@ test("legend can hide labels and override colours", () => {
   expect(nodes[0]).toMatchObject({ x: 0, text: "a", fg: "warning" })
   expect(nodes[1]).toMatchObject({ x: 2, text: "b", fg: "warning" })
   expect(legend({ anchor: "top-left", x: 0, y: 0, width: 10, items: [] })).toEqual([])
+})
+
+test("tooltip draws a bordered box, title and body", () => {
+  const nodes = tooltip({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 20,
+    title: "hint",
+    text: "short",
+  })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]).toMatchObject({
+    kind: "box",
+    x: 2,
+    y: 3,
+    width: 20,
+    height: 4,
+    border: true,
+    borderStyle: "rounded",
+    borderColor: "line",
+  })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 4, y: 4, text: "hint", fg: "primary" })
+  expect(nodes[2]).toMatchObject({ kind: "text", x: 4, y: 5, text: "short", fg: "foreground" })
+})
+
+test("tooltip uses shared placement and clips long bodies", () => {
+  const placed = tooltip({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 20,
+    text: "x",
+    target: { x: 10, y: 5, width: 10, height: 1 },
+    bounds: { width: 40, height: 20 },
+  })
+  expect(placed[0]).toMatchObject({ x: 5, y: 7 })
+
+  const clipped = tooltip({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 10,
+    text: "one two three four five six",
+    maxLines: 1,
+  })
+  expect(clipped).toHaveLength(2)
+  expect(clipped[1]!.kind).toBe("text")
+  if (clipped[1]!.kind !== "text") return
+  expect(clipped[1]!.text.endsWith("…")).toBe(true)
 })

@@ -117,6 +117,27 @@ describe("rows and groups", () => {
     }
   })
 
+  test("v hint shows the selected row's help in a tooltip", async () => {
+    const help = { ...settings.initialSettingsState, help: true }
+    const setup = await mount(70, 24, VIEW, help)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("hint")
+      expect(frame).toContain("shown in the greeting and on saved notes.")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("the tooltip is hidden until asked for", async () => {
+    const setup = await mount(70, 24)
+    try {
+      expect(lines(setup).join("\n")).not.toContain("shown in the greeting and on saved notes.")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("toggleSection hides and restores the rows", () => {
     const groups = settings.settingsGroups(VIEW)
     const at = settings.flatRows(groups).findIndex((entry) => entry.row.id === "providers")
@@ -128,8 +149,9 @@ describe("rows and groups", () => {
     expect(settings.flatRows(settings.visibleGroups(groups, expanded.collapsed!)).some((entry) => entry.row.id === "providers")).toBe(true)
   })
 
-  test("the footer names the fold keys", () => {
+  test("the footer names the fold and hint keys", () => {
     expect(settings.settingsFooterHints()).toContain("h/l fold")
+    expect(settings.settingsFooterHints()).toContain("v hint")
   })
 
   test("the value column is aligned across rows", () => {
