@@ -44,6 +44,30 @@ test("checked, unchecked and errored plugins render their boxes", async () => {
   }
 })
 
+test("discovery shows skeleton rows", async () => {
+  const setup = await testRender(
+    () => (
+      <manager.PluginManagerPane
+        theme={crimson}
+        width={100}
+        height={24}
+        focused
+        state={{ ...STATE, items: [], loading: true }}
+      />
+    ),
+    { width: 100, height: 24 },
+  )
+  try {
+    await setup.flush()
+    await (setup.renderer as unknown as { loop: (skip: boolean) => Promise<void> }).loop(true)
+    const frame = setup.captureCharFrame()
+    expect(frame).toContain("discovering plugins…")
+    expect(frame).toContain("░")
+  } finally {
+    await setup.dispose()
+  }
+})
+
 test("the row label keeps its checkbox", () => {
   expect(manager.pluginRowLabel(STATE.items[0]!)).toBe("[x] One")
   expect(manager.pluginRowLabel(STATE.items[1]!)).toBe("[ ] Two")

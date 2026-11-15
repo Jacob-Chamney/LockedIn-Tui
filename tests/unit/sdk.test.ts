@@ -41,6 +41,7 @@ import {
   notice,
   pingPong,
   sidebarMain,
+  skeleton,
   sparkline,
   sparklineText,
   stepper,
@@ -1604,4 +1605,33 @@ test("diff wraps long lines and honours colours", () => {
   expect(nodes[2]).toMatchObject({ x: 0, y: 1, text: "  ", fg: "secondary" })
   expect(nodes[3]).toMatchObject({ x: 2, y: 1, text: "kl", fg: "accent" })
   expect(diff({ anchor: "top-left", x: 0, y: 0, width: 12, lines: [] })).toEqual([])
+})
+
+test("skeleton draws ragged placeholder rows", () => {
+  const nodes = skeleton({ anchor: "top-left", x: 2, y: 3, width: 20, rows: 3 })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]).toMatchObject({ x: 2, y: 3, fg: "muted" })
+  expect(nodes[0]!.kind).toBe("text")
+  if (nodes[0]!.kind !== "text") return
+  expect(nodes[0]!.text).toHaveLength(20)
+  expect(nodes[1]).toMatchObject({ y: 4 })
+  expect(nodes[2]).toMatchObject({ y: 5 })
+})
+
+test("skeleton honours glyph and tone overrides", () => {
+  const nodes = skeleton({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 10,
+    rows: 2,
+    glyph: "█",
+    tone: "line",
+  })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[0]!.kind).toBe("text")
+  if (nodes[0]!.kind !== "text") return
+  expect(nodes[0]!.text).toBe("█".repeat(10))
+  expect(nodes[0]!.fg).toBe("line")
+  expect(skeleton({ anchor: "top-left", x: 0, y: 0, width: 0, rows: 3 })).toEqual([])
 })

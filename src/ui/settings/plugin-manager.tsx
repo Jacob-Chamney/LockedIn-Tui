@@ -12,6 +12,7 @@ import type { ThemePalette } from "../theme"
 import { ListRow } from "../panels/list-row"
 import { TwoColumnSurface } from "../panels/two-column"
 import { checklistBox } from "../checklist"
+import { Skeleton } from "../shell/skeleton"
 
 export type PluginManagerItem = {
   id: string
@@ -121,9 +122,17 @@ export function PluginManagerPane(props: {
       }
     >
       {props.state.loading && props.state.items.length === 0 ? (
-        <text fg={palette().muted} wrapMode="none">
-          discovering plugins…
-        </text>
+        <>
+          <text fg={palette().muted} wrapMode="none">
+            discovering plugins…
+          </text>
+          <Skeleton
+            theme={palette()}
+            width={Math.max(10, Math.floor(props.width * 0.45))}
+            rows={4}
+            tone="line"
+          />
+        </>
       ) : null}
       {!props.state.loading && props.state.items.length === 0 ? (
         <text fg={palette().muted} wrapMode="none">

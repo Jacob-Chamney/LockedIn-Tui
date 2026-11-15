@@ -66,6 +66,7 @@ import {
   type DistributionSegment as DistributionSegmentInput,
 } from "../src/ui/distribution"
 import { legendLayout, type LegendItem as LegendItemInput } from "../src/ui/legend"
+import { skeletonLines, type SkeletonLine as SkeletonLineInput } from "../src/ui/skeleton"
 import {
   radioRows,
   type RadioGlyphs as RadioGlyphsInput,
@@ -3223,6 +3224,44 @@ export function diff(options: DiffOptions): SceneNode[] {
     })
   }
   return nodes
+}
+
+/** One placeholder row in a `skeleton()`. */
+export type SkeletonLine = SkeletonLineInput
+
+export type SkeletonOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Maximum row width in cells. */
+  width: number
+  /** Number of rows; defaults to 3. */
+  rows?: number
+  /** Fill glyph; defaults to `░`. */
+  glyph?: string
+  /** Fractions of `width` for successive rows. */
+  pattern?: readonly number[]
+  /** Row colour. Defaults to `muted`. */
+  tone?: string
+}
+
+/**
+ * Ragged placeholder rows for a loading list.
+ *
+ *   skeleton({ anchor: "top-left", x: 2, y: 2, width: 40, rows: 4 })
+ *
+ * Widths follow a deterministic pattern, so the rows look like text without
+ * animating. Pass `glyph` for another fill or `pattern` for different lengths.
+ */
+export function skeleton(options: SkeletonOptions): SceneNode[] {
+  return skeletonLines(options).map((line) => ({
+    kind: "text" as const,
+    anchor: options.anchor,
+    x: options.x,
+    y: options.y + line.index,
+    text: line.text,
+    fg: options.tone ?? "muted",
+  }))
 }
 
 export type FormOptions = {
