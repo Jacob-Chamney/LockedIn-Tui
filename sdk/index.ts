@@ -56,6 +56,13 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  lineChartLayout,
+  type LineChartGlyphs as LineChartGlyphsInput,
+  type LineChartLayout as LineChartLayoutInput,
+  type LineChartPoint as LineChartPointInput,
+  type LineChartReduce as LineChartReduceInput,
+} from "../src/ui/line-chart"
+import {
   deltaLayout,
   deltaText as renderDelta,
   type DeltaDirection as DeltaDirectionInput,
@@ -4787,6 +4794,63 @@ export function avatarGroup(options: AvatarGroupOptions): SceneNode[] {
     })
   }
   return nodes
+}
+
+/** How a series collapses into a column. */
+export type LineChartReduce = LineChartReduceInput
+
+/** The plotted glyphs a `lineChart()` uses. */
+export type LineChartGlyphs = LineChartGlyphsInput
+
+/** One plotted point. */
+export type LineChartPoint = LineChartPointInput
+
+/** The rows, points and scale of a line chart. */
+export type LineChartLayout = LineChartLayoutInput
+
+export type LineChartOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  values: readonly number[]
+  /** Total chart width including the axis. */
+  width: number
+  /** Plot rows; defaults to 4. */
+  height?: number
+  min?: number
+  max?: number
+  reduce?: LineChartReduce
+  /** Draw y-axis labels and the `│` column; defaults true. */
+  axis?: boolean
+  /** Axis column width; defaults 4. */
+  axisWidth?: number
+  /** Top and bottom axis labels; defaults to the rounded max/min. */
+  labels?: readonly [string, string]
+  glyphs?: Partial<LineChartGlyphs>
+  /** Plot colour. Defaults to `primary`. */
+  fg?: string
+}
+
+/**
+ * A line chart with a shared scale and optional y-axis labels.
+ *
+ *   lineChart({ anchor: "top-left", x: 2, y: 2, width: 40, height: 4,
+ *               values: [2, 5, 3, 9, 4] })
+ *
+ * Values are bucketed to the plot width (`sum`, `max` or `mean`), scaled from
+ * `min` (0) to the largest bucket, and plotted as points with vertical links.
+ * Each row is `label│grid` when the axis is on. Empty input draws blank rows.
+ */
+export function lineChart(options: LineChartOptions): SceneNode[] {
+  const layout = lineChartLayout(options)
+  return layout.rows.map((row, index) => ({
+    kind: "text" as const,
+    anchor: options.anchor,
+    x: options.x,
+    y: options.y + index,
+    text: row,
+    fg: options.fg ?? "primary",
+  }))
 }
 
 export type FormOptions = {

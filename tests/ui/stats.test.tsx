@@ -137,6 +137,29 @@ describe("the hero", () => {
     }
   })
 
+  test("the hero charts the daily token series", async () => {
+    const setup = await mount(140, 44)
+    try {
+      const out = lines(setup)
+      const tokens = out.findIndex((line) => line.includes("T O K E N S"))
+      const chart = out.slice(tokens + 1, tokens + 8).join("\n")
+      expect(chart).toContain("│")
+      expect(chart).toContain("•")
+      expect(chart).toMatch(/[\d.]+K│/)
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("the compact page omits the line chart", async () => {
+    const setup = await mount(80, 24)
+    try {
+      expect(lines(setup).join("\n")).not.toContain("│")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("the token hero compares the latest week with the one before", async () => {
     const setup = await mount(140, 44)
     try {

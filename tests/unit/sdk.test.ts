@@ -49,6 +49,7 @@ import {
   rating,
   ratingText,
   legend,
+  lineChart,
   list,
   loop,
   meter,
@@ -2410,4 +2411,41 @@ test("avatarGroup reports overflow and honours colours", () => {
   expect(nodes[1]).toMatchObject({ fg: "surface" })
   expect(nodes[6]).toMatchObject({ x: 11, text: "+2", fg: "warning" })
   expect(avatarGroup({ anchor: "top-left", x: 0, y: 0, width: 20, items: [] })).toEqual([])
+})
+
+test("lineChart draws one text row per plot row", () => {
+  const nodes = lineChart({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 14,
+    height: 4,
+    axis: false,
+    values: [0, 10, 5, 20],
+    fg: "accent",
+  })
+  expect(nodes).toHaveLength(4)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, fg: "accent" })
+  expect(nodes[3]).toMatchObject({ y: 6 })
+  for (const node of nodes) {
+    expect(node.kind).toBe("text")
+    if (node.kind === "text") expect(node.text).toHaveLength(14)
+  }
+  expect(nodes[0]!.kind === "text" ? nodes[0]!.text[3] : "").toBe("•")
+})
+
+test("lineChart labels the axis and handles empty input", () => {
+  const nodes = lineChart({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 12,
+    height: 3,
+    values: [0, 9],
+    labels: ["9", "0"],
+  })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]!.kind === "text" ? nodes[0]!.text.startsWith("  9│") : false).toBe(true)
+  expect(nodes[2]!.kind === "text" ? nodes[2]!.text.startsWith("  0│") : false).toBe(true)
+  expect(lineChart({ anchor: "top-left", x: 0, y: 0, width: 0, values: [1] })).toEqual([])
 })
