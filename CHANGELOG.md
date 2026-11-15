@@ -162,6 +162,12 @@ requests merge.
 
 ### Changed
 
+- The status bar names the open surface (STATS, SETTINGS, EXPLORER) and shows
+  chat hints and notes only while the chat itself is focused; the modal backdrop
+  dims the chat more strongly.
+- Stats sections carry day/model counts, the page is vertically balanced, and
+  the token chart uses the wider area; short line-chart series stretch across
+  the plot instead of hugging the left edge.
 - The Stats page is grouped into hero, ACTIVITY, TOKENS OVER TIME, BY MODEL and
   SUMMARY sections; the oversized logo and duplicate trend charts are gone.
 - The startup splash uses a sparse scan-lit field and a seal pulse as the lock

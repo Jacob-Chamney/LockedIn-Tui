@@ -366,3 +366,31 @@ describe("status bar key hints", () => {
     }
   })
 })
+
+describe("status bar surface", () => {
+  test("the explorer focus hides chat hints and the chat note", async () => {
+    const { setup } = await mount(120, 36, { explorer: true, focus: "explorer" } as never)
+    try {
+      const last = rows(setup).at(-1)!
+      expect(last).toContain("EXPLORER")
+      expect(last).not.toContain("Enter send")
+      expect(last).not.toContain("no model")
+      expect(last).not.toContain("read-only")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("a modal surface names itself instead of the chat behind it", async () => {
+    const { setup } = await mount(120, 36, { pane: "stats" } as never)
+    try {
+      const last = rows(setup).at(-1)!
+      expect(last).toContain("STATS")
+      expect(last).not.toContain("CHILL")
+      expect(last).not.toContain("no model")
+      expect(last).not.toContain("read-only")
+    } finally {
+      await setup.dispose()
+    }
+  })
+})

@@ -2,22 +2,18 @@ import { expect, test } from "bun:test"
 
 import { LINE_CHART_GLYPHS, lineChartLayout } from "../../src/ui/line-chart"
 
-test("points scale from the minimum to the peak", () => {
+test("a short series stretches across the plot width", () => {
   const layout = lineChartLayout({ values: [0, 10, 5, 20], width: 14, height: 4, axis: false })
   expect(layout.max).toBe(20)
   expect(layout.min).toBe(0)
   expect(layout.plotWidth).toBe(14)
-  expect(layout.points.map((point) => [point.x, point.y])).toEqual([
-    [0, 3],
-    [1, 1],
-    [2, 2],
-    [3, 0],
-  ])
+  expect(layout.points.map((point) => point.x)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
+  expect(new Set(layout.points.map((point) => point.y))).toEqual(new Set([0, 1, 2, 3]))
   expect(layout.rows).toHaveLength(4)
   for (const row of layout.rows) expect(row).toHaveLength(14)
-  expect(layout.rows[0]![3]).toBe("•")
-  expect(layout.rows[3]![0]).toBe("•")
-  expect(layout.rows[2]![1]).toBe("│")
+  expect(layout.rows[0]!.slice(11)).toBe("•••")
+  expect(layout.rows[3]!.slice(0, 4)).toBe("••••")
+  expect(layout.rows[1]!).toContain("│")
   expect(LINE_CHART_GLYPHS.point).toBe("•")
 })
 

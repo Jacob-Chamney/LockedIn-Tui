@@ -9,7 +9,7 @@
  */
 import type { GeneratedRow } from "../keymap/registry"
 import type { Mode } from "../keymap/registry"
-import type { Pane, Overlay } from "./state"
+import type { Pane, PaneId, Overlay } from "./state"
 import { COST_UNKNOWN, formatCost } from "../chat/model"
 import type { ThemePalette } from "../theme"
 
@@ -38,6 +38,8 @@ export function StatusBar(props: {
   /** A chip a plugin published with the host status service. */
   pluginStatus?: { text: string; tone?: "info" | "warn" | "error" } | null
   pane: Pane
+  /** The surface actually open, so a modal names itself in the bar. */
+  surfacePane?: PaneId
   mode: Mode
   overlay: Overlay
   context: string
@@ -57,11 +59,17 @@ export function StatusBar(props: {
     if (props.overlay === "leader") return "LEADER"
     // A chat buffer names its scope (CHILL, LEARN, SKILLS, WORK), so a project
     // chat is not mislabelled CHILL; other surfaces name themselves.
+    if (props.surfacePane !== undefined && props.surfacePane !== "chat") {
+      return (props.paneTitle ?? props.surfacePane).toUpperCase()
+    }
     if (props.pane === "chat") return (props.context || "chill").toUpperCase()
     return PANE_LABEL[props.pane]
   }
-  const note = () =>
-    props.note ?? (props.pane === "chat" && (props.context || "chill") === "chill" ? "read-only" : "")
+  const note = () => {
+    if (props.note !== undefined) return props.note
+    if (props.surfacePane !== undefined && props.surfacePane !== "chat") return ""
+    return props.pane === "chat" && (props.context || "chill") === "chill" ? "read-only" : ""
+  }
 
   const usage = () => {
     const parts: string[] = []

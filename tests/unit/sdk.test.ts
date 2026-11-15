@@ -2474,7 +2474,7 @@ test("lineChart draws one text row per plot row", () => {
     expect(node.kind).toBe("text")
     if (node.kind === "text") expect(node.text).toHaveLength(14)
   }
-  expect(nodes[0]!.kind === "text" ? nodes[0]!.text[3] : "").toBe("•")
+  expect(nodes[0]!.kind === "text" ? nodes[0]!.text.slice(11) : "").toBe("•••")
 })
 
 test("lineChart labels the axis and handles empty input", () => {

@@ -66,7 +66,8 @@ function finite(value: number): number {
 
 function bucketValues(values: readonly number[], width: number, reduce: LineChartReduce): number[] {
   if (values.length === 0 || width <= 0) return []
-  if (values.length <= width) return values.map(finite)
+  // Always fill the plot width: a short series stretches across the chart
+  // instead of hugging the left edge.
   const out: number[] = []
   for (let column = 0; column < width; column++) {
     const from = Math.floor((column * values.length) / width)
