@@ -102,6 +102,7 @@ import {
   type DistributionSegment as DistributionSegmentInput,
 } from "../src/ui/distribution"
 import { legendLayout, type LegendItem as LegendItemInput } from "../src/ui/legend"
+import { swatchLayout, type SwatchOptions as SwatchLayoutOptions } from "../src/ui/swatches"
 import { keycapLayout, type KeycapToken as KeycapTokenInput } from "../src/ui/keycaps"
 import { skeletonLines, type SkeletonLine as SkeletonLineInput } from "../src/ui/skeleton"
 import {
@@ -4018,6 +4019,37 @@ export function codeBlock(options: CodeBlockOptions): SceneNode[] {
     })
   })
   return nodes
+}
+
+export type SwatchesOptions = Omit<SwatchLayoutOptions, "colors"> & {
+  anchor: ScenePosition
+  x: number
+  y: number
+  colors: readonly string[]
+}
+
+/**
+ * A row of solid colour swatches.
+ *
+ *   swatches({ anchor: "top-left", x: 2, y: 2, width: 14,
+ *              colors: ["#0d0f11", "#d9534f", "#9aa3ad", "#ff6b6b"] })
+ *
+ * Each swatch is a filled rect `cellWidth` wide (default 2) with `gap` (default
+ * 1). The first that does not fit ends the row; a very narrow row shrinks a
+ * single swatch to fit instead of drawing nothing.
+ */
+export function swatches(options: SwatchesOptions): SceneNode[] {
+  const layout = swatchLayout(options)
+  return layout.cells.map((cell) => ({
+    kind: "rect" as const,
+    anchor: options.anchor,
+    x: options.x + cell.x,
+    y: options.y,
+    width: cell.width,
+    height: 1,
+    fill: true,
+    color: cell.color,
+  }))
 }
 
 export type FormOptions = {

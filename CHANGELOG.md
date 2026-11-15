@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `swatches()` draws solid colour cells for plugin scenes; the theme picker
+  shows four palette tokens per row.
 - `codeBlock()` draws numbered code with a fitted content column for plugin
   scenes; the reader's fenced Markdown blocks use the same gutters.
 - `pagination()` draws page dots, numbers or a count for plugin scenes; the

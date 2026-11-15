@@ -56,6 +56,7 @@ import {
   stepper,
   stats,
   status,
+  swatches,
   table,
   tabs,
   timeline,
@@ -2010,4 +2011,37 @@ test("codeBlock fits long lines and can hide numbers", () => {
   })
   expect(plain).toHaveLength(1)
   expect(plain[0]).toMatchObject({ x: 0, text: "x = 1", fg: "accent" })
+})
+
+test("swatches draw filled colour cells", () => {
+  const nodes = swatches({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 10,
+    colors: ["#000", "#111", "#222"],
+  })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]).toMatchObject({ kind: "rect", x: 2, y: 3, width: 2, color: "#000" })
+  expect(nodes[1]).toMatchObject({ x: 5, color: "#111" })
+  expect(nodes[2]).toMatchObject({ x: 8, color: "#222" })
+})
+
+test("swatches fit narrow rows and honour gap/cell width", () => {
+  const tight = swatches({ anchor: "top-left", x: 0, y: 0, width: 5, colors: ["a", "b", "c"] })
+  expect(tight).toHaveLength(2)
+  const narrow = swatches({ anchor: "top-left", x: 0, y: 0, width: 1, colors: ["a", "b"] })
+  expect(narrow).toHaveLength(1)
+  expect(narrow[0]).toMatchObject({ width: 1 })
+  const custom = swatches({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 20,
+    cellWidth: 3,
+    gap: 2,
+    colors: ["a", "b"],
+  })
+  expect(custom.map((node) => (node.kind === "rect" ? node.x : -1))).toEqual([0, 5])
+  expect(swatches({ anchor: "top-left", x: 0, y: 0, width: 10, colors: [] })).toEqual([])
 })
