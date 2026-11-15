@@ -57,6 +57,11 @@ import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import { legendLayout, type LegendItem as LegendItemInput } from "../src/ui/legend"
 import {
+  radioRows,
+  type RadioGlyphs as RadioGlyphsInput,
+  type RadioItem as RadioItemInput,
+} from "../src/ui/radio"
+import {
   tooltipLayout,
   tooltipPosition,
   type TooltipTarget as TooltipTargetInput,
@@ -2980,6 +2985,83 @@ export function tooltip(options: TooltipOptions): SceneNode[] {
           : (options.bodyFg ?? "foreground"),
     })
   })
+  return nodes
+}
+
+/** The markers a `radio()` uses. */
+export type RadioGlyphs = RadioGlyphsInput
+
+/** One option in a `radio()` list. */
+export type RadioItem = RadioItemInput
+
+export type RadioOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Total row width in cells. */
+  width: number
+  items: readonly RadioItem[]
+  /** Draw a marker column and mark this row. */
+  selected?: number
+  glyphs?: Partial<RadioGlyphs>
+  /** Marker colour. Defaults to `primary`. */
+  markerFg?: string
+  /** Checked marker colour. Defaults to `success`. */
+  onFg?: string
+  /** Unchecked marker colour. Defaults to `muted`. */
+  offFg?: string
+  /** Label colour. Defaults to `foreground`. */
+  labelFg?: string
+  /** Selected label colour. Defaults to `primary`. */
+  selectedFg?: string
+}
+
+/**
+ * A single-select list: one radio per option and an optional cursor marker.
+ *
+ *   radio({ anchor: "top-left", x: 2, y: 2, width: 36, selected: 0,
+ *           items: [
+ *             { id: "lockedin", label: "LockedIn Crimson", checked: true },
+ *             { id: "dracula", label: "Dracula" },
+ *           ] })
+ *
+ * `checked` marks the value in force and `selected` marks the cursor; the same
+ * row can be both. Markers are three cells (`(•)`/`( )`), and labels fit with
+ * `…`. `glyphs` overrides the markers.
+ */
+export function radio(options: RadioOptions): SceneNode[] {
+  const rows = radioRows(options)
+  const nodes: SceneNode[] = []
+  for (const row of rows) {
+    const y = options.y + row.index
+    if (row.marker !== "") {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x,
+        y,
+        text: row.marker,
+        fg: options.markerFg ?? "primary",
+      })
+    }
+    const boxX = options.x + row.marker.length
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: boxX,
+      y,
+      text: row.box,
+      fg: row.checked ? (options.onFg ?? "success") : (options.offFg ?? "muted"),
+    })
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: boxX + row.boxWidth + 1,
+      y,
+      text: row.label,
+      fg: row.selected ? (options.selectedFg ?? "primary") : (options.labelFg ?? "foreground"),
+    })
+  }
   return nodes
 }
 

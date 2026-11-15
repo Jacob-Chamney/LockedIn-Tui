@@ -55,7 +55,8 @@ describe("the catalogue", () => {
     try {
       const frame = lines(setup).join("\n")
       expect(frame).toContain("LockedIn Crimson")
-      expect(frame).toContain("✓")
+      expect(frame).toContain("(•)")
+      expect(frame).toContain("( )")
       // The selected row carries the bar.
       const row = lines(setup).find((line) => line.includes("LockedIn Crimson"))!
       expect(row).toContain("▌")
