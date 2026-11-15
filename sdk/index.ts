@@ -57,6 +57,11 @@ import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import { legendLayout, type LegendItem as LegendItemInput } from "../src/ui/legend"
 import {
+  tooltipLayout,
+  tooltipPosition,
+  type TooltipTarget as TooltipTargetInput,
+} from "../src/ui/tooltip"
+import {
   breadcrumbs as breadcrumbLayout,
   type BreadcrumbSegment as BreadcrumbSegmentInput,
 } from "../src/ui/breadcrumbs"
@@ -2898,6 +2903,83 @@ export function legend(options: LegendOptions): SceneNode[] {
       })
     }
   }
+  return nodes
+}
+
+/** A target rectangle for `tooltipPosition`. */
+export type TooltipTarget = TooltipTargetInput
+
+export type TooltipOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Outer width, including borders and padding. */
+  width: number
+  text: string
+  title?: string
+  /** Maximum body lines; defaults to 6. */
+  maxLines?: number
+  /** When both are given, the box is placed relative to the target and clamped. */
+  target?: TooltipTarget
+  bounds?: { width: number; height: number }
+  gap?: number
+  prefer?: "below" | "above"
+  borderStyle?: "rounded" | "single" | "double"
+  borderColor?: string
+  bg?: string
+  titleFg?: string
+  bodyFg?: string
+}
+
+/**
+ * A bordered help tooltip.
+ *
+ *   tooltip({ anchor: "top-left", x: 2, y: 4, width: 36,
+ *             title: "hint", text: "Enter links this provider's key." })
+ *
+ * Text wraps to the box; over-long bodies clip at `maxLines` with an ellipsis.
+ * Pass `target` and `bounds` to use the shared placement: the box centres
+ * under the target, flips above when there is no room, and stays on screen.
+ */
+export function tooltip(options: TooltipOptions): SceneNode[] {
+  const layout = tooltipLayout(options)
+  const placed =
+    options.target !== undefined && options.bounds !== undefined
+      ? tooltipPosition({
+          target: options.target,
+          size: { width: layout.width, height: layout.height },
+          bounds: options.bounds,
+          ...(options.gap === undefined ? {} : { gap: options.gap }),
+          ...(options.prefer === undefined ? {} : { prefer: options.prefer }),
+        })
+      : { left: options.x, top: options.y, side: "below" as const }
+  const nodes: SceneNode[] = [
+    {
+      kind: "box",
+      anchor: options.anchor,
+      x: placed.left,
+      y: placed.top,
+      width: layout.width,
+      height: layout.height,
+      border: true,
+      borderStyle: options.borderStyle ?? "rounded",
+      borderColor: options.borderColor ?? "line",
+      bg: options.bg ?? "surface",
+    },
+  ]
+  layout.lines.forEach((line, index) => {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: placed.left + 2,
+      y: placed.top + 1 + index,
+      text: line,
+      fg:
+        index === 0 && options.title !== undefined
+          ? (options.titleFg ?? "primary")
+          : (options.bodyFg ?? "foreground"),
+    })
+  })
   return nodes
 }
 

@@ -24,6 +24,8 @@ export function ListRow(props: {
   badge?: { label: string; tone?: BadgeTone }
   /** A checkbox before the label, for checklist rows. */
   check?: { checked: boolean; disabled?: boolean }
+  /** Background for the unselected row; selected rows always use the panel. */
+  background?: string
   /** A second, muted line under the label. */
   detail?: string
   /** When set, the label is padded/truncated to this width. */
@@ -48,7 +50,10 @@ export function ListRow(props: {
   const marker = () => (props.active ? "  ✓" : "")
 
   return (
-    <box flexDirection="column" backgroundColor={props.selected ? palette().panel : undefined}>
+    <box
+      flexDirection="column"
+      backgroundColor={props.selected ? palette().panel : (props.background ?? undefined)}
+    >
       <box flexDirection="row" flexShrink={0}>
         <text fg={palette().primary} wrapMode="none" width={2}>
           {props.selected ? "▌ " : "  "}

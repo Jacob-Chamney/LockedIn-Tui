@@ -11,6 +11,8 @@ import type { ThemePalette } from "../theme";
 import { getProvider } from "../../llm/catalogue";
 import { ListRow } from "../panels/list-row";
 import { accordionRows } from "../accordion";
+import { Tooltip } from "../shell/tooltip";
+import { tooltipLayout } from "../tooltip";
 import { TwoColumnSurface } from "../panels/two-column";
 export type SettingsView = {
   username: string
@@ -205,6 +207,8 @@ export type SettingsState = {
   notice?: string | null
   /** Section ids whose rows are hidden. */
   collapsed?: readonly string[]
+  /** Show the selected row's hint as a tooltip. */
+  help?: boolean
 }
 
 export const initialSettingsState: SettingsState = {
@@ -212,6 +216,7 @@ export const initialSettingsState: SettingsState = {
   editing: null,
   notice: null,
   collapsed: [],
+  help: false,
 }
 
 /** Toggle the section that owns the selected row and keep the cursor valid. */
@@ -295,10 +300,10 @@ export function intentFor(name: string, options: { ctrl?: boolean } = {}): Setti
 }
 
 export function footerHints(): string {
-  const hints = SETTINGS_PAGE_KEYS.filter((entry) => entry.footer).map((entry) =>
-    entry.footer === "j/k move" ? "j/k" : entry.footer,
+  const hints = SETTINGS_PAGE_KEYS.filter((entry) => entry.footer && entry.intent !== "cancel").map(
+    (entry) => (entry.footer === "j/k move" ? "j/k" : entry.footer),
   )
-  return `${hints.join(" · ")} · h/l fold`
+  return `${hints.join(" · ")} · h/l fold · v hint`
 }
 
 /** The value column starts at the same cell for every row. */
@@ -320,6 +325,12 @@ export function SettingsPage(props: {
   const rows = () => flatRows(visibleGroups(groups(), collapsed()))
   const cursor = () => clampCursor(rows(), props.state.cursor)
   const current = () => rows()[cursor()]?.row
+  const tooltipWidth = () => Math.max(20, Math.min(props.width - 4, 70))
+  const tooltipHeight = () => {
+    const row = current()
+    if (!props.state.help || row === undefined) return 0
+    return tooltipLayout({ text: row.hint, width: tooltipWidth(), title: "hint", maxLines: 4 }).height
+  }
   const accordion = () =>
     accordionRows({
       sections: groups().map((group) => ({
@@ -338,7 +349,7 @@ export function SettingsPage(props: {
    * still reads.
    */
   const entries = () => accordion()
-  const maxVisible = () => Math.max(4, props.height - 2)
+  const maxVisible = () => Math.max(4, props.height - 2 - tooltipHeight())
   const windowStart = () => {
     const all = entries()
     const at = all.findIndex((entry) => entry.kind === "item" && entry.id === rows()[cursor()]?.row.id)
@@ -389,9 +400,19 @@ export function SettingsPage(props: {
             label={row.label}
             value={editing ? `${props.state.editing!.draft}▏` : row.value}
             labelWidth={VALUE_COLUMN - 2}
+            background={palette().surface}
           />
         )
       })}
+      {props.state.help && current() ? (
+        <Tooltip
+          theme={palette()}
+          width={tooltipWidth()}
+          title="? hint"
+          text={current()!.hint}
+          maxLines={4}
+        />
+      ) : null}
     </TwoColumnSurface>
   )
 }

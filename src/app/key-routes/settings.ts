@@ -137,6 +137,11 @@ export function handleSettingsKeys(
       event.preventDefault()
       return true
     }
+    if (press.name === "v") {
+      deps.setSettingsState((current) => ({ ...current, help: !current.help, notice: null }))
+      event.preventDefault()
+      return true
+    }
     if (press.name === "h" || press.name === "l") {
       const groups = settingsGroups(deps.settingsView() ?? emptySettingsView())
       deps.setSettingsState((current) => toggleSection(current, groups))
