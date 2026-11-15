@@ -195,6 +195,26 @@ describe("per-model usage", () => {
     }
   })
 
+  test("run sizes show as a histogram on wide pages", async () => {
+    const setup = await mount(120, 30)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("RUN SIZE")
+      expect(frame).toContain("█")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("the narrow panel omits the run-size histogram", async () => {
+    const setup = await mount(80, 24)
+    try {
+      expect(lines(setup).join("\n")).not.toContain("RUN SIZE")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("a model-share donut and legend sit above the bars on wide pages", async () => {
     const runs = [
       { model: "big/model", input: 900, output: 100, costMicroUsd: 12, at: "2026-11-01T10:00:00Z", failed: false, scope: "school" },

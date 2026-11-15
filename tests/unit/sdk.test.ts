@@ -45,6 +45,8 @@ import {
   fadeOut,
   fields,
   gauge,
+  histogram,
+  histogramText,
   heatmap,
   footerActions,
   form,
@@ -3374,4 +3376,36 @@ test("treemap collapses tiny tiles and honours colours", () => {
   expect(nodes.some((node) => node.kind === "box")).toBe(true)
   expect(nodes.some((node) => node.kind === "text" && node.fg === "accent")).toBe(true)
   expect(treemap({ anchor: "top-left", x: 0, y: 0, width: 0, height: 5, items: [] })).toEqual([])
+})
+
+test("histogram draws block columns from counted bins", () => {
+  const nodes = histogram({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 4,
+    height: 3,
+    values: [1, 2, 2, 4],
+  })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, text: " █  ", fg: "primary" })
+  expect(nodes[2]).toMatchObject({ x: 2, y: 5, text: "██ █" })
+})
+
+test("histogram honours glyphs, bins and empty input", () => {
+  const nodes = histogram({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 10,
+    height: 1,
+    bins: 2,
+    glyph: "#",
+    fg: "accent",
+    values: [1, 2, 3],
+  })
+  expect(nodes).toHaveLength(1)
+  expect(nodes[0]).toMatchObject({ text: "##", fg: "accent" })
+  expect(histogramText({ values: [1, 2], width: 4, height: 1 })).toHaveLength(1)
+  expect(histogram({ anchor: "top-left", x: 0, y: 0, width: 10, values: [] })).toEqual([])
 })

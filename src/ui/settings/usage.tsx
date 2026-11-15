@@ -14,6 +14,7 @@ import { Bars } from "../shell/bars";
 import { Donut, DonutLegend } from "../shell/donut";
 import { StatusTimeline } from "../shell/status-timeline";
 import { DefinitionList } from "../shell/definition-list";
+import { Histogram } from "../shell/histogram";
 import { donutSegments } from "../donut";
 import { Callout } from "../shell/callout";
 export type UsageSnapshot = {
@@ -265,6 +266,9 @@ export function UsagePanel(props: {
   /** Model shares, resolved once so the ring and legend agree. */
   const shares = () => donutSegments(modelItems().map((item) => ({ label: item.label, value: item.value })));
   const showDonut = () => modelItems().length > 1 && props.width >= 96 && props.height >= 26;
+  const runSizes = () => props.snapshot.runs.map((run) => run.input + run.output);
+  const showHistogram = () =>
+    props.snapshot.runs.length >= 2 && props.width >= 110 && props.height >= 28;
   /**
    * Spend against the period budget, as a cell meter. The bar warms at the
    * warn threshold and turns to the error tone at the limit; with no limit
@@ -363,6 +367,21 @@ export function UsagePanel(props: {
             width={chartWidth()}
             labelWidth={chartLabelWidth()}
             valueWidth={4}
+          />
+        </>
+      ) : null}
+
+      {showHistogram() ? (
+        <>
+          <text fg={palette().secondary} wrapMode="none">
+            {"RUN SIZE"}
+          </text>
+          <Histogram
+            theme={palette()}
+            values={runSizes()}
+            width={Math.min(24, chartWidth())}
+            height={3}
+            bins={Math.min(24, chartWidth())}
           />
         </>
       ) : null}
