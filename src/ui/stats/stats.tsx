@@ -16,7 +16,7 @@ import { compactTokens } from "./big-number"
 import { buildHeatmap } from "./heatmap"
 import { HEATMAP_RAMP, heatmapLayout } from "../heatmap"
 import { Legend } from "../shell/legend"
-import { LineChart } from "../shell/line-chart"
+import { BrailleChart } from "../shell/braille-chart"
 import { tabLayout } from "../tabs"
 import { Bars } from "../shell/bars"
 import { Callout } from "../shell/callout"
@@ -221,19 +221,36 @@ export function StatsPage(props: {
   const grid = createMemo(() =>
     heatmapLayout({ weeks: heat().weeks, months: heat().months, cellWidth: cellWidth() }),
   )
-  const dailyTokens = createMemo(() => {
-    const values: number[] = []
-    for (const week of heat().weeks) for (const day of week) if (day) values.push(day.tokens)
-    return values
-  })
-  const trendPeak = createMemo(() => (dailyTokens().length === 0 ? 0 : Math.max(...dailyTokens())))
-  /** The last week in the period, for a readable day-by-day strip. */
-  const lastDays = createMemo(() => {
+  const allDays = createMemo(() => {
     const days: Array<{ date: string; tokens: number; runs: number }> = []
     for (const week of heat().weeks) for (const day of week) if (day) days.push(day)
-    return days.slice(-7)
+    return days
   })
+  const dailyTokens = createMemo(() => allDays().map((day) => day.tokens))
+  const dailyRuns = createMemo(() => allDays().map((day) => day.runs))
+  const dailyDates = createMemo(() => allDays().map((day) => day.date))
+  const trendPeak = createMemo(() => (dailyTokens().length === 0 ? 0 : Math.max(...dailyTokens())))
+  /** The last week in the period, for a readable day-by-day strip. */
+  const lastDays = createMemo(() => allDays().slice(-7))
   const dayLabel = (date: string) => `${MONTH_NAMES[Number(date.slice(5, 7)) - 1]} ${date.slice(8)}`
+
+  /** Start, middle and end dates under a full-width chart. */
+  const axisLine = (width: number, dates: readonly string[]): string => {
+    const chars = Array.from({ length: width }, () => " ")
+    if (dates.length === 0 || width < 16) return chars.join("")
+    const place = (text: string, at: number) => {
+      for (let index = 0; index < text.length && at + index < width; index++) {
+        chars[at + index] = text[index]!
+      }
+    }
+    place(dayLabel(dates[0]!), 0)
+    place(dayLabel(dates[dates.length - 1]!), Math.max(0, width - 6))
+    if (width >= 40) {
+      const middle = dayLabel(dates[Math.floor(dates.length / 2)]!)
+      place(middle, Math.max(0, Math.floor((width - middle.length) / 2)))
+    }
+    return chars.join("")
+  }
 
   const rangeStrip = () =>
     tabLayout({
@@ -306,14 +323,16 @@ export function StatsPage(props: {
     const fixed = 2 + 1 + 1 + 1 + kpiHeight + 1 + 2 + (props.height >= 28 ? 2 : 0)
     return Math.max(1, props.height - fixed)
   }
-  const showTrend = () => dailyTokens().some((value) => value > 0) && bodyHeight() >= 15
-  /** The legend yields to the chart when the body has exactly one row to spare. */
-  const showLegend = () => !showTrend() || bodyHeight() >= 16
-  /** A handful of weeks reads better as explicit days than as a tiny calendar. */
+  /** A handful of weeks reads better as daily bars than as a tiny calendar. */
   const shortWeeks = () => heat().weeks.length > 0 && heat().weeks.length <= 6
-  const activityHeight = () =>
-    1 + (shortWeeks() ? 1 + heat().weeks.length : 1 + 7) + (showLegend() ? 1 : 0)
-  const trendHeight = () => Math.max(4, Math.min(14, bodyHeight() - activityHeight() - 2))
+  const activityBase = () => (shortWeeks() ? 6 : 10)
+  const showTrend = () => dailyTokens().some((value) => value > 0) && bodyHeight() >= activityBase() + 6
+  /** The calendar legend yields when the trend needs the last row. */
+  const showLegend = () => !showTrend() || bodyHeight() >= 16
+  const activityHeight = () => (shortWeeks() ? 6 : 9 + (showLegend() ? 1 : 0))
+  const showAxis = () => bodyHeight() >= activityHeight() + 8
+  const trendHeight = () =>
+    Math.max(4, Math.min(12, bodyHeight() - activityHeight() - 2 - (showAxis() ? 1 : 0)))
   const showModels = () =>
     props.summary.models.length > 0 && bodyHeight() >= (twoColumn() ? 8 : 16)
   const showTools = () =>
@@ -334,7 +353,9 @@ export function StatsPage(props: {
     return models + tools + learning
   }
   /** The left column's own height, so the divider ends with the chart. */
-  const leftHeight = () => activityHeight() + (showTrend() ? 1 + 1 + trendHeight() : 0)
+  const leftHeight = () =>
+    activityHeight() +
+    (showTrend() ? 1 + 1 + trendHeight() + (showAxis() ? 1 : 0) : 0)
   const lastRows = () =>
     Math.min(7, Math.max(0, Math.min(bodyHeight(), leftHeight()) - rightUsed() - 2))
   const showLastDays = () => twoColumn() && lastDays().length > 0 && lastRows() >= 2
@@ -427,68 +448,44 @@ export function StatsPage(props: {
     </box>
   )
 
-  /** The Monday of a week, even when the period starts mid-week. */
-  const weekLabel = (week: Array<{ date: string } | null>): string => {
-    const index = week.findIndex((day) => day !== null)
-    if (index < 0) return ""
-    const date = new Date(`${week[index]!.date}T00:00:00Z`)
-    date.setUTCDate(date.getUTCDate() - index)
-    return dayLabel(date.toISOString().slice(0, 10))
-  }
-
-  /** Weeks across, weekdays down: a short range gets dates, not a key. */
-  const weekTable = () => (
+  /** Daily runs as braille bars; the dates under them do the labelling. */
+  const activityBars = () => (
     <box flexDirection="column" flexShrink={0} width={leftContent()}>
-      {sectionHead("ACTIVITY", `${props.summary.activeDays} active days`, leftContent())}
-      <box flexDirection="row" height={1}>
-        <text fg={palette().muted} wrapMode="none">
-          {"       "}
-        </text>
-        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((name) => (
-          <text fg={palette().muted} wrapMode="none">
-            {`${name} `}
-          </text>
-        ))}
-      </box>
-      {heat().weeks.map((week, weekIndex) => {
-        const start = weekLabel(week)
-        return (
-          <box flexDirection="row" height={1}>
-            <text fg={palette().muted} wrapMode="none">
-              {`${start} `.padEnd(7)}
-            </text>
-            {week.map((day, dayIndex) => {
-              const cell = grid().cells[dayIndex]?.[weekIndex]
-              return (
-                <text
-                  fg={cell?.tone === "primary" ? palette().primary : palette().muted}
-                  wrapMode="none"
-                >
-                  {`${day === null || cell === undefined ? " " : cell.glyph.repeat(2)} `}
-                </text>
-              )
-            })}
-          </box>
-        )
-      })}
-      {legend()}
+      {sectionHead(
+        "ACTIVITY",
+        `${props.summary.activeDays} active · ${props.summary.bestStreak}-day streak · peak ${Math.max(1, ...dailyRuns())} runs`,
+        leftContent(),
+      )}
+      <BrailleChart
+        theme={palette()}
+        values={dailyRuns()}
+        width={leftContent()}
+        height={4}
+        mode="bar"
+      />
+      <text fg={palette().muted} wrapMode="none">
+        {axisLine(leftContent(), dailyDates())}
+      </text>
     </box>
   )
 
-  const activity = () => (shortWeeks() ? weekTable() : calendar())
+  const activity = () => (shortWeeks() ? activityBars() : calendar())
 
   const trend = () => (
     <box flexDirection="column" flexShrink={0} width={leftContent()} marginTop={1}>
       {sectionHead("TOKENS OVER TIME", `peak ${compactTokens(trendPeak())}/day`, leftContent())}
-      <LineChart
+      <BrailleChart
         theme={palette()}
         values={dailyTokens()}
         width={leftContent()}
         height={trendHeight()}
-        reduce="max"
-        axisWidth={6}
-        labels={[compactTokens(trendPeak()), "0"]}
+        mode="area"
       />
+      {showAxis() ? (
+        <text fg={palette().muted} wrapMode="none">
+          {axisLine(leftContent(), dailyDates())}
+        </text>
+      ) : null}
     </box>
   )
 

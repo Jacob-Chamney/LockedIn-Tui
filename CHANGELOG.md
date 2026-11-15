@@ -16,6 +16,9 @@ requests merge.
 
 ### Added
 
+- `brailleChart()` draws bars and filled areas on a 2×4 dot grid, with solid
+  cells and only the edge dotted. Stats uses it for daily activity and the
+  token trend, and plugins can place the same element.
 - `button()` draws a tone-filled keycap and fitted label; the MCP permission
   gate uses a button pair for run/refuse.
 - `meter()` draws a labelled progress track, and `sparkline()` /
