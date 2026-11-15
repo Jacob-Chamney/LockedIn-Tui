@@ -10,6 +10,7 @@ import { parseBinding, type Binding } from "../keymap/registry"
 import type { Hunk, ProposedWrite } from "../../services/work/diff"
 import type { WriteError } from "../../services/work/writes"
 import type { ThemePalette } from "../theme"
+import { DiffView } from "../shell/diff"
 
 export type ReviewState = {
   open: boolean
@@ -148,7 +149,6 @@ export function ReviewOverlay(props: {
 }) {
   const palette = () => props.theme
   const boxWidth = () => Math.min(120, Math.max(40, Math.floor(props.width * 0.9)))
-  const stacked = !sideBySide(props.write, props.width)
 
   return (
     <box
@@ -171,14 +171,13 @@ export function ReviewOverlay(props: {
           <text fg={index === props.cursor ? palette().primary : palette().muted} wrapMode="none">
             {`${props.state.selected.includes(hunk.index) ? "◉" : "○"} ${hunkHeader(hunk)}`}
           </text>
-          {hunkLines(hunk).map((line) => (
-            <text
-              fg={line.startsWith("+") ? palette().success : line.startsWith("-") ? palette().error : palette().muted}
-              wrapMode="none"
-            >
-              {stacked ? `  ${line}` : `  ${line}`}
-            </text>
-          ))}
+          <DiffView
+            theme={palette()}
+            lines={hunk.lines}
+            width={boxWidth() - 4}
+            oldStart={hunk.oldStart}
+            newStart={hunk.newStart}
+          />
         </box>
       ))}
 

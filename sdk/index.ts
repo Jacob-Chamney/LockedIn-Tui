@@ -56,6 +56,11 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  diffRows,
+  type DiffLine as DiffLineInput,
+  type DiffOptions as DiffLayoutOptions,
+} from "../src/ui/diff"
+import {
   distributionSegments,
   type DistributionItem as DistributionItemInput,
   type DistributionSegment as DistributionSegmentInput,
@@ -3153,6 +3158,69 @@ export function distribution(options: DistributionOptions): SceneNode[] {
         fg: options.legendLabelFg ?? "muted",
       })
     }
+  }
+  return nodes
+}
+
+/** One source line in a `diff()`. */
+export type DiffLine = DiffLineInput
+
+export type DiffOptions = Omit<DiffLayoutOptions, "lines"> & {
+  anchor: ScenePosition
+  x: number
+  y: number
+  lines: readonly DiffLine[]
+  /** Addition colour. Defaults to `success`. */
+  addFg?: string
+  /** Removal colour. Defaults to `error`. */
+  removeFg?: string
+  /** Context colour. Defaults to `muted`. */
+  contextFg?: string
+  /** Gutter colour. Defaults to `line`. */
+  gutterFg?: string
+}
+
+/**
+ * A unified diff with line-number gutters.
+ *
+ *   diff({ anchor: "top-left", x: 2, y: 2, width: 60, oldStart: 12, newStart: 12,
+ *          lines: [
+ *            { kind: "context", text: "const a = 1" },
+ *            { kind: "remove", text: "const b = 2" },
+ *            { kind: "add", text: "const b = 3" },
+ *          ] })
+ *
+ * Context advances both numbers, an addition only the new side and a removal
+ * only the old side. Long lines wrap under the content column with a blank
+ * gutter; `wrap: false` ellipsises instead. `numbers: false` gives a bare
+ * `+`/`-` gutter.
+ */
+export function diff(options: DiffOptions): SceneNode[] {
+  const rows = diffRows(options)
+  const nodes: SceneNode[] = []
+  for (const row of rows) {
+    const y = options.y + row.index
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y,
+      text: row.gutter,
+      fg: options.gutterFg ?? "line",
+    })
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + row.gutter.length,
+      y,
+      text: row.text,
+      fg:
+        row.kind === "add"
+          ? (options.addFg ?? "success")
+          : row.kind === "remove"
+            ? (options.removeFg ?? "error")
+            : (options.contextFg ?? "muted"),
+    })
   }
   return nodes
 }

@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `diff()` draws unified diff rows with old/new line-number gutters for plugin
+  scenes; the Work change review uses the same rows.
 - `distribution()` draws a stacked share bar with a shared legend; the Stats
   `BY MODEL` chart shows the per-model share above the individual bars.
 - `radio()` draws a single-select `(•)`/`( )` list for plugin scenes; the theme

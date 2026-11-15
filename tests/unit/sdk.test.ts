@@ -14,6 +14,7 @@ import {
   confirm,
   createCursor,
   dashboard,
+  diff,
   distribution,
   ease,
   emptyState,
@@ -1564,4 +1565,43 @@ test("distribution can omit the legend and is empty without values", () => {
   expect(nodes).toHaveLength(1)
   expect(nodes[0]).toMatchObject({ text: "▓▓▓▓▓▓▓▓▓▓", fg: "primary" })
   expect(distribution({ anchor: "top-left", x: 0, y: 0, width: 10, items: [] })).toEqual([])
+})
+
+test("diff draws gutters and toned content", () => {
+  const nodes = diff({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 40,
+    oldStart: 1,
+    newStart: 1,
+    lines: [
+      { kind: "remove", text: "old" },
+      { kind: "add", text: "new" },
+    ],
+  })
+  expect(nodes).toHaveLength(4)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, text: " 1    - ", fg: "line" })
+  expect(nodes[1]).toMatchObject({ x: 10, y: 3, text: "old", fg: "error" })
+  expect(nodes[2]).toMatchObject({ x: 2, y: 4, text: "    1 + ", fg: "line" })
+  expect(nodes[3]).toMatchObject({ x: 10, y: 4, text: "new", fg: "success" })
+})
+
+test("diff wraps long lines and honours colours", () => {
+  const nodes = diff({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 12,
+    numbers: false,
+    addFg: "accent",
+    gutterFg: "secondary",
+    lines: [{ kind: "add", text: "abcdefghijkl" }],
+  })
+  expect(nodes).toHaveLength(4)
+  expect(nodes[0]).toMatchObject({ x: 0, y: 0, text: "+ ", fg: "secondary" })
+  expect(nodes[1]).toMatchObject({ x: 2, y: 0, text: "abcdefghij", fg: "accent" })
+  expect(nodes[2]).toMatchObject({ x: 0, y: 1, text: "  ", fg: "secondary" })
+  expect(nodes[3]).toMatchObject({ x: 2, y: 1, text: "kl", fg: "accent" })
+  expect(diff({ anchor: "top-left", x: 0, y: 0, width: 12, lines: [] })).toEqual([])
 })
