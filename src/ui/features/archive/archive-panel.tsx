@@ -75,10 +75,11 @@ export function rowsFor(state: ArchiveState, side: Side): ArchiveRow[] {
 }
 
 export function headerLines(state: ArchiveState): string[] {
+  const checked = state.privacy.at.slice(0, 10)
   const privacy =
     state.privacy.result === "unchecked"
       ? "privacy: unchecked"
-      : `last privacy check ${state.privacy.result} at ${state.privacy.at}`
+      : `last privacy check: ${state.privacy.result}${checked ? ` · ${checked}` : ""}`
   const base = `${state.backend}${state.configured ? "" : " (not configured)"} · ${privacy} · consent: ${state.consent ? "given" : "not given"}`
   return state.offline ? [base, "showing the local index"] : [base]
 }

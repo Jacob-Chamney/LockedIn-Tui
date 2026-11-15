@@ -42,6 +42,18 @@ function lines(setup: Awaited<ReturnType<typeof mount>>): string[] {
 }
 
 describe("server list", () => {
+  test("an empty server list teaches adding and hides the policy table", async () => {
+    const setup = await mount(120, 24, { servers: [] })
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("no servers configured")
+      expect(frame).toContain("a add")
+      expect(frame).not.toContain("POLICY")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("renders enabled state, transport, connection status and tool count", async () => {
     const setup = await mount(140, 24)
     try {

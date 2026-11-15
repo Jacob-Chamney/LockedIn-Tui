@@ -64,24 +64,27 @@ export function PluginList(props: {
         />
       ) : null}
 
-      <text fg={palette().secondary} wrapMode="none">
-        {"POLICY"}
-      </text>
-      <Matrix
-        theme={palette()}
-        width={Math.max(20, props.width - 4)}
-        headerWidth={11}
-        showHeader={false}
-        rows={COMMANDS}
-        columns={props.servers.map((server) => server.name)}
-        cells={COMMANDS.map((command) => props.servers.map((server) => cellLabel(command, server)))}
-        notes={COMMANDS.map((command) => (lockedReason(command) ? `· ${lockedReason(command)}` : ""))}
-        rowTones={COMMANDS.map((command) => (lockedReason(command) ? "muted" : "normal"))}
-      />
-
-      <text fg={palette().muted} wrapMode="none">
-        {standingNote()}
-      </text>
+      {props.servers.length > 0 ? (
+        <>
+          <text fg={palette().secondary} wrapMode="none">
+            {"POLICY"}
+          </text>
+          <Matrix
+            theme={palette()}
+            width={Math.max(20, props.width - 4)}
+            headerWidth={11}
+            showHeader={false}
+            rows={COMMANDS}
+            columns={props.servers.map((server) => server.name)}
+            cells={COMMANDS.map((command) => props.servers.map((server) => cellLabel(command, server)))}
+            notes={COMMANDS.map((command) => (lockedReason(command) ? `· ${lockedReason(command)}` : ""))}
+            rowTones={COMMANDS.map((command) => (lockedReason(command) ? "muted" : "normal"))}
+          />
+          <text fg={palette().muted} wrapMode="none">
+            {standingNote()}
+          </text>
+        </>
+      ) : null}
     </WindowBody>
   )
 }
@@ -104,7 +107,11 @@ export function McpPanel(props: {
       title="MCP servers"
       meta={`${props.servers.filter((s) => s.enabled).length} of ${props.servers.length} enabled`}
       detail="MCP servers, the tools each one may call, and the policy that gates them."
-      hints={footerHints().split(" · ")}
+      hints={
+        props.servers.length === 0
+          ? ["a add", ...footerHints().split(" · ")]
+          : footerHints().split(" · ")
+      }
     >
       <PluginList
         theme={palette()}

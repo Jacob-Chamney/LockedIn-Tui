@@ -177,6 +177,18 @@ describe("the knowledge window", () => {
     }
   })
 
+  test("an empty vault explains itself in both renderers", async () => {
+    const emptyGraph: KnowledgeGraph = { topics: [], notes: [], edges: [], diagnostics: [] }
+    for (const graphics of [false, true]) {
+      const setup = await mount(knowledge.initialKnowledge, emptyGraph, graphics)
+      try {
+        expect(frame(setup)).toContain("No knowledge notes yet")
+      } finally {
+        await setup.dispose()
+      }
+    }
+  })
+
   test("a corrupt index is shown as a diagnostic, not an empty page", async () => {
     const setup = await mount(
       { ...knowledge.initialKnowledge, focus: graph.topicId("Coding") },

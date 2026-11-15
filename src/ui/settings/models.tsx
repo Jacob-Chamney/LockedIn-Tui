@@ -588,7 +588,7 @@ export function ModelsScreenPanel(props: {
 
   const hints = () =>
     modelView()
-      ? "j/k move · g chat/generation · Enter choose · Esc back"
+      ? "j/k · g target · Enter choose · Esc"
       : screenProvider(screen())?.spec.id === "custom"
         ? "Enter link · r re-link · b url · Esc"
         : "Enter link · r re-link · Esc back"
@@ -647,7 +647,7 @@ export function ModelsScreenPanel(props: {
         <>
           {models().length === 0 ? (
             <text fg={palette().muted} wrapMode="none">
-              {"  no models loaded · link a provider in Providers"}
+              {"  no models loaded · link a provider first"}
             </text>
           ) : null}
           {models()
