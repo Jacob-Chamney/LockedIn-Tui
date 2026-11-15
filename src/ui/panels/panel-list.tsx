@@ -11,7 +11,13 @@ import { WindowBody } from "./floating-window"
 import { PanelWindow } from "./panel-window"
 import { SelectList } from "./select-list"
 
-export type PanelRow = { id: string; label: string; detail: string }
+export type PanelRow = {
+  id: string
+  label: string
+  detail: string
+  /** A compact done/total chip after the label. */
+  progress?: { done: number; total: number; width?: number }
+}
 
 export function PanelList(props: {
   theme: ThemePalette

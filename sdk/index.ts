@@ -56,6 +56,13 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  progressChipLayout,
+  progressChipStyle,
+  type ProgressChipGlyphs as ProgressChipGlyphsInput,
+  type ProgressChipLayout as ProgressChipLayoutInput,
+  type ProgressChipTone as ProgressChipToneInput,
+} from "../src/ui/progress-chip"
+import {
   toastGlyph,
   toastStackLayout,
   type ToastItem as ToastItemInput,
@@ -4392,6 +4399,65 @@ export function toasts(options: ToastsOptions): SceneNode[] {
     })
   }
   return nodes
+}
+
+/** The bar glyphs a `progressChip()` uses. */
+export type ProgressChipGlyphs = ProgressChipGlyphsInput
+
+/** The fitted bar, count and tone of a `progressChip()`. */
+export type ProgressChipLayout = ProgressChipLayoutInput
+
+/** A compact progress state: success, primary or muted. */
+export type ProgressChipTone = ProgressChipToneInput
+
+export type ProgressChipOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  done: number
+  total: number
+  /** Bar cells; defaults to 4. */
+  barWidth?: number
+  /** Available columns; defaults to the natural text width. */
+  width?: number
+  glyphs?: Partial<ProgressChipGlyphs>
+  /** Fill override; otherwise the tone decides. */
+  bg?: string
+  /** Text override; otherwise the tone decides. */
+  fg?: string
+}
+
+/**
+ * A compact progress chip: `▰▰▱▱ 2/4` on a tone fill.
+ *
+ *   progressChip({ anchor: "top-left", x: 2, y: 2, done: 2, total: 4 })
+ *
+ * Zero progress is muted, partial is primary and complete is success. The count
+ * is fitted to `width` when given, and `glyphs` replaces the bar marks.
+ */
+export function progressChip(options: ProgressChipOptions): SceneNode[] {
+  const layout = progressChipLayout(options)
+  const style = progressChipStyle(layout.tone)
+  return [
+    {
+      kind: "rect",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      width: layout.width,
+      height: 1,
+      fill: true,
+      color: options.bg ?? style.bg,
+    },
+    {
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      text: layout.text,
+      fg: options.fg ?? style.fg,
+    },
+  ]
 }
 
 export type FormOptions = {

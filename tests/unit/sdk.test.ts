@@ -37,6 +37,7 @@ import {
   menu,
   pagination,
   prompt,
+  progressChip,
   kpiStrip,
   keycaps,
   kanban,
@@ -2220,4 +2221,35 @@ test("toasts honour overrides and keep the newest", () => {
   expect(nodes[1]).toMatchObject({ text: "!", fg: "accent" })
   expect(nodes[2]).toMatchObject({ text: "new" })
   expect(toasts({ anchor: "top-left", x: 0, y: 0, width: 40, toasts: [] })).toEqual([])
+})
+
+test("progressChip draws a tone-filled bar and count", () => {
+  const nodes = progressChip({ anchor: "top-left", x: 2, y: 3, done: 2, total: 4 })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[0]).toMatchObject({ kind: "rect", x: 2, y: 3, width: 8, color: "primary" })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 2, y: 3, text: "▰▰▱▱ 2/4", fg: "background" })
+})
+
+test("progressChip shares tones, fitting and overrides", () => {
+  const done = progressChip({ anchor: "top-left", x: 0, y: 0, done: 3, total: 3 })
+  expect(done[0]).toMatchObject({ color: "success" })
+  const zero = progressChip({ anchor: "top-left", x: 0, y: 0, done: 0, total: 3 })
+  expect(zero[0]).toMatchObject({ color: "line" })
+  expect(zero[1]).toMatchObject({ fg: "foreground" })
+  const clipped = progressChip({ anchor: "top-left", x: 0, y: 0, width: 5, done: 1, total: 2 })
+  expect(clipped[0]).toMatchObject({ width: 5 })
+  expect(clipped[1]).toMatchObject({ text: "▰▰▱▱…" })
+  const custom = progressChip({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    done: 1,
+    total: 2,
+    barWidth: 2,
+    glyphs: { filled: "=", empty: "-" },
+    bg: "accent",
+    fg: "warning",
+  })
+  expect(custom[0]).toMatchObject({ color: "accent" })
+  expect(custom[1]).toMatchObject({ text: "=- 1/2", fg: "warning" })
 })

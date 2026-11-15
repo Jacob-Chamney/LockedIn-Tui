@@ -13,6 +13,7 @@ import { Toggle } from "../shell/toggle"
 import { Slider } from "../shell/slider"
 import { StatusDot } from "../shell/status-dot"
 import { Segmented } from "../shell/segmented"
+import { ProgressChip } from "../shell/progress-chip"
 import type { StatusState } from "../status-dot"
 
 export type ListRowTone = "normal" | "muted" | "error"
@@ -39,6 +40,8 @@ export function ListRow(props: {
   status?: { state: StatusState; label?: string }
   /** A segmented control in the value column, for small exclusive choices. */
   segments?: { options: readonly string[]; selected: number; width?: number }
+  /** A compact done/total chip after the label. */
+  progress?: { done: number; total: number; width?: number }
   /** A second, muted line under the label. */
   detail?: string
   /** When set, the label is padded/truncated to this width. */
@@ -111,6 +114,19 @@ export function ListRow(props: {
         >
           {label()}
         </text>
+        {props.progress ? (
+          <>
+            <text fg={palette().muted} wrapMode="none">
+              {" "}
+            </text>
+            <ProgressChip
+              theme={palette()}
+              done={props.progress.done}
+              total={props.progress.total}
+              width={props.progress.width}
+            />
+          </>
+        ) : null}
         {props.segments ? (
           <Segmented
             theme={palette()}
