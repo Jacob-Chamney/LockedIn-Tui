@@ -16,12 +16,7 @@ import { compactTokens } from "./big-number"
 import { buildHeatmap } from "./heatmap"
 import { HEATMAP_RAMP, heatmapLayout } from "../heatmap"
 import { Legend } from "../shell/legend"
-import { Distribution } from "../shell/distribution"
-import { Treemap } from "../shell/treemap"
-import { Delta } from "../shell/delta"
 import { LineChart } from "../shell/line-chart"
-import { StatCard } from "../shell/stat-card"
-import { ProgressRing } from "../shell/progress-ring"
 import { tabLayout } from "../tabs"
 import { Bars } from "../shell/bars"
 import { Callout } from "../shell/callout"
@@ -176,6 +171,28 @@ export function periodLabel(period: { from: string; to: string }): string {
   return `${fromMonth} ${from.getFullYear()} – ${toMonth} ${to.getFullYear()}`
 }
 
+/** Inclusive day count for a period, independent of the heatmap width. */
+export function periodDays(period: { from: string; to: string }): number {
+  const parse = (value: string): number | null => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+    if (!match) return null
+    return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  }
+  const from = parse(period.from)
+  const to = parse(period.to)
+  if (from === null || to === null || to < from) return 0
+  return Math.round((to - from) / 86_400_000) + 1
+}
+
+/**
+ * The stats dashboard.
+ *
+ * A page, not a poster: one header with the period and the two filters, a band
+ * of five figures, then activity and models side by side. Sections are chosen
+ * from the space that is actually left, so a short terminal keeps the figures
+ * and the calendar instead of clipping the charts below them. Every number
+ * comes from `StatsSummary` unchanged.
+ */
 export function StatsPage(props: {
   theme: ThemePalette
   width: number
@@ -185,106 +202,342 @@ export function StatsPage(props: {
   summary: StatsSummary
 }) {
   const palette = () => props.theme
+  /** A dashboard wider than this is harder to scan; centre it instead. */
+  const contentWidth = () => Math.max(20, Math.min(props.width - 4, 156))
+  const padX = () => Math.max(2, Math.floor((props.width - contentWidth()) / 2))
+  const inner = () => contentWidth()
   const tokens = () => props.summary.overview.input + props.summary.overview.output
-  const total = () => compactTokens(tokens(), 0)
   const period = () => periodLabel(props.summary.period)
-  const chartWidth = () => Math.max(28, Math.min(props.width - 8, 64))
-  const wideHero = () => props.width >= 100
-  const deltaWidth = () => (wideHero() ? Math.max(16, Math.min(40, props.width - 58)) : Math.min(props.width - 8, 48))
-  const cellWidth = () => (props.width >= 120 ? 2 : 1)
-  const maxWeeks = () => Math.max(1, Math.floor((props.width - 6) / cellWidth()))
+  const days = createMemo(() => periodDays(props.summary.period))
+  const twoColumn = () => props.width >= 96
+  const gutter = 3
+  const leftWidth = () => (twoColumn() ? Math.floor((inner() - gutter) * 0.6) : inner())
+  /** The left column keeps one cell clear of the divider. */
+  const leftContent = () => Math.max(20, leftWidth() - 1)
+  const rightWidth = () => inner() - leftWidth() - gutter
+  const maxWeeks = () => Math.max(1, leftContent() - 3)
   const heat = createMemo(() => buildHeatmap(props.summary.activity, props.summary.period, maxWeeks()))
+  const cellWidth = () => (heat().weeks.length * 2 <= leftContent() ? 2 : 1)
   const grid = createMemo(() =>
     heatmapLayout({ weeks: heat().weeks, months: heat().months, cellWidth: cellWidth() }),
   )
-  const statsWidth = () =>
-    wideHero() ? Math.min(64, Math.max(36, props.width - 48)) : Math.min(72, props.width - 4)
-  const statWidth = () => Math.max(10, Math.floor(statsWidth() / 3))
-  /** Models sorted once, then sliced for the bars, share bar and treemap. */
-  const sortedModels = createMemo(() =>
-    props.summary.models
-      .map((model) => ({ label: model.model, value: model.input + model.output }))
-      .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label)),
-  )
-  const shareItems = createMemo(() => sortedModels().slice(0, 4))
-  /** The busiest models, as proportions of the busiest one. */
-  const modelItems = createMemo(() => {
-    const totals = sortedModels().slice(0, 3)
-    const peak = totals[0]?.value ?? 0
-    return totals.map((model) => ({
-      ...model,
-      text: `${Math.round((model.value / Math.max(1, peak)) * 100)}%`,
-    }))
+  const dailyTokens = createMemo(() => {
+    const values: number[] = []
+    for (const week of heat().weeks) for (const day of week) if (day) values.push(day.tokens)
+    return values
   })
-  const treemapItems = createMemo(() =>
-    shareItems().map((model, index) => ({ id: `${index}:${model.label}`, label: model.label, value: model.value })),
-  )
+  const trendPeak = createMemo(() => (dailyTokens().length === 0 ? 0 : Math.max(...dailyTokens())))
+  /** The last week in the period, for a readable day-by-day strip. */
+  const lastDays = createMemo(() => {
+    const days: Array<{ date: string; tokens: number; runs: number }> = []
+    for (const week of heat().weeks) for (const day of week) if (day) days.push(day)
+    return days.slice(-7)
+  })
+  const dayLabel = (date: string) => `${MONTH_NAMES[Number(date.slice(5, 7)) - 1]} ${date.slice(8)}`
+  const trendHeight = () => Math.max(4, Math.min(14, bodyHeight() - 18))
+
   const rangeStrip = () =>
     tabLayout({
       tabs: RANGE_ORDER.map((label) => ({ label })),
       selected: RANGE_ORDER.indexOf(props.view.range),
-      width: Math.max(0, props.width - 12),
+      width: Math.max(0, Math.min(44, props.width - 12)),
     })
   const scopeStrip = () =>
     tabLayout({
       tabs: SCOPE_ORDER.map((label) => ({ label })),
       selected: SCOPE_ORDER.indexOf(props.view.scope),
-      width: Math.max(0, props.width - 12),
+      width: Math.max(0, Math.min(48, props.width - 12)),
     })
-  /** Non-null daily token totals inside the selected range. */
-  const dailyTokens = createMemo(() => {
-    const values: number[] = []
-    for (const week of heat().weeks) {
-      for (const day of week) if (day) values.push(day.tokens)
-    }
-    return values
-  })
-  /** Days in the selected range, for the active-days ring. */
-  const rangeDays = createMemo(() =>
-    heat().weeks.reduce((sum, week) => sum + week.filter((day) => day !== null).length, 0),
+
+  /** Responsive KPI band: five across when wide, otherwise wrap. */
+  const activeShare = () =>
+    days() === 0 ? 0 : Math.round((props.summary.activeDays / days()) * 100)
+  const kpiCols = () => {
+    if (props.width >= 120) return 5
+    if (props.width >= 80) return props.height >= 30 ? 4 : 5
+    return props.width >= 62 ? 3 : 2
+  }
+  const kpiDetail = () => props.height >= 30
+  const kpiWidth = () => Math.floor((inner() - 2 * (kpiCols() - 1)) / kpiCols())
+  const wideTokens = () => kpiWidth() >= 20
+  const kpis = () => {
+    const compact = compactTokens(tokens())
+    const detail = wideTokens()
+      ? `${compactTokens(props.summary.overview.input)} in · ${compactTokens(props.summary.overview.output)} out`
+      : `${compactTokens(props.summary.overview.input)} / ${compactTokens(props.summary.overview.output)}`
+    const items = [
+      { label: "TOKENS", value: compact, detail },
+      {
+        label: "SESSIONS",
+        value: formatCount(props.summary.overview.runs),
+        detail:
+          props.summary.overview.failed > 0
+            ? `${props.summary.overview.failed} failed`
+            : "none failed",
+        tone: props.summary.overview.failed > 0 ? ("error" as const) : undefined,
+      },
+      {
+        label: "ACTIVE DAYS",
+        value: formatCount(props.summary.activeDays),
+        detail:
+          kpiCols() === 4
+            ? `${activeShare()}% · ${props.summary.bestStreak}d streak`
+            : `${activeShare()}% of range`,
+      },
+      { label: "STREAK", value: `${props.summary.bestStreak} days`, detail: "in a row" },
+      {
+        label: "COST",
+        value: props.summary.costMicroUsd === null ? "unknown" : costLabel(props.summary),
+        detail: props.summary.costMicroUsd === null ? "not priced" : "est. spend",
+      },
+    ]
+    return kpiCols() === 4 ? items.filter((item) => item.label !== "STREAK") : items
+  }
+  const kpiRows = () => {
+    const rows: Array<ReturnType<typeof kpis>> = []
+    for (let index = 0; index < kpis().length; index += kpiCols()) rows.push(kpis().slice(index, index + kpiCols()))
+    return rows
+  }
+
+  const bodyHeight = () => {
+    const gap = props.height >= 28 && kpiDetail() ? Math.max(0, kpiRows().length - 1) : 0
+    const kpiHeight = kpiRows().length * (kpiDetail() ? 3 : 2) + gap
+    // padding, title, controls, rule, KPI band, rule, footer, and the two
+    // optional one-row gaps above the controls and the figures.
+    const fixed = 2 + 1 + 1 + 1 + kpiHeight + 1 + 2 + (props.height >= 28 ? 2 : 0)
+    return Math.max(1, props.height - fixed)
+  }
+  const showTrend = () => dailyTokens().some((value) => value > 0) && bodyHeight() >= 15
+  /** The legend yields to the chart when the body has exactly one row to spare. */
+  const showLegend = () => !showTrend() || bodyHeight() >= 16
+  const showModels = () =>
+    props.summary.models.length > 0 && bodyHeight() >= (twoColumn() ? 8 : 16)
+  const showTools = () =>
+    props.summary.tools.length > 0 && bodyHeight() >= (twoColumn() ? 15 : 23)
+  const showLearning = () =>
+    (props.summary.learning.steps > 0 ||
+      props.summary.learning.cardsKnown > 0 ||
+      props.summary.learning.cardsMissed > 0 ||
+      props.summary.learning.lessons > 0) &&
+    bodyHeight() >= (twoColumn() ? 12 : 20)
+  /** Rows the right column already occupies above the recent-days strip. */
+  const rightUsed = () => {
+    const models = showModels()
+      ? 1 + Math.min(4, sortedModels().length) + (sortedModels().length > 4 ? 1 : 0)
+      : 0
+    const tools = showTools() ? 1 + 1 + Math.min(3, props.summary.tools.length) : 0
+    const learning = showLearning() ? 1 + 1 + 3 : 0
+    return models + tools + learning
+  }
+  /** The left column's own height, so the divider ends with the chart. */
+  const leftHeight = () =>
+    1 + 1 + 7 + (showLegend() ? 1 : 0) + (showTrend() ? 1 + 1 + trendHeight() : 0)
+  const lastRows = () =>
+    Math.min(7, Math.max(0, Math.min(bodyHeight(), leftHeight()) - rightUsed() - 2))
+  const showLastDays = () => twoColumn() && lastDays().length > 0 && lastRows() >= 2
+
+  const sortedModels = createMemo(() =>
+    props.summary.models
+      .map((model) => ({ label: model.model, value: model.input + model.output, runs: model.runs }))
+      .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label)),
   )
-  const activeShare = createMemo(() =>
-    rangeDays() === 0 ? 0 : Math.max(0, Math.min(1, props.summary.activeDays / rangeDays())),
+  const modelTotal = () => sortedModels().reduce((sum, model) => sum + model.value, 0)
+  /** The provider prefix is the least useful part when a column is narrow. */
+  const modelLabel = (name: string, width: number): string => {
+    if (name.length <= width) return name
+    const base = name.split("/").pop() ?? name
+    if (base.length <= width) return base
+    return width <= 1 ? "…" : `${base.slice(0, width - 1)}…`
+  }
+  const modelBars = () => {
+    const top = sortedModels().slice(0, 4)
+    return top.map((model) => ({
+      label: modelLabel(model.label, Math.max(8, labelWidth() - 1)),
+      value: model.value,
+      text: `${model.runs}r · ${Math.round((model.value / Math.max(1, modelTotal())) * 100)}%`,
+    }))
+  }
+  const toolBars = () =>
+    props.summary.tools
+      .slice(0, 3)
+      .map((tool) => ({ label: tool.name, value: tool.calls, text: `${tool.calls} call${tool.calls === 1 ? "" : "s"}` }))
+  const learningItems = () => [
+    { term: "steps", description: formatCount(props.summary.learning.steps) },
+    {
+      term: "cards",
+      description: `${formatCount(props.summary.learning.cardsKnown)} known · ${formatCount(props.summary.learning.cardsMissed)} missed`,
+    },
+    { term: "lessons", description: formatCount(props.summary.learning.lessons) },
+  ]
+
+  const labelWidth = () => Math.max(10, Math.min(22, Math.floor(rightWidth() * 0.42)))
+  const scopeLabel = () => (props.view.scope === "all" ? "all scopes" : props.view.scope)
+
+  const sectionHead = (title: string, meta: string, width: number) => (
+    <box flexDirection="row" justifyContent="space-between" width={width} flexShrink={0}>
+      <box flexDirection="row" flexShrink={0}>
+        <text fg={palette().primary} wrapMode="none">
+          {"▍"}
+        </text>
+        <text fg={palette().secondary} wrapMode="none">
+          {` ${title}`}
+        </text>
+      </box>
+      <text fg={palette().muted} wrapMode="none">
+        {meta}
+      </text>
+    </box>
   )
-  /**
-   * The last seven days against the seven before them. Only shown when the
-   * range has both weeks and the earlier week has something to compare with.
-   */
-  const tokenDelta = createMemo(() => {
-    const values = dailyTokens()
-    if (values.length < 14) return null
-    const recent = values.slice(-7).reduce((sum, value) => sum + value, 0)
-    const prior = values.slice(-14, -7).reduce((sum, value) => sum + value, 0)
-    if (prior <= 0) return null
-    const value = ((recent - prior) / prior) * 100
-    return Number.isFinite(value) ? { value, label: "vs prior 7d" } : null
-  })
-  const label = () => "best streak"
+
+  const activity = () => (
+    <box flexDirection="column" flexShrink={0} width={leftContent()}>
+      {sectionHead("ACTIVITY", `${props.summary.activeDays} active days`, leftContent())}
+      <text fg={palette().muted} wrapMode="none">
+        {`  ${grid().months}`}
+      </text>
+      {grid().cells.map((row, index) => (
+        <box flexDirection="row" height={1}>
+          <text fg={palette().muted} wrapMode="none">
+            {`${grid().days[index]} `}
+          </text>
+          {row.map((cell) => (
+            <text fg={cell.tone === "muted" ? palette().muted : palette().primary} wrapMode="none">
+              {cell.glyph.repeat(grid().cellWidth)}
+            </text>
+          ))}
+        </box>
+      ))}
+      {showLegend() ? (
+        <Legend
+          theme={palette()}
+          items={HEATMAP_RAMP.map((glyph, level) => ({
+            glyph,
+            ...(level === 0 ? { label: "less" } : level === 4 ? { label: "more" } : {}),
+            tone: level === 0 ? "muted" : "primary",
+          }))}
+          width={leftContent()}
+        />
+      ) : null}
+    </box>
+  )
+
+  const trend = () => (
+    <box flexDirection="column" flexShrink={0} width={leftContent()} marginTop={1}>
+      {sectionHead("TOKENS OVER TIME", `peak ${compactTokens(trendPeak())}/day`, leftContent())}
+      <LineChart
+        theme={palette()}
+        values={dailyTokens()}
+        width={leftContent()}
+        height={trendHeight()}
+        reduce="max"
+        axisWidth={6}
+        labels={[compactTokens(trendPeak()), "0"]}
+      />
+    </box>
+  )
+
+  const models = () => (
+    <box flexDirection="column" flexShrink={0} width={rightWidth()}>
+      {sectionHead(
+        "MODELS",
+        `${sortedModels().length} model${sortedModels().length === 1 ? "" : "s"} · ${sortedModels().reduce((sum, model) => sum + model.runs, 0)} runs`,
+        rightWidth(),
+      )}
+      <Bars
+        theme={palette()}
+        items={modelBars()}
+        width={rightWidth()}
+        labelWidth={labelWidth()}
+        valueWidth={10}
+      />
+      {sortedModels().length > 4 ? (
+        <text fg={palette().muted} wrapMode="none">
+          {`+${sortedModels().length - 4} more`}
+        </text>
+      ) : null}
+    </box>
+  )
+
+  const tools = () => (
+    <box flexDirection="column" flexShrink={0} width={rightWidth()} marginTop={1}>
+      {sectionHead("TOOLS", `${props.summary.tools.reduce((sum, tool) => sum + tool.calls, 0)} calls`, rightWidth())}
+      <Bars
+        theme={palette()}
+        items={toolBars()}
+        width={rightWidth()}
+        labelWidth={labelWidth()}
+        valueWidth={10}
+      />
+    </box>
+  )
+
+  const lastWeek = () => {
+    const shown = lastDays().slice(-lastRows())
+    const peak = Math.max(1, ...shown.map((day) => day.tokens))
+    const barWidth = Math.max(3, rightWidth() - 15)
+    return (
+      <box flexDirection="column" flexShrink={0} width={rightWidth()} marginTop={1}>
+        {sectionHead(
+          `LAST ${shown.length} DAY${shown.length === 1 ? "" : "S"}`,
+          `${compactTokens(shown.reduce((sum, day) => sum + day.tokens, 0))} tokens`,
+          rightWidth(),
+        )}
+        {shown.map((day) => {
+          const filled = day.tokens > 0 ? Math.max(1, Math.round((day.tokens / peak) * barWidth)) : 0
+          const bar = filled > 0 ? "█".repeat(filled) : "·"
+          return (
+            <box flexDirection="row" height={1}>
+              <text fg={palette().muted} wrapMode="none">
+                {dayLabel(day.date)}
+              </text>
+              <text fg={palette().primary} wrapMode="none">
+                {` ${bar.padEnd(barWidth)}`}
+              </text>
+              <text fg={palette().muted} wrapMode="none">
+                {` ${compactTokens(day.tokens).padStart(6)}`}
+              </text>
+            </box>
+          )
+        })}
+      </box>
+    )
+  }
+
+  const learning = () => (
+    <box flexDirection="column" flexShrink={0} width={rightWidth()} marginTop={1}>
+      {sectionHead(
+        "LEARNING",
+        `${props.summary.learning.lessons} lesson${props.summary.learning.lessons === 1 ? "" : "s"}`,
+        rightWidth(),
+      )}
+      <DefinitionList theme={palette()} items={learningItems()} width={rightWidth()} termWidth={8} />
+    </box>
+  )
 
   return (
     <box
       width={props.width}
       height={props.height}
       flexDirection="column"
-      paddingX={2}
+      paddingX={padX()}
       paddingY={1}
-      backgroundColor={palette().background}
+      backgroundColor={palette().surface}
     >
       <box flexDirection="row" justifyContent="space-between" flexShrink={0}>
-        <box flexDirection="row">
-          <text fg={palette().foreground} wrapMode="none">
-            <b>lockedin</b>
-          </text>
-          <text fg={palette().muted} wrapMode="none">
-            {" / stats"}
-          </text>
-        </box>
+        <text fg={palette().foreground} wrapMode="none">
+          <b>STATS</b>
+        </text>
         <text fg={palette().muted} wrapMode="none">
-          {period()}
+          {props.width >= 80 ? period() : `${scopeLabel()} · ${period()}`}
         </text>
       </box>
-
-      <box flexDirection="row" justifyContent="space-between" height={1} flexShrink={0}>
+      <box
+        flexDirection="row"
+        justifyContent="space-between"
+        height={1}
+        flexShrink={0}
+        marginTop={props.height >= 28 ? 1 : 0}
+      >
         <box flexDirection="row" height={1}>
           <text fg={palette().muted} wrapMode="none">
             {"range "}
@@ -299,7 +552,7 @@ export function StatsPage(props: {
             </text>
           ))}
         </box>
-        {props.width >= 96 ? (
+        {props.width >= 80 ? (
           <box flexDirection="row" height={1}>
             <text fg={palette().muted} wrapMode="none">
               {"scope "}
@@ -316,225 +569,98 @@ export function StatsPage(props: {
           </box>
         ) : null}
       </box>
+      <text fg={palette().line} wrapMode="none">
+        {"─".repeat(inner())}
+      </text>
 
-      <box flexGrow={1} minHeight={0} flexDirection="column" justifyContent="center" paddingTop={1}>
-        {wideHero() ? (
-          <box flexDirection="row" justifyContent="space-between" alignItems="flex-start" flexShrink={0}>
-            <box flexDirection="column" flexShrink={0}>
-              <text fg={palette().muted} wrapMode="none">
-                {Array.from("TOKENS").join(" ")}
-              </text>
-              <text fg={palette().foreground} wrapMode="none">
-                <b>{total()}</b>
-              </text>
-              {tokenDelta() && props.height >= 34 ? (
-                <box marginTop={1}>
-                  <Delta
-                    theme={palette()}
-                    value={tokenDelta()!.value}
-                    label={tokenDelta()!.label}
-                    width={deltaWidth()}
-                  />
-                </box>
-              ) : null}
-            </box>
-            <box flexDirection="column" alignItems="flex-end" flexShrink={0}>
-              <box flexDirection="row" width={statsWidth()} flexShrink={0}>
-                <StatCard
-                  theme={palette()}
-                  value={`${props.summary.bestStreak} days`}
-                  label={label()}
-                  detail={props.height >= 34 ? "in a row" : undefined}
-                  width={statWidth()}
-                />
-                <StatCard
-                  theme={palette()}
-                  value={formatCount(props.summary.activeDays)}
-                  label="active days"
-                  detail={props.height >= 34 ? "in range" : undefined}
-                  width={statWidth()}
-                />
-                <StatCard
-                  theme={palette()}
-                  value={formatCount(props.summary.overview.runs)}
-                  label="sessions"
-                  detail={props.height >= 34 ? "recorded" : undefined}
-                  width={statWidth()}
-                />
-              </box>
-              {props.height >= 34 && props.width >= 120 && rangeDays() > 0 ? (
-                <box flexDirection="row" alignItems="center" marginTop={1} flexShrink={0}>
-                  <ProgressRing theme={palette()} value={activeShare()} size={6} />
-                  <box flexDirection="column" marginLeft={1}>
-                    <text fg={palette().muted} wrapMode="none">
-                      {"ACTIVE"}
-                    </text>
-                    <text fg={palette().foreground} wrapMode="none">
-                      {`${props.summary.activeDays}/${rangeDays()} days`}
-                    </text>
-                  </box>
-                </box>
-              ) : null}
-            </box>
-          </box>
-        ) : (
-          <box flexDirection="column" flexShrink={0}>
-            <text fg={palette().muted} wrapMode="none">
-              {Array.from("TOKENS").join(" ")}
-            </text>
-            <text fg={palette().foreground} wrapMode="none">
-              <b>{total()}</b>
-            </text>
-            {tokenDelta() && props.height >= 34 ? (
-              <box marginTop={1}>
-                <Delta
-                  theme={palette()}
-                  value={tokenDelta()!.value}
-                  label={tokenDelta()!.label}
-                  width={deltaWidth()}
-                />
-              </box>
-            ) : null}
-            <box flexDirection="row" width={statsWidth()} marginTop={1} flexShrink={0}>
-              <StatCard
-                theme={palette()}
-                value={`${props.summary.bestStreak} days`}
-                label={label()}
-                detail={props.height >= 34 ? "in a row" : undefined}
-                width={statWidth()}
-              />
-              <StatCard
-                theme={palette()}
-                value={formatCount(props.summary.activeDays)}
-                label="active days"
-                detail={props.height >= 34 ? "in range" : undefined}
-                width={statWidth()}
-              />
-              <StatCard
-                theme={palette()}
-                value={formatCount(props.summary.overview.runs)}
-                label="sessions"
-                detail={props.height >= 34 ? "recorded" : undefined}
-                width={statWidth()}
-              />
-            </box>
-          </box>
-        )}
-
-        <box height={1} flexShrink={0} />
-        <text fg={palette().secondary} wrapMode="none">
-          {`ACTIVITY · ${rangeDays()} DAY${rangeDays() === 1 ? "" : "S"}`}
-        </text>
-        <box flexDirection="column" flexShrink={0}>
-          <text fg={palette().muted} wrapMode="none">
-            {`${"  "}${grid().months}`}
+      {isEmpty(props.summary) ? (
+        <box flexGrow={1} minHeight={0} flexDirection="column" alignItems="center" justifyContent="center">
+          <text fg={palette().foreground} wrapMode="none">
+            <b>NO ACTIVITY IN THIS RANGE</b>
           </text>
-          {grid().cells.map((row, index) => (
-            <box flexDirection="row" height={1}>
-              <text fg={palette().muted} wrapMode="none">
-                {`${grid().days[index]} `}
-              </text>
-              {row.map((cell) => (
-                <text
-                  fg={cell.tone === "muted" ? palette().muted : palette().primary}
-                  wrapMode="none"
-                >
-                  {cell.glyph.repeat(grid().cellWidth)}
-                </text>
-              ))}
-            </box>
-          ))}
+          <text fg={palette().muted} wrapMode="none">
+            send a message or run a generation to fill this page
+          </text>
         </box>
-        {props.height >= 30 ? (
-          <Legend
-            theme={palette()}
-            items={HEATMAP_RAMP.map((glyph, level) => ({
-              glyph,
-              ...(level === 0 ? { label: "less" } : level === 4 ? { label: "more" } : {}),
-              tone: level === 0 ? "muted" : "primary",
-            }))}
-            width={Math.min(props.width - 8, 60)}
-          />
-        ) : null}
-
-        {props.height >= 40 && props.width >= 70 && dailyTokens().some((value) => value > 0) ? (
-          <box flexDirection="column" width={Math.min(props.width - 8, 110)} marginTop={1} flexShrink={0}>
-            <text fg={palette().secondary} wrapMode="none">
-              {`TOKENS OVER TIME · ${dailyTokens().length} DAY${dailyTokens().length === 1 ? "" : "S"}`}
-            </text>
-            <LineChart
-              theme={palette()}
-              values={dailyTokens()}
-              width={Math.min(props.width - 8, 110)}
-              height={props.height >= 44 ? 5 : 4}
-              axisWidth={6}
-              labels={[compactTokens(Math.max(...dailyTokens())), "0"]}
-            />
+      ) : (
+        <>
+          <box flexDirection="column" flexShrink={0} marginTop={props.height >= 28 ? 1 : 0}>
+            {kpiRows().map((row, rowIndex) => (
+              <box
+                flexDirection="row"
+                height={kpiDetail() ? 3 : 2}
+                flexShrink={0}
+                marginTop={rowIndex === 0 || props.height < 28 ? 0 : 1}
+              >
+                {row.map((kpi, index) => (
+                  <box flexDirection="row" flexShrink={0}>
+                    <box flexDirection="column" width={kpiWidth()} flexShrink={0}>
+                      <text fg={palette().muted} wrapMode="none">
+                        {kpi.label}
+                      </text>
+                      <text fg={palette().foreground} wrapMode="none">
+                        <b>{kpi.value}</b>
+                      </text>
+                      {kpiDetail() ? (
+                        <text fg={"tone" in kpi && kpi.tone === "error" ? palette().error : palette().muted} wrapMode="none">
+                          {kpi.detail}
+                        </text>
+                      ) : null}
+                    </box>
+                    {index < row.length - 1 ? <box width={2} flexShrink={0} /> : null}
+                  </box>
+                ))}
+              </box>
+            ))}
           </box>
-        ) : null}
+          <text fg={palette().line} wrapMode="none">
+            {"─".repeat(inner())}
+          </text>
 
-        {props.height >= 32 && props.width >= 60 && modelItems().length > 0 ? (
-          <box flexDirection="column" width={chartWidth()} marginTop={1} flexShrink={0}>
-            <text fg={palette().secondary} wrapMode="none">
-              {`BY MODEL · ${modelItems().length}`}
-            </text>
-            {props.height >= 42 && props.width >= 80 ? (
-              <Treemap theme={palette()} items={treemapItems()} width={chartWidth()} height={3} />
-            ) : (
-              <>
-                <Distribution theme={palette()} items={shareItems()} width={chartWidth()} />
-                <Bars
-                  theme={palette()}
-                  items={modelItems()}
-                  width={chartWidth()}
-                  labelWidth={22}
-                  valueWidth={4}
-                />
-              </>
-            )}
+          <box flexGrow={1} minHeight={0} flexDirection="column" justifyContent="center">
+            <box flexDirection={twoColumn() ? "row" : "column"} flexShrink={0}>
+              <box flexDirection="column" flexShrink={0} width={leftWidth()} paddingRight={1}>
+                {activity()}
+                {showTrend() ? trend() : null}
+              </box>
+              {twoColumn() ? (
+                <box
+                  flexDirection="column"
+                  flexGrow={1}
+                  minHeight={0}
+                  height={leftHeight()}
+                  border={["left"]}
+                  borderColor={palette().line}
+                  paddingLeft={2}
+                >
+                  {showModels() ? models() : null}
+                  {showTools() ? tools() : null}
+                  {showLearning() ? learning() : null}
+                  {showLastDays() ? lastWeek() : null}
+                </box>
+              ) : showModels() ? (
+                <box flexDirection="column" minHeight={0}>
+                  {models()}
+                  {showTools() ? tools() : null}
+                  {showLearning() ? learning() : null}
+                  {showLastDays() ? lastWeek() : null}
+                </box>
+              ) : null}
+            </box>
           </box>
-        ) : null}
-        {props.height >= 30 && props.width >= 70 ? (
-          <box flexDirection="column" width={Math.min(props.width - 8, 72)} marginTop={1} flexShrink={0}>
-            <text fg={palette().secondary} wrapMode="none">
-              {"SUMMARY"}
-            </text>
-            <DefinitionList
-              theme={palette()}
-              width={Math.min(props.width - 8, 72)}
-              termWidth={8}
-              items={[
-                { term: "runs", description: formatCount(props.summary.overview.runs) },
-                {
-                  term: "failed",
-                  description: formatCount(props.summary.overview.failed),
-                  ...(props.summary.overview.failed > 0 ? { tone: "error" as const } : {}),
-                },
-                {
-                  term: "tokens",
-                  description: `${formatCount(props.summary.overview.input)} in · ${formatCount(props.summary.overview.output)} out`,
-                },
-                { term: "cost", description: costLabel(props.summary) },
-              ]}
-            />
-          </box>
-        ) : null}
-        {props.summary.diagnostic ? (
-          <Callout
-            theme={palette()}
-            tone="warning"
-            width={props.width - 4}
-            message={props.summary.diagnostic}
-          />
-        ) : null}
-        {props.view.notice ? (
-          <Callout theme={palette()} tone="warning" width={props.width - 4} message={props.view.notice} />
-        ) : null}
-      </box>
+        </>
+      )}
 
-      <box flexDirection="row" justifyContent="flex-end" flexShrink={0}>
+      {props.summary.diagnostic ? (
+        <Callout theme={palette()} tone="warning" width={props.width - 4} message={props.summary.diagnostic} />
+      ) : null}
+      {props.view.notice ? (
+        <Callout theme={palette()} tone="warning" width={props.width - 4} message={props.view.notice} />
+      ) : null}
+
+      <box flexDirection="row" justifyContent="space-between" flexShrink={0} marginTop={1}>
         <text fg={palette().muted} wrapMode="none">
-          lockedin
+          {footerHints()}
         </text>
       </box>
     </box>

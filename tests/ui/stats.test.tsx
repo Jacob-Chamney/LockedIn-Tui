@@ -1,4 +1,4 @@
-/** Stats dashboard: hero totals, contribution calendar and honest empties. */
+/** Stats dashboard: figures, calendar, trend and the model/tool column. */
 import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
@@ -55,13 +55,30 @@ function lines(setup: Awaited<ReturnType<typeof mount>>): string[] {
   return out
 }
 
-describe("range and scope strips", () => {
-  test("both strips render and the active chips are filled", async () => {
+function emptySummary(): Summary {
+  return summary({
+    overview: { runs: 0, failed: 0, input: 0, output: 0 },
+    costMicroUsd: null,
+    models: [],
+    tools: [],
+    learning: { steps: 0, cardsKnown: 0, cardsMissed: 0, lessons: 0 },
+    activity: [],
+    bestStreak: 0,
+    activeDays: 0,
+    period: { from: "2026-11-01", to: "2026-11-02" },
+    diagnostic: null,
+  })
+}
+
+describe("header and filters", () => {
+  test("the page names itself, its period and its filters", async () => {
     const setup = await mount(140, 44, {
       view: { ...stats.initialStatsView, range: "30d", scope: "skills" },
     })
     try {
       const frame = lines(setup).join("\n")
+      expect(frame).toContain("STATS")
+      expect(frame).toContain("Jan – Nov 2026")
       expect(frame).toContain("range")
       expect(frame).toContain("30d")
       expect(frame).toContain("scope")
@@ -69,295 +86,294 @@ describe("range and scope strips", () => {
       expect(backgrounds(setup, " 30d ")).toContain(crimson.primary.toLowerCase())
       expect(backgrounds(setup, " skills ")).toContain(crimson.primary.toLowerCase())
       expect(backgrounds(setup, " 7d ")).not.toContain(crimson.primary.toLowerCase())
+      // The old wordmark hero is gone; the page title is the chrome.
+      expect(frame).not.toContain("lockedin / stats")
     } finally {
       await setup.dispose()
     }
   })
 
-  test("a narrow pane keeps the range strip and hides scope", async () => {
+  test("the minimum width keeps both filter strips", async () => {
     const setup = await mount(80, 24)
     try {
       const frame = lines(setup).join("\n")
       expect(frame).toContain("range")
-      expect(frame).toContain("7d")
-      expect(frame).not.toContain("scope")
+      expect(frame).toContain("scope")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("a narrow pane keeps the range strip and drops the scope strip", async () => {
+    const setup = await mount(70, 24)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("range")
+      expect(frame).not.toContain("scope  all")
     } finally {
       await setup.dispose()
     }
   })
 })
 
-describe("the hero", () => {
-  test("shows the context, period, token total and calendar stats", async () => {
+describe("the figures band", () => {
+  test("five figures carry the tokens, runs, days, streak and cost", async () => {
     const setup = await mount(140, 44)
     try {
       const frame = lines(setup).join("\n")
-      expect(frame).toContain("lockedin / stats")
-      expect(frame).toContain("Jan – Nov 2026")
-      expect(frame).toContain("T O K E N S")
+      expect(frame).toContain("TOKENS")
+      expect(frame).toContain("24.4K")
+      expect(frame).toContain("18.2K in · 6.1K out")
+      expect(frame).toContain("SESSIONS")
+      expect(frame).toContain("2 failed")
+      expect(frame).toContain("ACTIVE DAYS")
+      expect(frame).toContain("6% of range")
+      expect(frame).toContain("STREAK")
       expect(frame).toContain("14 days")
-      expect(frame).toContain("best streak")
-      expect(frame).toContain("active days")
-      expect(frame).toContain("sessions")
+      expect(frame).toContain("COST")
+      expect(frame).toContain("$0.1284")
+      expect(frame).toContain("est. spend")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("four figures at 100 columns fold the streak into the active days", async () => {
+    const setup = await mount(100, 38)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("18.2K in · 6.1K out")
+      expect(frame).toContain("6% · 14d streak")
+      expect(frame).not.toContain("STREAK")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("the short page keeps all five figures without their detail lines", async () => {
+    const setup = await mount(80, 24)
+    try {
+      const frame = lines(setup).join("\n")
+      for (const label of ["TOKENS", "SESSIONS", "ACTIVE DAYS", "STREAK", "COST"]) {
+        expect(frame).toContain(label)
+      }
+      expect(frame).toContain("14 days")
+      expect(frame).not.toContain("est. spend")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("an empty range invites work instead of drawing zero figures", async () => {
+    const setup = await mount(100, 38, { summary: emptySummary() })
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("NO ACTIVITY IN THIS RANGE")
+      expect(frame).toContain("send a message or run a generation")
+      expect(frame).not.toContain("TOKENS")
+      expect(frame).not.toContain("COST")
+    } finally {
+      await setup.dispose()
+    }
+  })
+})
+
+describe("activity and trend", () => {
+  test("the calendar has one row per weekday and a legend", async () => {
+    const setup = await mount(140, 44)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("▍ ACTIVITY")
+      expect(frame).toContain("18 active days")
+      for (const month of ["Jan", "Feb", "Mar", "Oct"]) expect(frame).toContain(month)
+      for (const day of ["M ", "T ", "W ", "F ", "S "]) expect(frame).toContain(day)
+      expect(frame).toContain("· less")
+      expect(frame).toContain("█ more")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("the trend charts the busiest day per column under the calendar", async () => {
+    const setup = await mount(140, 44)
+    try {
+      const out = lines(setup)
+      const calendar = out.findIndex((line) => line.includes("▍ ACTIVITY"))
+      const trend = out.findIndex((line) => line.includes("TOKENS OVER TIME"))
+      expect(trend).toBeGreaterThan(calendar)
+      expect(out[trend]).toContain("peak 3.2K/day")
+      const chart = out.slice(trend + 1, trend + 6).join("\n")
+      expect(chart).toContain("│")
+      expect(chart).toContain("•")
+      expect(chart).toMatch(/3\.2K│/)
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("the compact page keeps the calendar and drops the trend", async () => {
+    const setup = await mount(80, 24)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("▍ ACTIVITY")
+      expect(frame).toContain("· less")
+      expect(frame).not.toContain("TOKENS OVER TIME")
+      expect(frame).not.toContain("│")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("an empty range has no calendar or trend", async () => {
+    const setup = await mount(140, 44, { summary: emptySummary() })
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).not.toContain("▍ ACTIVITY")
+      expect(frame).not.toContain("TOKENS OVER TIME")
+      expect(frame).not.toContain("less")
+    } finally {
+      await setup.dispose()
+    }
+  })
+})
+
+describe("the right column", () => {
+  test("models, tools and learning sit beside the calendar", async () => {
+    const setup = await mount(140, 44)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("▍ MODELS")
+      expect(frame).toContain("openai/gpt-4.1-mini")
+      expect(frame).toContain("9r · 78%")
+      expect(frame).toContain("2 models · 12 runs")
+      expect(frame).toContain("▍ TOOLS")
+      expect(frame).toContain("read_file")
+      expect(frame).toContain("7 calls")
+      expect(frame).toContain("▍ LEARNING")
+      expect(frame).toContain("1 lesson")
+      expect(frame).toContain("4 known · 2 missed")
+      expect(frame).toContain("▍ LAST 7 DAYS")
+      expect(frame).toContain("Nov 01")
+      expect(frame).toContain("1.8K")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("the right column survives a 100-column page", async () => {
+    const setup = await mount(100, 38)
+    try {
+      const frame = lines(setup).join("\n")
+      expect(frame).toContain("▍ MODELS")
+      expect(frame).toContain("▍ TOOLS")
+      expect(frame).toContain("▍ LEARNING")
+      expect(frame).toContain("read_file")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
+  test("a compact page has no room for the right column", async () => {
+    const setup = await mount(80, 24)
+    try {
+      const frame = lines(setup).join("\n")
       expect(frame).not.toContain("MODELS")
       expect(frame).not.toContain("TOOLS")
       expect(frame).not.toContain("LEARNING")
+      expect(frame).not.toContain("LAST")
     } finally {
       await setup.dispose()
     }
   })
 
-  test("the hero puts the token total and its delta on the left", async () => {
-    const setup = await mount(140, 44)
+  test("the last-days strip shrinks to the rows that are left", async () => {
+    const setup = await mount(105, 26)
     try {
       const frame = lines(setup).join("\n")
-      expect(frame).toContain("T O K E N S")
-      expect(frame).toContain("24K")
-      expect(frame).toContain("▼ 20% vs prior 7d")
+      expect(frame).toContain("▍ LAST 2 DAYS")
+      expect(frame).toContain("Nov 01")
+      expect(frame).toContain("Nov 02")
+      expect(frame).not.toContain("Oct 27")
     } finally {
       await setup.dispose()
     }
   })
 
-  test("an empty range draws no trend section or week comparison", async () => {
-    const empty = summary({
-      overview: { runs: 0, failed: 0, input: 0, output: 0 },
-      activity: [],
-      period: { from: "2026-11-01", to: "2026-11-02" },
+  test("more than four models are counted, not silently dropped", async () => {
+    const many = summary({
+      models: Array.from({ length: 6 }, (_, index) => ({
+        model: `openai/model-${index}`,
+        runs: 1,
+        input: 100,
+        output: 50,
+        costMicroUsd: null,
+      })),
     })
-    const setup = await mount(140, 44, { summary: empty })
+    const setup = await mount(140, 44, { summary: many })
     try {
-      const frame = lines(setup).join("\n")
-      expect(frame).not.toContain("TOKENS OVER TIME")
-      expect(frame).not.toContain("vs prior 7d")
+      expect(lines(setup).join("\n")).toContain("+2 more")
     } finally {
       await setup.dispose()
     }
   })
+})
 
-  test("stat cards carry their detail on a tall page", async () => {
-    const setup = await mount(140, 44)
-    try {
-      const frame = lines(setup).join("\n")
-      expect(frame).toContain("in a row")
-      expect(frame).toContain("in range")
-      expect(frame).toContain("recorded")
-    } finally {
-      await setup.dispose()
+describe("layout", () => {
+  test("80x24 and 200x60 fit their bounds", async () => {
+    for (const [w, h] of [[80, 24], [200, 60]] as const) {
+      const setup = await mount(w, h)
+      try {
+        const out = lines(setup)
+        expect(out.length).toBe(h)
+        for (const line of out) expect(line.length).toBe(w)
+      } finally {
+        await setup.dispose()
+      }
     }
   })
 
-  test("the compact page keeps two-line stat cards", async () => {
-    const setup = await mount(80, 24)
-    try {
-      const frame = lines(setup).join("\n")
-      expect(frame).not.toContain("in a row")
-      expect(frame).toContain("best streak")
-    } finally {
-      await setup.dispose()
-    }
-  })
-
-  test("an active-days ring sits beside the counters on wide pages", async () => {
-    const setup = await mount(140, 44)
-    try {
-      const frame = lines(setup).join("\n")
-      expect(frame).toContain("ACTIVE")
-      expect(frame).toMatch(/[\u2800-\u28ff]/)
-      expect(frame).toContain("days")
-    } finally {
-      await setup.dispose()
-    }
-  })
-
-  test("the ring is omitted on narrow pages", async () => {
-    const setup = await mount(100, 44)
-    try {
-      expect(lines(setup).join("\n")).not.toContain("ACTIVE")
-    } finally {
-      await setup.dispose()
-    }
-  })
-
-  test("the tokens-over-time section charts the daily series", async () => {
+  test("the two columns are separated by a vertical rule", async () => {
     const setup = await mount(140, 44)
     try {
       const out = lines(setup)
-      const label = out.findIndex((line) => line.includes("TOKENS OVER TIME"))
-      expect(label).toBeGreaterThan(-1)
-      const chart = out.slice(label + 1, label + 6).join("\n")
-      expect(chart).toContain("│")
-      expect(chart).toContain("•")
-      expect(chart).toMatch(/[\d.]+K│/)
+      const body = out.slice(out.findIndex((line) => line.includes("▍ ACTIVITY")))
+      expect(body.filter((line) => line.includes("│")).length).toBeGreaterThan(4)
     } finally {
       await setup.dispose()
     }
   })
 
-  test("the compact page omits the trend section", async () => {
-    const setup = await mount(80, 24)
-    try {
-      expect(lines(setup).join("\n")).not.toContain("TOKENS OVER TIME")
-    } finally {
-      await setup.dispose()
-    }
-  })
-
-  test("the compact page omits the line chart", async () => {
-    const setup = await mount(80, 24)
-    try {
-      expect(lines(setup).join("\n")).not.toContain("│")
-    } finally {
-      await setup.dispose()
-    }
-  })
-
-  test("the token hero compares the latest week with the one before", async () => {
-    const setup = await mount(140, 44)
-    try {
-      const frame = lines(setup).join("\n")
-      expect(frame).toContain("vs prior 7d")
-      expect(frame).toMatch(/[▲▼—] \d+% vs prior 7d/)
-    } finally {
-      await setup.dispose()
-    }
-  })
-
-  test("the compact page omits the week comparison", async () => {
-    const setup = await mount(80, 24)
-    try {
-      expect(lines(setup).join("\n")).not.toContain("vs prior 7d")
-    } finally {
-      await setup.dispose()
-    }
-  })
-
-  test("the heatmap legend labels the ramp", async () => {
-    const setup = await mount(140, 44)
-    try {
-      const frame = lines(setup).join("\n")
-      expect(frame).toContain("· less")
-      expect(frame).toContain("█ more")
-      expect(frame).toContain("░")
-    } finally {
-      await setup.dispose()
-    }
-  })
-
-  test("the compact page omits the legend", async () => {
-    const setup = await mount(80, 24)
-    try {
-      expect(lines(setup).join("\n")).not.toContain("less")
-    } finally {
-      await setup.dispose()
-    }
-  })
-
-  test("the model shares appear when the page has room", async () => {
-    const setup = await mount(140, 44)
-    try {
-      const frame = lines(setup).join("\n")
-      expect(frame).toContain("BY MODEL")
-      expect(frame).toContain("openai/gpt-4.1-mini")
-      expect(frame).toContain("local/l…")
-      expect(frame).toContain("78%")
-      expect(frame).toContain("22%")
-    } finally {
-      await setup.dispose()
-    }
-  })
-
-  test("the heatmap legend stays directly under the heatmap", async () => {
+  test("the header and figures sit at the left edge", async () => {
     const setup = await mount(140, 44)
     try {
       const out = lines(setup)
-      const legend = out.findIndex((line) => line.includes("less"))
-      const trend = out.findIndex((line) => line.includes("TOKENS OVER TIME"))
-      expect(legend).toBeGreaterThan(-1)
-      expect(trend).toBeGreaterThan(legend)
+      const header = out.find((line) => line.includes("STATS"))!
+      const tokens = out.find((line) => line.includes("TOKENS"))!
+      expect(header.indexOf("STATS")).toBeLessThan(8)
+      expect(tokens.indexOf("TOKENS")).toBeLessThan(8)
     } finally {
       await setup.dispose()
     }
   })
+})
 
-  test("a tall page ends with a summary block", async () => {
-    const setup = await mount(140, 44)
+describe("notices", () => {
+  test("a corrupt-counter diagnostic renders on the page", async () => {
+    const corrupt = summary({ diagnostic: "usage.json was unreadable; totals exclude 3 runs" })
+    const setup = await mount(100, 38, { summary: corrupt })
     try {
       const frame = lines(setup).join("\n")
-      expect(frame).toContain("SUMMARY")
-      expect(frame).toContain("runs      12")
-      expect(frame).toContain("18,240 in · 6,110 out")
-      expect(frame).toContain("$0.1284")
+      expect(frame).toContain("usage.json was unreadable")
+      expect(frame).toContain("STATS")
     } finally {
       await setup.dispose()
     }
   })
 
-  test("a model treemap tiles the by-model block on tall pages", async () => {
-    const setup = await mount(140, 44)
+  test("the footer names the range, scope, export and exit keys", async () => {
+    const setup = await mount(100, 38)
     try {
-      const frame = lines(setup).join("\n")
-      expect(frame).toContain("┌")
-      expect(frame).toContain("┐")
-      expect(frame).toContain("openai/gpt-4.1-mini 78%")
-      expect(frame).toContain("22%")
-    } finally {
-      await setup.dispose()
-    }
-  })
-
-  test("the treemap gives way to the share bar on shorter pages", async () => {
-    const setup = await mount(140, 36)
-    try {
-      const frame = lines(setup).join("\n")
-      expect(frame).toContain("BY MODEL")
-      expect(frame).not.toContain("┌")
-    } finally {
-      await setup.dispose()
-    }
-  })
-
-  test("the compact page omits the model chart", async () => {
-    const setup = await mount(80, 24)
-    try {
-      expect(lines(setup).join("\n")).not.toContain("BY MODEL")
-    } finally {
-      await setup.dispose()
-    }
-  })
-
-  test("the heatmap labels months and weekdays", async () => {
-    const setup = await mount(140, 44)
-    try {
-      const frame = lines(setup).join("\n")
-      for (const month of ["Jan", "Feb", "Mar", "Oct"]) expect(frame).toContain(month)
-      for (const day of ["M ", "T ", "W ", "F ", "S "]) expect(frame).toContain(day)
-      expect(frame).toContain("░")
-      expect(frame).toContain("·")
-    } finally {
-      await setup.dispose()
-    }
-  })
-
-  test("an empty range renders a zero hero and zero stats", async () => {
-    const empty = summary({
-      overview: { runs: 0, failed: 0, input: 0, output: 0 },
-      costMicroUsd: null,
-      models: [],
-      tools: [],
-      learning: { steps: 0, cardsKnown: 0, cardsMissed: 0, lessons: 0 },
-      activity: [],
-      bestStreak: 0,
-      activeDays: 0,
-      period: { from: "2026-11-01", to: "2026-11-02" },
-    })
-    const setup = await mount(120, 30, { summary: empty })
-    try {
-      const frame = lines(setup).join("\n")
-      expect(frame).toContain("T O K E N S")
-      expect(frame).toContain("0 days")
-      expect(frame).toContain("active days")
-      expect(frame).toContain("sessions")
+      expect(lines(setup).join("\n")).toContain("r range · s scope · x export · Esc back")
     } finally {
       await setup.dispose()
     }
@@ -380,6 +396,13 @@ describe("calendar helpers", () => {
     expect(stats.periodLabel({ from: "2025-12-01", to: "2026-01-31" })).toBe(
       "Dec 2025 – Jan 2026",
     )
+  })
+
+  test("the period day count includes both ends and ignores DST", () => {
+    expect(stats.periodDays({ from: "2026-11-01", to: "2026-11-02" })).toBe(2)
+    expect(stats.periodDays({ from: "2026-01-05", to: "2026-11-02" })).toBe(302)
+    expect(stats.periodDays({ from: "2026-03-08", to: "2026-03-09" })).toBe(2)
+    expect(stats.periodDays({ from: "2026-11-02", to: "2026-11-01" })).toBe(0)
   })
 
   test("the calendar keeps a seven-row week and marks active days", () => {
@@ -413,19 +436,7 @@ describe("range and scope", () => {
   })
 })
 
-describe("diagnostics and export", () => {
-  test("a corrupt-counter diagnostic renders on the page", async () => {
-    const corrupt = summary({ diagnostic: "usage.json was unreadable; totals exclude 3 runs" })
-    const setup = await mount(80, 24, { summary: corrupt })
-    try {
-      const frame = lines(setup).join("\n")
-      expect(frame).toContain("▌ usage.json was unreadable")
-      expect(frame).toContain("T O K E N S")
-    } finally {
-      await setup.dispose()
-    }
-  })
-
+describe("export", () => {
   test("export asks for a format and names the path; the page writes nothing", () => {
     const request = stats.exportRequest(stats.initialStatsView, "csv")
     expect(request).toEqual({ format: "csv", range: "all", scope: "all" })
@@ -435,52 +446,6 @@ describe("diagnostics and export", () => {
 
     const source = readFileSync(join(import.meta.dir, "../../src/ui/stats/stats.tsx"), "utf8")
     expect(source).not.toMatch(/writeFile\(|rename\(|unlink\(/)
-  })
-})
-
-describe("layout", () => {
-  test("80x24 keeps the hero, calendar and footer without clipping", async () => {
-    const setup = await mount(80, 24)
-    try {
-      const out = lines(setup)
-      expect(out.length).toBe(24)
-      for (const line of out) expect(line.length).toBe(80)
-      const frame = out.join("\n")
-      expect(frame).toContain("T O K E N S")
-      expect(frame).toContain("best streak")
-      expect(frame).toContain("lockedin / stats")
-    } finally {
-      await setup.dispose()
-    }
-  })
-
-  test("200x60 keeps every hero detail", async () => {
-    const setup = await mount(200, 60)
-    try {
-      const out = lines(setup)
-      expect(out.length).toBe(60)
-      for (const line of out) expect(line.length).toBe(200)
-      const frame = out.join("\n")
-      expect(frame).toContain("T O K E N S")
-      expect(frame).toContain("14 days")
-      expect(frame).toContain("sessions")
-    } finally {
-      await setup.dispose()
-    }
-  })
-
-  test("the header sits at the edges and the hero reads from the left", async () => {
-    const setup = await mount(140, 44)
-    try {
-      const out = lines(setup)
-      const header = out.find((line) => line.includes("lockedin / stats"))!
-      const tokens = out.find((line) => line.includes("T O K E N S"))!
-      expect(header.indexOf("lockedin")).toBeLessThan(8)
-      expect(header).toContain("Jan – Nov 2026")
-      expect(tokens.indexOf("T O K E N S")).toBeLessThan(8)
-    } finally {
-      await setup.dispose()
-    }
   })
 })
 
