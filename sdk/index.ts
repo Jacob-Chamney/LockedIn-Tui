@@ -56,6 +56,11 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  actionBarLayout,
+  type ActionGroup as ActionGroupInput,
+  type ActionItem as ActionItemInput,
+} from "../src/ui/actions"
+import {
   scrollbarLayout,
   type ScrollbarGlyphs as ScrollbarGlyphsInput,
   type ScrollbarOrientation as ScrollbarOrientationInput,
@@ -3796,6 +3801,91 @@ export function scrollbar(options: ScrollbarOptions): SceneNode[] {
       text: thumb ? layout.glyphs.thumb : layout.glyphs.track,
       fg: thumb ? (options.thumbFg ?? "primary") : (options.trackFg ?? "line"),
     })
+  }
+  return nodes
+}
+
+/** One action in an `actionBar()` group. */
+export type ActionItem = ActionItemInput
+
+/** A group of actions in an `actionBar()`. */
+export type ActionGroup = ActionGroupInput
+
+export type ActionBarOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Available columns. */
+  width: number
+  groups: readonly ActionGroup[]
+  /** Spaces between actions in one group; defaults to 2. */
+  actionGap?: number
+  /** Separator between groups; defaults to ` · `. */
+  groupSeparator?: string
+  /** Keycap fill. Defaults to `line`. */
+  keyBg?: string
+  /** Keycap text. Defaults to `background`. */
+  keyFg?: string
+  /** Label text. Defaults to `foreground`. */
+  labelFg?: string
+  /** Separator colour. Defaults to `line`. */
+  separatorFg?: string
+  /** Disabled action text. Defaults to `muted`. */
+  disabledFg?: string
+}
+
+/**
+ * A grouped action bar with keycaps and labels.
+ *
+ *   actionBar({ anchor: "top-left", x: 2, y: 1, width: 50, groups: [
+ *     { id: "keys", actions: [
+ *       { id: "send", key: "Enter", label: "send" },
+ *       { id: "normal", key: "Esc", label: "normal" },
+ *     ] },
+ *   ] })
+ *
+ * `[key]` and its label are separate tokens, so the keycap can be filled while
+ * the label stays plain. Disabled actions keep their place but read muted; the
+ * first action that does not fit ends the bar.
+ */
+export function actionBar(options: ActionBarOptions): SceneNode[] {
+  const layout = actionBarLayout(options)
+  const nodes: SceneNode[] = []
+  for (const token of layout.tokens) {
+    if (token.kind === "key") {
+      nodes.push({
+        kind: "rect",
+        anchor: options.anchor,
+        x: options.x + token.x,
+        y: options.y,
+        width: token.width,
+        height: 1,
+        fill: true,
+        color: options.keyBg ?? "line",
+      })
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x + token.x,
+        y: options.y,
+        text: token.text,
+        fg: token.disabled ? (options.disabledFg ?? "muted") : (options.keyFg ?? "background"),
+      })
+    } else {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x + token.x,
+        y: options.y,
+        text: token.text,
+        fg:
+          token.kind === "separator"
+            ? (options.separatorFg ?? "line")
+            : token.disabled
+              ? (options.disabledFg ?? "muted")
+              : (options.labelFg ?? "foreground"),
+      })
+    }
   }
   return nodes
 }

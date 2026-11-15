@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `actionBar()` draws grouped keycaps and labels for plugin scenes; the chat
+  composer footer uses the same bar.
 - `scrollbar()` draws a proportional track and thumb for plugin scenes; the
   Knowledge reader shows one beside long notes.
 - `slider()` draws a ranged track with a knob and fitted value label for plugin
