@@ -17,6 +17,7 @@ import {
   ACHIEVEMENTS,
   UNLOCK_ALL_ACHIEVEMENTS,
   achievementUnlocked,
+  DIFFICULTY_LABELS,
   difficultyLabel,
   difficultyTier,
   progressLine,
@@ -26,6 +27,7 @@ import {
   type AchievementMetrics,
 } from "../../domain/achievements"
 import type { ThemePalette } from "../theme"
+import { ratingText } from "../rating"
 import { useGraphics } from "../use-graphics"
 import { FRAME_RATE } from "../frame-rate"
 import { project, type Camera, type Scene } from "../knowledge/scene"
@@ -1077,9 +1079,18 @@ export function AchievementPane(props: {
                       : "not awarded yet"}
                   </text>
                   <text fg={unlocked ? palette().success : palette().muted} wrapMode="none">
+                    {unlocked ? `${achievement.category.toUpperCase()} · ` : "LOCKED · keep working"}
+                    {unlocked ? (
+                      <span style={{ fg: palette().accent }}>
+                        {`${ratingText({
+                          value: difficultyTier(achievement.target),
+                          max: DIFFICULTY_LABELS.length,
+                        })} `}
+                      </span>
+                    ) : null}
                     {unlocked
-                      ? `${achievement.category.toUpperCase()} · ${difficultyLabel(achievement.target)} · ${progressLine(achievement, props.metrics, unlockAll())}`
-                      : "LOCKED · keep working"}
+                      ? `${difficultyLabel(achievement.target)} · ${progressLine(achievement, props.metrics, unlockAll())}`
+                      : ""}
                   </text>
                   <text fg={palette().accent} wrapMode="none">
                     {unlocked ? "s share this achievement" : "finish the task to unlock"}

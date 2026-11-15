@@ -73,6 +73,7 @@ describe("inventory", () => {
       expect(text).toContain("First Light")
       expect(text).toContain("s share")
       expect(text).toContain(`8 / ${domain.ACHIEVEMENTS.length} unlocked`)
+      expect(text).toMatch(/[●○]{8}/)
     } finally {
       await setup.dispose()
     }
