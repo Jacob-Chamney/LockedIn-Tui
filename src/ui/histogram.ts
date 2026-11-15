@@ -51,29 +51,40 @@ function round(value: number): number {
 export function histogramLayout(options: HistogramOptions): HistogramLayout {
   const width = Math.max(0, Math.floor(options.width))
   const height = Math.max(1, Math.floor(options.height ?? 3))
-  const values = options.values.map(finite)
-  if (width === 0 || values.length === 0) {
+  const source = options.values
+  if (width === 0 || source.length === 0) {
     return {
       rows: [],
       bins: [],
       width,
       height,
-      total: values.length,
+      total: source.length,
       min: 0,
       max: 0,
       maxCount: 0,
     }
   }
-  const min = Math.min(...values)
-  const max = Math.max(...values)
+  // One pass for the range, then one for the counts: no spreads, so a very
+  // large series cannot exceed the call-argument limit.
+  const values = new Array<number>(source.length)
+  let min = Number.POSITIVE_INFINITY
+  let max = Number.NEGATIVE_INFINITY
+  for (let index = 0; index < source.length; index++) {
+    const value = finite(source[index]!)
+    values[index] = value
+    if (value < min) min = value
+    if (value > max) max = value
+  }
   const binCount = Math.max(1, Math.min(width, Math.floor(options.bins ?? width)))
   const span = max > min ? max - min : 1
   const counts = Array.from({ length: binCount }, () => 0)
+  let maxCount = 0
   for (const value of values) {
     const index = Math.min(binCount - 1, Math.max(0, Math.floor(((value - min) / span) * binCount)))
-    counts[index] = (counts[index] ?? 0) + 1
+    const next = (counts[index] ?? 0) + 1
+    counts[index] = next
+    if (next > maxCount) maxCount = next
   }
-  const maxCount = Math.max(0, ...counts)
   const bins = counts.map((count, index) => {
     const from = min + (span * index) / binCount
     const to = index === binCount - 1 ? max : min + (span * (index + 1)) / binCount

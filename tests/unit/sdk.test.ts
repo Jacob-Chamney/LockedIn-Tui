@@ -13,6 +13,8 @@ import {
   calendar,
   breadcrumbs,
   bulletChart,
+  button,
+  buttonText,
   bulletChartText,
   callout,
   card,
@@ -3469,4 +3471,36 @@ test("menuList marks a selection, fits and honours colours", () => {
   expect(nodes.some((node) => node.kind === "text" && node.fg === "error")).toBe(true)
   expect(menuListText({ width: 30, sections: [{ id: "s", title: "S", entries: [{ id: "a", key: "j", label: "one" }] }] })).toEqual(["S", "j one"])
   expect(menuList({ anchor: "top-left", x: 0, y: 0, width: 20, sections: [] })).toEqual([])
+})
+
+test("button draws a tone-filled keycap and label", () => {
+  const nodes = button({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    key: "Y",
+    label: "run once",
+    tone: "warning",
+  })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]).toMatchObject({ kind: "rect", x: 2, y: 3, width: 4, color: "warning" })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 2, y: 3, text: "[Y] ", fg: "background" })
+  expect(nodes[2]).toMatchObject({ x: 6, y: 3, text: "run once", fg: "warning" })
+})
+
+test("button mutes disabled rows and fits its width", () => {
+  const disabled = button({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    key: "N",
+    label: "refuse",
+    tone: "ghost",
+    disabled: true,
+  })
+  expect(disabled[0]).toMatchObject({ color: "line" })
+  expect(disabled[1]).toMatchObject({ fg: "muted" })
+  expect(disabled[2]).toMatchObject({ fg: "muted" })
+  expect(buttonText({ label: "run once", key: "Y", width: 8 })).toBe("[Y] run…")
+  expect(button({ anchor: "top-left", x: 0, y: 0, width: 0, label: "x" })).toEqual([])
 })

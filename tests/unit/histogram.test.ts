@@ -39,3 +39,11 @@ test("custom glyphs, bin caps and empty input are handled", () => {
   expect(histogramLayout({ values: [], width: 10 }).rows).toEqual([])
   expect(histogramLayout({ values: [1], width: 0 }).rows).toEqual([])
 })
+
+test("a large series does not hit the spread-argument limit", () => {
+  const values = Array.from({ length: 50_000 }, (_, index) => index % 97)
+  const layout = histogramLayout({ values, width: 20, height: 2 })
+  expect(layout.total).toBe(50_000)
+  expect(layout.bins.reduce((sum, bin) => sum + bin.count, 0)).toBe(50_000)
+  expect(layout.maxCount).toBeGreaterThan(0)
+})

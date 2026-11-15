@@ -171,7 +171,8 @@ describe("permission gate", () => {
       expect(frame).toContain("notes")
       expect(frame).toContain("write_note")
       expect(frame).toContain("the result is sent to the model")
-      expect(frame).toContain("Y run once · N refuse")
+      expect(frame).toContain("[Y] run once")
+      expect(frame).toContain("[N] refuse")
     } finally {
       await setup.dispose()
     }

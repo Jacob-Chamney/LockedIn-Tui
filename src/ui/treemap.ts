@@ -67,7 +67,12 @@ export function treemapLayout(options: TreemapOptions): TreemapLayout {
     .map((item, order) => ({ item, order, value: finite(item.value) }))
     .filter((entry) => entry.value > 0)
     .sort((a, b) => b.value - a.value || a.order - b.order)
-  const total = items.reduce((sum, entry) => sum + entry.value, 0)
+  const prefix = new Array<number>(items.length + 1)
+  prefix[0] = 0
+  for (let index = 0; index < items.length; index++) {
+    prefix[index + 1] = prefix[index]! + items[index]!.value
+  }
+  const total = prefix[items.length]!
   if (width === 0 || height === 0 || items.length === 0) {
     return { tiles: [], width, height, total, hidden: 0 }
   }
@@ -112,59 +117,67 @@ export function treemapLayout(options: TreemapOptions): TreemapLayout {
   }
 
   const recurse = (
-    entries: Array<{ item: TreemapItem; value: number }>,
+    start: number,
+    end: number,
     x: number,
     y: number,
     w: number,
     h: number,
     vertical: boolean,
   ): void => {
-    if (entries.length === 0) return
-    if (entries.length === 1) {
-      makeTile(entries[0]!, x, y, w, h)
+    const count = end - start
+    if (count <= 0) return
+    if (count === 1) {
+      makeTile(items[start]!, x, y, w, h)
       return
     }
     if (w < 2 && h < 2) {
-      makeTile(entries[0]!, x, y, w, h)
-      hidden += entries.length - 1
+      makeTile(items[start]!, x, y, w, h)
+      hidden += count - 1
       return
     }
     let axis = vertical
     if (axis && w < 2) axis = false
     if (!axis && h < 2) axis = true
     if (axis && w < 2) {
-      makeTile(entries[0]!, x, y, w, h)
-      hidden += entries.length - 1
+      makeTile(items[start]!, x, y, w, h)
+      hidden += count - 1
       return
     }
     if (!axis && h < 2) {
-      makeTile(entries[0]!, x, y, w, h)
-      hidden += entries.length - 1
+      makeTile(items[start]!, x, y, w, h)
+      hidden += count - 1
       return
     }
 
-    const groupTotal = entries.reduce((sum, entry) => sum + entry.value, 0)
-    let split = 1
-    let acc = entries[0]!.value
-    while (split < entries.length - 1 && acc < groupTotal / 2) {
-      acc += entries[split]!.value
-      split += 1
+    const groupTotal = prefix[end]! - prefix[start]!
+    const half = groupTotal / 2
+    let low = start + 1
+    let high = end - 1
+    let split = start + 1
+    while (low <= high) {
+      const middle = Math.floor((low + high) / 2)
+      if (prefix[middle]! - prefix[start]! >= half) {
+        split = middle
+        high = middle - 1
+      } else {
+        low = middle + 1
+      }
     }
-    const left = entries.slice(0, split)
-    const right = entries.slice(split)
-    const leftFraction = left.reduce((sum, entry) => sum + entry.value, 0) / groupTotal
+    split = Math.max(start + 1, Math.min(end - 1, split))
+    const leftFraction = (prefix[split]! - prefix[start]!) / groupTotal
 
     if (axis) {
       const leftWidth = clamp(Math.round(w * leftFraction), 1, w - 1)
-      recurse(left, x, y, leftWidth, h, false)
-      recurse(right, x + leftWidth, y, w - leftWidth, h, false)
+      recurse(start, split, x, y, leftWidth, h, false)
+      recurse(split, end, x + leftWidth, y, w - leftWidth, h, false)
     } else {
       const topHeight = clamp(Math.round(h * leftFraction), 1, h - 1)
-      recurse(left, x, y, w, topHeight, true)
-      recurse(right, x, y + topHeight, w, h - topHeight, true)
+      recurse(start, split, x, y, w, topHeight, true)
+      recurse(split, end, x, y + topHeight, w, h - topHeight, true)
     }
   }
 
-  recurse(items, 0, 0, width, height, true)
+  recurse(0, items.length, 0, 0, width, height, true)
   return { tiles, width, height, total, hidden }
 }

@@ -130,7 +130,6 @@ export function gateCopy(view: GateView): string[] {
     `server ${view.call.server} · tool ${view.call.tool}`,
     `input ${view.summary}`,
     "the result is sent to the model",
-    "Y run once · N refuse",
   ]
 }
 
