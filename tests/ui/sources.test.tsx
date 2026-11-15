@@ -148,6 +148,17 @@ describe("finder and split manifest", () => {
     }
   })
 
+  test("the input line keeps a scope suffix and its placeholder", async () => {
+    const setup = await mount(100, 24)
+    try {
+      const frame = rows(setup).join("\n")
+      expect(frame).toContain("Path or filter")
+      expect(frame).toContain("scope:")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("path mode shows the typed directory line", async () => {
     const setup = await mount(100, 24, {
       view: { ...model.initialView, editing: true, query: "/learning/input/unit-4" },
