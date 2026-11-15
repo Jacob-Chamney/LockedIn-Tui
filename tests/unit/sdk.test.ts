@@ -32,6 +32,7 @@ import {
   menu,
   prompt,
   kpiStrip,
+  keycaps,
   radio,
   legend,
   list,
@@ -1634,4 +1635,35 @@ test("skeleton honours glyph and tone overrides", () => {
   expect(nodes[0]!.text).toBe("█".repeat(10))
   expect(nodes[0]!.fg).toBe("line")
   expect(skeleton({ anchor: "top-left", x: 0, y: 0, width: 0, rows: 3 })).toEqual([])
+})
+
+test("keycaps fill each cap and keep the chord text", () => {
+  const nodes = keycaps({ anchor: "top-left", x: 2, y: 1, width: 14, chord: "␣ c" })
+  expect(nodes).toHaveLength(5)
+  expect(nodes[0]).toMatchObject({ kind: "rect", x: 2, y: 1, width: 1, color: "line" })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 2, y: 1, text: "␣", fg: "background" })
+  expect(nodes[2]).toMatchObject({ kind: "text", x: 3, y: 1, text: " ", fg: "muted" })
+  expect(nodes[3]).toMatchObject({ kind: "rect", x: 4, width: 1 })
+  expect(nodes[4]).toMatchObject({ kind: "text", x: 4, text: "c" })
+})
+
+test("keycaps honour colours, truncation and empty chords", () => {
+  const nodes = keycaps({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 14,
+    chord: "shift+r",
+    capBg: "accent",
+    capFg: "warning",
+    separatorFg: "line",
+  })
+  expect(nodes[0]).toMatchObject({ width: 5, color: "accent" })
+  expect(nodes[1]).toMatchObject({ text: "shift", fg: "warning" })
+  expect(nodes[2]).toMatchObject({ text: "+", fg: "line" })
+
+  const clipped = keycaps({ anchor: "top-left", x: 0, y: 0, width: 6, chord: "shift+r" })
+  expect(clipped).toHaveLength(2)
+  expect(clipped[1]).toMatchObject({ text: "shift" })
+  expect(keycaps({ anchor: "top-left", x: 0, y: 0, width: 14, chord: "" })).toEqual([])
 })

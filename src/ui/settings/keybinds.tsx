@@ -5,6 +5,7 @@
  * and every change goes through `rebind`/`reset`, so help, the leader overlay
  * and this screen cannot disagree.
  */
+import { Keycaps } from "../shell/keycaps"
 import {
   bindingLabel,
   editorRows,
@@ -236,13 +237,24 @@ export function KeybindsPanel(props: {
         </text>
       ) : (
         windowed().map(({ row, index }) => {
+          const color =
+            index === props.state.cursor
+              ? palette().primary
+              : row.overridden
+                ? palette().warning
+                : palette().foreground
+          const label = `${index === props.state.cursor ? "▸" : " "} ${fitLabel(
+            row.label,
+            props.width - 2,
+            bindingWidth(),
+          )}  `
           return (
-            <text
-              fg={index === props.state.cursor ? palette().primary : row.overridden ? palette().warning : palette().foreground}
-              wrapMode="none"
-            >
-              {`${index === props.state.cursor ? "▸" : " "} ${fitLabel(row.label, props.width - 2, bindingWidth())}  ${row.keys}`}
-            </text>
+            <box flexDirection="row" height={1}>
+              <text fg={color} wrapMode="none" width={label.length}>
+                {label}
+              </text>
+              <Keycaps theme={palette()} chord={row.keys} width={bindingWidth()} />
+            </box>
           )
         })
       )}
