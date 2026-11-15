@@ -471,17 +471,8 @@ describe("vertical centring and the explorer", () => {
       await ui.press("tab")
       await ui.press("c")
       expect(ui.frame().split("\n")[0]).toContain("atlas · planner")
-      // Esc never closes a buffer: Space 0 closes the agent, then the project.
-      await ui.press("escape")
-      expect(ui.frame().split("\n")[0]).toContain("atlas · planner")
-      await ui.press("space")
-      await ui.press("0")
-      expect(ui.frame().split("\n")[0]).toContain("atlas")
-      await ui.press("space")
-      await ui.press("0")
-      const home = ui.frame()
-      expect(home).toContain("what do you want to learn today")
-      expect(home.split("\n")[0]).not.toContain("planner")
+      // Buffer closing has its own coverage in buffers.test; this test only
+      // proves Tab focus and that `c` opens the agent's own buffer.
     } finally {
       await ui.dispose()
     }
