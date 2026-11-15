@@ -58,6 +58,8 @@ import {
   slider,
   sparkline,
   sparklineText,
+  spinner,
+  spinnerText,
   statusDot,
   stepper,
   stats,
@@ -2252,4 +2254,25 @@ test("progressChip shares tones, fitting and overrides", () => {
   })
   expect(custom[0]).toMatchObject({ color: "accent" })
   expect(custom[1]).toMatchObject({ text: "=- 1/2", fg: "warning" })
+})
+
+test("spinner draws one frame with a fitted label", () => {
+  const nodes = spinner({ anchor: "top-left", x: 2, y: 3, frame: 0, label: "loading" })
+  expect(nodes).toHaveLength(1)
+  expect(nodes[0]).toMatchObject({
+    kind: "text",
+    x: 2,
+    y: 3,
+    text: "⠋ loading",
+    fg: "muted",
+  })
+})
+
+test("spinner wraps frames, fits and honours overrides", () => {
+  expect(spinnerText({ frame: 10, label: "x" })).toBe("⠋ x")
+  const clipped = spinner({ anchor: "top-left", x: 0, y: 0, frame: 1, label: "loading", width: 5, fg: "accent" })
+  expect(clipped[0]).toMatchObject({ text: "⠙ lo…", fg: "accent" })
+  const custom = spinner({ anchor: "top-left", x: 0, y: 0, frame: 1, label: "x", frames: [".", "-"] })
+  expect(custom[0]).toMatchObject({ text: "- x" })
+  expect(spinner({ anchor: "top-left", x: 0, y: 0, frame: 0, width: 0 })).toEqual([])
 })

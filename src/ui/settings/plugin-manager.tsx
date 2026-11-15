@@ -8,11 +8,14 @@
  * Starter templates and the shipped examples live in the repository tooling
  * (`plugin:new`, `src/ui/plugins/examples`), not in the packaged app.
  */
+import { createEffect, createSignal, onCleanup } from "solid-js"
+
 import type { ThemePalette } from "../theme"
 import { ListRow } from "../panels/list-row"
 import { TwoColumnSurface } from "../panels/two-column"
 import { checklistBox } from "../checklist"
 import { Skeleton } from "../shell/skeleton"
+import { spinnerText } from "../spinner"
 
 export type PluginManagerItem = {
   id: string
@@ -84,6 +87,16 @@ export function PluginManagerPane(props: {
   state: PluginManagerState
 }) {
   const palette = () => props.theme
+  const [frame, setFrame] = createSignal(0)
+  // The discovery line ticks only while discovery is running; disposal stops it.
+  createEffect(() => {
+    if (!props.state.loading) {
+      setFrame(0)
+      return
+    }
+    const timer = setInterval(() => setFrame((value) => value + 1), 120)
+    onCleanup(() => clearInterval(timer))
+  })
   const maxVisible = () => Math.max(4, props.height - 2)
   const start = () =>
     Math.max(
@@ -124,7 +137,11 @@ export function PluginManagerPane(props: {
       {props.state.loading && props.state.items.length === 0 ? (
         <>
           <text fg={palette().muted} wrapMode="none">
-            discovering plugins…
+            {spinnerText({
+              frame: frame(),
+              label: "discovering plugins…",
+              width: Math.max(10, Math.floor(props.width * 0.45)),
+            })}
           </text>
           <Skeleton
             theme={palette()}
