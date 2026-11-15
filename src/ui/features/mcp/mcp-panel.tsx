@@ -5,6 +5,7 @@ import { PanelWindow } from "../../panels/panel-window"
 import { SelectList } from "../../panels/select-list"
 import { Matrix } from "../../shell/matrix"
 import { DataTable } from "../../shell/data-table"
+import { Button } from "../../shell/button"
 import {
   cellLabel,
   footerHints,
@@ -141,6 +142,11 @@ export function PermissionGate(props: { theme: ThemePalette; width: number; heig
       <text fg={palette().muted} wrapMode="none">
         {"  every call asks; nothing is remembered"}
       </text>
+      <box flexDirection="row" height={1} paddingLeft={2}>
+        <Button theme={palette()} key="Y" label="run once" tone="warning" />
+        <text wrapMode="none">{"   "}</text>
+        <Button theme={palette()} key="N" label="refuse" tone="ghost" />
+      </box>
     </box>
   )
 }

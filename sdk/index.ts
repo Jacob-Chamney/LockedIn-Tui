@@ -100,6 +100,17 @@ import {
   type StatusTimelineState as StatusTimelineStateInput,
 } from "../src/ui/status-timeline"
 import {
+  buttonLayout,
+  buttonStyle,
+  buttonText as renderButton,
+  type ButtonLayout as ButtonLayoutInput,
+  type ButtonOptions as ButtonLayoutOptions,
+  type ButtonSegment as ButtonSegmentInput,
+  type ButtonSegmentKind as ButtonSegmentKindInput,
+  type ButtonStyle as ButtonStyleInput,
+  type ButtonTone as ButtonToneInput,
+} from "../src/ui/button"
+import {
   bulletChartLayout,
   bulletChartText as renderBulletChart,
   type BulletChartGlyphs as BulletChartGlyphsInput,
@@ -6878,6 +6889,81 @@ export function menuList(options: MenuOptions): SceneNode[] {
 /** The menu as plain lines. */
 export function menuListText(options: Omit<MenuOptions, "anchor" | "x" | "y" | "keyFg" | "fg" | "headingFg" | "metaFg" | "separatorFg" | "disabledFg">): string[] {
   return renderMenu(options)
+}
+
+/** A button tone: primary, secondary, success, warning, error or ghost. */
+export type ButtonTone = ButtonToneInput
+
+/** The keycap fill, key ink and label ink for a button tone. */
+export type ButtonStyle = ButtonStyleInput
+
+/** A keycap or label segment. */
+export type ButtonSegmentKind = ButtonSegmentKindInput
+
+/** One placed button segment. */
+export type ButtonSegment = ButtonSegmentInput
+
+/** The fitted text, segments and tone of a button. */
+export type ButtonLayout = ButtonLayoutInput
+
+export type ButtonOptions = Omit<ButtonLayoutOptions, "label"> & {
+  anchor: ScenePosition
+  x: number
+  y: number
+  label: string
+}
+
+/**
+ * A keycap and fitted label on one row.
+ *
+ *   button({ anchor: "top-left", x: 2, y: 2, key: "Y", label: "run once", tone: "warning" })
+ *   // [Y] run once
+ *
+ * The keycap takes the tone fill; the label uses a readable ink. `width` fits
+ * the key first, then the label. `buttonText()` returns the row without
+ * placement.
+ */
+export function button(options: ButtonOptions): SceneNode[] {
+  const layout = buttonLayout(options)
+  const style = buttonStyle(layout.tone)
+  const nodes: SceneNode[] = []
+  for (const segment of layout.segments) {
+    if (segment.kind === "key") {
+      nodes.push({
+        kind: "rect",
+        anchor: options.anchor,
+        x: options.x + segment.x,
+        y: options.y,
+        width: segment.width,
+        height: 1,
+        fill: true,
+        color: layout.disabled ? "line" : style.keyBg,
+      })
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x + segment.x,
+        y: options.y,
+        text: segment.text,
+        fg: layout.disabled ? "muted" : style.keyFg,
+      })
+    } else {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x + segment.x,
+        y: options.y,
+        text: segment.text,
+        fg: layout.disabled ? "muted" : style.labelFg,
+      })
+    }
+  }
+  return nodes
+}
+
+/** The button text without placement. */
+export function buttonText(options: Omit<ButtonOptions, "anchor" | "x" | "y">): string {
+  return renderButton(options)
 }
 
 export type FormOptions = {

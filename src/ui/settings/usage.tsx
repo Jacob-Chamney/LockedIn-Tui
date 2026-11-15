@@ -4,6 +4,8 @@
  * Totals come from the usage store's snapshot and are never recomputed here;
  * changing a budget setting never deletes a recorded run.
  */
+import { createMemo } from "solid-js";
+
 import { parseBinding, type Binding } from "../keymap/registry";
 import type { BudgetConfig, BudgetPeriod } from "../../llm/budget";
 import type { RunRecord, UsageTotals } from "../../llm/usage";
@@ -227,14 +229,15 @@ export function UsagePanel(props: {
   snapshot: UsageSnapshot
 }) {
   const palette = () => props.theme
-  const reached = () => limitReached(props.snapshot, props.state.budget)
+  const reached = createMemo(() => limitReached(props.snapshot, props.state.budget))
   /**
    * The run history as a vertical timeline. Wide panels and the expanded view
    * show every run; narrow panels keep two and leave the rest behind Enter.
    */
-  const visibleRuns = () =>
-    props.width >= 120 || props.state.expanded ? [...props.snapshot.runs] : [...props.snapshot.runs].slice(0, 2)
-  const timelineEntries = () =>
+  const visibleRuns = createMemo(() =>
+    props.width >= 120 || props.state.expanded ? [...props.snapshot.runs] : [...props.snapshot.runs].slice(0, 2),
+  )
+  const timelineEntries = createMemo(() =>
     visibleRuns().map((run, index) => {
       const cost =
         run.costMicroUsd === null ? "cost unknown" : `$${(run.costMicroUsd / 1_000_000).toFixed(4)}`
@@ -246,13 +249,14 @@ export function UsagePanel(props: {
         state: run.failed ? ("error" as const) : ("success" as const),
         ...(run.failed ? { detail: "failed run" } : {}),
       }
-    })
+    }),
+  )
   /**
    * The busiest models in the record, as proportional bars. Percentages are
    * relative to the busiest one, so the chart fills the width even when the
    * absolute totals are small.
    */
-  const modelItems = () => {
+  const modelItems = createMemo(() => {
     const totals = modelUsage(props.snapshot.runs).slice(0, 4);
     const peak = totals[0]?.tokens ?? 0;
     return totals.map((entry) => ({
@@ -260,13 +264,15 @@ export function UsagePanel(props: {
       value: entry.tokens,
       text: `${Math.round((entry.tokens / Math.max(1, peak)) * 100)}%`,
     }));
-  };
+  });
   const chartWidth = () => Math.max(20, props.width - 2);
   const chartLabelWidth = () => Math.min(24, Math.max(10, Math.floor(chartWidth() / 3)));
   /** Model shares, resolved once so the ring and legend agree. */
-  const shares = () => donutSegments(modelItems().map((item) => ({ label: item.label, value: item.value })));
+  const shares = createMemo(() =>
+    donutSegments(modelItems().map((item) => ({ label: item.label, value: item.value }))),
+  );
   const showDonut = () => modelItems().length > 1 && props.width >= 96 && props.height >= 26;
-  const runSizes = () => props.snapshot.runs.map((run) => run.input + run.output);
+  const runSizes = createMemo(() => props.snapshot.runs.map((run) => run.input + run.output));
   const showHistogram = () =>
     props.snapshot.runs.length >= 2 && props.width >= 110 && props.height >= 28;
   /**
@@ -274,7 +280,7 @@ export function UsagePanel(props: {
    * warn threshold and turns to the error tone at the limit; with no limit
    * there is nothing to measure, so the row is omitted.
    */
-  const meter = () => {
+  const meter = createMemo(() => {
     const budget = props.state.budget
     if (budget.budget <= 0) return null
     const spent = props.snapshot.spentMicroUsd / 1_000_000
@@ -296,7 +302,7 @@ export function UsagePanel(props: {
         ? palette().warning
         : palette().primary
     return { cells, bar, percent, suffix: fitText(suffix, room), tone }
-  }
+  })
 
   return (
     <box width={props.width} height={props.height} flexDirection="column" backgroundColor={palette().panel} paddingX={1}>

@@ -7,6 +7,8 @@
  * — this page never re-derives a total, never reads a file and never writes the
  * export it asks for.
  */
+import { createMemo } from "solid-js"
+
 import { parseBinding, type Binding } from "../keymap/registry"
 import type { StatsRange, StatsScope, StatsSummary } from "../../stats/types"
 import type { ThemePalette } from "../theme"
@@ -195,29 +197,34 @@ export function StatsPage(props: {
   const tokens = () => props.summary.overview.input + props.summary.overview.output
   const total = () => compactTokens(tokens(), 0)
   const period = () => periodLabel(props.summary.period)
-  /** The busiest models, as proportions of the busiest one. */
-  const modelItems = () => {
-    const totals = props.summary.models
+  const chartWidth = () => Math.max(28, Math.min(props.width - 8, 64))
+  const cellWidth = () => (props.width >= 120 ? 2 : 1)
+  const maxWeeks = () => Math.max(1, Math.floor((props.width - 6) / cellWidth()))
+  const heat = createMemo(() => buildHeatmap(props.summary.activity, props.summary.period, maxWeeks()))
+  const grid = createMemo(() =>
+    heatmapLayout({ weeks: heat().weeks, months: heat().months, cellWidth: cellWidth() }),
+  )
+  const statsWidth = () => Math.max(24, Math.min(props.width - 4, Math.max(64, grid().width + 2)))
+  const statWidth = () => Math.max(8, Math.floor(statsWidth() / 3))
+  /** Models sorted once, then sliced for the bars, share bar and treemap. */
+  const sortedModels = createMemo(() =>
+    props.summary.models
       .map((model) => ({ label: model.model, value: model.input + model.output }))
-      .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
-      .slice(0, 3)
+      .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label)),
+  )
+  const shareItems = createMemo(() => sortedModels().slice(0, 4))
+  /** The busiest models, as proportions of the busiest one. */
+  const modelItems = createMemo(() => {
+    const totals = sortedModels().slice(0, 3)
     const peak = totals[0]?.value ?? 0
     return totals.map((model) => ({
       ...model,
       text: `${Math.round((model.value / Math.max(1, peak)) * 100)}%`,
     }))
-  }
-  const chartWidth = () => Math.max(28, Math.min(props.width - 8, 64))
-  const statsWidth = () => Math.max(24, Math.min(props.width - 4, Math.max(64, grid().width + 2)))
-  const statWidth = () => Math.max(8, Math.floor(statsWidth() / 3))
-  const treemapItems = () =>
-    shareItems().map((model, index) => ({ id: `${index}:${model.label}`, label: model.label, value: model.value }))
-  /** The busiest models by tokens, as a stacked share. */
-  const shareItems = () =>
-    props.summary.models
-      .map((model) => ({ label: model.model, value: model.input + model.output }))
-      .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
-      .slice(0, 4)
+  })
+  const treemapItems = createMemo(() =>
+    shareItems().map((model, index) => ({ id: `${index}:${model.label}`, label: model.label, value: model.value })),
+  )
   const rangeStrip = () =>
     tabLayout({
       tabs: RANGE_ORDER.map((label) => ({ label })),
@@ -230,51 +237,40 @@ export function StatsPage(props: {
       selected: SCOPE_ORDER.indexOf(props.view.scope),
       width: Math.max(0, props.width - 12),
     })
-  const cellWidth = () => (props.width >= 120 ? 2 : 1)
-  const maxWeeks = () => Math.max(1, Math.floor((props.width - 6) / cellWidth()))
-  const heat = () => buildHeatmap(props.summary.activity, props.summary.period, maxWeeks())
-  const grid = () =>
-    heatmapLayout({ weeks: heat().weeks, months: heat().months, cellWidth: cellWidth() })
-  /**
-   * One glyph per day, bucketed to 60 columns for a long range. Daily buckets
-   * keep a short range informative: a fortnight is a trend, not two blocks.
-   */
-  const trend = () => {
-    const values: number[] = []
-    for (const week of heat().weeks) {
-      for (const day of week) if (day) values.push(day.tokens)
-    }
-    if (values.length === 0) return ""
-    return values.some((value) => value > 0)
-      ? sparklineText({ values, width: 60 })
-      : ""
-  }
-  /** Days in the selected range, for the active-days ring. */
-  const rangeDays = () =>
-    heat().weeks.reduce(
-      (sum, week) => sum + week.filter((day) => day !== null).length,
-      0,
-    )
-  const activeShare = () =>
-    rangeDays() === 0 ? 0 : Math.max(0, Math.min(1, props.summary.activeDays / rangeDays()))
-  /** Token totals per calendar week, for the compact column chart. */
-  const weeklyTokens = () =>
-    heat().weeks.map((week) =>
-      week.reduce((sum, day) => sum + (day === null ? 0 : day.tokens), 0),
-    )
   /** Non-null daily token totals inside the selected range. */
-  const dailyTokens = () => {
+  const dailyTokens = createMemo(() => {
     const values: number[] = []
     for (const week of heat().weeks) {
       for (const day of week) if (day) values.push(day.tokens)
     }
     return values
-  }
+  })
+  /**
+   * One glyph per day, bucketed to 60 columns for a long range. Daily buckets
+   * keep a short range informative: a fortnight is a trend, not two blocks.
+   */
+  const trend = createMemo(() => {
+    const values = dailyTokens()
+    return values.length > 0 && values.some((value) => value > 0)
+      ? sparklineText({ values, width: 60 })
+      : ""
+  })
+  /** Days in the selected range, for the active-days ring. */
+  const rangeDays = createMemo(() =>
+    heat().weeks.reduce((sum, week) => sum + week.filter((day) => day !== null).length, 0),
+  )
+  const activeShare = createMemo(() =>
+    rangeDays() === 0 ? 0 : Math.max(0, Math.min(1, props.summary.activeDays / rangeDays())),
+  )
+  /** Token totals per calendar week, for the compact column chart. */
+  const weeklyTokens = createMemo(() =>
+    heat().weeks.map((week) => week.reduce((sum, day) => sum + (day === null ? 0 : day.tokens), 0)),
+  )
   /**
    * The last seven days against the seven before them. Only shown when the
    * range has both weeks and the earlier week has something to compare with.
    */
-  const tokenDelta = () => {
+  const tokenDelta = createMemo(() => {
     const values = dailyTokens()
     if (values.length < 14) return null
     const recent = values.slice(-7).reduce((sum, value) => sum + value, 0)
@@ -282,7 +278,7 @@ export function StatsPage(props: {
     if (prior <= 0) return null
     const value = ((recent - prior) / prior) * 100
     return Number.isFinite(value) ? { value, label: "vs prior 7d" } : null
-  }
+  })
   const label = () => "best streak"
 
   return (

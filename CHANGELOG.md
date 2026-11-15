@@ -16,6 +16,8 @@ requests merge.
 
 ### Added
 
+- `button()` draws a tone-filled keycap and fitted label; the MCP permission
+  gate uses a button pair for run/refuse.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
@@ -160,6 +162,9 @@ requests merge.
 
 ### Changed
 
+- Stats and Usage cache their heatmap, chart series and model shares, so
+  repainting and resizing no longer rebuild the same derived data; large
+  histograms use single-pass range/count scans instead of argument spreads.
 - The status bar allocates by priority: pane and mode chips stay whole, the
   warning note is kept before a plugin chip, usage drops before the help hint,
   and the hint shortens on narrow panes instead of clipping mid-word.
