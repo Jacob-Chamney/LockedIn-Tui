@@ -82,8 +82,8 @@ export type SettingsRow = {
   key?: string
   /** Read-only tags shown in the value column. */
   tags?: { labels: readonly string[]; invalid?: readonly boolean[] }
-  /** The row is adjusted with -/+ rather than an inline text edit. */
-  adjustOnly?: boolean
+  /** How Enter changes this row: text typing, or arrows over a value. */
+  control?: "text" | "number" | "range" | "enum" | "toggle"
 }
 
 export type SettingsGroup = { id: string; title: string; rows: SettingsRow[] }
@@ -124,7 +124,7 @@ export function settingsGroups(view: SettingsView): SettingsGroup[] {
       id: "user",
       title: "USER",
       rows: [
-        { id: "username", label: "Username", value: text(view.username), hint: "shown in the greeting and on saved notes.", edit: "text", key: "ui.username" },
+        { id: "username", label: "Username", value: text(view.username), hint: "shown in the greeting and on saved notes.", edit: "text", key: "ui.username", control: "text" },
         { id: "theme", label: "Theme", value: text(view.theme), hint: "the palette used everywhere; change it in Appearance.", edit: "none" },
         { id: "chat-settings", label: "Chat settings", value: "open", hint: "response length and tutor policy for chats.", edit: "none" },
       ],
@@ -136,18 +136,18 @@ export function settingsGroups(view: SettingsView): SettingsGroup[] {
         { id: "providers", label: "Providers", value: text(activeProvider), hint: "the active provider; Enter links or replaces its key.", edit: "none" },
         { id: "chatModel", label: "Chat model", value: text(active.model), hint: "the active model; the provider is the row above.", edit: "none" },
         { id: "baseUrl", label: "Base URL", value: text(view.baseUrl), hint: "only needed for a custom endpoint; first-class providers use their own URL.", edit: "none" },
-        { id: "maxToolCalls", label: "Max tool calls", value: text(view.maxToolCalls), hint: "hard cap per turn; the loop stops at this count; use -/+ to step it.", edit: "text", key: "models.max_tool_calls" },
-        { id: "maxTokens", label: "Max tokens/request", value: text(view.maxTokensPerRequest, (n: number) => n.toLocaleString("en-US")), hint: "hard cap per request; the loop stops at this count; use -/+ to step it.", edit: "text", key: "models.max_tokens_per_request" },
+        { id: "maxToolCalls", label: "Max tool calls", value: text(view.maxToolCalls), hint: "hard cap per turn; Enter, then ↑↓ or j/k to adjust.", edit: "none", control: "number" },
+        { id: "maxTokens", label: "Max tokens/request", value: text(view.maxTokensPerRequest, (n: number) => n.toLocaleString("en-US")), hint: "hard cap per request; Enter, then ↑↓ or j/k to adjust.", edit: "none", control: "number" },
       ],
     },
     {
       id: "usage",
       title: "USAGE",
       rows: [
-        { id: "budget", label: "Budget", value: budgetLabel(view.budgetUsd), hint: "day or month limit; zero means no limit.", edit: "text", key: "usage.budget" },
-        { id: "period", label: "Period", value: text(view.period), hint: "when the budget counter resets.", edit: "none" },
-        { id: "warnAt", label: "Warn at", value: warnLabel(view.warnAt), hint: "the share of the budget that raises a warning; use -/+ to adjust it.", edit: "none", adjustOnly: true },
-        { id: "pause", label: "Pause at limit", value: yesNo(view.pauseAtLimit), hint: "refuses a request at the limit; one override is allowed.", edit: "none" },
+        { id: "budget", label: "Budget", value: budgetLabel(view.budgetUsd), hint: "day or month limit; zero means no limit. Enter, then ↑↓ or j/k to adjust.", edit: "none", control: "number" },
+        { id: "period", label: "Period", value: text(view.period), hint: "when the budget counter resets. Enter, then ↑↓ or j/k to change.", edit: "none", control: "enum" },
+        { id: "warnAt", label: "Warn at", value: warnLabel(view.warnAt), hint: "the share of the budget that raises a warning. Enter, then ↑↓ or j/k to adjust.", edit: "none", control: "range" },
+        { id: "pause", label: "Pause at limit", value: yesNo(view.pauseAtLimit), hint: "refuses a request at the limit; one override is allowed. Enter, then ↑↓ or j/k to toggle.", edit: "none", control: "toggle" },
       ],
     },
     {
@@ -156,8 +156,8 @@ export function settingsGroups(view: SettingsView): SettingsGroup[] {
       rows: [
         { id: "dataDir", label: "Data folder", value: text(view.dataDir), hint: "usage, stats and history; set at launch with --data-dir.", edit: "none" },
         { id: "backend", label: "Archive backend", value: text(view.archiveBackend), hint: "where archived sessions are pushed; switch it in Archive.", edit: "none" },
-        { id: "archiveFolder", label: "Archive folder", value: text(view.archiveFolder), hint: "the folder that receives archives on the local backend.", edit: "text", key: "archive.folder" },
-        { id: "historyLimit", label: "History limit", value: text(view.historyLimit), hint: "how many Chill messages are kept locally; zero disables history; use -/+ to step it.", edit: "text", key: "ui.chill_history_limit" },
+        { id: "archiveFolder", label: "Archive folder", value: text(view.archiveFolder), hint: "the folder that receives archives on the local backend.", edit: "text", key: "archive.folder", control: "text" },
+        { id: "historyLimit", label: "History limit", value: text(view.historyLimit), hint: "how many Chill messages are kept locally; zero disables history. Enter, then ↑↓ or j/k to adjust.", edit: "none", control: "number" },
       ],
     },
     {
@@ -217,6 +217,8 @@ export type SettingsState = {
   cursor: number
   /** Row id being edited and its draft. */
   editing?: { id: string; key: string; draft: string } | null
+  /** Enter opened a value for arrow adjustment. */
+  adjusting?: { id: string; rowId: string } | null
   notice?: string | null
   /** Section ids whose rows are hidden. */
   collapsed?: readonly string[]
@@ -227,6 +229,7 @@ export type SettingsState = {
 export const initialSettingsState: SettingsState = {
   cursor: 0,
   editing: null,
+  adjusting: null,
   notice: null,
   collapsed: [],
   help: false,
@@ -249,14 +252,19 @@ export function move(state: SettingsState, delta: number, groups: SettingsGroup[
 export function beginEdit(state: SettingsState, groups: SettingsGroup[]): SettingsState {
   const current = selectedRow(groups, state.cursor)
   if (!current) return { ...state, notice: "no setting selected" }
-  if (current.row.adjustOnly) {
-    return { ...state, notice: `${current.row.label} is adjusted with -/+` }
+  if (current.row.control !== undefined && current.row.control !== "text") {
+    return {
+      ...state,
+      editing: null,
+      adjusting: { id: current.row.id, rowId: current.row.id },
+      notice: `${current.row.label} · ↑↓ or j/k adjust · Enter done`,
+    }
   }
   if (current.row.edit !== "text" || !current.row.key) {
     return { ...state, notice: `${current.row.label} is changed in its own screen` }
   }
   const draft = current.row.value === NOT_SET ? "" : current.row.value
-  return { ...state, editing: { id: current.row.id, key: current.row.key, draft }, notice: null }
+  return { ...state, editing: { id: current.row.id, key: current.row.key, draft }, adjusting: null, notice: null }
 }
 
 export function typeEdit(state: SettingsState, draft: string): SettingsState {
@@ -265,7 +273,7 @@ export function typeEdit(state: SettingsState, draft: string): SettingsState {
 }
 
 export function cancelEdit(state: SettingsState): SettingsState {
-  return { ...state, editing: null, notice: null }
+  return { ...state, editing: null, adjusting: null, notice: null }
 }
 
 export type SaveResult = { kind: "patch"; patch: Record<string, unknown> } | { kind: "refused"; reason: string }
@@ -304,7 +312,7 @@ export type SettingsIntent = "down" | "up" | "edit" | "commit" | "cancel"
 const SPECS: Array<{ intent: SettingsIntent; key: string; footer: string }> = [
   { intent: "down", key: "j", footer: "j/k move" },
   { intent: "up", key: "k", footer: "" },
-  { intent: "edit", key: "return", footer: "Enter edit" },
+  { intent: "edit", key: "return", footer: "Enter change" },
   { intent: "commit", key: "ctrl+return", footer: "" },
   { intent: "cancel", key: "escape", footer: "Esc back" },
 ]
@@ -327,7 +335,7 @@ export function footerHints(): string {
   const hints = SETTINGS_PAGE_KEYS.filter((entry) => entry.footer && entry.intent !== "cancel").map(
     (entry) => (entry.footer === "j/k move" ? "j/k" : entry.footer),
   )
-  return `${hints.join(" · ")} · h/l fold · v hint · -/+ step`
+  return `${hints.join(" · ")} · h/l fold · v hint`
 }
 
 function stepped(value: number, delta: number, step: number, min: number, max: number, precision = 0): number {
@@ -368,17 +376,6 @@ export function stepSetting(
     const next = view.period === "day" ? "month" : "day"
     return { patch: { "usage.period": next } }
   }
-  return null
-}
-
-/** Enter on a row that toggles or picks: period and pause at limit. */
-export function activateSetting(
-  view: SettingsView,
-  rowId: string,
-): { patch: Record<string, unknown> } | null {
-  if (rowId === "period") {
-    return { patch: { "usage.period": view.period === "day" ? "month" : "day" } }
-  }
   if (rowId === "pause") {
     return { patch: { "usage.pause_at_limit": !view.pauseAtLimit } }
   }
@@ -412,7 +409,7 @@ export function SettingsPage(props: {
       title: "? hint",
       body: current()?.hint ?? "",
       items: [
-        { id: "edit", key: "Enter", label: "edit" },
+        { id: "edit", key: "Enter", label: "change" },
         { id: "fold", key: "h/l", label: "fold" },
         { id: "close", key: "v", label: "close" },
       ],
@@ -498,17 +495,17 @@ export function SettingsPage(props: {
             tags={row.tags === undefined ? undefined : { ...row.tags, width: VALUE_COLUMN }}
             background={palette().surface}
             toggle={
-              row.id === "pause"
+              row.control === "toggle"
                 ? { on: props.view.pauseAtLimit, onLabel: "yes", offLabel: "no" }
                 : undefined
             }
             range={
-              row.id === "warnAt"
+              row.control === "range"
                 ? { values: [props.view.warnAt, 1], width: 18 }
                 : undefined
             }
             stepper={
-              row.id === "budget"
+              row.control === "number" && row.id === "budget"
                 ? {
                     value: props.view.budgetUsd,
                     min: 0,
@@ -533,7 +530,7 @@ export function SettingsPage(props: {
                       : undefined
             }
             segments={
-              row.id === "period"
+              row.control === "enum"
                 ? {
                     options: ["day", "month"],
                     selected: props.view.period === "day" ? 0 : 1,
@@ -552,7 +549,7 @@ export function SettingsPage(props: {
             title="? hint"
             body={current()!.hint}
             items={[
-              { id: "edit", key: "Enter", label: "edit" },
+              { id: "edit", key: "Enter", label: "change" },
               { id: "fold", key: "h/l", label: "fold" },
               { id: "close", key: "v", label: "close" },
             ]}
