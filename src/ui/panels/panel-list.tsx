@@ -24,6 +24,10 @@ export function PanelList(props: {
   cursor: number
   empty: { line: string; hint: string }
   hints: string[]
+  /** Optional content above the list, such as a calendar. */
+  header?: unknown
+  /** Rows the header occupies, so the list window shrinks. */
+  headerRows?: number
 }) {
   const palette = () => props.theme
 
@@ -43,11 +47,15 @@ export function PanelList(props: {
         </WindowBody>
       ) : (
         <WindowBody>
+          {props.header}
           <SelectList
             theme={palette()}
             rows={props.rows}
             cursor={props.cursor}
-            visibleCount={Math.max(1, Math.floor((props.height - 8) / 2))}
+            visibleCount={Math.max(
+              1,
+              Math.floor((props.height - 8 - (props.headerRows ?? 0)) / 2),
+            )}
           />
         </WindowBody>
       )}

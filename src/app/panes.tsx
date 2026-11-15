@@ -44,6 +44,8 @@ import { ModelsScreenPanel, type ModelsScreen } from "../ui/settings/models"
 import { SettingsPage, emptySettingsView } from "../ui/settings"
 import { ThemesPane } from "../ui/settings/themes"
 import { PanelList } from "../ui/panels/panel-list"
+import { Calendar } from "../ui/shell/calendar"
+import { calendarLayout, dateKey } from "../ui/calendar"
 import { PanelWindow } from "../ui/panels/panel-window"
 import { PanelEmpty } from "../ui/panels/panel-frame"
 import { AgentSettingsPanel } from "../ui/features/agents/agent-settings-panel"
@@ -254,20 +256,36 @@ const RENDERERS: Partial<Record<PaneId, PaneRenderer>> = {
   archive: (deps, width, height, palette) => (
     <ArchivePanel theme={palette} width={width} height={height} focused state={deps.archive} />
   ),
-  recent: (deps, width, height, palette) => (
-    <PanelList
-      theme={palette}
-      width={width}
-      height={height}
-      title="Recent"
-      meta={`${deps.listRows("recent").length} sessions`}
-      detail="Previous lock-in, skill and project sessions. Enter opens the selected one."
-      rows={deps.listRows("recent")}
-      cursor={deps.listCursors.recent ?? 0}
-      empty={{ line: "no previous sessions yet", hint: "start one from its menu" }}
-      hints={["j/k move", "Enter open", "Esc close"]}
-    />
-  ),
+  recent: (deps, width, height, palette) => {
+    const dates = deps.manager.rows
+      .map((row) => row.date.slice(0, 10))
+      .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date))
+      .sort()
+    const month = dates.length > 0 ? `${dates[dates.length - 1]!.slice(0, 7)}-01` : dateKey(new Date())
+    const today = dateKey(new Date())
+    const calendar = () =>
+      calendarLayout({ month, marked: dates, today, width: 21 })
+    return (
+      <PanelList
+        theme={palette}
+        width={width}
+        height={height}
+        title="Recent"
+        meta={`${deps.listRows("recent").length} sessions`}
+        detail="Previous lock-in, skill and project sessions. Enter opens the selected one."
+        rows={deps.listRows("recent")}
+        cursor={deps.listCursors.recent ?? 0}
+        empty={{ line: "no previous sessions yet", hint: "start one from its menu" }}
+        hints={["j/k move", "Enter open", "Esc close"]}
+        header={
+          dates.length > 0 ? (
+            <Calendar theme={palette} width={21} month={month} marked={dates} today={today} />
+          ) : undefined
+        }
+        headerRows={dates.length > 0 ? calendar().weeks.length + 2 : 0}
+      />
+    )
+  },
   review: (deps, width, height, palette) => listPane("review", deps, width, height, palette),
   projects: (deps, width, height, palette) => listPane("projects", deps, width, height, palette),
   swarms: (deps, width, height, palette) => listPane("swarms", deps, width, height, palette),
