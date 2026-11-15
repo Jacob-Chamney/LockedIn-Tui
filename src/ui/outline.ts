@@ -65,6 +65,11 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
 }
 
+function fit(text: string, width: number): string {
+  if (width <= 0) return ""
+  return text.length <= width ? text : width === 1 ? "…" : `${text.slice(0, width - 1)}…`
+}
+
 export function outlineDepthGlyph(depth: number, glyphs: OutlineGlyphs = OUTLINE_GLYPHS): string {
   if (depth <= 1) return glyphs.root
   if (depth === 2) return glyphs.child
@@ -99,7 +104,7 @@ export function outlineLayout(options: OutlineOptions): OutlineLayout {
   if (currentIndex >= 0 && !segments.some((segment) => segment.current)) {
     const item = items[currentIndex]!
     const depth = Math.max(1, Math.floor(item.depth ?? 1))
-    const prefix = `${outlineDepthGlyph(depth, glyphs)}${glyphs.current} `
+    const prefix = fit(`${outlineDepthGlyph(depth, glyphs)}${glyphs.current} `, width)
     const room = Math.max(0, width - prefix.length)
     const label = item.label.length <= room ? item.label : room === 0 ? "" : room === 1 ? "…" : `${item.label.slice(0, room - 1)}…`
     const text = `${prefix}${label}`

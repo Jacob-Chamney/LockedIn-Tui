@@ -101,7 +101,7 @@ export function dataTableLayout(options: DataTableOptions): DataTableLayout {
   }
   const renderRow = (cells: readonly string[], marker = ""): string => {
     const padded = columns.map((column, index) => pad(cells[index] ?? "", widths[index]!, column.align ?? "left"))
-    return `${marker.padEnd(markerWidth)}${padded.join(" ".repeat(gap))}`
+    return fit(`${marker.padEnd(markerWidth)}${padded.join(" ".repeat(gap))}`, width)
   }
   const showHeader = options.header !== false
   const header = showHeader ? renderRow(columns.map((column) => column.label)) : ""

@@ -284,6 +284,19 @@ describe("the hero", () => {
     }
   })
 
+  test("the heatmap legend stays directly under the heatmap", async () => {
+    const setup = await mount(140, 44)
+    try {
+      const out = lines(setup)
+      const legend = out.findIndex((line) => line.includes("less"))
+      const byWeek = out.findIndex((line) => line.includes("BY WEEK"))
+      expect(legend).toBeGreaterThan(-1)
+      expect(byWeek).toBeGreaterThan(legend)
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("a model treemap tiles the by-model block on tall pages", async () => {
     const setup = await mount(140, 44)
     try {

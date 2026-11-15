@@ -48,3 +48,10 @@ test("custom gaps and very narrow widths are safe", () => {
   for (const row of layout.rows) expect(row.text.length).toBeLessThanOrEqual(20)
   expect(matrixLayout({ ...OPTIONS, width: 0 }).rows).toEqual([])
 })
+
+test("narrow widths clip instead of overflowing", () => {
+  for (const width of [4, 8, 12]) {
+    const lines = matrixText({ ...OPTIONS, width })
+    for (const line of lines) expect(line.length).toBeLessThanOrEqual(width)
+  }
+})

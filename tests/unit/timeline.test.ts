@@ -83,3 +83,20 @@ test("tones map to palette roles with a fallback", () => {
   expect(timelineRole()).toBe("secondary")
   expect(timelineRole("nope" as never)).toBe("secondary")
 })
+
+test("narrow timelines drop columns instead of overflowing", () => {
+  for (const width of [1, 2, 3, 4, 5]) {
+    const rows = timelineRows({
+      width,
+      entries: [{ time: "10:00", label: "a long label", detail: "failed run" }],
+      selectable: true,
+      selected: 0,
+    })
+    for (const row of rows) {
+      const length =
+        row.marker.length + row.time.length + row.glyph.length + row.label.length +
+        (row.timeWidth > 0 ? row.gap : 0) + (row.glyphWidth > 0 ? row.gap : 0)
+      expect(length).toBeLessThanOrEqual(width)
+    }
+  }
+})

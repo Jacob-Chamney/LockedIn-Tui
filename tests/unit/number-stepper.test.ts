@@ -37,3 +37,16 @@ test("the whole line fits a width", () => {
   expect(layout.text.length).toBeLessThanOrEqual(7)
   expect(numberStepperLayout({ value: 1, width: 0 }).text).toBe("")
 })
+
+test("narrow steppers keep their segments inside the width", () => {
+  for (const width of [1, 2, 3, 4]) {
+    const layout = numberStepperLayout({ width, value: 12345, min: 0, max: 20000 })
+    for (const segment of layout.segments) {
+      expect(segment.x + segment.width).toBeLessThanOrEqual(width)
+    }
+    expect(layout.text.length).toBeLessThanOrEqual(width)
+  }
+  const two = numberStepperLayout({ width: 2, value: 5, min: 0, max: 10 })
+  expect(two.segments).toHaveLength(2)
+  expect(two.segments[1]!.x).toBe(1)
+})

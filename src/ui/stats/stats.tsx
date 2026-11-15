@@ -381,7 +381,7 @@ export function StatsPage(props: {
             width={Math.min(props.width - 8, 48)}
           />
         ) : null}
-        {props.height >= 42 ? null : <box height={1} flexShrink={0} />}
+        {props.height >= 42 && props.width >= 80 ? null : <box height={1} flexShrink={0} />}
 
         <box flexDirection="column" alignItems="center" flexShrink={0}>
           <text fg={palette().muted} wrapMode="none">
@@ -403,6 +403,17 @@ export function StatsPage(props: {
             </box>
           ))}
         </box>
+        {props.height >= 30 ? (
+          <Legend
+            theme={palette()}
+            items={HEATMAP_RAMP.map((glyph, level) => ({
+              glyph,
+              ...(level === 0 ? { label: "less" } : level === 4 ? { label: "more" } : {}),
+              tone: level === 0 ? "muted" : "primary",
+            }))}
+            width={Math.min(props.width - 8, 60)}
+          />
+        ) : null}
         {props.height >= 42 && props.width >= 60 && weeklyTokens().some((value) => value > 0) ? (
           <box flexDirection="column" alignItems="center" width={chartWidth()} marginTop={1} flexShrink={0}>
             <text fg={palette().muted} wrapMode="none">
@@ -415,17 +426,6 @@ export function StatsPage(props: {
               height={2}
             />
           </box>
-        ) : null}
-        {props.height >= 30 ? (
-          <Legend
-            theme={palette()}
-            items={HEATMAP_RAMP.map((glyph, level) => ({
-              glyph,
-              ...(level === 0 ? { label: "less" } : level === 4 ? { label: "more" } : {}),
-              tone: level === 0 ? "muted" : "primary",
-            }))}
-            width={Math.min(props.width - 8, 60)}
-          />
         ) : null}
         <box height={1} flexShrink={0} />
 

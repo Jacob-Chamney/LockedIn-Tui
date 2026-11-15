@@ -86,11 +86,13 @@ export function matrixLayout(options: MatrixOptions): MatrixLayout {
   const cellWidths = all.slice(0, widths.length)
   const shownNoteWidth = noteWidth > 0 ? all[all.length - 1]! : 0
 
-  const header =
+  const header = fit(
     " ".repeat(headerWidth) +
-    " ".repeat(gap) +
-    columns.map((column, index) => fit(column, cellWidths[index]!).padEnd(cellWidths[index]!)).join(" ".repeat(gap)) +
-    (shownNoteWidth > 0 ? " ".repeat(gap) + " ".repeat(shownNoteWidth) : "")
+      " ".repeat(gap) +
+      columns.map((column, index) => fit(column, cellWidths[index]!).padEnd(cellWidths[index]!)).join(" ".repeat(gap)) +
+      (shownNoteWidth > 0 ? " ".repeat(gap) + " ".repeat(shownNoteWidth) : ""),
+    width,
+  )
 
   return {
     header,
@@ -106,11 +108,13 @@ export function matrixLayout(options: MatrixOptions): MatrixLayout {
         label: fit(row, headerWidth).padEnd(headerWidth),
         cells,
         note,
-        text:
+        text: fit(
           fit(row, headerWidth).padEnd(headerWidth) +
-          " ".repeat(gap) +
-          cells.join(" ".repeat(gap)) +
-          (shownNoteWidth > 0 ? " ".repeat(gap) + note : ""),
+            " ".repeat(gap) +
+            cells.join(" ".repeat(gap)) +
+            (shownNoteWidth > 0 ? " ".repeat(gap) + note : ""),
+          width,
+        ),
         tone: options.rowTones?.[index] ?? "normal",
         index,
       }

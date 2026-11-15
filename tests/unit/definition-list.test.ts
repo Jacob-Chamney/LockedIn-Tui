@@ -57,3 +57,10 @@ test("tones map to roles and empty input is safe", () => {
   expect(definitionListLayout({ items: ITEMS, width: 0 }).rows).toEqual([])
   expect(definitionListLayout({ items: [], width: 20 }).rows).toEqual([])
 })
+
+test("narrow widths never overflow", () => {
+  for (const width of [1, 2, 3]) {
+    const lines = definitionListText({ items: ITEMS, width })
+    for (const line of lines) expect(line.length).toBeLessThanOrEqual(width)
+  }
+})

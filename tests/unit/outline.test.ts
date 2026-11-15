@@ -49,3 +49,13 @@ test("current is clamped, glyphs change and empty input stays empty", () => {
   expect(outlineLayout({ items: [], width: 60 })).toMatchObject({ segments: [], hidden: 0, currentIndex: -1 })
   expect(outlineLayout({ items: ITEMS, width: 0 }).segments).toEqual([])
 })
+
+test("narrow outlines never overflow", () => {
+  for (const width of [1, 2, 3, 4]) {
+    const layout = outlineLayout({ items: ITEMS, width, current: 1 })
+    for (const segment of layout.segments) {
+      expect(segment.x + segment.width).toBeLessThanOrEqual(width)
+      expect(segment.text.length).toBeLessThanOrEqual(width)
+    }
+  }
+})

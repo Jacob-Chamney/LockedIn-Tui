@@ -34,7 +34,7 @@ export function Timeline(props: {
     })
   const ink = (tone: TimelineTone) =>
     palette()[timelineRole(tone) as keyof ThemePalette] ?? palette().muted
-  const gap = () => " ".repeat(props.gap ?? 1)
+  const gap = (row: ReturnType<typeof rows>[number]) => " ".repeat(row.gap)
   const selected = () => props.selected
 
   return (
@@ -57,15 +57,17 @@ export function Timeline(props: {
             ) : null}
             {row.timeWidth > 0 && row.gap > 0 ? (
               <text fg={palette().muted} wrapMode="none">
-                {gap()}
+                {gap(row)}
               </text>
             ) : null}
-            <text fg={ink(row.tone)} wrapMode="none">
-              {row.glyph}
-            </text>
-            {row.gap > 0 ? (
+            {row.glyphWidth > 0 ? (
+              <text fg={ink(row.tone)} wrapMode="none">
+                {row.glyph}
+              </text>
+            ) : null}
+            {row.glyphWidth > 0 && row.gap > 0 ? (
               <text fg={palette().muted} wrapMode="none">
-                {gap()}
+                {gap(row)}
               </text>
             ) : null}
             <text
@@ -89,15 +91,17 @@ export function Timeline(props: {
               ) : null}
               {row.timeWidth > 0 && row.gap > 0 ? (
                 <text fg={palette().muted} wrapMode="none">
-                  {gap()}
+                  {gap(row)}
                 </text>
               ) : null}
-              <text fg={palette().line} wrapMode="none">
-                {`│`.padEnd(row.glyphWidth)}
-              </text>
-              {row.gap > 0 ? (
+              {row.glyphWidth > 0 ? (
+                <text fg={palette().line} wrapMode="none">
+                  {`│`.padEnd(row.glyphWidth)}
+                </text>
+              ) : null}
+              {row.glyphWidth > 0 && row.gap > 0 ? (
                 <text fg={palette().muted} wrapMode="none">
-                  {gap()}
+                  {gap(row)}
                 </text>
               ) : null}
               <text fg={palette().muted} wrapMode="none">

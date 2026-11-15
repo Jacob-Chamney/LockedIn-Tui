@@ -67,3 +67,15 @@ test("tones and empty menus are handled", () => {
   expect(menuLayout({ sections: [], width: 20 }).rows).toEqual([])
   expect(menuLayout({ sections: SECTIONS, width: 0 }).rows).toEqual([])
 })
+
+test("a long key never pushes a row past the width", () => {
+  const layout = menuLayout({
+    sections: [{ id: "s", entries: [{ id: "a", key: "verylongkey", label: "action" }] }],
+    width: 6,
+    gap: 1,
+  })
+  expect(layout.keyWidth).toBeLessThanOrEqual(5)
+  for (const row of layout.rows) {
+    for (const part of row.parts) expect(part.x + part.width).toBeLessThanOrEqual(6)
+  }
+})
