@@ -20,6 +20,7 @@ import {
   createCursor,
   dashboard,
   diff,
+  divider,
   distribution,
   ease,
   emptyState,
@@ -2275,4 +2276,35 @@ test("spinner wraps frames, fits and honours overrides", () => {
   const custom = spinner({ anchor: "top-left", x: 0, y: 0, frame: 1, label: "x", frames: [".", "-"] })
   expect(custom[0]).toMatchObject({ text: "- x" })
   expect(spinner({ anchor: "top-left", x: 0, y: 0, frame: 0, width: 0 })).toEqual([])
+})
+
+test("divider draws a full rule without a label", () => {
+  const nodes = divider({ anchor: "top-left", x: 2, y: 3, width: 10 })
+  expect(nodes).toHaveLength(1)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 3, text: "──────────", fg: "line" })
+})
+
+test("divider centres a label between two lines", () => {
+  const nodes = divider({ anchor: "top-left", x: 2, y: 3, width: 30, label: "notes" })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]).toMatchObject({ x: 2, text: "───────────", fg: "line" })
+  expect(nodes[1]).toMatchObject({ x: 13, text: " notes ", fg: "muted" })
+  expect(nodes[2]).toMatchObject({ x: 20, text: "────────────", fg: "line" })
+})
+
+test("divider fits a wide label and honours colours", () => {
+  const nodes = divider({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 8,
+    label: "a longer label",
+    lineFg: "secondary",
+    labelFg: "accent",
+  })
+  expect(nodes).toHaveLength(1)
+  expect(nodes[0]).toMatchObject({ text: "a longe…", fg: "accent" })
+  const custom = divider({ anchor: "top-left", x: 0, y: 0, width: 6, glyph: "=", lineFg: "warning" })
+  expect(custom[0]).toMatchObject({ text: "======", fg: "warning" })
+  expect(divider({ anchor: "top-left", x: 0, y: 0, width: 0 })).toEqual([])
 })

@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `divider()` draws a rule with an optional centred label for plugin scenes;
+  the reader renders Markdown rules through the same layout.
 - `spinner()` draws a clock-driven frame with a fitted label for plugin scenes;
   plugin discovery ticks the same line while it loads.
 - `progressChip()` draws a mini bar and done/total count for plugin scenes;
