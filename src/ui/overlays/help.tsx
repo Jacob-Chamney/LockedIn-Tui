@@ -6,6 +6,7 @@ import { GROUP_TITLES, groupKeyRows } from "../keymap/group"
 import { LEADER_SYMBOL, type GeneratedRow } from "../keymap/registry"
 import type { ThemePalette } from "../theme"
 import { ModalFrame } from "./modal-frame"
+import { Pagination } from "../shell/pagination"
 
 export function HelpScreen(props: {
   theme: ThemePalette
@@ -38,16 +39,24 @@ export function HelpScreen(props: {
       width={props.width}
       height={props.height}
       boxWidth={pageWidth()}
-      boxHeight={Math.min(props.height - 4, Math.ceil((current()?.rows.length ?? 0) / columnCount()) + 8)}
+      boxHeight={Math.min(props.height - 4, Math.ceil((current()?.rows.length ?? 0) / columnCount()) + 9)}
       title="HELP"
       meta={`${page() + 1}/${Math.max(1, sections().length)}`}
       hint="generated from the keymap registry; only bindings that work are listed"
       footer={`Tab page · Esc close · ${LEADER_SYMBOL} opens the leader`}
     >
       {current() ? (
-        <text fg={palette().muted} wrapMode="none">
-          {GROUP_TITLES[current()!.group]}
-        </text>
+        <>
+          <text fg={palette().muted} wrapMode="none">
+            {GROUP_TITLES[current()!.group]}
+          </text>
+          <Pagination
+            theme={palette()}
+            page={page()}
+            total={Math.max(1, sections().length)}
+            width={12}
+          />
+        </>
       ) : null}
       <box flexDirection="row" flexGrow={1} minHeight={0} marginTop={1}>
         {columns().map((rows) => (

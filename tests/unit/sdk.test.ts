@@ -33,6 +33,7 @@ import {
   form,
   log,
   menu,
+  pagination,
   prompt,
   kpiStrip,
   keycaps,
@@ -1935,4 +1936,36 @@ test("actionBar honours colours and hides actions that do not fit", () => {
   expect(nodes[1]).toMatchObject({ fg: "warning" })
   expect(nodes[2]).toMatchObject({ text: " s…" })
   expect(actionBar({ anchor: "top-left", x: 0, y: 0, width: 10, groups: [] })).toEqual([])
+})
+
+test("pagination draws dots with the current page in primary", () => {
+  const nodes = pagination({ anchor: "top-left", x: 2, y: 0, width: 12, page: 0, total: 3 })
+  expect(nodes).toHaveLength(5)
+  expect(nodes[0]).toMatchObject({ x: 2, y: 0, text: "●", fg: "primary" })
+  expect(nodes[1]).toMatchObject({ x: 3, text: " ", fg: "muted" })
+  expect(nodes[2]).toMatchObject({ x: 4, text: "○", fg: "muted" })
+  expect(nodes[4]).toMatchObject({ x: 6, text: "○" })
+})
+
+test("pagination supports counts, fallbacks and colours", () => {
+  const count = pagination({ anchor: "top-left", x: 0, y: 0, page: 1, total: 3, style: "count" })
+  expect(count).toHaveLength(1)
+  expect(count[0]).toMatchObject({ text: "2/3", fg: "foreground" })
+
+  const fallback = pagination({ anchor: "top-left", x: 0, y: 0, width: 3, page: 1, total: 5 })
+  expect(fallback).toHaveLength(1)
+  expect(fallback[0]).toMatchObject({ text: "2/5" })
+
+  const custom = pagination({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    page: 0,
+    total: 2,
+    glyphs: { current: "x", other: "." },
+    currentFg: "accent",
+    otherFg: "secondary",
+  })
+  expect(custom[0]).toMatchObject({ text: "x", fg: "accent" })
+  expect(custom[2]).toMatchObject({ text: ".", fg: "secondary" })
 })

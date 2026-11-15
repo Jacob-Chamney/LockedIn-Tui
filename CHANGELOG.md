@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `pagination()` draws page dots, numbers or a count for plugin scenes; the
+  paged help overlay shows dots under its group title.
 - `actionBar()` draws grouped keycaps and labels for plugin scenes; the chat
   composer footer uses the same bar.
 - `scrollbar()` draws a proportional track and thumb for plugin scenes; the
