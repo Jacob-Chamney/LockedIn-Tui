@@ -114,6 +114,7 @@ import {
   tooltip,
   transition,
   tree,
+  treemap,
   window,
   wizard,
 } from "../../sdk"
@@ -3324,4 +3325,53 @@ test("definitionList wraps, tones and fits descriptions", () => {
   expect(error[1]).toMatchObject({ fg: "error" })
   expect(definitionListText({ width: 20, items: [{ term: "a", description: "b" }] })).toEqual(["a  b"])
   expect(definitionList({ anchor: "top-left", x: 0, y: 0, width: 0, items: [] })).toEqual([])
+})
+
+test("treemap draws bordered tiles with fitted labels", () => {
+  const nodes = treemap({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 40,
+    height: 10,
+    tones: ["accent", "warning"],
+    items: [
+      { id: "a", label: "alpha", value: 75 },
+      { id: "b", label: "beta", value: 25 },
+    ],
+  })
+  expect(nodes).toHaveLength(6)
+  expect(nodes[0]).toMatchObject({
+    kind: "box",
+    x: 2,
+    y: 3,
+    width: 30,
+    height: 10,
+    border: true,
+    borderColor: "accent",
+  })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 3, y: 4, text: "alpha", fg: "foreground" })
+  expect(nodes[2]).toMatchObject({ x: 3, y: 5, text: "75%", fg: "muted" })
+  expect(nodes[3]).toMatchObject({ kind: "box", x: 32, width: 10, borderColor: "warning" })
+})
+
+test("treemap collapses tiny tiles and honours colours", () => {
+  const nodes = treemap({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 4,
+    height: 3,
+    tones: ["success"],
+    fg: "accent",
+    valueFg: "secondary",
+    items: [
+      { id: "a", label: "a long label", value: 9 },
+      { id: "b", label: "b", value: 1 },
+    ],
+  })
+  expect(nodes.length).toBeGreaterThan(0)
+  expect(nodes.some((node) => node.kind === "box")).toBe(true)
+  expect(nodes.some((node) => node.kind === "text" && node.fg === "accent")).toBe(true)
+  expect(treemap({ anchor: "top-left", x: 0, y: 0, width: 0, height: 5, items: [] })).toEqual([])
 })

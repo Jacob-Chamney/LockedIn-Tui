@@ -16,6 +16,7 @@ import { buildHeatmap } from "./heatmap"
 import { HEATMAP_RAMP, heatmapLayout } from "../heatmap"
 import { Legend } from "../shell/legend"
 import { Distribution } from "../shell/distribution"
+import { Treemap } from "../shell/treemap"
 import { Delta } from "../shell/delta"
 import { LineChart } from "../shell/line-chart"
 import { Sparkbar } from "../shell/sparkbar"
@@ -209,6 +210,8 @@ export function StatsPage(props: {
   const chartWidth = () => Math.max(28, Math.min(props.width - 8, 64))
   const statsWidth = () => Math.max(24, Math.min(props.width - 4, Math.max(64, grid().width + 2)))
   const statWidth = () => Math.max(8, Math.floor(statsWidth() / 3))
+  const treemapItems = () =>
+    shareItems().map((model, index) => ({ id: `${index}:${model.label}`, label: model.label, value: model.value }))
   /** The busiest models by tokens, as a stacked share. */
   const shareItems = () =>
     props.summary.models
@@ -356,7 +359,7 @@ export function StatsPage(props: {
           {Array.from("TOKENS").join(" ")}
         </text>
         {trend() ? (
-          <text fg={palette().primary} wrapMode="none">
+          <text fg={palette().primary} wrapMode="none" flexShrink={0}>
             {trend()}
           </text>
         ) : null}
@@ -378,7 +381,7 @@ export function StatsPage(props: {
             width={Math.min(props.width - 8, 48)}
           />
         ) : null}
-        <box height={1} flexShrink={0} />
+        {props.height >= 42 ? null : <box height={1} flexShrink={0} />}
 
         <box flexDirection="column" alignItems="center" flexShrink={0}>
           <text fg={palette().muted} wrapMode="none">
@@ -475,7 +478,16 @@ export function StatsPage(props: {
             <text fg={palette().muted} wrapMode="none">
               {"BY MODEL"}
             </text>
-            <Distribution theme={palette()} items={shareItems()} width={chartWidth()} />
+            {props.height >= 42 && props.width >= 80 ? (
+              <Treemap
+                theme={palette()}
+                items={treemapItems()}
+                width={chartWidth()}
+                height={3}
+              />
+            ) : (
+              <Distribution theme={palette()} items={shareItems()} width={chartWidth()} />
+            )}
             <Bars
               theme={palette()}
               items={modelItems()}

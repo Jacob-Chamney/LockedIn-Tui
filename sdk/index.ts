@@ -55,6 +55,12 @@ import {
 } from "../src/ui/accordion"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import {
+  treemapLayout,
+  type TreemapItem as TreemapItemInput,
+  type TreemapLayout as TreemapLayoutInput,
+  type TreemapTile as TreemapTileInput,
+} from "../src/ui/treemap"
+import {
   definitionListLayout,
   definitionListText as renderDefinitionList,
   definitionRole,
@@ -6624,6 +6630,99 @@ export function definitionList(options: DefinitionListOptions): SceneNode[] {
 /** The definition list as plain lines. */
 export function definitionListText(options: Omit<DefinitionListOptions, "anchor" | "x" | "y" | "termFg" | "fg">): string[] {
   return renderDefinitionList(options)
+}
+
+/** One weighted tile in a `treemap()`. */
+export type TreemapItem = TreemapItemInput
+
+/** One placed tile with its fitted label and percentage. */
+export type TreemapTile = TreemapTileInput
+
+/** The tiles and total of a treemap. */
+export type TreemapLayout = TreemapLayoutInput
+
+export type TreemapOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  items: readonly TreemapItem[]
+  width: number
+  height: number
+  /** Tile border colours by index. Defaults to the donut tone cycle. */
+  tones?: readonly string[]
+  /** Label colour. Defaults to `foreground`. */
+  fg?: string
+  /** Percentage colour. Defaults to `muted`. */
+  valueFg?: string
+}
+
+const TREEMAP_TONES: readonly string[] = ["primary", "secondary", "success", "warning", "accent"]
+
+/**
+ * A weighted treemap of bordered tiles.
+ *
+ *   treemap({ anchor: "top-left", x: 2, y: 2, width: 40, height: 8, items: [
+ *     { id: "a", label: "notes", value: 3 },
+ *     { id: "b", label: "files", value: 1 },
+ *   ] })
+ *
+ * Items sort by value and split alternately along the long axis, so every tile
+ * stays in bounds. Labels and percentages fit inside larger tiles; `tones`
+ * sets the border colours.
+ */
+export function treemap(options: TreemapOptions): SceneNode[] {
+  const layout = treemapLayout(options)
+  const tones = options.tones ?? TREEMAP_TONES
+  const nodes: SceneNode[] = []
+  for (const tile of layout.tiles) {
+    const tone = tones[tile.index % tones.length] ?? "primary"
+    if (tile.showBorder) {
+      nodes.push({
+        kind: "box",
+        anchor: options.anchor,
+        x: options.x + tile.x,
+        y: options.y + tile.y,
+        width: tile.width,
+        height: tile.height,
+        border: true,
+        borderStyle: "single",
+        borderColor: tone,
+        bg: "surface",
+      })
+    } else {
+      nodes.push({
+        kind: "rect",
+        anchor: options.anchor,
+        x: options.x + tile.x,
+        y: options.y + tile.y,
+        width: tile.width,
+        height: tile.height,
+        fill: true,
+        color: tone,
+      })
+    }
+    if (tile.showLabel) {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x + tile.x + 1,
+        y: options.y + tile.y + 1,
+        text: tile.labelText,
+        fg: options.fg ?? "foreground",
+      })
+    }
+    if (tile.showValue) {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x + tile.x + 1,
+        y: options.y + tile.y + 2,
+        text: tile.valueText,
+        fg: options.valueFg ?? "muted",
+      })
+    }
+  }
+  return nodes
 }
 
 export type FormOptions = {
