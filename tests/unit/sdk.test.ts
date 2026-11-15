@@ -53,6 +53,7 @@ import {
   table,
   tabs,
   timeline,
+  toggle,
   tooltip,
   transition,
   tree,
@@ -1761,4 +1762,31 @@ test("calendar honours Sunday-first, colours and invalid months", () => {
   const marked = custom.find((node) => node.kind === "text" && node.text === " 2")!
   expect(marked).toMatchObject({ fg: "success" })
   expect(calendar({ anchor: "top-left", x: 0, y: 0, width: 21, month: "nope" })).toEqual([])
+})
+
+test("toggle draws a filled pill and its state text", () => {
+  const nodes = toggle({ anchor: "top-left", x: 2, y: 3, width: 6, on: true })
+  expect(nodes).toHaveLength(2)
+  expect(nodes[0]).toMatchObject({ kind: "rect", x: 2, y: 3, width: 6, height: 1, color: "success" })
+  expect(nodes[1]).toMatchObject({ kind: "text", x: 2, y: 3, text: "● on", fg: "background" })
+})
+
+test("toggle honours labels, colours and fitting", () => {
+  const off = toggle({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 5,
+    on: false,
+    onLabel: "yes",
+    offLabel: "no",
+    offBg: "panel",
+    offFg: "secondary",
+  })
+  expect(off[0]).toMatchObject({ color: "panel" })
+  expect(off[1]).toMatchObject({ text: "○ no", fg: "secondary" })
+
+  const clipped = toggle({ anchor: "top-left", x: 0, y: 0, width: 3, on: true })
+  expect(clipped[1]).toMatchObject({ text: "● …" })
+  expect(toggle({ anchor: "top-left", x: 0, y: 0, width: 0, on: true })).toEqual([])
 })

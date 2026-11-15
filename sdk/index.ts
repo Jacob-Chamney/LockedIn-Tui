@@ -55,6 +55,7 @@ import {
 } from "../src/ui/accordion"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
+import { toggleLayout, type ToggleLayout as ToggleLayoutInput } from "../src/ui/toggle"
 import {
   calendarLayout,
   type CalendarCell as CalendarCellInput,
@@ -3508,6 +3509,64 @@ export function calendar(options: CalendarOptions): SceneNode[] {
     })
   })
   return nodes
+}
+
+/** The state and fitted text of a `toggle()`. */
+export type ToggleLayout = ToggleLayoutInput
+
+export type ToggleOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Pill width; defaults to the natural text width. */
+  width?: number
+  on: boolean
+  /** On-state label; defaults `on`. */
+  onLabel?: string
+  /** Off-state label; defaults `off`. */
+  offLabel?: string
+  /** On pill fill. Defaults to `success`. */
+  onBg?: string
+  /** Off pill fill. Defaults to `line`. */
+  offBg?: string
+  /** On text colour. Defaults to `background`. */
+  onFg?: string
+  /** Off text colour. Defaults to `foreground`. */
+  offFg?: string
+}
+
+/**
+ * A pill switch: `● on` on a success fill, `○ off` on a line fill.
+ *
+ *   toggle({ anchor: "top-left", x: 2, y: 2, width: 6, on: true,
+ *            onLabel: "yes", offLabel: "no" })
+ *
+ * Labels are fitted to `width`; a custom label truncates rather than spilling.
+ * `onBg`/`offBg`/`onFg`/`offFg` override the pill colours.
+ */
+export function toggle(options: ToggleOptions): SceneNode[] {
+  const layout = toggleLayout(options)
+  if (layout.text === "") return []
+  return [
+    {
+      kind: "rect",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      width: layout.width,
+      height: 1,
+      fill: true,
+      color: options.on ? (options.onBg ?? "success") : (options.offBg ?? "line"),
+    },
+    {
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      text: layout.text,
+      fg: options.on ? (options.onFg ?? "background") : (options.offFg ?? "foreground"),
+    },
+  ]
 }
 
 export type FormOptions = {

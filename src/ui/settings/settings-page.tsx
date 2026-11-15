@@ -401,6 +401,11 @@ export function SettingsPage(props: {
             value={editing ? `${props.state.editing!.draft}▏` : row.value}
             labelWidth={VALUE_COLUMN - 2}
             background={palette().surface}
+            toggle={
+              row.id === "pause"
+                ? { on: props.view.pauseAtLimit, onLabel: "yes", offLabel: "no" }
+                : undefined
+            }
           />
         )
       })}

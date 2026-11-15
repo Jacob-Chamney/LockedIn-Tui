@@ -9,6 +9,7 @@ import type { ThemePalette } from "../theme"
 import type { BadgeTone } from "../badges"
 import { Badge } from "../shell/badges"
 import { checklistBox } from "../checklist"
+import { Toggle } from "../shell/toggle"
 
 export type ListRowTone = "normal" | "muted" | "error"
 
@@ -26,6 +27,8 @@ export function ListRow(props: {
   check?: { checked: boolean; disabled?: boolean }
   /** Background for the unselected row; selected rows always use the panel. */
   background?: string
+  /** A switch in the value column, for boolean rows. */
+  toggle?: { on: boolean; onLabel?: string; offLabel?: string }
   /** A second, muted line under the label. */
   detail?: string
   /** When set, the label is padded/truncated to this width. */
@@ -90,7 +93,14 @@ export function ListRow(props: {
         >
           {label()}
         </text>
-        {props.badge ? (
+        {props.toggle ? (
+          <Toggle
+            theme={palette()}
+            on={props.toggle.on}
+            onLabel={props.toggle.onLabel}
+            offLabel={props.toggle.offLabel}
+          />
+        ) : props.badge ? (
           <>
             <Badge
               theme={palette()}
