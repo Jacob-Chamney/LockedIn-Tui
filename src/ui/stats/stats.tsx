@@ -17,6 +17,7 @@ import { HEATMAP_RAMP, heatmapLayout } from "../heatmap"
 import { Legend } from "../shell/legend"
 import { Distribution } from "../shell/distribution"
 import { Delta } from "../shell/delta"
+import { LineChart } from "../shell/line-chart"
 import { sparklineText } from "../sparkline"
 import { tabLayout } from "../tabs"
 import { Bars } from "../shell/bars"
@@ -354,6 +355,16 @@ export function StatsPage(props: {
           <text fg={palette().primary} wrapMode="none">
             {trend()}
           </text>
+        ) : null}
+        {props.height >= 40 && props.width >= 70 && dailyTokens().some((value) => value > 0) ? (
+          <LineChart
+            theme={palette()}
+            values={dailyTokens()}
+            width={Math.min(props.width - 8, 60)}
+            height={4}
+            axisWidth={5}
+            labels={[compactTokens(Math.max(...dailyTokens())), "0"]}
+          />
         ) : null}
         {props.height >= 34 && props.width >= 60 && tokenDelta() ? (
           <Delta

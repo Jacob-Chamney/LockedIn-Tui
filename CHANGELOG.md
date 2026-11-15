@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `lineChart()` draws a scaled, linked series with fitted y-axis labels; the
+  Stats hero plots daily tokens above the week comparison.
 - `avatarGroup()` stacks monograms with an overlap and overflow count; the
   agent sidebar header shows the project's agents.
 - `delta()` draws a signed percentage with direction glyphs and semantic tone;
