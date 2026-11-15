@@ -304,8 +304,11 @@ describe("vertical centring and the explorer", () => {
       for (let step = 0; step < 5; step++) await ui.press("down")
       await ui.press("return")
       // The destination replaced the chat and the Explorer closed behind it.
-      expect(ui.frame()).toContain("lockedin / stats")
-      expect(ui.frame()).not.toContain("EXPLORER")
+      const frame = ui.frame()
+      const last = ui.frame().split("\n").filter((line) => line.trim() !== "").at(-1) ?? ""
+      expect(last).toContain("STATS")
+      expect(frame).toContain("range")
+      expect(frame).not.toContain("EXPLORER")
     } finally {
       await ui.dispose()
     }

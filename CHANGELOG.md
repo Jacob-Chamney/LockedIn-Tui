@@ -162,6 +162,11 @@ requests merge.
 
 ### Changed
 
+- Stats is rebuilt as a readable dashboard: a header with the period and
+  filters, a five-figure band, activity and the token trend on the left, and
+  models, tools, learning and a recent-days strip on the right. Sections shrink
+  to the space available, the page is capped on ultrawide terminals, and an
+  empty range invites work instead of showing zeroes.
 - The command palette completes with `Tab`: it fills the line with the selected
   command, and Enter no longer runs the first suggestion for a partial line —
   it names the nearest command and leaves the bar open.

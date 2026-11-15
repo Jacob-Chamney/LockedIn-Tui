@@ -8,7 +8,7 @@
     "models": "MODELS",
     "sources": "SOURCES",
     "reader": "STEPS",
-    "stats": "lockedin / stats",
+    "stats": "STATS",
     "archive": "ARCHIVE",
     "settings": "SETTINGS",
     "task-centre": "TASK CENTRE",
