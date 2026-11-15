@@ -96,6 +96,18 @@ describe("browse", () => {
     }
   })
 
+  test("a marked file fills its checkbox", async () => {
+    const marked = { ...entry("diagram.png", "file"), marked: true }
+    const setup = await mount(100, 24, {
+      state: { entries: [marked], marks: [marked.path] },
+    })
+    try {
+      expect(rows(setup).join("\n")).toContain("◉ diagram.png")
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("an empty directory teaches the way back", async () => {
     const setup = await mount(80, 24, { state: { entries: [], cwd: `${ROOT}/empty` } })
     try {
