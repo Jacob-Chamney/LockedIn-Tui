@@ -55,6 +55,11 @@ import {
 } from "../src/ui/accordion"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
+import {
+  distributionSegments,
+  type DistributionItem as DistributionItemInput,
+  type DistributionSegment as DistributionSegmentInput,
+} from "../src/ui/distribution"
 import { legendLayout, type LegendItem as LegendItemInput } from "../src/ui/legend"
 import {
   radioRows,
@@ -3061,6 +3066,93 @@ export function radio(options: RadioOptions): SceneNode[] {
       text: row.label,
       fg: row.selected ? (options.selectedFg ?? "primary") : (options.labelFg ?? "foreground"),
     })
+  }
+  return nodes
+}
+
+/** One share in a `distribution()`. */
+export type DistributionSegment = DistributionSegmentInput
+
+/** One item in a stacked distribution. */
+export type DistributionItem = DistributionItemInput
+
+export type DistributionOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  /** Bar width in cells. */
+  width: number
+  items: readonly DistributionItem[]
+  /** Tone cycle for items without one. */
+  tones?: readonly string[]
+  /** Filled cell glyph; defaults to `█`. */
+  glyph?: string
+  /** Draw a legend row below the bar; defaults true. */
+  legend?: boolean
+  /** Spaces between legend entries; defaults to 2. */
+  legendGap?: number
+  /** Legend label colour. Defaults to `muted`. */
+  legendLabelFg?: string
+}
+
+/**
+ * A stacked distribution bar with a shared legend.
+ *
+ *   distribution({ anchor: "top-left", x: 2, y: 4, width: 40, items: [
+ *     { label: "gpt-4.1", value: 78 },
+ *     { label: "claude", value: 22, tone: "accent" },
+ *   ] })
+ *
+ * Cells are allocated by largest remainder, so the bar always fills `width`.
+ * Each legend entry is a coloured block and `label percentage`; entries that do
+ * not fit are dropped by the shared legend layout. Pass `legend: false` for a
+ * bare bar.
+ */
+export function distribution(options: DistributionOptions): SceneNode[] {
+  const segments = distributionSegments(options)
+  if (segments.length === 0) return []
+  const glyph = options.glyph ?? "█"
+  const nodes: SceneNode[] = []
+  for (const segment of segments) {
+    if (segment.cells <= 0) continue
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + segment.start,
+      y: options.y,
+      text: glyph.repeat(segment.cells),
+      fg: segment.tone,
+    })
+  }
+  if (options.legend === false) return nodes
+  const legend = legendLayout({
+    items: segments.map((segment) => ({
+      glyph,
+      label: `${segment.label} ${Math.round(segment.fraction * 100)}%`,
+      tone: segment.tone,
+    })),
+    width: options.width,
+    ...(options.legendGap === undefined ? {} : { gap: options.legendGap }),
+  })
+  for (const entry of legend) {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + entry.x,
+      y: options.y + 1,
+      text: entry.glyph,
+      fg: entry.tone,
+    })
+    if (entry.label !== "") {
+      nodes.push({
+        kind: "text",
+        anchor: options.anchor,
+        x: options.x + entry.x + entry.glyph.length + 1,
+        y: options.y + 1,
+        text: entry.label,
+        fg: options.legendLabelFg ?? "muted",
+      })
+    }
   }
   return nodes
 }

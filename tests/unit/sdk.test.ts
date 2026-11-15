@@ -14,6 +14,7 @@ import {
   confirm,
   createCursor,
   dashboard,
+  distribution,
   ease,
   emptyState,
   fadeColor,
@@ -1528,4 +1529,39 @@ test("radio honours glyph and colour overrides without a cursor", () => {
   expect(nodes[1]).toMatchObject({ x: 2, text: "one" })
   expect(nodes[2]).toMatchObject({ x: 0, text: "○", fg: "secondary" })
   expect(radio({ anchor: "top-left", x: 0, y: 0, width: 30, items: [] })).toEqual([])
+})
+
+test("distribution draws a full stacked bar and its legend", () => {
+  const nodes = distribution({
+    anchor: "top-left",
+    x: 2,
+    y: 3,
+    width: 24,
+    items: [
+      { label: "gpt", value: 78 },
+      { label: "claude", value: 22 },
+    ],
+  })
+  expect(nodes).toHaveLength(6)
+  expect(nodes[0]).toMatchObject({ x: 2, y: 3, text: "███████████████████", fg: "primary" })
+  expect(nodes[1]).toMatchObject({ x: 21, y: 3, text: "█████", fg: "secondary" })
+  expect(nodes[2]).toMatchObject({ x: 2, y: 4, text: "█", fg: "primary" })
+  expect(nodes[3]).toMatchObject({ x: 4, y: 4, text: "gpt 78%", fg: "muted" })
+  expect(nodes[4]).toMatchObject({ x: 13, y: 4, text: "█", fg: "secondary" })
+  expect(nodes[5]).toMatchObject({ x: 15, y: 4, text: "claude 22%", fg: "muted" })
+})
+
+test("distribution can omit the legend and is empty without values", () => {
+  const nodes = distribution({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 10,
+    legend: false,
+    glyph: "▓",
+    items: [{ label: "only", value: 1 }],
+  })
+  expect(nodes).toHaveLength(1)
+  expect(nodes[0]).toMatchObject({ text: "▓▓▓▓▓▓▓▓▓▓", fg: "primary" })
+  expect(distribution({ anchor: "top-left", x: 0, y: 0, width: 10, items: [] })).toEqual([])
 })
