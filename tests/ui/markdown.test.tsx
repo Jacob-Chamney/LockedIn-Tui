@@ -73,6 +73,24 @@ describe("code blocks", () => {
   })
 })
 
+describe("rules", () => {
+  test("a Markdown rule renders through the shared divider", async () => {
+    const setup = await testRender(
+      () => <MarkdownBody theme={crimson} text={"above\n\n---\n\nbelow"} width={40} height={8} />,
+      { width: 40, height: 8 },
+    )
+    try {
+      await setup.flush()
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain("──────────")
+      expect(frame).toContain("above")
+      expect(frame).toContain("below")
+    } finally {
+      await setup.dispose()
+    }
+  })
+})
+
 describe("inline", () => {
   test("emphasis and code markers are stripped, not shown", () => {
     expect(inlineText("a **bold** word")).toBe("a bold word")

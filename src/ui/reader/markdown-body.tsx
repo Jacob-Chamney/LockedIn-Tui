@@ -11,6 +11,7 @@ import { For, createEffect, createMemo, createSignal } from "solid-js"
 import type { ThemePalette } from "../theme"
 import { plainLines, type SyntaxLine } from "../../services/syntax/lines"
 import { codeBlockLayout, codeGutter, fitCodeRuns } from "../code-block"
+import { Divider } from "../shell/divider"
 import { syntaxTheme } from "../../services/syntax/theme"
 
 /* --------------------------------- blocks --------------------------------- */
@@ -287,11 +288,7 @@ export function MarkdownBody(props: {
       {blocks().map((block) => {
         if (block.kind === "blank") return <text wrapMode="none"> </text>
         if (block.kind === "rule") {
-          return (
-            <text fg={palette().line} wrapMode="none">
-              {"─".repeat(Math.max(0, props.width - 4))}
-            </text>
-          )
+          return <Divider theme={palette()} width={Math.max(1, props.width - 4)} />
         }
         if (block.kind === "heading") {
           const colour = block.level === 1 ? palette().primary : palette().secondary

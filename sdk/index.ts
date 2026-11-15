@@ -55,6 +55,7 @@ import {
 } from "../src/ui/accordion"
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
+import { dividerLayout, type DividerLayout as DividerLayoutInput } from "../src/ui/divider"
 import {
   spinnerLayout,
   spinnerText as renderSpinner,
@@ -4515,6 +4516,70 @@ export function spinner(options: SpinnerOptions): SceneNode[] {
 /** The spinner text for a frame, without placement. */
 export function spinnerText(options: Omit<SpinnerOptions, "anchor" | "x" | "y">): string {
   return renderSpinner(options)
+}
+
+/** The left/middle/right pieces and fitted label of a `divider()`. */
+export type DividerLayout = DividerLayoutInput
+
+export type DividerOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  width: number
+  /** Optional text centred in the rule. */
+  label?: string
+  /** Line glyph; defaults to `─`. */
+  glyph?: string
+  /** Rule colour. Defaults to `line`. */
+  lineFg?: string
+  /** Label colour. Defaults to `muted`. */
+  labelFg?: string
+}
+
+/**
+ * A horizontal divider, optionally labelled.
+ *
+ *   divider({ anchor: "top-left", x: 2, y: 4, width: 30, label: "notes" })
+ *   // ─────────── notes ───────────
+ *
+ * The line fills the width; a label is centred with one space each side. A label
+ * too wide for the rule is fitted with `…` and drawn alone.
+ */
+export function divider(options: DividerOptions): SceneNode[] {
+  const layout = dividerLayout(options)
+  if (layout.width === 0) return []
+  const nodes: SceneNode[] = []
+  if (layout.left !== "") {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y: options.y,
+      text: layout.left,
+      fg: options.lineFg ?? "line",
+    })
+  }
+  if (layout.middle !== "") {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + layout.left.length,
+      y: options.y,
+      text: layout.middle,
+      fg: options.label ? (options.labelFg ?? "muted") : (options.lineFg ?? "line"),
+    })
+  }
+  if (layout.right !== "") {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x + layout.left.length + layout.middle.length,
+      y: options.y,
+      text: layout.right,
+      fg: options.lineFg ?? "line",
+    })
+  }
+  return nodes
 }
 
 export type FormOptions = {
