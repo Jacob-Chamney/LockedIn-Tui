@@ -56,6 +56,14 @@ import {
 import { barRows, type BarItem as BarItemInput } from "../src/ui/bars"
 import { gaugeLayout, type GaugeLayout as GaugeLayoutInput } from "../src/ui/gauge"
 import {
+  dataTableLayout,
+  dataTableText as renderDataTable,
+  type DataTableAlign as DataTableAlignInput,
+  type DataTableColumn as DataTableColumnInput,
+  type DataTableLayout as DataTableLayoutInput,
+  type DataTableRow as DataTableRowInput,
+} from "../src/ui/data-table"
+import {
   popoverLayout,
   popoverPosition,
   type PopoverItem as PopoverItemInput,
@@ -6012,6 +6020,97 @@ export function popover(options: PopoverOptions): SceneNode[] {
     })
   })
   return nodes
+}
+
+/** Cell alignment in a `dataTable()`. */
+export type DataTableAlign = DataTableAlignInput
+
+/** One column in a `dataTable()`. */
+export type DataTableColumn = DataTableColumnInput
+
+/** One placed data row. */
+export type DataTableRow = DataTableRowInput
+
+/** The header, rule, rows and widths of a data table. */
+export type DataTableLayout = DataTableLayoutInput
+
+export type DataTableOptions = {
+  anchor: ScenePosition
+  x: number
+  y: number
+  width: number
+  columns: readonly DataTableColumn[]
+  rows: readonly (readonly string[])[]
+  /** Selected row index; omitted means no marker column. */
+  selected?: number
+  gap?: number
+  /** Draw the header row; defaults true. */
+  header?: boolean
+  /** Draw the rule under the header; defaults true. */
+  headerRule?: boolean
+  /** Header colour. Defaults to `muted`. */
+  headerFg?: string
+  /** Header-rule colour. Defaults to `line`. */
+  ruleFg?: string
+  /** Selected-row colour. Defaults to `primary`. */
+  selectedFg?: string
+  /** Normal row colour. Defaults to `foreground`. */
+  fg?: string
+}
+
+/**
+ * A data table with a fitted header, rule and selectable rows.
+ *
+ *   dataTable({ anchor: "top-left", x: 2, y: 2, width: 40, selected: 0,
+ *               columns: [{ label: "TOOL" }, { label: "ACCESS" }],
+ *               rows: [["read_note", "read-only"], ["write_note", "write-capable"]] })
+ *
+ * Column widths follow their contents and shrink from the widest until rows
+ * fit; cells align left, right or centre. A selection marker is added only when
+ * `selected` is set. `dataTableText()` returns the lines.
+ */
+export function dataTable(options: DataTableOptions): SceneNode[] {
+  const layout = dataTableLayout(options)
+  const nodes: SceneNode[] = []
+  let y = options.y
+  if (layout.header !== "") {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y,
+      text: layout.header,
+      fg: options.headerFg ?? "muted",
+    })
+    y += 1
+  }
+  if (layout.rule !== "") {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y,
+      text: layout.rule,
+      fg: options.ruleFg ?? "line",
+    })
+    y += 1
+  }
+  for (const row of layout.rows) {
+    nodes.push({
+      kind: "text",
+      anchor: options.anchor,
+      x: options.x,
+      y: y + row.index,
+      text: row.text,
+      fg: row.selected ? (options.selectedFg ?? "primary") : (options.fg ?? "foreground"),
+    })
+  }
+  return nodes
+}
+
+/** The data table as plain lines, header and rule first. */
+export function dataTableText(options: Omit<DataTableOptions, "anchor" | "x" | "y" | "headerFg" | "ruleFg" | "selectedFg" | "fg">): string[] {
+  return renderDataTable(options)
 }
 
 export type FormOptions = {

@@ -22,6 +22,8 @@ import {
   confirm,
   createCursor,
   dashboard,
+  dataTable,
+  dataTableText,
   delta,
   deltaText,
   diff,
@@ -3028,4 +3030,42 @@ test("popover places against a target and handles empty content", () => {
   const empty = popover({ anchor: "top-left", x: 0, y: 0, width: 10 })
   expect(empty).toHaveLength(1)
   expect(empty[0]).toMatchObject({ kind: "box", height: 2 })
+})
+
+test("dataTable draws a header, rule and selected row", () => {
+  const nodes = dataTable({
+    anchor: "top-left",
+    x: 2,
+    y: 2,
+    width: 40,
+    selected: 0,
+    columns: [{ label: "TOOL" }, { label: "ACCESS" }],
+    rows: [
+      ["read_note", "read-only"],
+      ["write_note", "write-capable"],
+    ],
+  })
+  expect(nodes).toHaveLength(4)
+  expect(nodes[0]).toMatchObject({ kind: "text", x: 2, y: 2, fg: "muted" })
+  expect(nodes[1]).toMatchObject({ y: 3, fg: "line" })
+  expect(nodes[2]).toMatchObject({ y: 4, fg: "primary" })
+  expect(nodes[3]).toMatchObject({ y: 5, fg: "foreground" })
+  expect(nodes[2]!.kind === "text" ? nodes[2]!.text.startsWith("▸ read_note") : false).toBe(true)
+})
+
+test("dataTable hides its header and honours colours", () => {
+  const nodes = dataTable({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 20,
+    header: false,
+    selectedFg: "accent",
+    fg: "secondary",
+    columns: [{ label: "A" }],
+    rows: [["one"]],
+  })
+  expect(nodes).toHaveLength(1)
+  expect(nodes[0]).toMatchObject({ text: "one", fg: "secondary" })
+  expect(dataTableText({ columns: [{ label: "A" }], rows: [["one"]], width: 10 })).toEqual(["A  ", "──────────", "one"])
 })

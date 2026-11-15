@@ -4,6 +4,7 @@ import { WindowBody } from "../../panels/floating-window"
 import { PanelWindow } from "../../panels/panel-window"
 import { SelectList } from "../../panels/select-list"
 import { Matrix } from "../../shell/matrix"
+import { DataTable } from "../../shell/data-table"
 import {
   cellLabel,
   footerHints,
@@ -13,7 +14,6 @@ import {
   serverLine,
   standingNote,
   statusLabel,
-  toolLine,
   type Command,
   type GateView,
   type ServerRow,
@@ -52,13 +52,15 @@ export function PluginList(props: {
       )}
 
       {props.toolsOpen && props.servers[props.cursor] ? (
-        <box flexDirection="column">
-          {props.servers[props.cursor]!.tools.map((tool) => (
-            <text fg={tool.write ? palette().warning : palette().muted} wrapMode="none">
-              {toolLine(tool)}
-            </text>
-          ))}
-        </box>
+        <DataTable
+          theme={palette()}
+          width={Math.max(20, props.width - 4)}
+          columns={[{ label: "TOOL" }, { label: "ACCESS" }]}
+          rows={props.servers[props.cursor]!.tools.map((tool) => [
+            tool.name,
+            tool.write ? "write-capable" : "read-only",
+          ])}
+        />
       ) : null}
 
       <text fg={palette().secondary} wrapMode="none">
