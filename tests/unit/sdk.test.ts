@@ -46,6 +46,7 @@ import {
   pingPong,
   sidebarMain,
   skeleton,
+  slider,
   sparkline,
   sparklineText,
   stepper,
@@ -1828,4 +1829,33 @@ test("chips report hidden tokens and honour overrides", () => {
   expect(nodes[1]).toMatchObject({ text: "[a x]", fg: "secondary" })
   expect(nodes[2]).toMatchObject({ x: 8, text: "+1", fg: "warning" })
   expect(chips({ anchor: "top-left", x: 0, y: 0, width: 20, items: [] })).toEqual([])
+})
+
+test("slider draws the filled track, knob and label", () => {
+  const nodes = slider({ anchor: "top-left", x: 2, y: 3, width: 18, value: 0.8 })
+  expect(nodes).toHaveLength(4)
+  expect(nodes[0]).toMatchObject({ x: 2, y: 3, text: "━━━━━━━━━━", fg: "primary" })
+  expect(nodes[1]).toMatchObject({ x: 12, y: 3, text: "●", fg: "primary" })
+  expect(nodes[2]).toMatchObject({ x: 13, y: 3, text: "───", fg: "line" })
+  expect(nodes[3]).toMatchObject({ x: 17, y: 3, text: "80%", fg: "muted" })
+})
+
+test("slider hides the label and honours colours and glyphs", () => {
+  const nodes = slider({
+    anchor: "top-left",
+    x: 0,
+    y: 0,
+    width: 10,
+    value: 0.5,
+    showLabel: false,
+    glyphs: { filled: "=", thumb: "O", empty: "-" },
+    filledFg: "accent",
+    thumbFg: "warning",
+    emptyFg: "secondary",
+  })
+  expect(nodes).toHaveLength(3)
+  expect(nodes[0]).toMatchObject({ text: "=====", fg: "accent" })
+  expect(nodes[1]).toMatchObject({ x: 5, text: "O", fg: "warning" })
+  expect(nodes[2]).toMatchObject({ x: 6, text: "----", fg: "secondary" })
+  expect(slider({ anchor: "top-left", x: 0, y: 0, width: 0, value: 0.5 })).toEqual([])
 })

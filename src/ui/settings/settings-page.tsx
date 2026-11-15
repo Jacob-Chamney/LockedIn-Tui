@@ -406,6 +406,11 @@ export function SettingsPage(props: {
                 ? { on: props.view.pauseAtLimit, onLabel: "yes", offLabel: "no" }
                 : undefined
             }
+            slider={
+              row.id === "warnAt"
+                ? { value: props.view.warnAt, label: warnLabel(props.view.warnAt), width: 18 }
+                : undefined
+            }
           />
         )
       })}

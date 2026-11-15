@@ -103,6 +103,18 @@ describe("rows and groups", () => {
     expect(models.rows.find((row) => row.id === "chatModel")?.value).toBe("deepseek-v4.1-flash")
   })
 
+  test("Warn at renders a slider at the threshold", async () => {
+    const setup = await mount(120, 36)
+    try {
+      const row = lines(setup).find((line) => line.includes("Warn at"))!
+      expect(row).toContain("80%")
+      expect(row).toContain("●")
+      expect(row).toMatch(/[━─]/)
+    } finally {
+      await setup.dispose()
+    }
+  })
+
   test("Pause at limit renders a switch and follows the value", async () => {
     const on = await mount(120, 36)
     try {

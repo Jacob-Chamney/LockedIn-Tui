@@ -10,6 +10,7 @@ import type { BadgeTone } from "../badges"
 import { Badge } from "../shell/badges"
 import { checklistBox } from "../checklist"
 import { Toggle } from "../shell/toggle"
+import { Slider } from "../shell/slider"
 
 export type ListRowTone = "normal" | "muted" | "error"
 
@@ -29,6 +30,8 @@ export function ListRow(props: {
   background?: string
   /** A switch in the value column, for boolean rows. */
   toggle?: { on: boolean; onLabel?: string; offLabel?: string }
+  /** A slider in the value column, for ranged rows. */
+  slider?: { value: number; min?: number; max?: number; label?: string; width?: number }
   /** A second, muted line under the label. */
   detail?: string
   /** When set, the label is padded/truncated to this width. */
@@ -93,7 +96,16 @@ export function ListRow(props: {
         >
           {label()}
         </text>
-        {props.toggle ? (
+        {props.slider ? (
+          <Slider
+            theme={palette()}
+            value={props.slider.value}
+            width={props.slider.width ?? 18}
+            min={props.slider.min}
+            max={props.slider.max}
+            label={props.slider.label}
+          />
+        ) : props.toggle ? (
           <Toggle
             theme={palette()}
             on={props.toggle.on}

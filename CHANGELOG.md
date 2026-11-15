@@ -19,6 +19,8 @@ requests merge.
 - `meter()` draws a labelled progress track, and `sparkline()` /
   `sparklineText()` turn a series into block glyphs. The KPI scaffold uses
   both, and the SDK reference documents them.
+- `slider()` draws a ranged track with a knob and fitted value label for plugin
+  scenes; Settings renders Warn at as a percentage slider.
 - `chips()` draws bracketed, removable tokens for plugin scenes; chat
   attachments render as chips with the last one highlighted.
 - `toggle()` draws a state pill for plugin scenes; Settings renders Pause at
