@@ -16,6 +16,19 @@ requests merge.
 
 ### Added
 
+- The desktop app: a Flutter shell (`desktop/`) over the same Bun core, talking
+  to it over stdio JSON-RPC (`src/server/`). Chat, Stats, Sessions, Sources,
+  Skills, Work, Review, Archive, Knowledge and Settings read and write the same
+  data with the same rules as the terminal UI, and the workspace, keys and
+  providers stay in the core.
+- A Windows installer: `scripts/desktop-installer.ps1` builds a per-user NSIS
+  setup that needs no administrator rights, writes a Start-menu shortcut and an
+  uninstaller, and leaves the workspace and app data alone when it is removed.
+  It is unsigned for now, so SmartScreen warns on first run.
+- A skill goal can start a second chat (`Shift+N` or `New chat`), instead of
+  only resuming the newest transcript.
+- The desktop sidebar lists the three most recent sessions under `RECENT`.
+
 - `brailleChart()` draws bars and filled areas on a 2×4 dot grid, with solid
   cells and only the edge dotted. Stats uses it for daily activity and the
   token trend, and plugins can place the same element.
