@@ -1,0 +1,119 @@
+name: Desktop
+
+on:
+  pull_request:
+    paths:
+      - "desktop/**"
+      - "src/server/**"
+      - "scripts/desktop-*"
+      - ".github/workflows/desktop.yml"
+  push:
+    branches: [feat/flutter-desktop]
+    paths:
+      - "desktop/**"
+      - "src/server/**"
+      - "scripts/desktop-*"
+      - ".github/workflows/desktop.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: desktop (linux x64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libblkid-dev liblzma-dev
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.50.0
+          cache: true
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Core dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Dependencies
+        working-directory: desktop
+        run: flutter pub get
+
+      - name: Format check
+        working-directory: desktop
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Analyze
+        working-directory: desktop
+        run: flutter analyze
+
+      - name: Widget tests
+        working-directory: desktop
+        run: flutter test
+
+      - name: Release build with the core sidecar
+        run: ./scripts/desktop-build.sh linux
+
+      - name: Package the Linux tarball
+        run: |
+          ./scripts/desktop-package.sh --no-build
+          ls -lh dist/lockedin-desktop-linux-x64.tar.gz
+
+      - name: Verify the bundled core is executable
+        run: test -x desktop/build/linux/x64/release/bundle/lockedin-core
+
+  windows:
+    name: desktop (windows x64)
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.50.0
+          cache: true
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Core dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Dependencies
+        working-directory: desktop
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: desktop
+        run: flutter analyze
+
+      - name: Widget tests
+        working-directory: desktop
+        run: flutter test
+
+      - name: Release build with the core sidecar
+        shell: bash
+        run: ./scripts/desktop-build.sh windows
+
+      - name: Package the Windows zip
+        shell: pwsh
+        run: |
+          ./scripts/desktop-package.ps1 -NoBuild
+          $artifact = Get-Item dist/lockedin-desktop-windows-x64.zip
+          Write-Host ("zip size: {0:N0} bytes ({1:N1} MiB)" -f $artifact.Length, ($artifact.Length / 1MB))

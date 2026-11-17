@@ -1,0 +1,110 @@
+name: Desktop (self-hosted Windows)
+
+# The hosted `windows-2022` runner needs paid Actions minutes on a private
+# repository, and this account has none left: every run, including a one-step
+# echo probe, fails in ~2 s with zero steps and `runner_name: ""`.
+#
+# This workflow is the free path. Register any Windows machine — a spare PC, a
+# laptop, a local VM — as a self-hosted runner on this repository, then run this
+# workflow. Self-hosted runners do not consume hosted minutes.
+#
+#   scripts/desktop-selfhosted-runner.md  (setup, in this repo)
+#
+# It builds the same artifact as `desktop.yml` and verifies it, so a green run
+# here is the Windows evidence `docs/testing.md` asks for.
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why this run (shown in the run title)"
+        required: false
+        default: "verify the Windows build"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-selfhosted-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: desktop (windows x64, self-hosted)
+    # A self-hosted runner should carry these labels. `windows` is applied
+    # automatically on Windows; `x64` too. Do not add `self-hosted` twice.
+    runs-on: [self-hosted, windows, x64]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain check
+        shell: pwsh
+        run: |
+          # The runner already has the SDKs; fail early with a clear message
+          # rather than halfway through a build if one is missing.
+          $missing = @()
+          foreach ($tool in @('flutter', 'dart', 'bun', 'git')) {
+            if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { $missing += $tool }
+          }
+          if ($missing.Count -gt 0) {
+            Write-Error ("missing on this runner: " + ($missing -join ', ') +
+              ". Install Flutter 3.50 stable and Bun 1.4.4, then re-run.")
+          }
+          flutter --version
+          bun --version
+
+      - name: Core dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Flutter dependencies
+        working-directory: desktop
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: desktop
+        run: flutter analyze
+
+      - name: Widget tests
+        working-directory: desktop
+        run: flutter test
+
+      - name: Release build with the core sidecar
+        shell: bash
+        run: ./scripts/desktop-build.sh windows
+
+      - name: Package the Windows zip
+        shell: pwsh
+        run: |
+          ./scripts/desktop-package.ps1 -NoBuild
+          $artifact = Get-Item dist/lockedin-desktop-windows-x64.zip
+          Write-Host ("artifact: {0}" -f $artifact.FullName)
+          Write-Host ("size: {0:N0} bytes ({1:N1} MiB)" -f $artifact.Length, ($artifact.Length / 1MB))
+
+      - name: Verify the artifact is a Windows build
+        shell: pwsh
+        run: |
+          $bundle = "desktop/build/windows/x64/runner/Release"
+          $core = Get-Item "$bundle/lockedin-core.exe"
+          $shell = Get-Item "$bundle/lockedin_desktop.exe"
+          # A PE header means the compile really produced a Windows binary, not
+          # a copy of a Linux sidecar.
+          $bytes = [System.IO.File]::ReadAllBytes($core.FullName)[0..1]
+          if (-not ($bytes[0] -eq 0x4D -and $bytes[1] -eq 0x5A)) {
+            throw "lockedin-core.exe has no MZ header"
+          }
+          Write-Host ("core:  {0:N0} bytes" -f $core.Length)
+          Write-Host ("shell: {0:N0} bytes" -f $shell.Length)
+
+      - name: Handshake the compiled sidecar
+        shell: pwsh
+        run: |
+          # The core must answer `initialize` from the compiled binary. This is
+          # the check the Linux gate cannot make.
+          $workspace = Join-Path $env:RUNNER_TEMP "lockedin-ci"
+          New-Item -ItemType Directory -Force -Path $workspace | Out-Null
+          $env:LOCKEDIN_WORKSPACE = $workspace
+          $init = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol":1,"client":"ci"}}'
+          $out = $init | & "desktop/build/windows/x64/runner/Release/lockedin-core.exe"
+          if (-not ($out -match '"protocol":1')) { throw "sidecar did not answer initialize: $out" }
+          Write-Host "sidecar handshake ok"

@@ -46,6 +46,10 @@ const ALLOW: readonly string[] = [
   "TRADEMARK.md",
   ".gitattributes",
   ".gitignore",
+  // CI for the program. `ci.yml` and `release.yml` belong to the public repo,
+  // so they are deliberately not rendered here: a sync adds, never overwrites.
+  ".github/workflows/desktop.yml",
+  ".github/workflows/desktop-selfhosted.yml",
 ];
 
 /** Paths inside an allowed directory that are still internal. */
