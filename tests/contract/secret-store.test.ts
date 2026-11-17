@@ -106,6 +106,7 @@ const commandStore = createCommandKeychain()
 const commandAvailable = await commandStore.available()
 const nativeStore = createNativeKeychain()
 resetNativeProbe()
+const nativeAvailable = await nativeStore.available()
 
 describe("secret store", () => {
   test("fake passes the contract", async () => {
@@ -118,6 +119,15 @@ describe("secret store", () => {
   test.skipIf(!commandAvailable)("real backend round-trips", async () => {
     const results = await runContract(commandStore)
     expectAllPassed(results)
+  })
+
+  // The packaged backend: `@napi-rs/keyring` reaches Secret Service on Linux and
+  // Credential Manager on Windows, so this is the test that proves the addon
+  // works against a real OS store. It skips where no store is reachable (a
+  // container without D-Bus) rather than pretending to pass.
+  test.skipIf(!nativeAvailable)("native backend round-trips", async () => {
+    console.log(`secret store: native backend round-trip on ${process.platform}`)
+    expectAllPassed(await runContract(nativeStore))
   })
 
   test("missing backend never falls back to a file", async () => {
