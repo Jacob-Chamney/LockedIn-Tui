@@ -4016,6 +4016,47 @@ class CoreStore extends ChangeNotifier {
     return true;
   }
 
+  /// Start a **new** goal chat, always.
+  ///
+  /// `skill.chat.open` resumes the newest transcript and a goal chat has many,
+  /// so without this a user could never get past `chat-1`. Refusals are kept on
+  /// the shell-wide [error] like [openSkillChat]; the caller decides whether to
+  /// open the chat layer.
+  Future<bool> createSkillChat(String goalId) async {
+    final Map<String, dynamic> json;
+    try {
+      json = await _connection.call('skill.chat.create', {'goalId': goalId});
+    } catch (failure) {
+      error = _messageOf(failure);
+      notifyListeners();
+      return false;
+    }
+
+    final rawChatId = json['chatId'];
+    if (rawChatId is! String || rawChatId.isEmpty) {
+      error = 'the core did not name the new goal chat';
+      notifyListeners();
+      return false;
+    }
+
+    final raw = json['snapshot'];
+    final snapshot = ChatSnapshot.fromJson(
+      raw is Map ? Map<String, dynamic>.from(raw) : const <String, dynamic>{},
+    );
+    activeSkillChatId = rawChatId;
+    _skillChats[_skillChatKey(goalId, rawChatId)] = snapshot;
+    _skillChatErrors.remove(_skillChatKey(goalId, rawChatId));
+    if (!skillChats.any((chat) => chat.id == rawChatId)) {
+      skillChats = [
+        ...skillChats,
+        SkillChatRow(id: rawChatId, title: '', lastUsed: '', messages: 0),
+      ];
+    }
+    error = null;
+    notifyListeners();
+    return true;
+  }
+
   /// Send one turn to a goal chat. Never touches Chill, a session or a project.
   ///
   /// The transcript grows only from the core's `skill.chat.state` events. A

@@ -1029,6 +1029,10 @@ class FakeCore implements CoreConnection {
   /// nothing here.
   final skillSourceAdds = <List<String>>[];
 
+  /// The goals a **new** chat was started for, in call order. `skill.chat.open`
+  /// never touches this: only `skill.chat.create` does.
+  final skillChatCreates = <String>[];
+
   /// Lessons built through `skill.lesson.build`, keyed `<goalId>:<stageId>`.
   /// `skill.lesson.read` prefers them, so a build followed by a re-read behaves
   /// like the core writing the file.
@@ -4507,6 +4511,31 @@ class FakeCore implements CoreConnection {
         _skillChatKey(goalId, chatId),
         () => <Map<String, dynamic>>[],
       );
+      return {'chatId': chatId, 'snapshot': _skillChat(goalId, chatId)};
+    }
+    if (method == 'skill.chat.create') {
+      final rawGoal = params?['goalId'];
+      if (rawGoal is! String || rawGoal.trim().isEmpty) {
+        throw const RpcException(
+          -32602,
+          'skill.chat.create requires a goal id',
+        );
+      }
+      final goalId = rawGoal.trim();
+      if (_skillFor(goalId) == null) throw _unknownSkill(goalId);
+      final chats = _skillGoalChats.putIfAbsent(goalId, () => <String>[]);
+      // Always a fresh transcript: `chat-<n+1>`, never a reuse.
+      var next = chats.length + 1;
+      while (chats.contains('chat-$next')) {
+        next += 1;
+      }
+      final chatId = 'chat-$next';
+      chats.add(chatId);
+      _skillChatMessages.putIfAbsent(
+        _skillChatKey(goalId, chatId),
+        () => <Map<String, dynamic>>[],
+      );
+      skillChatCreates.add(goalId);
       return {'chatId': chatId, 'snapshot': _skillChat(goalId, chatId)};
     }
     if (method == 'skill.chat.send') {

@@ -35,6 +35,7 @@ class SkillDetailView extends StatefulWidget {
     this.onRetryChapter,
     this.chats,
     this.onOpenChat,
+    this.onNewChat,
     this.sources = const [],
     this.sourcesLoading = false,
     this.sourcesError,
@@ -83,6 +84,10 @@ class SkillDetailView extends StatefulWidget {
   /// Open the goal chat (the newest one, or the goal's first). Null keeps the
   /// card read-only and hides the action.
   final VoidCallback? onOpenChat;
+
+  /// Start a **new** chat for this goal. A goal keeps many transcripts, so
+  /// opening always resumes the newest; this is the only way past `chat-1`.
+  final VoidCallback? onNewChat;
 
   /// The open goal's gathered, citable sources (`skill.sources.list`).
   ///
@@ -695,6 +700,12 @@ class _SkillDetailViewState extends State<SkillDetailView> {
       if (event is KeyDownEvent) widget.onOpenChat!();
       return KeyEventResult.handled;
     }
+    if (key == LogicalKeyboardKey.keyN &&
+        HardwareKeyboard.instance.isShiftPressed) {
+      if (widget.onNewChat == null) return KeyEventResult.ignored;
+      if (event is KeyDownEvent) widget.onNewChat!();
+      return KeyEventResult.handled;
+    }
     // `a` gathers files into this goal. It is separate from the chapter keys
     // (`Enter`, `p`, `j/k`) and from `c`, so no action is shadowed.
     if (key == LogicalKeyboardKey.keyA) {
@@ -818,6 +829,15 @@ class _SkillDetailViewState extends State<SkillDetailView> {
               tooltip: 'Open chat (c)',
               onPressed: widget.onOpenChat,
               icon: const Icon(Icons.forum_outlined, size: 18),
+            ),
+          ],
+          if (widget.onNewChat != null) ...[
+            const SizedBox(width: 4),
+            IconButton(
+              key: const ValueKey('skill-new-chat'),
+              tooltip: 'New chat (Shift+N)',
+              onPressed: widget.onNewChat,
+              icon: const Icon(Icons.add_comment_outlined, size: 18),
             ),
           ],
         ],
@@ -1464,11 +1484,25 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerLeft,
-              child: FilledButton.icon(
-                key: const ValueKey('skill-open-chat-card'),
-                onPressed: widget.onOpenChat,
-                icon: const Icon(Icons.forum_outlined, size: 16),
-                label: Text(chats.isEmpty ? 'New chat' : 'Open chat'),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FilledButton.icon(
+                    key: const ValueKey('skill-open-chat-card'),
+                    onPressed: widget.onOpenChat,
+                    icon: const Icon(Icons.forum_outlined, size: 16),
+                    label: Text(chats.isEmpty ? 'Start chat' : 'Open chat'),
+                  ),
+                  if (chats.isNotEmpty && widget.onNewChat != null) ...[
+                    const SizedBox(width: 10),
+                    OutlinedButton.icon(
+                      key: const ValueKey('skill-new-chat-card'),
+                      onPressed: widget.onNewChat,
+                      icon: const Icon(Icons.add_comment_outlined, size: 16),
+                      label: const Text('New chat · N'),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],

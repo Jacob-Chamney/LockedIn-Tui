@@ -117,3 +117,20 @@ jobs:
           ./scripts/desktop-package.ps1 -NoBuild
           $artifact = Get-Item dist/lockedin-desktop-windows-x64.zip
           Write-Host ("zip size: {0:N0} bytes ({1:N1} MiB)" -f $artifact.Length, ($artifact.Length / 1MB))
+
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          $nsis = "C:\Program Files (x86)\NSIS"
+          if (-not (Test-Path (Join-Path $nsis "makensis.exe"))) {
+            choco install nsis --no-progress -y
+          }
+          Add-Content -Path $env:GITHUB_PATH -Value $nsis
+
+      - name: Build and verify the unsigned installer
+        shell: pwsh
+        run: |
+          ./scripts/desktop-installer.ps1 -Verify
+          $setup = Get-Item dist/lockedin-desktop-windows-x64-setup.exe
+          Write-Host ("setup size: {0:N0} bytes ({1:N1} MiB)" -f $setup.Length, ($setup.Length / 1MB))
+          (Get-FileHash $setup.FullName -Algorithm SHA256).Hash | ForEach-Object { Write-Host "setup sha256: $_" }
