@@ -6,7 +6,7 @@
  * way the sync does and fails if any agent, task, review or internal doc path
  * lands in it — the same check the script performs before a publish.
  */
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -72,36 +72,48 @@ function render(): string {
 }
 
 describe("public tree", () => {
-  test("renders without any internal path", () => {
-    const target = render();
-    try {
+  // One render for the whole file. Copying ~1100 files takes about 5 s on a
+  // Windows runner, so the timeout is explicit rather than bun's 5 s default.
+  const timeout = 120_000;
+  let target = "";
+  const tree = (): string => {
+    if (target === "") target = render();
+    return target;
+  };
+  afterAll(() => {
+    if (target !== "") rmSync(target, { recursive: true, force: true });
+  });
+
+  test(
+    "renders without any internal path",
+    () => {
+      const root = tree();
       for (const path of FORBIDDEN) {
-        expect({ path, present: existsSync(join(target, path)) }).toEqual({ path, present: false });
+        expect({ path, present: existsSync(join(root, path)) }).toEqual({ path, present: false });
       }
-    } finally {
-      rmSync(target, { recursive: true, force: true });
-    }
-  });
+    },
+    timeout,
+  );
 
-  test("contains the source a reader needs to build and test", () => {
-    const target = render();
-    try {
+  test(
+    "contains the source a reader needs to build and test",
+    () => {
+      const root = tree();
       for (const path of REQUIRED) {
-        expect({ path, present: existsSync(join(target, path)) }).toEqual({ path, present: true });
+        expect({ path, present: existsSync(join(root, path)) }).toEqual({ path, present: true });
       }
-    } finally {
-      rmSync(target, { recursive: true, force: true });
-    }
-  });
+    },
+    timeout,
+  );
 
-  test("keeps build output out of the tree", () => {
-    const target = render();
-    try {
+  test(
+    "keeps build output out of the tree",
+    () => {
+      const root = tree();
       // A 400 MB build folder would drown the source in a diff.
-      expect(existsSync(join(target, "desktop/build"))).toBe(false);
-      expect(existsSync(join(target, "desktop/linux/flutter/ephemeral"))).toBe(false);
-    } finally {
-      rmSync(target, { recursive: true, force: true });
-    }
-  });
+      expect(existsSync(join(root, "desktop/build"))).toBe(false);
+      expect(existsSync(join(root, "desktop/linux/flutter/ephemeral"))).toBe(false);
+    },
+    timeout,
+  );
 });
