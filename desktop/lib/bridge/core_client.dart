@@ -224,7 +224,20 @@ class SidecarLaunch {
 }
 
 /// The `node_modules` path a packaged bundle keeps beside its executable.
-const keyringAddonRelativePath = 'node_modules/@napi-rs/keyring/index.js';
+///
+/// Segments, not a joined string: Windows needs `\` between them, and a mixed
+/// `C:\\bundle/node_modules/@napi-rs/…` path is what a hard-coded `/` produces.
+const keyringAddonSegments = [
+  'node_modules',
+  '@napi-rs',
+  'keyring',
+  'index.js',
+];
+
+/// The addon path relative to a bundle directory, using this platform's
+/// separator.
+String keyringAddonRelativePath({String? separator}) =>
+    keyringAddonSegments.join(separator ?? Platform.pathSeparator);
 
 /// The environment additions a packaged sidecar needs in [directory].
 ///
@@ -241,7 +254,9 @@ Map<String, String> sidecarEnvironment(String directory) {
   // a neutral working directory, so a relative addon path would resolve against
   // the wrong folder.
   final base = Directory(directory).absolute.path;
-  final addon = '$base${Platform.pathSeparator}$keyringAddonRelativePath';
+  final addon =
+      '$base${Platform.pathSeparator}'
+      '${keyringAddonRelativePath()}';
   if (!File(addon).existsSync()) return const {};
   return {'LOCKEDIN_KEYRING_ADDON': addon};
 }
