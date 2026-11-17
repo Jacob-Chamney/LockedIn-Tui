@@ -183,6 +183,33 @@ class _ShellState extends State<Shell> {
   /// it returns the user to where they were (a page's search field, a list).
   FocusNode? _focusBeforeCommand;
 
+  /// The sidebar's `RECENT` rows: the newest readable sessions, at most three.
+  ///
+  /// An archived or broken session is not "recent" — it is not somewhere the
+  /// user can go without first fixing or restoring it, so it stays in the
+  /// manager where it is labelled.
+  List<SessionRow> _recentSessions(CoreStore store) {
+    final rows =
+        store.sessions
+            .where((row) => !row.archived && row.broken == null)
+            .toList()
+          ..sort((a, b) => b.date.compareTo(a.date));
+    return rows.take(3).toList();
+  }
+
+  /// Open a session from the sidebar's `RECENT` list.
+  ///
+  /// It is the manager's open path with the surface switch in front, so a
+  /// stale chat or settings layer never covers the session the user picked.
+  Future<void> _openRecentSession(CoreStore store, String id) async {
+    _select(Surface.sessions);
+    setState(() {
+      _sessionChatOpen = false;
+      _sessionSettingsOpen = false;
+    });
+    await store.openSession(id);
+  }
+
   void _select(Surface surface) {
     if (_paletteOpen) _closePalette();
     if (_commandOpen) _closeCommandLine();
@@ -570,6 +597,9 @@ class _ShellState extends State<Shell> {
                             ),
                         },
                         onSelect: _select,
+                        recent: _recentSessions(store),
+                        onRecent: (id) =>
+                            unawaited(_openRecentSession(store, id)),
                       ),
                       VerticalDivider(width: 1, color: LockedInColors.line),
                       Expanded(child: _body(store, keymap)),
@@ -718,7 +748,7 @@ class _ShellState extends State<Shell> {
         if (store.skillLessonOpen) return 'b build · R rebuild · Esc back';
         if (store.skillChapterOpen) return 'Esc back';
         if (store.activeSkill?.hasStages ?? false) {
-          return '↑↓ move · Enter lesson · b build · c chat · Esc back';
+          return '↑↓ move · Enter lesson · b build · c chat · N new chat · Esc back';
         }
         return '↑↓ move · Enter lesson · p practical · c chat · Esc back';
       }
@@ -1264,6 +1294,9 @@ class _ShellState extends State<Shell> {
       onOpenChat: skillId == null
           ? null
           : () => unawaited(_openSkillChat(store, skillId)),
+      onNewChat: skillId == null
+          ? null
+          : () => unawaited(_newSkillChat(store, skillId)),
       sources: store.skillSources,
       sourcesLoading: store.skillSourcesLoading,
       sourcesError: store.skillSourcesError,
@@ -1278,6 +1311,17 @@ class _ShellState extends State<Shell> {
           : (stages, {confirmed = false}) =>
                 store.saveSkillStages(skillId, stages, confirmed: confirmed),
     );
+  }
+
+  /// Start a new transcript for the goal, then open it. A goal keeps many chats,
+  /// so this is the only path that gets past the newest one.
+  Future<void> _newSkillChat(CoreStore store, String goalId) async {
+    final created = await store.createSkillChat(goalId);
+    if (!mounted || !created) return;
+    // A lesson reader is another layer of the same goal; collapse it so the new
+    // chat is what the user sees.
+    store.closeSkillLesson();
+    setState(() => _skillChatOpen = true);
   }
 
   /// Open the goal chat from the page: resume the chat the user last had open,
@@ -1663,10 +1707,21 @@ class _Sidebar extends StatelessWidget {
     required this.footer,
     required this.shortcuts,
     required this.onSelect,
+    this.recent = const [],
+    this.onRecent,
   });
 
   final bool compact;
   final Surface active;
+
+  /// The last few readable sessions, newest first. The sidebar lists them as
+  /// destinations (`docs/product.md` §2.4): selecting one opens that session,
+  /// exactly as the Sessions manager would. Empty is a valid state and the
+  /// section disappears rather than showing a placeholder list.
+  final List<SessionRow> recent;
+
+  /// Open one of [recent] by id. Null when the shell cannot open sessions.
+  final ValueChanged<String>? onRecent;
 
   /// The generated shortcut summary, already resolved from the registry.
   final String footer;
@@ -1706,6 +1761,23 @@ class _Sidebar extends StatelessWidget {
               compact: compact,
               onTap: () => onSelect(surface),
             ),
+          if (!compact && recent.isNotEmpty && onRecent != null) ...[
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+              child: Text(
+                'RECENT',
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: 10,
+                  letterSpacing: 1.4,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            for (final row in recent)
+              _RecentItem(row: row, onTap: () => onRecent!(row.id)),
+          ],
           const Spacer(),
           if (!compact)
             Padding(
@@ -1797,6 +1869,67 @@ class _NavItem extends StatelessWidget {
                     style: TextStyle(color: LockedInColors.muted, fontSize: 10),
                   ),
                 ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One `RECENT` row: a session name and its date, opening on click.
+///
+/// It is deliberately not a `_NavItem`: a recent entry is a *destination*
+/// inside Sessions, not a surface, so it carries no shortcut label and no
+/// selected state — the surface row already shows that Sessions is open.
+class _RecentItem extends StatelessWidget {
+  const _RecentItem({required this.row, required this.onTap});
+
+  final SessionRow row;
+  final VoidCallback onTap;
+
+  /// `name · YYYY-MM-DD`, or just the name when the core sent no date.
+  ///
+  /// One text node on purpose: the row reads as a destination and does not look
+  /// like a second copy of the open session's own title.
+  String get _label {
+    final name = row.name.isEmpty ? row.id : row.name;
+    if (row.date.isEmpty) return name;
+    final day = row.date.length >= 10 ? row.date.substring(0, 10) : row.date;
+    return '$name · $day';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(6),
+          onTap: onTap,
+          child: Container(
+            height: 32,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.chevron_right,
+                  size: 14,
+                  color: LockedInColors.muted,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _label,
+                    key: ValueKey('recent-session-${row.id}'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+                  ),
+                ),
               ],
             ),
           ),

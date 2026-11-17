@@ -71,6 +71,93 @@ Future<void> sendSessionTurn(WidgetTester tester, String text) async {
 }
 
 void main() {
+  testWidgets('the sidebar lists the newest sessions under RECENT', (
+    tester,
+  ) async {
+    final core = FakeCore();
+    core.sessionRows
+      ..clear()
+      ..addAll([
+        {
+          'id': FakeCore.sessionId,
+          'name': 'Physics — Unit 4',
+          'date': '2026-11-15T12:00:00Z',
+          'sources': 2,
+          'steps': {'done': 1, 'total': 4},
+          'archived': false,
+        },
+        {
+          'id': '2026-10-01-0900-chemistry',
+          'name': 'Chemistry — Bonding',
+          'date': '2026-10-01T09:00:00Z',
+          'sources': 1,
+          'steps': {'done': 0, 'total': 3},
+          'archived': false,
+        },
+        {
+          'id': '2026-09-01-0900-archived',
+          'name': 'Archived one',
+          'date': '2026-09-01T09:00:00Z',
+          'sources': 1,
+          'steps': {'done': 0, 'total': 3},
+          'archived': true,
+        },
+      ]);
+    await pumpShell(tester, core: core);
+
+    expect(find.text('RECENT'), findsOneWidget);
+    // Newest first, and an archived row is not a destination.
+    expect(
+      find.byKey(const ValueKey('recent-session-${FakeCore.sessionId}')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('recent-session-2026-10-01-0900-chemistry')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('recent-session-2026-09-01-0900-archived')),
+      findsNothing,
+    );
+    final newest = tester.getTopLeft(
+      find.byKey(const ValueKey('recent-session-${FakeCore.sessionId}')),
+    );
+    final older = tester.getTopLeft(
+      find.byKey(const ValueKey('recent-session-2026-10-01-0900-chemistry')),
+    );
+    expect(newest.dy, lessThan(older.dy));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a recent row opens that session on the Sessions surface', (
+    tester,
+  ) async {
+    final core = FakeCore();
+    core.sessionRows
+      ..clear()
+      ..add({
+        'id': FakeCore.sessionId,
+        'name': 'Physics — Unit 4',
+        'date': '2026-11-15T12:00:00Z',
+        'sources': 2,
+        'steps': {'done': 1, 'total': 4},
+        'archived': false,
+      });
+    final store = await pumpShell(tester, core: core);
+
+    await tester.tap(
+      find.byKey(const ValueKey('recent-session-${FakeCore.sessionId}')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(store.activeSessionId, FakeCore.sessionId);
+    expect(core.calls, contains('session.open'));
+    // The status bar names the layer, and the detail's own content is on screen.
+    expect(find.text('SESSION'), findsOneWidget);
+    expect(find.text('Explain the problem set.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the session detail shows the coverage report', (tester) async {
     final store = await pumpShell(tester, core: FakeCore());
     await store.openSession(FakeCore.sessionId);

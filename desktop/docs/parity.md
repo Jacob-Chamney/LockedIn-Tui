@@ -60,7 +60,7 @@ be verified in this environment.
 | editable curriculum | done | `skill_detail.dart`, `skill.stages.save` | `skill_stages_test.dart`, `server-skill-stages.test.ts` |
 | gathered sources with excerpts | done | `skill_detail.dart`, `skill.sources.*` | `skill_sources_test.dart` |
 | staged lessons with citations | done | `skill_lesson.dart` | `skill_lesson_test.dart` |
-| multiple chats | **partial** | `skill_chat.dart` | resume and list ship; **starting a second chat is not reachable** (no `skill.chat.create`) |
+| multiple chats | done | `skill_chat.dart`, `core_client.dart` | `Shift+N`, the app-bar icon and the card's `New chat` call `skill.chat.create`; `c` still resumes the newest. `skill_chat_test.dart` |
 | progress and manager actions | done | `skills_page.dart`, `skill.archive/remove/export` | `skills_actions_test.dart`, `server-skill-stages.test.ts` |
 
 ## Work
@@ -84,7 +84,7 @@ be verified in this environment.
 | crimson + high contrast + Codex/Claude + palettes + custom | done | `theme/palette.dart`, `theme.custom.*` | `theme_test.dart`, `theme_custom_test.dart`, `server-theme-custom.test.ts`; the OpenCode palette set is deliberately not exposed |
 | modal editing and mode correctness | done | `shell.dart` | `shell_session_test.dart`, `chat_page_test.dart` |
 | keymap registry, conflict check, generated help/overlay | done | `keymap/`, `shell/leader.dart` | `keymap_test.dart`, `shell_leader_test.dart` |
-| explorer grouping, counts, contextual rows | **partial** | `shell.dart` sidebar | ten surfaces with counts and hints; **no Recent row** |
+| explorer grouping, counts, contextual rows | done | `shell.dart` sidebar | ten surfaces with shortcuts and hints, plus `RECENT`: the three newest readable sessions (`name · date`), newest first, opening that session. `shell_session_test.dart` |
 | reader buffers, search, highlighting, dimming | done | `features/chat/{document_search,code_highlight}.dart` | `document_search_test.dart`, `markdown_highlight_test.dart` |
 | providers, keychain, explicit model choice | done | `settings_page.dart`, keychain addon | `settings_test.dart`, packaged-addon proof |
 | budget, usage, failure policy | done | `src/llm/budget.ts` | `bun run check` suites |
@@ -93,7 +93,7 @@ be verified in this environment.
 | settings sections | done | `settings_page.dart` | `settings_test.dart` |
 | commands | done | `shell/command_line.dart` | `shell_command_test.dart` (registry-derived list, aliases, unknown input) |
 | 80×24 usability | not applicable | — | desktop minimum is 800×600 (`desktop/AGENTS.md` §4) |
-| packaging and install | **blocked** | `scripts/desktop-*` | Linux tarball verified; **Windows build never ran — CI runners are never assigned** |
+| packaging and install | **partial** | `scripts/desktop-*` | Linux tarball, Windows zip and an unsigned per-user NSIS setup all build in CI; the setup is installed and uninstalled on the runner before it is published. **Authenticode signing needs a certificate, and a clean-machine install is not verified** |
 
 ## Automation and optional features
 
@@ -130,12 +130,27 @@ desktop/docs/screenshots/  17 captures across the surfaces
 
 ## Known blockers
 
-1. **Windows.** Every workflow run, including a one-step `echo` probe, completes
-   in ~2 s with zero steps and no runner assigned (`runner_name: ""`), while
-   `actions/permissions` reports `enabled: true`. No self-hosted runner is
-   registered. This is an account-level Actions quota or spending limit; proving
-   it needs a `user`-scoped token (`/users/<login>/settings/billing/actions`)
-   or a Billing fix followed by a re-run.
+1. **Windows — verified.** The private dev repository has no Actions minutes
+   left, so its runs died at 2 s with zero steps and no runner. The public
+   source repository has unlimited minutes, and the first real run there
+   (44046003634, after PR #110 merged) passed both jobs:
+
+   ```
+   desktop (linux x64)    success  4m13s
+   desktop (windows x64)  success  5m49s
+     ✓ Analyze   ✓ Widget tests (806 passed)
+     ✓ Release build with the core sidecar
+         bundled core: …/Release/lockedin-core.exe (release build, 2026.11.12)
+     ✓ Package the Windows zip
+         lockedin-desktop-windows-x64.zip  70,766,930 bytes (67.5 MiB)
+   ```
+
+   Two Windows-only defects were found and fixed by that run: the sidecar
+   environment built the keychain addon path with a hard-coded `/`, and two
+   tests assumed POSIX execute bits and a 5 s FTS budget.
+
+   Still unproven on Windows: Authenticode signing, NSIS/MSIX, install/uninstall
+   and the native keychain addon against a real Credential Manager entry.
 2. **No named gaps remain in this audit.** Everything `docs/product.md` §14
    lists for the desktop is implemented and covered, apart from the Windows
    verifier below and the deliberately unexposed OpenCode palette set.

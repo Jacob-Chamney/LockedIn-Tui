@@ -119,6 +119,44 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('N starts a second chat instead of resuming the newest', (
+    tester,
+  ) async {
+    final core = FakeCore();
+    final store = await openGoal(tester, core: core);
+    expect(store.skillChats.map((chat) => chat.id), ['chat-1', 'chat-2']);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pumpAndSettle();
+
+    // `skill.chat.create` allocated a fresh transcript: never a resume.
+    expect(core.skillChatCreates, [FakeCore.skillId]);
+    expect(core.calls, contains('skill.chat.create'));
+    expect(core.calls, isNot(contains('skill.chat.open')));
+    expect(store.activeSkillChatId, 'chat-3');
+    expect(store.skillChat?.messages, isEmpty);
+    expect(find.byKey(const ValueKey('skill-chat-composer')), findsOneWidget);
+    expect(find.text('SKILL CHAT'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the New chat button does the same through the pointer', (
+    tester,
+  ) async {
+    final core = FakeCore();
+    final store = await openGoal(tester, core: core);
+
+    await tester.tap(find.byKey(const ValueKey('skill-new-chat')));
+    await tester.pumpAndSettle();
+
+    expect(core.skillChatCreates, [FakeCore.skillId]);
+    expect(store.activeSkillChatId, 'chat-3');
+    expect(find.byKey(const ValueKey('skill-chat-composer')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a send calls skill.chat.send, never chat, session or work', (
     tester,
   ) async {
