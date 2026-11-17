@@ -138,7 +138,7 @@ custom palette in the app  -> theme row reads "custom"; app background sampled a
 ## Cross-cutting evidence
 
 ```
-scripts/desktop-check.sh   format, analyze, 810 Flutter tests, 243 core contract tests
+scripts/desktop-check.sh   format, analyze, 811 Flutter tests, 243 core contract tests
 bun run check              3616 tests across 354 files (test:serial runs the same suite)
 public clone, fresh        bun install --frozen-lockfile + bun run check: 3616 pass, 0 fail
 scripts/desktop-package.sh 63 MB tarball: shell, core, keychain addon, licence, notices
@@ -167,8 +167,13 @@ desktop/docs/screenshots/  17 captures across the surfaces
    environment built the keychain addon path with a hard-coded `/`, and two
    tests assumed POSIX execute bits and a 5 s FTS budget.
 
-   Still unproven on Windows: Authenticode signing, NSIS/MSIX, install/uninstall
-   and the native keychain addon against a real Credential Manager entry.
+   The unsigned NSIS setup is built, installed and uninstalled on that runner
+   (runs 44052202347 and 44055236021), so install/uninstall is no longer a gap.
+
+   Still unproven on Windows: Authenticode signing (needs a code-signing
+   certificate), a clean-machine install on a fresh VM, MSIX, and the native
+   keychain addon against a real Credential Manager entry.
 2. **No named gaps remain in this audit.** Everything `docs/product.md` §14
-   lists for the desktop is implemented and covered, apart from the Windows
-   verifier below and the deliberately unexposed OpenCode palette set.
+   lists for the desktop is implemented and covered, apart from Authenticode
+   signing and a clean-machine install (above), the explicit v1 non-goal
+   (`plugin install flow`) and the deliberately unexposed OpenCode palette set.
