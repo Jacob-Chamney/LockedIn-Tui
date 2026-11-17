@@ -1740,45 +1740,55 @@ class _Sidebar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (!compact)
-            Padding(
-              padding: EdgeInsets.fromLTRB(10, 6, 10, 14),
-              child: Text(
-                'WORKSPACE',
-                style: TextStyle(
-                  color: LockedInColors.muted,
-                  fontSize: 10,
-                  letterSpacing: 1.4,
-                  fontWeight: FontWeight.w600,
-                ),
+          // The destinations scroll; the shortcut footer stays pinned. A short
+          // window would otherwise overflow once `RECENT` is populated.
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (!compact)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 6, 10, 14),
+                      child: Text(
+                        'WORKSPACE',
+                        style: TextStyle(
+                          color: LockedInColors.muted,
+                          fontSize: 10,
+                          letterSpacing: 1.4,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  for (final surface in Surface.values)
+                    _NavItem(
+                      surface: surface,
+                      shortcut: shortcuts[surface] ?? '',
+                      selected: active == surface,
+                      compact: compact,
+                      onTap: () => onSelect(surface),
+                    ),
+                  if (!compact && recent.isNotEmpty && onRecent != null) ...[
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+                      child: Text(
+                        'RECENT',
+                        style: TextStyle(
+                          color: LockedInColors.muted,
+                          fontSize: 10,
+                          letterSpacing: 1.4,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    for (final row in recent)
+                      _RecentItem(row: row, onTap: () => onRecent!(row.id)),
+                  ],
+                ],
               ),
             ),
-          for (final surface in Surface.values)
-            _NavItem(
-              surface: surface,
-              shortcut: shortcuts[surface] ?? '',
-              selected: active == surface,
-              compact: compact,
-              onTap: () => onSelect(surface),
-            ),
-          if (!compact && recent.isNotEmpty && onRecent != null) ...[
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
-              child: Text(
-                'RECENT',
-                style: TextStyle(
-                  color: LockedInColors.muted,
-                  fontSize: 10,
-                  letterSpacing: 1.4,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            for (final row in recent)
-              _RecentItem(row: row, onTap: () => onRecent!(row.id)),
-          ],
-          const Spacer(),
+          ),
           if (!compact)
             Padding(
               padding: const EdgeInsets.all(10),

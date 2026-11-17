@@ -105,7 +105,23 @@ be verified in this environment.
 
 ## Release verification (last run)
 
-The release path was exercised end to end on Linux, locally and offline:
+The Windows artifacts are built and exercised on the public repository's own CI
+(run 44052202347), so the installer is proven by installing it:
+
+```
+desktop (windows x64)     success  8m25s
+  ✓ Widget tests          810 passed
+  ✓ Release build         lockedin-core.exe (release build, 2026.11.12)
+  ✓ Package the zip       lockedin-desktop-windows-x64.zip   70,766,930 B (67.5 MiB)
+  ✓ Build + verify setup  lockedin-desktop-windows-x64-setup.exe
+                          52,124,694 B (49.7 MiB)
+                          sha256 563512D74D7259AF78C8A487167E59D72561D578CEF55DE6FB859CD865829D0D
+  ✓ verify: silent install   installed 145.9 MiB into
+                             C:\Users\runneradmin\AppData\Local\Programs\LockedIn
+  ✓ verify: silent uninstall clean, user data untouched
+```
+
+The Linux release path was exercised end to end locally and offline:
 
 ```
 scripts/desktop-package.sh -> dist/lockedin-desktop-linux-x64.tar.gz, 63 MB, 47 entries
@@ -122,9 +138,11 @@ custom palette in the app  -> theme row reads "custom"; app background sampled a
 ## Cross-cutting evidence
 
 ```
-scripts/desktop-check.sh   format, analyze, 806 Flutter tests, 243 core contract tests
-bun run check              3605 tests across 352 files (test:serial runs the same suite)
+scripts/desktop-check.sh   format, analyze, 810 Flutter tests, 243 core contract tests
+bun run check              3616 tests across 354 files (test:serial runs the same suite)
+public clone, fresh        bun install --frozen-lockfile + bun run check: 3616 pass, 0 fail
 scripts/desktop-package.sh 63 MB tarball: shell, core, keychain addon, licence, notices
+scripts/desktop-installer.ps1 49.7 MiB NSIS setup, installed and uninstalled in CI
 desktop/docs/screenshots/  17 captures across the surfaces
 ```
 
