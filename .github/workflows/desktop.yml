@@ -75,6 +75,19 @@ jobs:
       - name: Verify the bundled core is executable
         run: test -x desktop/build/linux/x64/release/bundle/lockedin-core
 
+      - name: Install and uninstall with the user installer
+        run: |
+          prefix="$RUNNER_TEMP/lockedin-prefix"
+          ./scripts/desktop-install.sh --prefix "$prefix"
+          test -x "$prefix/lib/lockedin-desktop/lockedin-core"
+          test -L "$prefix/bin/lockedin-desktop"
+          test -f "$prefix/share/applications/lockedin.desktop"
+          grep -q '^Exec=' "$prefix/share/applications/lockedin.desktop"
+          ./scripts/desktop-install.sh --prefix "$prefix" --uninstall
+          test ! -e "$prefix/bin/lockedin-desktop"
+          test ! -d "$prefix/lib/lockedin-desktop"
+          test ! -e "$prefix/share/applications/lockedin.desktop"
+
   windows:
     name: desktop (windows x64)
     runs-on: windows-2022

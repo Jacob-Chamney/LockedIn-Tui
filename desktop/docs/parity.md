@@ -93,7 +93,7 @@ be verified in this environment.
 | settings sections | done | `settings_page.dart` | `settings_test.dart` |
 | commands | done | `shell/command_line.dart` | `shell_command_test.dart` (registry-derived list, aliases, unknown input) |
 | 80×24 usability | not applicable | — | desktop minimum is 800×600 (`desktop/AGENTS.md` §4) |
-| packaging and install | **partial** | `scripts/desktop-*` | Linux tarball, Windows zip and an unsigned per-user NSIS setup all build in CI; the setup is installed and uninstalled on the runner before it is published. **Authenticode signing needs a certificate, and a clean-machine install is not verified** |
+| packaging and install | **partial** | `scripts/desktop-*` | Linux: tarball plus a per-user install script (`--uninstall`) that CI runs on every build. Windows: zip plus an unsigned per-user NSIS setup, installed and uninstalled on the runner. **Authenticode signing needs a certificate, and a clean-machine install is not verified** |
 
 ## Automation and optional features
 
@@ -160,6 +160,8 @@ scripts/desktop-package.sh 63 MB tarball: shell, core, keychain addon, licence, 
 scripts/desktop-smoke.sh   headless launch: window mapped, 1292 colours painted,
                            workspace.json written by the core, sidecar alive
 scripts/desktop-installer.ps1 49.7 MiB NSIS setup, installed and uninstalled in CI
+scripts/desktop-install.sh install + --uninstall in CI: bundle, bin symlink and
+                           launcher written, all three removed, user data intact
 desktop/docs/screenshots/  17 captures across the surfaces
 ```
 

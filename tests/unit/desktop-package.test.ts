@@ -8,6 +8,7 @@ const WINDOWS_PACKAGE_SCRIPT = join(ROOT, "scripts", "desktop-package.ps1")
 const BUILD_SCRIPT = join(ROOT, "scripts", "desktop-build.sh")
 const WORKFLOW = join(ROOT, ".github", "workflows", "desktop.yml")
 const SMOKE_SCRIPT = join(ROOT, "scripts", "desktop-smoke.sh")
+const INSTALL_SCRIPT = join(ROOT, "scripts", "desktop-install.sh")
 
 test("a self-hosted Windows workflow exists for repositories without minutes", async () => {
   const workflow = await readFile(join(ROOT, ".github", "workflows", "desktop-selfhosted.yml"), "utf8")
@@ -173,4 +174,51 @@ test("the packaged build has a smoke test a tester can run", async () => {
   expect(source).toContain('COLORS" -lt 8')
   // Nothing here may reach a secret or a real keychain.
   expect(source).not.toContain("secrets.")
+})
+
+test("the Linux installer is per-user and reversible", async () => {
+  const info = await stat(INSTALL_SCRIPT)
+  expect(info.isFile()).toBe(true)
+  const head = ((await readFile(INSTALL_SCRIPT, "utf8")).split("\n")[0] ?? "")
+  expect(head.startsWith("#!")).toBe(true)
+  if (process.platform !== "win32") {
+    expect(info.mode & 0o111).not.toBe(0)
+  }
+
+  const source = await readFile(INSTALL_SCRIPT, "utf8")
+  // What it writes, and the only things it writes.
+  for (const needle of [
+    "lib/lockedin-desktop",
+    "bin/lockedin-desktop",
+    "share/applications/lockedin.desktop",
+    "[Desktop Entry]",
+    "--uninstall",
+    "--prefix",
+    "--bundle",
+    "lockedin-core",
+  ]) {
+    expect(source).toContain(needle)
+  }
+  // A per-user install: no sudo, no shell-profile edits, no machine-wide paths.
+  // The word appears in the comments that say so; what must not exist is a
+  // command that runs elevated.
+  expect(source).not.toMatch(/^\s*sudo\s/m)
+  expect(source).not.toContain("/usr/local")
+  expect(source).not.toContain(".bashrc")
+  expect(source).not.toContain(".profile")
+  // The user's data is not the installer's: no recursive delete may name the
+  // workspace or the app-data folder.
+  expect(source).not.toMatch(/rm -rf\s+"?\$HOME\/LockedIn/)
+  expect(source).not.toContain('rm -rf "$LOCKEDIN_DATA_DIR"')
+  // Both argument spellings are handled, because a path with a space needs the
+  // separate form.
+  expect(source).toContain("--prefix)")
+  expect(source).toContain("--prefix=*)")
+})
+
+test("the Linux CI job installs and uninstalls with the user installer", async () => {
+  const workflow = await readFile(WORKFLOW, "utf8")
+  expect(workflow).toContain("scripts/desktop-install.sh --prefix")
+  expect(workflow).toContain("--uninstall")
+  expect(workflow).toContain("share/applications/lockedin.desktop")
 })

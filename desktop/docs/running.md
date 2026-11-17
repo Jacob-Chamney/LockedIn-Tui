@@ -48,6 +48,24 @@ tar -xzf dist/lockedin-desktop-linux-x64.tar.gz -C ~/lockedin-desktop
 ~/lockedin-desktop/lockedin_desktop
 ```
 
+## Install it for your user
+
+```sh
+scripts/desktop-install.sh                    # into ~/.local
+scripts/desktop-install.sh --prefix ~/.local --bundle ~/lockedin-test
+scripts/desktop-install.sh --uninstall
+```
+
+It writes three things and nothing else: the bundle under
+`<prefix>/lib/lockedin-desktop`, a `lockedin-desktop` symlink in `<prefix>/bin`,
+and a launcher entry at `<prefix>/share/applications/lockedin.desktop`. No
+`sudo`, no shell-profile edit. Uninstalling removes exactly those three; the
+workspace (`~/LockedIn`) and the app-data folder are yours and stay.
+
+The same install-and-uninstall cycle runs in CI on every Linux build
+(`desktop.yml`), so the script is verified against the real bundle rather than
+just reviewed.
+
 ## First run
 
 Nothing needs to be prepared. On launch:
