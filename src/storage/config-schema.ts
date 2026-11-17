@@ -154,6 +154,18 @@ export type Config = {
     enabled: boolean
     model: string
   }
+  /**
+   * The global Work write/command opt-in (`docs/product.md` §8.2).
+   *
+   * Both default to false. This is the outer gate: an approval needs the flag
+   * here **and** the resolved agent profile's own flag, and neither can stand in
+   * for the other. Stored in `[work]` in `config.toml`; the profile lives in the
+   * project's `meta.json`.
+   */
+  work: {
+    allow_write: boolean
+    allow_command: boolean
+  }
 }
 
 /** Exactly `docs/data-model.md` §2. */
@@ -214,6 +226,10 @@ export const DEFAULT_CONFIG: Config = {
   decision_layer: {
     enabled: false,
     model: "",
+  },
+  work: {
+    allow_write: false,
+    allow_command: false,
   },
 }
 
@@ -594,6 +610,9 @@ export function validateDocument(document: TomlDocument): Result<Config, ConfigI
 
     () => asBoolean("decision_layer.enabled", get("decision_layer.enabled")),
     () => asString("decision_layer.model", get("decision_layer.model")),
+
+    () => asBoolean("work.allow_write", get("work.allow_write")),
+    () => asBoolean("work.allow_command", get("work.allow_command")),
   ]
 
   for (const step of steps) {
@@ -603,7 +622,7 @@ export function validateDocument(document: TomlDocument): Result<Config, ConfigI
 
   // Tables that must exist as objects; checked after their scalar children so
   // a missing table reports the first key inside it.
-  for (const path of ["ui", "models", "usage", "storage", "archive", "plugins", "decision_layer"]) {
+  for (const path of ["ui", "models", "usage", "storage", "archive", "plugins", "decision_layer", "work"]) {
     const result = table(path, get(path))
     if (!result.ok) return err(result.error)
   }

@@ -1,0 +1,22 @@
+name: lockedin_desktop
+description: "LockedIn desktop frontend — Flutter shell over the Bun core."
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.14.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  material_ui: ^1.1.0
+  cupertino_icons: ^1.0.8
+  file_selector: ^1.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

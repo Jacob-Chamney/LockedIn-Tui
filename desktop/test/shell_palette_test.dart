@@ -1,0 +1,198 @@
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:lockedin_desktop/app.dart';
+import 'package:lockedin_desktop/bridge/core_client.dart';
+import 'package:lockedin_desktop/shell/palette.dart';
+import 'package:material_ui/material_ui.dart';
+
+import 'fake_core.dart';
+
+/// The same shape as `smoke_test.dart`, with a size so the 800×600 case is a
+/// real layout pass rather than a scaled-down 1280×800.
+Future<CoreStore> pumpShell(
+  WidgetTester tester, {
+  FakeCore? core,
+  Size size = const Size(1280, 800),
+}) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  final store = CoreStore(connection: core ?? FakeCore());
+  addTearDown(store.dispose);
+  await store.start();
+  await tester.pumpWidget(LockedInApp(store: store));
+  await tester.pumpAndSettle();
+  return store;
+}
+
+Future<void> pressCtrlK(WidgetTester tester) async {
+  await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+  await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+  await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+  await tester.pumpAndSettle();
+}
+
+Finder inPalette(String text) =>
+    find.descendant(of: find.byType(CommandPalette), matching: find.text(text));
+
+Finder rowOfText(String text) => find.ancestor(
+  of: inPalette(text),
+  matching: find.byKey(const ValueKey('palette-selected')),
+);
+
+void main() {
+  testWidgets('Ctrl+K opens the palette over Chat with every action', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    await pressCtrlK(tester);
+
+    expect(find.byType(CommandPalette), findsOneWidget);
+    for (final label in const [
+      'Chat',
+      'Sessions',
+      'Skills',
+      'Sources',
+      'Stats',
+      'Work',
+      'Review',
+      'Archive',
+      'Knowledge',
+      'Settings',
+      'refresh',
+      'retry',
+      'close',
+    ]) {
+      expect(inPalette(label), findsOneWidget, reason: 'missing row: $label');
+    }
+    expect(find.text('↑↓ move · Enter run · Esc close'), findsOneWidget);
+    expect(inPalette('Chat'), findsOneWidget);
+    expect(rowOfText('Chat'), findsOneWidget);
+  });
+
+  testWidgets('typing sta filters to Stats and Enter opens it', (tester) async {
+    await pumpShell(tester);
+    await pressCtrlK(tester);
+
+    await tester.enterText(find.byKey(const ValueKey('palette-search')), 'sta');
+    await tester.pumpAndSettle();
+
+    expect(inPalette('Stats'), findsOneWidget);
+    expect(inPalette('Chat'), findsNothing);
+    expect(inPalette('Sessions'), findsNothing);
+    expect(inPalette('Settings'), findsNothing);
+    expect(inPalette('refresh'), findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CommandPalette), findsNothing);
+    expect(find.text('TOKENS'), findsOneWidget);
+  });
+
+  testWidgets('Esc closes the palette without changing the surface', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    await pressCtrlK(tester);
+    expect(find.byType(CommandPalette), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CommandPalette), findsNothing);
+    expect(find.text('Ask anything…'), findsOneWidget);
+    expect(find.text('Chill'), findsWidgets);
+    expect(find.text('TOKENS'), findsNothing);
+  });
+
+  testWidgets('down and up move the palette selection', (tester) async {
+    await pumpShell(tester);
+    await pressCtrlK(tester);
+    expect(rowOfText('Chat'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(rowOfText('Sessions'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(rowOfText('Skills'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(rowOfText('Sources'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pumpAndSettle();
+    expect(rowOfText('Skills'), findsOneWidget);
+    expect(find.byType(CommandPalette), findsOneWidget);
+  });
+
+  testWidgets('Ctrl+K still works after the chat composer takes focus', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'a draft question');
+    await tester.pump();
+
+    await pressCtrlK(tester);
+    expect(find.byType(CommandPalette), findsOneWidget);
+    expect(find.byKey(const ValueKey('palette-search')), findsOneWidget);
+
+    // The palette owns typing once it is open, not the composer underneath.
+    await tester.enterText(
+      find.byKey(const ValueKey('palette-search')),
+      'settings',
+    );
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CommandPalette), findsNothing);
+    expect(find.text('friend'), findsOneWidget);
+  });
+
+  testWidgets('refresh runs the store command and closes the palette', (
+    tester,
+  ) async {
+    final core = FakeCore();
+    await pumpShell(tester, core: core);
+    final before = core.calls.where((call) => call == 'workspace.info').length;
+
+    await pressCtrlK(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('palette-search')),
+      'workspace',
+    );
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    final after = core.calls.where((call) => call == 'workspace.info').length;
+    expect(after, greaterThan(before));
+    expect(find.byType(CommandPalette), findsNothing);
+  });
+
+  testWidgets('the palette fits 800x600 without overflow', (tester) async {
+    await pumpShell(tester, size: const Size(800, 600));
+    await pressCtrlK(tester);
+
+    expect(find.byType(CommandPalette), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    // The rows scroll instead of overflowing; dragging stays exception-free.
+    await tester.drag(
+      find.byKey(const ValueKey('palette-list')),
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(CommandPalette), findsOneWidget);
+  });
+}

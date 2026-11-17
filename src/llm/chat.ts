@@ -84,22 +84,73 @@ export async function attachmentToDataUrl(attachment: Attachment): Promise<strin
   return `data:${attachment.mediaType};base64,${Buffer.from(bytes).toString("base64")}`
 }
 
-async function toModelMessages(messages: readonly Message[]): Promise<ModelMessage[]> {
+/** A user message part the AI SDK accepts today: text plus a file/data URL. */
+type UserContentPart = Extract<Extract<ModelMessage, { role: "user" }>["content"], readonly unknown[]>[number]
+
+/**
+ * Turn attachments into `file` parts carrying a `data:` URL (derived at send
+ * time, never stored). More than `MAX_IMAGES` is capped by the service.
+ */
+async function toContentParts(images: readonly Attachment[]): Promise<UserContentPart[]> {
+  const parts: UserContentPart[] = []
+  for (const image of images.slice(0, MAX_IMAGES)) {
+    // `file` + mediaType is the current part shape; `image` is deprecated.
+    parts.push({ type: "file", data: await attachmentToDataUrl(image), mediaType: image.mediaType })
+  }
+  return parts
+}
+
+/**
+ * Build the provider message list.
+ *
+ * Message-level images (a stored user turn that carried attachments) and
+ * request-level images (the composer's current attachments, `ChatRequest.images`)
+ * are both kept. Request images belong to the turn being sent, so they are
+ * appended to the **last** user message; when the request has no user message at
+ * all, one is appended so the images are not dropped.
+ *
+ * There is no vision precheck here: the request carries no model capability
+ * metadata, so a text-only model's refusal arrives as the provider's own error
+ * and is reported once (`docs/product.md` §10.3).
+ */
+async function toModelMessages(
+  messages: readonly Message[],
+  images: readonly Attachment[] = [],
+): Promise<ModelMessage[]> {
   const out: ModelMessage[] = []
   for (const message of messages) {
     if (message.role === "user" && message.images && message.images.length > 0) {
-      const content: ({ type: "text"; text: string } | { type: "file"; data: string; mediaType: string })[] = [
-        { type: "text", text: message.content },
-      ]
-      for (const image of message.images.slice(0, MAX_IMAGES)) {
-        // `file` + mediaType is the current part shape; `image` is deprecated.
-        content.push({ type: "file", data: await attachmentToDataUrl(image), mediaType: image.mediaType })
-      }
+      const content: UserContentPart[] = [{ type: "text", text: message.content }]
+      content.push(...(await toContentParts(message.images)))
       out.push({ role: "user", content })
     } else {
       out.push({ role: message.role, content: message.content })
     }
   }
+
+  if (images.length > 0) {
+    const parts = await toContentParts(images)
+    if (parts.length > 0) {
+      let target = -1
+      for (let index = out.length - 1; index >= 0; index--) {
+        if (out[index]!.role === "user") {
+          target = index
+          break
+        }
+      }
+      const existing = target === -1 ? null : out[target]!
+      if (existing && existing.role === "user") {
+        const content: UserContentPart[] = Array.isArray(existing.content)
+          ? [...existing.content]
+          : [{ type: "text", text: existing.content }]
+        content.push(...parts)
+        out[target] = { role: "user", content }
+      } else {
+        out.push({ role: "user", content: parts })
+      }
+    }
+  }
+
   return out
 }
 
@@ -156,7 +207,10 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
           .map((message) => message.content)
           .filter((content) => content.trim() !== "")
           .join("\n\n")
-        const messages = await toModelMessages(request.messages.filter((message) => message.role !== "system"))
+        const messages = await toModelMessages(
+          request.messages.filter((message) => message.role !== "system"),
+          request.images ?? [],
+        )
         const specs = request.tools ?? []
         const resolver: ToolResolver =
           request.resolveTool ??

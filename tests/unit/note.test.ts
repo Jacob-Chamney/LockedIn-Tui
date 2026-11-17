@@ -20,6 +20,7 @@ import {
 import {
   parseDocument,
   parseFrontmatter,
+  readStringArray,
   serializeDocument,
   serializeFrontmatter,
   type Result,
@@ -235,6 +236,26 @@ describe("note frontmatter", () => {
 
     const back = unwrap(noteFromFrontmatter(parsed, NOTE.body))
     expect(back).toEqual(NOTE)
+  })
+
+  test("a hand-written flow sequence keeps its list", () => {
+    // The writer emits block sequences, but notes are meant to be editable
+    // without the app, and `topics: [Physics, "Cells"]` is what a person writes.
+    const original =
+      "---\ntitle: Boundary conditions\ntopics: [Physics, \"Boundary conditions\"]\n---\nBody\n"
+    const parsed = unwrap(parseDocument(original))
+    expect(readStringArray(parsed.data, "topics")).toEqual(["Physics", "Boundary conditions"])
+
+    // A flow list still round-trips through the canonical block form.
+    const again = unwrap(parseDocument(serializeDocument(parsed.data, parsed.body)))
+    expect(readStringArray(again.data, "topics")).toEqual(["Physics", "Boundary conditions"])
+  })
+
+  test("a nested or broken flow sequence is left as text, not guessed", () => {
+    const nested = unwrap(parseDocument("---\ntopics: [[a], [b]]\n---\nBody\n"))
+    expect(readStringArray(nested.data, "topics")).toEqual([])
+    const broken = unwrap(parseDocument("---\ntopics: [a, b\n---\nBody\n"))
+    expect(readStringArray(broken.data, "topics")).toEqual([])
   })
 
   test("unknown keys survive parse -> serialize -> parse on a full document", () => {

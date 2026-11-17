@@ -78,6 +78,48 @@ export function parseScalar(raw: string): Scalar {
   return trimmed
 }
 
+/**
+ * Parse a YAML flow sequence of scalars (`topics: [Physics, "Cells"]`).
+ *
+ * Block sequences (`- item`) were the only form the writer produced, so a note
+ * a person hand-edited with the flow form silently lost its list: `readStringArray`
+ * saw a string and every consumer treated the key as absent. Returning `null`
+ * for anything that is not a flat list of scalars keeps the previous behaviour
+ * for every other shape instead of guessing.
+ */
+export function parseFlowSequence(raw: string): Scalar[] | null {
+  const text = raw.trim()
+  if (!text.startsWith("[") || !text.endsWith("]")) return null
+  const inner = text.slice(1, -1).trim()
+  if (inner === "") return []
+  const items: string[] = []
+  let current = ""
+  let quote: '"' | "'" | null = null
+  for (const character of inner) {
+    if (quote !== null) {
+      current += character
+      if (character === quote) quote = null
+      continue
+    }
+    if (character === '"' || character === "'") {
+      quote = character
+      current += character
+      continue
+    }
+    if (character === ",") {
+      items.push(current)
+      current = ""
+      continue
+    }
+    // A nested flow collection is not a flat scalar list; leave it as text.
+    if (character === "[" || character === "]" || character === "{" || character === "}") return null
+    current += character
+  }
+  if (quote !== null) return null
+  items.push(current)
+  return items.map((item) => parseScalar(item))
+}
+
 export function needsQuoting(value: string): boolean {
   if (value === "") return true
   if (value !== value.trim()) return true
@@ -209,7 +251,8 @@ function parseMap(
     }
 
     if (rest !== "") {
-      out[key] = parseScalar(rest)
+      const flow = parseFlowSequence(rest)
+      out[key] = flow === null ? parseScalar(rest) : flow
       index++
       continue
     }

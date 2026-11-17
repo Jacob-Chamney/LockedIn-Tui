@@ -22,7 +22,7 @@
     "test:changed": "bun test --parallel --no-isolate --changed",
     "test:branch": "bun test --parallel --no-isolate --changed=dev",
     "test:watch": "bun test --watch",
-    "test:serial": "bun test --max-concurrency=1",
+    "test:serial": "bun test --max-concurrency=1 --path-ignore-patterns='spikes/**' tests",
     "check": "bun run scripts/check.ts",
     "check:ci": "bun run scripts/check.ts --ci",
     "build": "bun run scripts/build.ts",

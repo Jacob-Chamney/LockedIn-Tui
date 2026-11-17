@@ -20,7 +20,7 @@ import {
 } from "../llm/response-style";
 import type { ToolMode } from "../ui/chat/model";
 import type { AppError, Usage } from "../llm/events";
-import { cancel as cancelState, initialChat, loadMore as loadMoreState, pastedText, type Attachment, type ChatState, type Message } from "../ui/chat/model";
+import { MAX_ATTACHMENTS, cancel as cancelState, initialChat, loadMore as loadMoreState, pastedText, type Attachment, type ChatState, type Message } from "../ui/chat/model";
 export type HistoryRecord = { role: "user" | "assistant"; content: string; at: string }
 
 /** `chill.json` — text only, nothing derived, no reasoning. */
@@ -124,6 +124,14 @@ export type ChatController = {
   pasteText: (text: string) => void
   /** Label a pasted image without claiming it can be uploaded. */
   pasteImage: () => void
+  /**
+   * Attach one image to the next message, at most four (product §3.1).
+   *
+   * Metadata only: nothing here opens the file, so an unreadable or unsupported
+   * image is the LLM layer's typed error at send time. `sha256` belongs to the
+   * shared `Attachment` shape but is derived at send time, never trusted.
+   */
+  attachImage: (attachment: Attachment & { sha256?: string }) => AttachImageResult
   /** Queue an "ask about this step" chip for the composer. */
   askAboutStep: (step: string) => void
   /** Mount another page of older history. */
@@ -152,6 +160,9 @@ export type SendOutcome =
   | { kind: "no-model"; reason: string; fix: string }
   | { kind: "ignored"; reason: string; fix: string }
   | { kind: "sent"; requestId: string; outcome: "done" | "cancelled" | "error" }
+
+/** `count` is the number now attached, so a chip can say `2 of 4`. */
+export type AttachImageResult = { ok: true; count: number } | { ok: false; reason: string }
 
 const BLOCK_FIX = "␣ , to raise the limit"
 const MODEL_FIX = "link a key in Settings → Providers"
@@ -610,6 +621,37 @@ export function createChatController(deps: ControllerDeps): ChatController {
     emit({ ...state, pastes: [...state.pastes, { id: `paste-${++pasteSequence}`, kind: "image", lines: 0 }] })
   }
 
+  /**
+   * Attach one image to the next message (product §3.1).
+   *
+   * The path is recorded, not read: a missing file, a huge file or a format the
+   * model cannot take is the LLM layer's typed error when the turn is sent, and
+   * an image that never reaches a provider must not be rejected here on a guess.
+   */
+  function attachImage(attachment: Attachment & { sha256?: string }): AttachImageResult {
+    if (state.status === "streaming") {
+      return { ok: false, reason: "a reply is streaming; stop it before attaching an image" }
+    }
+    if (attachment.path.trim() === "") {
+      return { ok: false, reason: "an image needs a file path" }
+    }
+    const name = attachment.name.trim() === "" ? attachment.path : attachment.name
+    if (state.attachments.length >= MAX_ATTACHMENTS) {
+      return {
+        ok: false,
+        reason: `Up to ${MAX_ATTACHMENTS} images per message. Remove one to add ${name}.`,
+      }
+    }
+    emit({
+      ...state,
+      attachments: [
+        ...state.attachments,
+        { name, path: attachment.path, mediaType: attachment.mediaType },
+      ],
+    })
+    return { ok: true, count: state.attachments.length }
+  }
+
   function askAboutStep(step: string): void {
     if (state.status === "streaming") return
     const text = step.replace(/\s+/g, " ").trim()
@@ -721,6 +763,7 @@ export function createChatController(deps: ControllerDeps): ChatController {
     newline,
     pasteText,
     pasteImage,
+    attachImage,
     askAboutStep,
     loadMore,
     setScrolledUp,
