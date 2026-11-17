@@ -121,6 +121,21 @@ desktop (windows x64)     success  8m25s
   ✓ verify: silent uninstall clean, user data untouched
 ```
 
+The **packaged core** was also driven through a real chat turn against a local
+OpenAI-compatible SSE endpoint (a fake provider; loopback pricing is free):
+
+```
+config.toml       [models] chat = "custom/fake"  base_url = http://127.0.0.1:8123/v1
+chat.send         {"text":"hi"}
+chat.done         {"kind":"sent","requestId":"chat-1","outcome":"done"}
+chat.state        status idle · model custom/fake · usage 17 tokens · 0 µUSD
+                  messages: user "hi" (done), assistant "Hello from the sidecar." (done)
+served            1 completion (no retry)
+```
+
+So the compiled sidecar's HTTP/SSE path, usage mapping and terminal event work
+outside the test harness, not only under `bun test`.
+
 The Linux release path was exercised end to end locally and offline:
 
 ```
@@ -142,6 +157,8 @@ scripts/desktop-check.sh   format, analyze, 811 Flutter tests, 243 core contract
 bun run check              3616 tests across 354 files (test:serial runs the same suite)
 public clone, fresh        bun install --frozen-lockfile + bun run check: 3617 pass, 0 fail
 scripts/desktop-package.sh 63 MB tarball: shell, core, keychain addon, licence, notices
+scripts/desktop-smoke.sh   headless launch: window mapped, 1292 colours painted,
+                           workspace.json written by the core, sidecar alive
 scripts/desktop-installer.ps1 49.7 MiB NSIS setup, installed and uninstalled in CI
 desktop/docs/screenshots/  17 captures across the surfaces
 ```

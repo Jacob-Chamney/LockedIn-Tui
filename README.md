@@ -94,6 +94,25 @@ The first run creates a workspace at `~/LockedIn`. Use `--workspace <path>` or
 bun run start --workspace ~/Learning
 ```
 
+## Desktop app
+
+`desktop/` is a Flutter shell over the same Bun core: the same workspace, the
+same config, the same keys in the OS keychain, talking over stdio JSON-RPC. It
+needs Flutter 3.50 stable to build, and a packaged build needs neither Flutter
+nor Bun to run.
+
+```sh
+scripts/desktop-dev.sh                 # build the core, then `flutter run -d linux`
+scripts/desktop-build.sh linux         # release bundle with the compiled core
+scripts/desktop-package.sh --no-build  # dist/lockedin-desktop-linux-x64.tar.gz
+scripts/desktop-smoke.sh               # launch it headless and prove it paints
+```
+
+Windows uses `scripts/desktop-build.sh windows`, `scripts/desktop-package.ps1`
+and `scripts/desktop-installer.ps1` (a per-user NSIS setup, unsigned for now).
+[`desktop/docs/running.md`](desktop/docs/running.md) covers the first run, the
+environment variables and what to look at while testing.
+
 ## Development
 
 `bun run check` is the full gate: boundary checks, typecheck, the test suite and
