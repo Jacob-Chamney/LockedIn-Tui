@@ -201,7 +201,10 @@ desktop/docs/screenshots/  17 captures across the surfaces
    Manager, not a shim.
 
    Still unproven on Windows: Authenticode signing (needs a code-signing
-   certificate), a clean-machine install on a fresh VM and MSIX.
+   certificate) and a clean-machine install on a fresh VM. MSIX is deliberately
+   not started: an MSIX package only installs when it is signed, so it waits on
+   the same certificate rather than shipping an artifact nobody can install —
+   the NSIS setup already covers the per-user install.
 2. **No named gaps remain in this audit.** Everything `docs/product.md` §14
    lists for the desktop is implemented and covered, apart from Authenticode
    signing and a clean-machine install (above), the explicit v1 non-goal
