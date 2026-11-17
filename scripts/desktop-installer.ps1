@@ -174,7 +174,9 @@ Section "LockedIn" SEC_MAIN
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LockedIn" "DisplayName" "LockedIn"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LockedIn" "DisplayVersion" "$version"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LockedIn" "Publisher" "LockedIn"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LockedIn" "UninstallString" "`"`$INSTDIR\Uninstall.exe`""
+  ; NSIS treats ' as a string delimiter too, so the stored value keeps the
+  ; quotes Windows needs without a second level of escaping.
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LockedIn" "UninstallString" '"`$INSTDIR\Uninstall.exe"'
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LockedIn" "InstallLocation" "`$INSTDIR"
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LockedIn" "NoModify" 1
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LockedIn" "NoRepair" 1
