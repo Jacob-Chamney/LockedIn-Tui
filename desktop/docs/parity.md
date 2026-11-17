@@ -140,7 +140,7 @@ custom palette in the app  -> theme row reads "custom"; app background sampled a
 ```
 scripts/desktop-check.sh   format, analyze, 811 Flutter tests, 243 core contract tests
 bun run check              3616 tests across 354 files (test:serial runs the same suite)
-public clone, fresh        bun install --frozen-lockfile + bun run check: 3616 pass, 0 fail
+public clone, fresh        bun install --frozen-lockfile + bun run check: 3617 pass, 0 fail
 scripts/desktop-package.sh 63 MB tarball: shell, core, keychain addon, licence, notices
 scripts/desktop-installer.ps1 49.7 MiB NSIS setup, installed and uninstalled in CI
 desktop/docs/screenshots/  17 captures across the surfaces
@@ -170,9 +170,19 @@ desktop/docs/screenshots/  17 captures across the surfaces
    The unsigned NSIS setup is built, installed and uninstalled on that runner
    (runs 44052202347 and 44055236021), so install/uninstall is no longer a gap.
 
+   The native keychain addon is also proven there: the contract suite runs its
+   round trip against `@napi-rs/keyring`, and on the Windows runner it reports
+
+   ```
+   secret store: native backend round-trip on win32
+   (pass) secret store > native backend round-trips [40.18ms]
+   ```
+
+   so a secret is written, read back and deleted through Windows Credential
+   Manager, not a shim.
+
    Still unproven on Windows: Authenticode signing (needs a code-signing
-   certificate), a clean-machine install on a fresh VM, MSIX, and the native
-   keychain addon against a real Credential Manager entry.
+   certificate), a clean-machine install on a fresh VM and MSIX.
 2. **No named gaps remain in this audit.** Everything `docs/product.md` §14
    lists for the desktop is implemented and covered, apart from Authenticode
    signing and a clean-machine install (above), the explicit v1 non-goal
