@@ -32,8 +32,13 @@ test("the sidecar is compiled as a release build", async () => {
 test("the packaging script exists and is executable", async () => {
   const info = await stat(PACKAGE_SCRIPT)
   expect(info.isFile()).toBe(true)
-  // Owner/group/world execute bits; the script is invoked directly in CI.
-  expect(info.mode & 0o111).not.toBe(0)
+  // Windows has no POSIX mode bits, so asserting them there failed the Windows
+  // runner. The portable contract is: a file with a shebang that CI can invoke.
+  const head = ((await readFile(PACKAGE_SCRIPT, "utf8")).split("\n")[0] ?? "")
+  expect(head.startsWith("#!")).toBe(true)
+  if (process.platform !== "win32") {
+    expect(info.mode & 0o111).not.toBe(0)
+  }
 })
 
 test("the build script bundles the native keyring addon", async () => {
