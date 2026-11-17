@@ -16,7 +16,7 @@
  *   one actionable line instead of pretending to be configured.
  */
 
-import { mkdir, open, readFile, rename, stat } from "node:fs/promises";
+import { mkdir, open, readFile, rename } from "node:fs/promises";
 import { createProviderService } from "../llm/provider";
 import type { ArchiveBackend, ArchiveError } from "../archive/types";
 import { basename, dirname, join } from "node:path";
@@ -33,7 +33,13 @@ import { createPluginRuntime, type PluginRuntime } from "./actions/plugins";
 import { coreServersFor } from "../mcp/policy";
 import { loadConfig } from "../storage/config";
 import { defaultWorkspaceRoot, workspacePaths } from "../storage/paths";
-import { createWorkspace, openWorkspace, type Workspace, type WorkspaceError } from "../storage/workspace";
+import {
+  createWorkspace,
+  inspectWorkspace,
+  openWorkspace,
+  type Workspace,
+  type WorkspaceError,
+} from "../storage/workspace";
 import type { Config } from "../storage/config-schema";
 import type { SettingsView } from "../ui/settings";
 /** File the chill history lives in, inside the data directory. */
@@ -167,15 +173,6 @@ export function bootFailureFrom(error: WorkspaceError, fallback: string): BootFa
   }
 }
 
-async function exists(path: string): Promise<boolean> {
-  try {
-    await stat(path)
-    return true
-  } catch {
-    return false
-  }
-}
-
 /**
  * The chill history, on disk as text records only.
  *
@@ -271,11 +268,21 @@ export async function boot(options: BootOptions = {}): Promise<Result<Booted, Bo
   const now = options.now ?? (() => new Date())
   const diagnostics: string[] = []
 
-  // 1. The workspace: create it when absent, otherwise open what is there.
-  const openOrCreate = async (path: string) =>
-    (await exists(path))
-      ? openWorkspace(path, options.dataDir ? { dataDir: options.dataDir } : {})
-      : createWorkspace(path, options.dataDir ? { dataDir: options.dataDir } : {})
+  // 1. The workspace: create it when absent **or empty**, otherwise open what is
+  //    there. An empty folder is the documented first-run case
+  //    (`docs/data-model.md` §11: the default path is used "only when it is
+  //    empty or already has the new marker"), and a tester who pre-creates
+  //    `~/LockedIn` would otherwise meet "core offline" on a fresh install.
+  //    `partial`, `unmarked` and `legacy` are still refused by `openWorkspace`,
+  //    which never adopts a folder silently.
+  const workspaceOptions = options.dataDir ? { dataDir: options.dataDir } : {}
+  const openOrCreate = async (path: string) => {
+    const kind = await inspectWorkspace(path)
+    if (!kind.ok) return kind
+    return kind.value === "missing" || kind.value === "empty"
+      ? createWorkspace(path, workspaceOptions)
+      : openWorkspace(path, workspaceOptions)
+  }
 
   let opened = await openOrCreate(root)
   let workspace: Workspace

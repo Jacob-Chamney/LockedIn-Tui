@@ -7,6 +7,7 @@ const PACKAGE_SCRIPT = join(ROOT, "scripts", "desktop-package.sh")
 const WINDOWS_PACKAGE_SCRIPT = join(ROOT, "scripts", "desktop-package.ps1")
 const BUILD_SCRIPT = join(ROOT, "scripts", "desktop-build.sh")
 const WORKFLOW = join(ROOT, ".github", "workflows", "desktop.yml")
+const SMOKE_SCRIPT = join(ROOT, "scripts", "desktop-smoke.sh")
 
 test("a self-hosted Windows workflow exists for repositories without minutes", async () => {
   const workflow = await readFile(join(ROOT, ".github", "workflows", "desktop-selfhosted.yml"), "utf8")
@@ -142,4 +143,34 @@ test("the Windows CI job packages the zip and keeps read-only permissions", asyn
   expect(workflow).not.toContain("secrets.")
   expect(workflow).not.toContain("actions/upload-artifact")
   expect(workflow).not.toContain("pull_request_target")
+})
+
+test("the packaged build has a smoke test a tester can run", async () => {
+  const info = await stat(SMOKE_SCRIPT)
+  expect(info.isFile()).toBe(true)
+  const head = ((await readFile(SMOKE_SCRIPT, "utf8")).split("\n")[0] ?? "")
+  expect(head.startsWith("#!")).toBe(true)
+
+  const source = await readFile(SMOKE_SCRIPT, "utf8")
+  // It must prove the shell painted, the core booted and the sidecar ran, and
+  // it must use throwaway state so a smoke test can never touch real data.
+  for (const needle of [
+    "lockedin_desktop",
+    "lockedin-core",
+    "workspace.json",
+    "import -window",
+    "identify -format",
+    "Xvfb",
+    "dbus-run-session",
+    "LOCKEDIN_WORKSPACE",
+    "LOCKEDIN_DATA_DIR",
+    "--bundle",
+    "--keep",
+  ]) {
+    expect(source).toContain(needle)
+  }
+  // A blank frame is not a pass: the colour count is asserted.
+  expect(source).toContain('COLORS" -lt 8')
+  // Nothing here may reach a secret or a real keychain.
+  expect(source).not.toContain("secrets.")
 })

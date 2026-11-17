@@ -85,6 +85,27 @@ describe("a fresh boot", () => {
     expect(saved.messages).toEqual([{ role: "user", content: "hi", at: "2026-11-01T12:00:00Z" }] as never)
   })
 
+  test("a pre-created empty folder becomes a workspace", async () => {
+    // A tester who makes ~/LockedIn first (or a launcher that does) must not be
+    // met with "core offline": docs/data-model.md §11 says the default path is
+    // used when it is empty or already marked.
+    await mkdir(workspaceRoot, { recursive: true })
+
+    const booted = unwrap(await boot(options()))
+
+    expect(existsSync(join(workspaceRoot, "workspace.json"))).toBe(true)
+    expect(existsSync(join(workspaceRoot, "config.toml"))).toBe(true)
+    expect(booted.workspace.root).toBe(workspaceRoot)
+  })
+
+  test("an empty folder is not reported as a refusal", async () => {
+    await mkdir(workspaceRoot, { recursive: true })
+
+    const result = await boot(options())
+
+    expect(result.ok).toBe(true)
+  })
+
   test("booting twice over one workspace is stable", async () => {
     const first = unwrap(await boot(options()))
     const configBefore = await readFile(join(workspaceRoot, "config.toml"), "utf8")
@@ -114,6 +135,21 @@ describe("refusals", () => {
 
     // Nothing was created inside the legacy folder.
     expect(existsSync(join(legacy, "workspace.json"))).toBe(false)
+  })
+})
+
+describe("refusals", () => {
+  test("a non-empty unmarked folder is still refused", async () => {
+    await mkdir(workspaceRoot, { recursive: true })
+    await writeFile(join(workspaceRoot, "notes.txt"), "mine\n")
+
+    const failure = errorOf(await boot(options()))
+
+    expect(failure.kind).toBe("boot")
+    expect(failure.message.toLowerCase()).toContain("not a lockedin workspace")
+    // The user's file is untouched and no marker was written around it.
+    expect(existsSync(join(workspaceRoot, "notes.txt"))).toBe(true)
+    expect(existsSync(join(workspaceRoot, "workspace.json"))).toBe(false)
   })
 })
 
