@@ -249,8 +249,10 @@ foreach ($entry in $required) {
         Write-Failure "installed file missing: $entry"
     }
 }
-if (-not (Test-Path -LiteralPath (Join-Path $installDir "Uninstall.exe" -PathType Leaf))) {
-    Write-Failure "the installer did not write Uninstall.exe"
+$uninstaller = Join-Path $installDir "Uninstall.exe"
+if (-not (Test-Path -LiteralPath $uninstaller -PathType Leaf)) {
+    $present = @(Get-ChildItem -LiteralPath $installDir -ErrorAction SilentlyContinue | Select-Object -First 12 | ForEach-Object { $_.Name }) -join ", "
+    Write-Failure "the installer did not write Uninstall.exe (installed: $present)"
 }
 $shellKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\LockedIn"
 if (-not (Test-Path -LiteralPath $shellKey)) {
@@ -260,7 +262,6 @@ $folderBytes = (Get-ChildItem -LiteralPath $installDir -Recurse -File | Measure-
 Write-Host ("verify: installed {0:N1} MiB into {1}" -f ($folderBytes / 1MB), $installDir)
 
 Write-Host "verify: silent uninstall"
-$uninstaller = Join-Path $installDir "Uninstall.exe"
 $process = Start-Process -FilePath $uninstaller -ArgumentList @("/S") -Wait -PassThru
 if ($process.ExitCode -ne 0) {
     Write-Failure "uninstaller exited with $($process.ExitCode)"
