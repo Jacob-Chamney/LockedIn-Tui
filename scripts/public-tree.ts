@@ -14,7 +14,7 @@
  * "add or update", not "mirror and prune".
  */
 import { cp, mkdir, stat } from "node:fs/promises";
-import { dirname, join, relative } from "node:path";
+import { dirname, isAbsolute, join, relative } from "node:path";
 
 const ROOT = join(import.meta.dir, "..");
 
@@ -151,7 +151,9 @@ async function main(): Promise<void> {
     console.error("usage: bun run scripts/public-tree.ts <destination> [--check]");
     process.exit(2);
   }
-  const destination = target.startsWith("/") ? target : join(process.cwd(), target);
+  // `isAbsolute`, not a leading "/": a Windows destination is `C:\…`, and
+  // joining that against the cwd produced an impossible path.
+  const destination = isAbsolute(target) ? target : join(process.cwd(), target);
   await mkdir(destination, { recursive: true });
 
   let total = 0;

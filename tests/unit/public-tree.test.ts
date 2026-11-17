@@ -8,6 +8,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -45,10 +46,20 @@ const REQUIRED = [
   "scripts/desktop-package.sh",
 ];
 
+test("an absolute destination is used as-is on every platform", async () => {
+  // The first Windows run failed here: a leading-slash check joined an absolute
+  // `C:\…` destination onto the working directory, which cannot exist.
+  const source = await readFile(join(ROOT, "scripts", "public-tree.ts"), "utf8");
+  expect(source).toContain("isAbsolute(target) ? target : join(process.cwd(), target)");
+  expect(source).not.toContain('target.startsWith("/")');
+});
+
 function render(): string {
   const target = mkdtempSync(join(tmpdir(), "lockedin-public-tree-"));
   const run = Bun.spawnSync({
-    cmd: ["bun", "run", "scripts/public-tree.ts", target],
+    // The running Bun binary, not "bun": a Windows spawn has no shell to
+    // resolve a bare name through.
+    cmd: [process.execPath, "run", "scripts/public-tree.ts", target],
     cwd: ROOT,
     stdout: "pipe",
     stderr: "pipe",
