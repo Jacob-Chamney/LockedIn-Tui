@@ -106,6 +106,7 @@ scripts/desktop-dev.sh                 # build the core, then `flutter run -d li
 scripts/desktop-build.sh linux         # release bundle with the compiled core
 scripts/desktop-package.sh --no-build  # dist/lockedin-desktop-linux-x64.tar.gz
 scripts/desktop-smoke.sh               # launch it headless and prove it paints
+scripts/desktop-install.sh             # per-user install (~/.local) + launcher
 ```
 
 Windows uses `scripts/desktop-build.sh windows`, `scripts/desktop-package.ps1`
