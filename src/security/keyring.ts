@@ -6,6 +6,9 @@
  *   1. `@napi-rs/keyring` pinned to `{ linux: { store: "secret-service" } }`.
  *      The default builder silently falls back to the in-memory kernel keyutils
  *      store, which is not an OS keychain and dies on reboot — forbidden.
+ *      `bun build --compile` does not embed the N-API addon, so a packaged core
+ *      points at the copy shipped beside it with `LOCKEDIN_KEYRING_ADDON`
+ *      (an absolute addon entry file).
  *   2. the platform command shim (`secret-tool` on Linux, `security` on macOS)
  *      as a diagnostic fallback when the addon is not installed.
  *
@@ -15,6 +18,8 @@
  * There is no file backend in this module and no import that can write to
  * disk. A missing backend returns a typed `unavailable` error.
  */
+import { pathToFileURL } from "node:url"
+
 import {
   namespacedName,
   secretError,
@@ -58,14 +63,44 @@ type NativeModule = {
 
 let nativePromise: Promise<NativeModule | null> | null = null
 
+/** Bare package specifier used when no packaged addon is supplied. */
+const NATIVE_PACKAGE = "@napi-rs/keyring"
+
+/**
+ * Environment override for the packaged addon, and nothing else: the value is a
+ * path, never a secret. The core reads it, copies it next to the binary and tells
+ * the app where it landed.
+ */
+export const KEYRING_ADDON_ENV = "LOCKEDIN_KEYRING_ADDON"
+
+/**
+ * The module specifier for the addon: an absolute entry file from
+ * `LOCKEDIN_KEYRING_ADDON` when it is set and non-blank, otherwise the bare
+ * package name.
+ *
+ * A filesystem path is not a portable dynamic-import specifier — Windows in
+ * particular rejects `C:\…` — so the override is converted to a `file:` URL. A
+ * value that already is one is used as-is. The path is never printed: an error
+ * here must not echo the machine's layout.
+ */
+function nativeSpecifier(): string {
+  const override = process.env[KEYRING_ADDON_ENV]?.trim()
+  if (!override) return NATIVE_PACKAGE
+  return override.startsWith("file:") ? override : pathToFileURL(override).href
+}
+
 /**
  * Load the addon lazily and only once. It is an optional dependency of the
  * app at this stage (WP-111 packages it), so a missing module is an
  * `unavailable` backend — never a reason to fall back to a file.
+ *
+ * The probe is memoised, so `LOCKEDIN_KEYRING_ADDON` is read on the first load
+ * of the process; changing it afterwards needs `resetNativeProbe()` (which is
+ * what the tests do) or a restart.
  */
 async function loadNative(): Promise<NativeModule | null> {
   if (nativePromise) return nativePromise
-  const specifier = "@napi-rs/keyring"
+  const specifier = nativeSpecifier()
   nativePromise = (async () => {
     try {
       return (await import(/* @vite-ignore */ specifier)) as unknown as NativeModule

@@ -172,7 +172,7 @@ describe("note store", () => {
     expect(reread.data.zotero_id).toBe("ABC-123")
   })
 
-  test("refuses a silent frontmatter shape change", async () => {
+  test("a flow list is read, then written back in canonical block form", async () => {
     const { store } = await seeded("shape")
     const file = join(store.vault, "concepts/inline.md")
     const original = [
@@ -189,17 +189,21 @@ describe("note store", () => {
     writeFileSync(file, original, "utf8")
     unwrap(await store.refresh())
 
+    // The parser understands a flow list, so the tags are not lost: the write
+    // succeeds and the file is rewritten in the canonical block form. Refusing
+    // here would mean "read a note, edit the body, get an error".
     const stored = unwrap(await store.read("concepts/inline.md"))
-    const error = expectErr(
-      await store.write({ path: "concepts/inline.md", note: stored.note }),
-    )
-    expect(error.kind).toBe("note")
-    if (error.kind === "note") {
-      expect(error.message).toContain("tags")
-      expect(error.next.length).toBeGreaterThan(0)
-    }
-    // nothing was rewritten, including the inline list the parser cannot read
-    expect(readFileSync(file, "utf8")).toBe(original)
+    expect(stored.note.tags).toEqual(["physics", "energy"])
+
+    unwrap(await store.write({ path: "concepts/inline.md", note: stored.note }))
+
+    const written = readFileSync(file, "utf8")
+    // The store rewrites only the fields it owns, so the author's flow form
+    // survives a write it did not ask to change.
+    expect(written).toContain("tags: [physics, energy]")
+    const reread = unwrap(await store.read("concepts/inline.md"))
+    expect(reread.note.tags).toEqual(["physics", "energy"])
+    expect(reread.note.title).toBe("Inline")
   })
 
   test("writes atomically and updates the index", async () => {

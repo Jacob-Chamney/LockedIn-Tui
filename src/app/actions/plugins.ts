@@ -1,10 +1,14 @@
 /**
  * The MCP host as the shell sees it: start/stop configured servers, keep a
- * small cache of their tools, and expose the read-only ones to a chat.
+ * small cache of their tools, and expose them to a chat under the policy layer.
  *
- * Write tools are deliberately not offered yet: the policy layer would answer
- * `approval-required`, and there is no approval surface in the shell, so the
- * safe first slice is read-only tools only.
+ * **Write tools need a per-call gate.** They are offered only when a
+ * `PluginWriteApprover` is supplied — either per `sourceFor` call or installed
+ * on the runtime by `setWriteApproval`. Without one they are absent, which is
+ * the safe default for a frontend with no approval surface. With one, every
+ * write *call* asks again: nothing is remembered, no call is bulk-approved and a
+ * denied call never reaches the server. The gate is a consent check, not a
+ * sandbox: an approved tool may still have side effects of its own.
  */
 import type { ChatMode } from "../../llm/chat"
 import type { ToolResolver, ToolSpec } from "../../llm/tools"
@@ -12,6 +16,22 @@ import { decidePolicy, coreServersFor } from "../../mcp/policy"
 import { createMcpHost, type McpHost } from "../../mcp/stdio"
 import type { McpServerConfig, McpTool } from "../../mcp/types"
 import type { ChatToolSource } from "./projects"
+
+/** One write-capable plugin call, put to the user before it runs. */
+export type PluginWriteRequest = {
+  server: string
+  tool: string
+  input: Record<string, unknown>
+}
+
+/**
+ * The per-call write gate.
+ *
+ * The answer is for this one call. A `false` answer (or a timeout, decided by
+ * the caller) becomes a typed `permission` tool result; the plugin is not
+ * called.
+ */
+export type PluginWriteApprover = (request: PluginWriteRequest) => Promise<boolean>
 
 export type PluginRow = {
   name: string
@@ -28,9 +48,38 @@ export type PluginRuntime = {
   connect(id: string): Promise<PluginRow[]>
   close(id: string): Promise<PluginRow[]>
   setEnabled(id: string, enabled: boolean): Promise<PluginRow[]>
-  /** Read-only plugin tools for a mode; `explicitCall` is the `learning-web` opt-in. */
-  sourceFor(mode: ChatMode, options?: { explicitCall?: boolean }): ChatToolSource | null
+  /** Plugin tools for a mode; `explicitCall` is the `learning-web` opt-in. */
+  sourceFor(
+    mode: ChatMode,
+    options?: {
+      explicitCall?: boolean
+      /**
+       * The per-call gate for write tools. When absent, write tools are not
+       * offered at all. The installed gate from `setWriteApproval` is the
+       * fallback, so a chat built by boot gets the gate without changing its
+       * call site.
+       */
+      approveWrite?: PluginWriteApprover
+    },
+  ): ChatToolSource | null
+  /**
+   * Install the process-wide per-call write gate.
+   *
+   * The Flutter core installs this once, after boot, so every chat controller
+   * boot builds (Chill, session, work, skill) asks the shell through
+   * `mcp.permission` before a write tool runs. `null` removes the gate and makes
+   * write tools absent again.
+   */
+  setWriteApproval?(approveWrite: PluginWriteApprover | null): void
   dispose(): Promise<void>
+}
+
+export type PluginRuntimeOptions = {
+  /**
+   * Test seam: use this host instead of spawning stdio servers. Production
+   * never passes one, so a real runtime always talks to the configured servers.
+   */
+  host?: McpHost
 }
 
 function rowFor(
@@ -55,11 +104,18 @@ function isWebServer(id: string): boolean {
 
 export function createPluginRuntime(
   configs: readonly McpServerConfig[],
+  options: PluginRuntimeOptions = {},
 ): PluginRuntime {
-  const host: McpHost = createMcpHost(configs)
+  const host: McpHost = options.host ?? createMcpHost(configs)
   const tools = new Map<string, McpTool[]>()
   const failures = new Map<string, string>()
   const byId = new Map(configs.map((config) => [config.id, config]))
+  /**
+   * The installed per-call gate. It is deliberately not a list of approved
+   * calls: `sourceFor` consults it on every write call, so a run of write tools
+   * asks once per call and nothing survives the call it approved.
+   */
+  let installedApproval: PluginWriteApprover | null = null
 
   const rows = (): PluginRow[] =>
     configs.map((config) =>
@@ -118,23 +174,31 @@ export function createPluginRuntime(
       else await load(id)
       return rows()
     },
-    sourceFor(mode, options) {
-      const explicitCall = options?.explicitCall === true
+    sourceFor(mode, sourceOptions) {
+      const explicitCall = sourceOptions?.explicitCall === true
+      const approveWrite = sourceOptions?.approveWrite ?? installedApproval ?? undefined
       const entries: Array<{ id: string; tool: McpTool }> = []
       for (const config of configs) {
         const coreForMode = coreServersFor(mode).includes(config.id)
         if (config.enabled === false) continue
         if (!host.state(config.id).alive) continue
         for (const tool of tools.get(config.id) ?? []) {
-          // Read-only only: a write tool needs the approval surface (P-29).
-          if (!tool.readOnly) continue
+          // Product invariant: Chill is read-only, so a write tool is never
+          // offered there however the policy is configured or the gate set.
+          if (!tool.readOnly && mode === "chill") continue
+          // A write tool is offered only when a gate exists: without one there
+          // is no approval surface, so the call could never be consented to.
+          if (!tool.readOnly && approveWrite === undefined) continue
           const verdict = decidePolicy(mode, tool, {
             enabled: true,
             core: config.core === true || coreForMode,
             serverId: config.id,
             explicitCall,
           })
-          if (verdict.kind === "allow") entries.push({ id: config.id, tool })
+          // `off` and the mode rules win over any gate: a write tool the policy
+          // refuses is never offered, so it can never be approved into running.
+          if (verdict.kind === "deny") continue
+          entries.push({ id: config.id, tool })
         }
       }
       if (entries.length === 0) return null
@@ -144,7 +208,7 @@ export function createPluginRuntime(
         description: `${tool.description} (external explanation)`,
         inputSchema: { type: "object", additionalProperties: true },
         side: "none",
-        write: false,
+        write: !tool.readOnly,
         command: false,
         // The core web server's tools are the ones a learning chat hides
         // unless the user opted in with `learning-web`.
@@ -160,12 +224,36 @@ export function createPluginRuntime(
           serverId: entry.id,
           explicitCall,
         })
-        if (verdict.kind !== "allow") {
+        if (verdict.kind === "deny") {
           return JSON.stringify({ ok: false, error: { ...verdict.error, server: entry.id } })
         }
+        if (verdict.kind === "approval-required") {
+          // The same write tool call, a fresh decision: no cache, no session
+          // grant, no bulk approve. A missing gate here is a closed gate.
+          if (approveWrite === undefined) {
+            return JSON.stringify({ ok: false, error: { ...verdict.error, server: entry.id } })
+          }
+          let approved = false
+          try {
+            approved = await approveWrite({ server: entry.id, tool: entry.tool.name, input })
+          } catch {
+            approved = false
+          }
+          if (!approved) {
+            return JSON.stringify({
+              ok: false,
+              error: { kind: "permission", message: "the user declined this plugin write" },
+            })
+          }
+        }
         // The host runs the policy again, so the explicit opt-in must travel
-        // with the call or a lock-in plugin is denied after being offered.
-        const result = await host.call(entry.id, entry.tool.name, input, { mode, explicitCall })
+        // with the call or a lock-in plugin is denied after being offered, and
+        // a write call carries the one-call approval or the host denies it.
+        const result = await host.call(entry.id, entry.tool.name, input, {
+          mode,
+          explicitCall,
+          ...(entry.tool.readOnly ? {} : { approval: { granted: true } }),
+        })
         return result.ok
           ? result.value.text
           : JSON.stringify({ ok: false, error: { ...result.error, server: entry.id } })
@@ -176,6 +264,9 @@ export function createPluginRuntime(
         resolveTool,
         context: async () => "",
       }
+    },
+    setWriteApproval(approveWrite) {
+      installedApproval = approveWrite
     },
     async dispose() {
       await host.close()

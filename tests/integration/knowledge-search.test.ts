@@ -101,6 +101,8 @@ afterEach(async () => {
 
 describe("both sides, labelled", () => {
   test("a term in each side returns one hit per side, each labelled", async () => {
+    // Three indexed searches over two vaults; a Windows runner needs more than
+    // bun's 5 s default for the first FTS build in this file.
     const result = await searchKnowledge(workspace, "balance OR disassembly")
     // Each side is searched separately, so a shared term still labels correctly.
     const schoolOnly = await searchKnowledge(workspace, "balance")
@@ -120,7 +122,7 @@ describe("both sides, labelled", () => {
       expect(hit.path.startsWith("/")).toBe(false)
     }
     expect(result.counts.school).toBeGreaterThanOrEqual(0)
-  })
+  }, 30_000)
 
   test("hits carry side, path, title, snippet and kind", async () => {
     const result = await searchKnowledge(workspace, "energy")
