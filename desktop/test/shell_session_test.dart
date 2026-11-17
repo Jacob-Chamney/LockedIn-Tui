@@ -129,6 +129,35 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('the sidebar scrolls instead of overflowing in a short window', (
+    tester,
+  ) async {
+    final core = FakeCore();
+    core.sessionRows
+      ..clear()
+      ..addAll([
+        for (var index = 0; index < 3; index++)
+          {
+            'id': '2026-11-0${index + 1}-0900-short-$index',
+            'name': 'Session $index',
+            'date': '2026-11-0${index + 1}T09:00:00Z',
+            'sources': 1,
+            'steps': {'done': 0, 'total': 2},
+            'archived': false,
+          },
+      ]);
+    // Wide and short: the sidebar is not compact, so every `RECENT` row shows.
+    await pumpShell(tester, core: core, size: const Size(1280, 560));
+
+    expect(find.text('RECENT'), findsOneWidget);
+    // A RenderFlex overflow would surface as a framework exception here.
+    expect(tester.takeException(), isNull);
+    // The destinations are reachable by scrolling, not clipped away.
+    await tester.drag(find.text('RECENT'), const Offset(0, -200));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a recent row opens that session on the Sessions surface', (
     tester,
   ) async {
