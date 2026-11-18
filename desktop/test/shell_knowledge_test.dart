@@ -90,21 +90,11 @@ void main() {
     await pumpShell(tester, core: core);
 
     expect(find.text('Knowledge'), findsWidgets);
-    expect(
-      tester
-          .widget<Text>(
-            find.byKey(const ValueKey('surface-shortcut-knowledge')),
-          )
-          .data,
-      '9',
-    );
-    // Settings is the tenth surface: its sidebar row shows Alt+0, not `10`.
-    expect(
-      tester
-          .widget<Text>(find.byKey(const ValueKey('surface-shortcut-settings')))
-          .data,
-      '0',
-    );
+    // The sidebar keeps the chord in the row's tooltip rather than beside the
+    // label, where it read as a count.
+    expect(find.byTooltip('Alt+9 · Knowledge'), findsOneWidget);
+    // Settings is the tenth surface: its chord is Alt+0, not `10`.
+    expect(find.byTooltip('Alt+0 · Settings'), findsOneWidget);
 
     await pressCtrlK(tester);
     expect(

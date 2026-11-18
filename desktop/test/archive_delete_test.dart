@@ -419,6 +419,9 @@ void main() {
       await store.refreshArchive();
 
       expect(store.archiveRows.length, 2);
+      // Startup reads the lists the sidebar counts, so compare against that
+      // baseline rather than an absolute number.
+      final skillReads = _calls(core, 'skill.list');
       await expectLater(
         store.removeArchive(id: skillsArchiveId, side: 'skills'),
         throwsA(
@@ -431,7 +434,7 @@ void main() {
       );
       expect(core.archiveRemoves, isEmpty);
       expect(store.archiveRows.length, 2);
-      expect(_calls(core, 'skill.list'), 0);
+      expect(_calls(core, 'skill.list'), skillReads);
     },
   );
 
@@ -444,6 +447,9 @@ void main() {
       await store.start();
       await store.refreshArchive();
       expect(store.archiveRows.length, 2);
+      final archiveReads = _calls(core, 'archive.list');
+      final skillReads = _calls(core, 'skill.list');
+      final sessionReads = _calls(core, 'session.list');
 
       await store.removeArchive(id: skillsArchiveId, side: 'skills');
 
@@ -452,9 +458,9 @@ void main() {
       expect(core.archiveRemoves.single['side'], 'skills');
       // The archive is re-read and the goals list is refreshed; the live
       // session list is untouched by a skills delete (only boot read it).
-      expect(_calls(core, 'archive.list'), 2);
-      expect(_calls(core, 'skill.list'), 1);
-      expect(_calls(core, 'session.list'), 1);
+      expect(_calls(core, 'archive.list'), archiveReads + 1);
+      expect(_calls(core, 'skill.list'), skillReads + 1);
+      expect(_calls(core, 'session.list'), sessionReads);
       expect(store.archiveRows.length, 1);
       expect(store.archiveRows.single.side, 'school');
       expect(store.skills.length, 3);
@@ -471,6 +477,7 @@ void main() {
       await store.refreshArchive();
       final liveBefore = store.sessions.map((row) => row.id).toList();
       final rowsBefore = core.sessionRows.length;
+      final sessionReads = _calls(core, 'session.list');
 
       await store.removeArchive(id: schoolArchiveId, side: 'school');
 
@@ -483,7 +490,7 @@ void main() {
       expect(core.sessionRows.length, rowsBefore);
       expect(store.sessions.any((row) => row.id == schoolArchiveId), isFalse);
       // A school delete refreshes the school list it is already projecting.
-      expect(_calls(core, 'session.list'), 2);
+      expect(_calls(core, 'session.list'), sessionReads + 1);
     },
   );
 
@@ -495,15 +502,18 @@ void main() {
       addTearDown(store.dispose);
       await store.start();
       await store.refreshArchive();
+      final archiveReads = _calls(core, 'archive.list');
+      final skillReads = _calls(core, 'skill.list');
+      final sessionReads = _calls(core, 'session.list');
 
       await store.restoreArchive(id: skillsArchiveId, side: 'skills');
 
       expect(core.archiveRestores.length, 1);
       expect(core.archiveRestores.single['id'], skillsArchiveId);
       expect(core.archiveRestores.single['side'], 'skills');
-      expect(_calls(core, 'archive.list'), 2);
-      expect(_calls(core, 'skill.list'), 1);
-      expect(_calls(core, 'session.list'), 1);
+      expect(_calls(core, 'archive.list'), archiveReads + 1);
+      expect(_calls(core, 'skill.list'), skillReads + 1);
+      expect(_calls(core, 'session.list'), sessionReads);
       expect(
         store.archiveRows.any((row) => row.id == skillsArchiveId),
         isFalse,
@@ -525,6 +535,7 @@ void main() {
     addTearDown(store.dispose);
     await store.start();
     await store.refreshArchive();
+    final archiveReads = _calls(core, 'archive.list');
 
     await expectLater(
       store.removeArchive(id: schoolArchiveId, side: 'school'),
@@ -539,6 +550,6 @@ void main() {
 
     expect(core.archiveRemoves, isEmpty);
     expect(store.archiveRows.length, 2);
-    expect(_calls(core, 'archive.list'), 1);
+    expect(_calls(core, 'archive.list'), archiveReads);
   });
 }

@@ -9,6 +9,7 @@ import '../../bridge/protocol.dart';
 import '../../keymap/binding.dart';
 import '../../keymap/registry.dart';
 import '../../theme/palette.dart';
+import 'theme_picker.dart';
 import 'keybinds_section.dart';
 
 /// Projection of the core's settings snapshot with one write flow.
@@ -663,6 +664,12 @@ class _SettingsBodyState extends State<_SettingsBody> {
   void _activate() {
     if (_rows.isEmpty || _savingId != null) return;
     final row = _rows[_selected];
+    // The theme row opens a picker: the built-ins are a visible choice, not a
+    // value that changes each time Enter is pressed.
+    if (row.id == 'theme' && widget.onSaveSettings != null) {
+      unawaited(_openThemePicker());
+      return;
+    }
     if (row.policy != null && widget.onSetMcpPolicy != null) {
       _advancePolicy(row);
       return;
@@ -674,6 +681,60 @@ class _SettingsBodyState extends State<_SettingsBody> {
       _toggle(row, edit, save);
     } else {
       _openEditor(edit, save);
+    }
+  }
+
+  /// Choose a theme from the catalogue (`Enter` on the theme row).
+  ///
+  /// One `settings.patch` of `ui.theme`, then the palette is applied locally so
+  /// the app repaints before the new snapshot arrives. A refusal keeps the old
+  /// theme and prints the core's sentence under the row. Choosing the theme
+  /// already in use writes nothing.
+  Future<void> _openThemePicker() async {
+    final save = widget.onSaveSettings;
+    if (save == null) return;
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (_) => ThemePickerDialog(
+        current: widget.settings.theme,
+        customTokens: widget.customThemeTokens?.values ?? const {},
+      ),
+    );
+    if (!mounted || picked == null) return;
+    final tokens = widget.customThemeTokens?.values;
+    if (picked == widget.settings.theme.trim()) {
+      setState(() {
+        _noticeId = 'theme';
+        _notice = 'already using ${paletteLabel(picked)}';
+      });
+      return;
+    }
+    setState(() {
+      _savingId = 'theme';
+      _rowErrorId = null;
+      _rowError = null;
+      _noticeId = null;
+      _notice = null;
+    });
+    try {
+      await save({
+        'ui': {'theme': picked},
+      });
+      if (!mounted) return;
+      applyPaletteOr(picked, tokens: tokens);
+      setState(() {
+        _savingId = null;
+        _customApplied = picked == 'custom';
+        _noticeId = 'theme';
+        _notice = 'theme: ${paletteLabel(picked)}';
+      });
+    } on RpcException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _savingId = null;
+        _rowErrorId = 'theme';
+        _rowError = error.message;
+      });
     }
   }
 
@@ -2489,11 +2550,11 @@ List<_SettingGroup> _buildGroups(
           id: 'theme',
           label: 'theme',
           value: _text(settings.theme),
-          hint: 'c custom · e edit palette',
+          hint: 'Enter pick · c custom · e edit palette',
           edit: _SettingEdit(
             kind: _EditKind.toggle,
             label: 'theme',
-            help: 'Enter cycles the built-in themes; c picks custom',
+            help: 'Enter picks a theme from the catalogue; c picks custom',
             togglePatch: () => {
               'ui': {'theme': nextThemeId(settings.theme)},
             },

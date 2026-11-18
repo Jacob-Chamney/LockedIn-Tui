@@ -42,16 +42,40 @@ class WorkPage extends StatefulWidget {
 
 class _WorkPageState extends State<WorkPage> {
   static const _selectedRowKey = ValueKey('project-row-selected');
+  static const _searchFieldKey = ValueKey('work-search');
 
   final _rowKeys = <String, GlobalKey>{};
+  final _searchController = TextEditingController();
+  final _searchFocus = FocusNode();
   var _selectedIndex = 0;
   var _dialogOpen = false;
 
-  List<ProjectRow> get _visible => widget.projects;
+  /// The live search query. Filtering projects the rows the shell already sent:
+  /// no project is re-read and nothing is called for a keystroke.
+  var _query = '';
+
+  List<ProjectRow> get _visible {
+    final query = _query.trim().toLowerCase();
+    if (query.isEmpty) return widget.projects;
+    return [
+      for (final row in widget.projects)
+        if (row.name.toLowerCase().contains(query) ||
+            row.id.toLowerCase().contains(query) ||
+            row.folder.toLowerCase().contains(query))
+          row,
+    ];
+  }
 
   int get _selected {
     if (_visible.isEmpty) return -1;
     return _selectedIndex.clamp(0, _visible.length - 1);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocus.dispose();
+    super.dispose();
   }
 
   GlobalKey _rowKey(String id) =>
@@ -100,6 +124,15 @@ class _WorkPageState extends State<WorkPage> {
       return KeyEventResult.ignored;
     }
     final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.slash) {
+      if (event is KeyDownEvent) _searchFocus.requestFocus();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.escape && _query.isNotEmpty) {
+      _searchController.clear();
+      setState(() => _query = '');
+      return KeyEventResult.handled;
+    }
     if (key == LogicalKeyboardKey.arrowDown ||
         key == LogicalKeyboardKey.arrowUp ||
         key == LogicalKeyboardKey.keyJ ||
@@ -136,6 +169,25 @@ class _WorkPageState extends State<WorkPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _header(compact: constraints.maxWidth < 560),
+                const SizedBox(height: 10),
+                TextField(
+                  key: _searchFieldKey,
+                  controller: _searchController,
+                  focusNode: _searchFocus,
+                  onChanged: (value) => setState(() {
+                    _query = value;
+                    _selectedIndex = 0;
+                  }),
+                  decoration: const InputDecoration(
+                    hintText: 'search projects',
+                    isDense: true,
+                    prefixIcon: Icon(Icons.search, size: 16),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 12),
                 Expanded(child: _body(showMode: showMode)),
               ],
@@ -161,12 +213,16 @@ class _WorkPageState extends State<WorkPage> {
           ),
         ),
         const SizedBox(width: 10),
-        _CountChip('${widget.projects.length}'),
+        _CountChip(
+          _query.isEmpty
+              ? '${widget.projects.length}'
+              : '${_visible.length} of ${widget.projects.length}',
+        ),
         if (!compact) ...[
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '↑↓ move · Enter open · n new project',
+              '↑↓ move · Enter open · n new project · / search',
               textAlign: TextAlign.right,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -189,6 +245,26 @@ class _WorkPageState extends State<WorkPage> {
       );
     }
     if (widget.projects.isEmpty) return _centered(const _EmptyState());
+    if (_visible.isEmpty) {
+      return _centered(
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.search_off, size: 26, color: LockedInColors.muted),
+            const SizedBox(height: 10),
+            Text(
+              'no project matches “${_query.trim()}”',
+              style: TextStyle(color: LockedInColors.foreground, fontSize: 13),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Esc clears the search',
+              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -206,9 +282,9 @@ class _WorkPageState extends State<WorkPage> {
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.only(bottom: 8),
-            itemCount: widget.projects.length,
+            itemCount: _visible.length,
             itemBuilder: (context, index) {
-              final project = widget.projects[index];
+              final project = _visible[index];
               final isSelected = index == _selected;
               return Padding(
                 key: _rowKey(project.id),
