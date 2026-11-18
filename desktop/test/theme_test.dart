@@ -216,8 +216,8 @@ void main() {
     });
   });
 
-  group('settings theme row', () {
-    testWidgets('Enter cycles the built-in ids and saves ui.theme', (
+  group('settings theme picker', () {
+    testWidgets('Enter opens the catalogue and saves the chosen theme', (
       tester,
     ) async {
       final saved = <Map<String, dynamic>>[];
@@ -236,21 +236,42 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
 
+      // The whole catalogue is visible, with the stored id marked in use.
+      for (final label in [
+        'LockedIn Crimson',
+        'High Contrast',
+        'Claude Code',
+        'Codex',
+        'Custom palette',
+      ]) {
+        expect(find.text(label), findsOneWidget);
+      }
+      expect(find.text('in use'), findsOneWidget);
+
+      // Down once lands on High Contrast; Enter applies it.
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+
       expect(saved, [
         {
           'ui': {'theme': 'high-contrast'},
         },
       ]);
-      expect(find.byType(AlertDialog), findsNothing);
+      expect(activeThemeId, 'high-contrast');
+      expect(find.text('High Contrast'), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('the last id wraps around to crimson', (tester) async {
+    testWidgets('choosing the theme already in use writes nothing', (
+      tester,
+    ) async {
       final saved = <Map<String, dynamic>>[];
       await _pumpSettings(
         tester,
         SettingsPage(
-          settings: _settings(theme: 'codex'),
+          settings: _settings(),
           loading: false,
           onSaveSettings: (patch) async => saved.add(patch),
         ),
@@ -259,15 +280,38 @@ void main() {
       await _selectRow(tester, 'theme');
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
 
-      expect(saved, [
-        {
-          'ui': {'theme': 'lockedin'},
-        },
-      ]);
+      expect(saved, isEmpty);
+      expect(find.text('already using LockedIn Crimson'), findsOneWidget);
     });
 
-    testWidgets('an unknown stored id cycles to the first built-in', (
+    testWidgets('Esc closes the picker without a write', (tester) async {
+      final saved = <Map<String, dynamic>>[];
+      await _pumpSettings(
+        tester,
+        SettingsPage(
+          settings: _settings(),
+          loading: false,
+          onSaveSettings: (patch) async => saved.add(patch),
+        ),
+      );
+
+      await _selectRow(tester, 'theme');
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      expect(saved, isEmpty);
+      expect(find.text('High Contrast'), findsNothing);
+      expect(activeThemeId, 'lockedin');
+    });
+
+    testWidgets('an unknown stored id starts the picker on crimson', (
       tester,
     ) async {
       final saved = <Map<String, dynamic>>[];
@@ -281,6 +325,8 @@ void main() {
       );
 
       await _selectRow(tester, 'theme');
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
 
@@ -303,7 +349,7 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
 
-      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text('High Contrast'), findsNothing);
       expect(_markedRow('theme'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
@@ -325,6 +371,10 @@ void main() {
       );
 
       await _selectRow(tester, 'theme');
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
 
@@ -357,6 +407,12 @@ void main() {
       expect(find.text('SETTINGS'), findsWidgets);
 
       await _selectRow(tester, 'theme');
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      // The picker lists the catalogue; the second entry is High Contrast.
+      expect(find.text('High Contrast'), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
 

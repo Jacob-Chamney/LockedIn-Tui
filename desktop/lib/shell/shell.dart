@@ -183,6 +183,38 @@ class _ShellState extends State<Shell> {
   /// it returns the user to where they were (a page's search field, a list).
   FocusNode? _focusBeforeCommand;
 
+  /// The count each sidebar row shows, when it has one.
+  ///
+  /// Counts are the destinations' real sizes (`docs/design.md` §5: "counts in
+  /// section headers"), read from the snapshot the core already sent — the
+  /// sidebar never asks for a list of its own. A surface with nothing countable
+  /// (Chat, Sources, Settings) simply has no entry, and a list the shell has not
+  /// read yet (Review, Archive, Knowledge) shows none until it is opened: a
+  /// count of `0` would be a guess.
+  Map<Surface, String> _sidebarCounts(CoreStore store) {
+    final review = store.review?.counts.total ?? 0;
+    return {
+      Surface.sessions: '${store.sessions.length}',
+      Surface.skills: '${store.skills.length}',
+      Surface.work: '${store.projects.length}',
+      Surface.review: review == 0 ? '' : '$review',
+      Surface.archive: store.archiveRows.isEmpty
+          ? ''
+          : '${store.archiveRows.length}',
+      Surface.knowledge: store.knowledgeGroups.isEmpty
+          ? ''
+          : '${store.knowledgeGroups.length}',
+    };
+  }
+
+  /// `earned/total`, once the achievements snapshot has been read. An unread
+  /// snapshot shows nothing rather than `0/0`.
+  String _achievementsCount(CoreStore store) {
+    if (store.achievements.isEmpty) return '';
+    final earned = store.achievements.where((row) => row.unlocked).length;
+    return '$earned/${store.achievements.length}';
+  }
+
   /// The sidebar's `RECENT` rows: the newest readable sessions, at most three.
   ///
   /// An archived or broken session is not "recent" — it is not somewhere the
@@ -597,6 +629,9 @@ class _ShellState extends State<Shell> {
                             ),
                         },
                         onSelect: _select,
+                        counts: _sidebarCounts(store),
+                        achievements: _achievementsCount(store),
+                        onAchievements: _openAchievements,
                         recent: _recentSessions(store),
                         onRecent: (id) =>
                             unawaited(_openRecentSession(store, id)),
@@ -1700,6 +1735,48 @@ class _CoreChip extends StatelessWidget {
   }
 }
 
+/// One destination in the sidebar: a surface, or the Achievements layer that
+/// lives over Stats.
+sealed class _SidebarEntry {
+  const _SidebarEntry();
+}
+
+class _SurfaceEntry extends _SidebarEntry {
+  const _SurfaceEntry(this.surface);
+  final Surface surface;
+}
+
+class _AchievementsEntry extends _SidebarEntry {
+  const _AchievementsEntry();
+}
+
+/// A heading in the sidebar and the destinations under it. `docs/design.md`
+/// §2.4 asks for grouped destinations rather than one flat list; a null title
+/// is the first, unlabelled group (Chill).
+typedef _SidebarGroup = (String?, List<_SidebarEntry>);
+
+const _sidebarGroups = <_SidebarGroup>[
+  (null, [_SurfaceEntry(Surface.chat)]),
+  (
+    'LEARN',
+    [
+      _SurfaceEntry(Surface.sessions),
+      _SurfaceEntry(Surface.skills),
+      _SurfaceEntry(Surface.review),
+    ],
+  ),
+  ('PRODUCTIVITY', [_SurfaceEntry(Surface.work)]),
+  (
+    'REFERENCE',
+    [
+      _SurfaceEntry(Surface.stats),
+      _AchievementsEntry(),
+      _SurfaceEntry(Surface.archive),
+      _SurfaceEntry(Surface.knowledge),
+    ],
+  ),
+];
+
 class _Sidebar extends StatelessWidget {
   const _Sidebar({
     required this.compact,
@@ -1707,6 +1784,9 @@ class _Sidebar extends StatelessWidget {
     required this.footer,
     required this.shortcuts,
     required this.onSelect,
+    this.counts = const {},
+    this.achievements = '',
+    this.onAchievements,
     this.recent = const [],
     this.onRecent,
   });
@@ -1714,10 +1794,21 @@ class _Sidebar extends StatelessWidget {
   final bool compact;
   final Surface active;
 
+  /// Each destination's size (`3` sessions, `12` review items). An absent or
+  /// empty value draws no count, so a surface with nothing countable stays
+  /// quiet instead of showing a meaningless zero.
+  final Map<Surface, String> counts;
+
+  /// `earned/total` for the Achievements row, or empty before it is read.
+  final String achievements;
+
+  /// Open the Achievements layer. Null when the shell cannot.
+  final VoidCallback? onAchievements;
+
   /// The last few readable sessions, newest first. The sidebar lists them as
-  /// destinations (`docs/product.md` §2.4): selecting one opens that session,
-  /// exactly as the Sessions manager would. Empty is a valid state and the
-  /// section disappears rather than showing a placeholder list.
+  /// destinations: selecting one opens that session, exactly as the Sessions
+  /// manager would. Empty is a valid state and the section disappears rather
+  /// than showing a placeholder list.
   final List<SessionRow> recent;
 
   /// Open one of [recent] by id. Null when the shell cannot open sessions.
@@ -1731,10 +1822,27 @@ class _Sidebar extends StatelessWidget {
 
   final ValueChanged<Surface> onSelect;
 
+  String _countFor(_SidebarEntry entry) => switch (entry) {
+    _SurfaceEntry(:final surface) => counts[surface] ?? '',
+    _AchievementsEntry() => achievements,
+  };
+
+  String _shortcutFor(_SidebarEntry entry) => switch (entry) {
+    _SurfaceEntry(:final surface) => shortcuts[surface] ?? '',
+    // The achievements layer has no surface chord of its own; `a` is the
+    // registry's action and the leader overlay documents it.
+    _AchievementsEntry() => '',
+  };
+
+  bool _selected(_SidebarEntry entry) => switch (entry) {
+    _SurfaceEntry(:final surface) => active == surface,
+    _AchievementsEntry() => false,
+  };
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: compact ? 64 : 196,
+      width: compact ? 64 : 208,
       color: LockedInColors.surface,
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
       child: Column(
@@ -1747,29 +1855,50 @@ class _Sidebar extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (!compact)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 6, 10, 14),
-                      child: Text(
-                        'WORKSPACE',
-                        style: TextStyle(
-                          color: LockedInColors.muted,
-                          fontSize: 10,
-                          letterSpacing: 1.4,
-                          fontWeight: FontWeight.w600,
+                  for (final (index, group) in _sidebarGroups.indexed) ...[
+                    if (group.$1 != null && !compact)
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          10,
+                          index == 0 ? 6 : 14,
+                          10,
+                          6,
+                        ),
+                        child: Text(
+                          group.$1!,
+                          style: TextStyle(
+                            color: LockedInColors.muted,
+                            fontSize: 10,
+                            letterSpacing: 1.4,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-                  for (final surface in Surface.values)
-                    _NavItem(
-                      surface: surface,
-                      shortcut: shortcuts[surface] ?? '',
-                      selected: active == surface,
-                      compact: compact,
-                      onTap: () => onSelect(surface),
-                    ),
+                    if (group.$1 == null && !compact) const SizedBox(height: 4),
+                    for (final entry in group.$2)
+                      _SidebarRow(
+                        label: switch (entry) {
+                          _SurfaceEntry(:final surface) => surface.label,
+                          _AchievementsEntry() => 'Achievements',
+                        },
+                        icon: switch (entry) {
+                          _SurfaceEntry(:final surface) => surface.icon,
+                          _AchievementsEntry() => Icons.emoji_events_outlined,
+                        },
+                        count: compact ? '' : _countFor(entry),
+                        shortcut: compact ? '' : _shortcutFor(entry),
+                        selected: _selected(entry),
+                        compact: compact,
+                        onTap: switch (entry) {
+                          _SurfaceEntry(:final surface) => () => onSelect(
+                            surface,
+                          ),
+                          _AchievementsEntry() => onAchievements,
+                        },
+                      ),
+                  ],
                   if (!compact && recent.isNotEmpty && onRecent != null) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
                       child: Text(
@@ -1789,6 +1918,23 @@ class _Sidebar extends StatelessWidget {
               ),
             ),
           ),
+          // Settings is pinned under a rule: it is the destination a user
+          // reaches for mid-task, and scrolling to find it would be a
+          // regression from the flat list this replaced.
+          if (!compact)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Container(height: 1, color: LockedInColors.line),
+            ),
+          _SidebarRow(
+            label: Surface.settings.label,
+            icon: Surface.settings.icon,
+            count: '',
+            shortcut: compact ? '' : (shortcuts[Surface.settings] ?? ''),
+            selected: active == Surface.settings,
+            compact: compact,
+            onTap: () => onSelect(Surface.settings),
+          ),
           if (!compact)
             Padding(
               padding: const EdgeInsets.all(10),
@@ -1807,92 +1953,20 @@ class _Sidebar extends StatelessWidget {
   }
 }
 
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.surface,
-    required this.shortcut,
-    required this.selected,
-    required this.compact,
-    required this.onTap,
-  });
-
-  final Surface surface;
-  final String shortcut;
-  final bool selected;
-  final bool compact;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: Material(
-        color: selected ? LockedInColors.panel : Colors.transparent,
-        borderRadius: BorderRadius.circular(6),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(6),
-          onTap: onTap,
-          child: Container(
-            height: 40,
-            padding: EdgeInsets.symmetric(horizontal: compact ? 0 : 10),
-            decoration: BoxDecoration(
-              border: Border(
-                left: BorderSide(
-                  color: selected ? LockedInColors.primary : Colors.transparent,
-                  width: 2,
-                ),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: compact
-                  ? MainAxisAlignment.center
-                  : MainAxisAlignment.start,
-              children: [
-                Icon(
-                  surface.icon,
-                  size: 18,
-                  color: selected
-                      ? LockedInColors.primary
-                      : LockedInColors.muted,
-                ),
-                if (!compact) ...[
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      surface.label,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: selected
-                            ? LockedInColors.foreground
-                            : LockedInColors.muted,
-                        fontWeight: selected
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    shortcut,
-                    key: ValueKey('surface-shortcut-${surface.name}'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 10),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// One `RECENT` row: a session name and its date, opening on click.
 ///
-/// It is deliberately not a `_NavItem`: a recent entry is a *destination*
+/// It is deliberately not a `_SidebarRow`: a recent entry is a *destination*
 /// inside Sessions, not a surface, so it carries no shortcut label and no
 /// selected state — the surface row already shows that Sessions is open.
+/// One `RECENT` row: a session name and its date, opening on click.
+///
+/// It is deliberately not a `_SidebarRow`: a recent entry is a *destination*
+/// inside Sessions, not a surface, so it carries no shortcut chip and no
+/// selected state — the surface row already shows that Sessions is open.
+///
+/// The name and the date are one text node so the row reads as a destination
+/// (`Physics — Unit 4 · 2026-11-15`) rather than a second copy of the title the
+/// open session shows.
 class _RecentItem extends StatelessWidget {
   const _RecentItem({required this.row, required this.onTap});
 
@@ -1900,9 +1974,6 @@ class _RecentItem extends StatelessWidget {
   final VoidCallback onTap;
 
   /// `name · YYYY-MM-DD`, or just the name when the core sent no date.
-  ///
-  /// One text node on purpose: the row reads as a destination and does not look
-  /// like a second copy of the open session's own title.
   String get _label {
     final name = row.name.isEmpty ? row.id : row.name;
     if (row.date.isEmpty) return name;
@@ -1941,6 +2012,118 @@ class _RecentItem extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A destination row: icon, label, its size, and the key that opens it.
+///
+/// The shortcut is drawn as a keycap on purpose. A bare muted digit beside a
+/// label reads as a count, which is exactly what the old sidebar did: `Sessions
+/// 2` looked like two sessions whether the user had two or twenty. The count
+/// now sits next to the label and the digit sits in a bordered keycap.
+class _SidebarRow extends StatelessWidget {
+  const _SidebarRow({
+    required this.label,
+    required this.icon,
+    required this.count,
+    required this.shortcut,
+    required this.selected,
+    required this.compact,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final String count;
+  final String shortcut;
+  final bool selected;
+  final bool compact;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Tooltip(
+      message: shortcut.isEmpty ? label : 'Alt+$shortcut · $label',
+      waitDuration: const Duration(milliseconds: 500),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: Material(
+          color: selected ? LockedInColors.panel : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(6),
+            onTap: onTap,
+            child: Container(
+              height: 40,
+              padding: EdgeInsets.symmetric(horizontal: compact ? 0 : 10),
+              decoration: BoxDecoration(
+                border: Border(
+                  left: BorderSide(
+                    color: selected
+                        ? LockedInColors.primary
+                        : Colors.transparent,
+                    width: 2,
+                  ),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: compact
+                    ? MainAxisAlignment.center
+                    : MainAxisAlignment.start,
+                children: [
+                  Icon(
+                    icon,
+                    size: 18,
+                    color: selected
+                        ? LockedInColors.primary
+                        : LockedInColors.muted,
+                  ),
+                  if (!compact) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: selected
+                              ? LockedInColors.foreground
+                              : LockedInColors.muted,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                    // The size sits in a fixed, right-aligned column. The
+                    // chord is not drawn here on purpose: beside a count it read
+                    // as a second count ("Sessions 3 2"). It stays in the
+                    // tooltip, the palette and the footer summary, which is
+                    // where a keyboard user looks for a binding.
+                    if (count.isNotEmpty)
+                      SizedBox(
+                        width: 30,
+                        child: Text(
+                          count,
+                          key: ValueKey('sidebar-count-${label.toLowerCase()}'),
+                          textAlign: TextAlign.right,
+                          maxLines: 1,
+                          style: TextStyle(
+                            color: LockedInColors.muted,
+                            fontSize: 11,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ),
+                  ],
+                ],
+              ),
             ),
           ),
         ),

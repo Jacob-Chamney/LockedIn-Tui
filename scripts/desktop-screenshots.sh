@@ -262,6 +262,14 @@ key Escape
 key alt+0
 shot settings
 
+# `Enter` on the theme row opens the picker: the catalogue, each palette's own
+# swatch, and the active entry marked. `Esc` leaves the stored theme alone.
+echo "== theme picker"
+key Down
+key Return
+shot theme-picker
+key Escape
+
 # The connect-model dialog is the only capture that needs a pointer: the
 # settings list owns the arrow keys, so the script clicks the button. The window
 # is pinned to $WIDE at +0+0 (no window manager), so the point is stable.

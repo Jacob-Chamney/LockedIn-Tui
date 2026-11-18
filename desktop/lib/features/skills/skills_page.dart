@@ -66,8 +66,16 @@ class SkillsPage extends StatefulWidget {
 class _SkillsPageState extends State<SkillsPage> {
   static const _selectedRowKey = ValueKey('skill-row-selected');
 
+  static const _searchFieldKey = ValueKey('skills-search');
+
   final _rowKeys = <String, GlobalKey>{};
+  final _searchController = TextEditingController();
+  final _searchFocus = FocusNode();
   var _selectedIndex = 0;
+
+  /// The live search query. Filtering is a projection of the rows the shell
+  /// already sent, so a keystroke never re-reads a goal.
+  var _query = '';
 
   /// The one blocked-action line. It is cleared by `Esc` and by opening a goal.
   String? _notice;
@@ -91,11 +99,27 @@ class _SkillsPageState extends State<SkillsPage> {
       widget.onDelete != null ||
       widget.onExport != null;
 
-  List<SkillRow> get _visible => widget.skills;
+  List<SkillRow> get _visible {
+    final query = _query.trim().toLowerCase();
+    if (query.isEmpty) return widget.skills;
+    return [
+      for (final row in widget.skills)
+        if (row.name.toLowerCase().contains(query) ||
+            row.id.toLowerCase().contains(query))
+          row,
+    ];
+  }
 
   int get _selected {
     if (_visible.isEmpty) return -1;
     return _selectedIndex.clamp(0, _visible.length - 1);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocus.dispose();
+    super.dispose();
   }
 
   GlobalKey _rowKey(String id) =>
@@ -273,6 +297,10 @@ class _SkillsPageState extends State<SkillsPage> {
       return KeyEventResult.ignored;
     }
     final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.slash && !_dialogOpen) {
+      if (event is KeyDownEvent) _searchFocus.requestFocus();
+      return KeyEventResult.handled;
+    }
     if (key == LogicalKeyboardKey.arrowDown ||
         key == LogicalKeyboardKey.arrowUp ||
         key == LogicalKeyboardKey.keyJ ||
@@ -312,6 +340,11 @@ class _SkillsPageState extends State<SkillsPage> {
       if (event is KeyDownEvent) _newGoal();
       return KeyEventResult.handled;
     }
+    if (key == LogicalKeyboardKey.escape && _query.isNotEmpty) {
+      _searchController.clear();
+      setState(() => _query = '');
+      return KeyEventResult.handled;
+    }
     if (key == LogicalKeyboardKey.escape &&
         (_notice != null || _actionError != null || _actionNotice != null)) {
       setState(() {
@@ -339,6 +372,25 @@ class _SkillsPageState extends State<SkillsPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _header(compact: constraints.maxWidth < 560),
+                const SizedBox(height: 10),
+                TextField(
+                  key: _searchFieldKey,
+                  controller: _searchController,
+                  focusNode: _searchFocus,
+                  onChanged: (value) => setState(() {
+                    _query = value;
+                    _selectedIndex = 0;
+                  }),
+                  decoration: const InputDecoration(
+                    hintText: 'search goals',
+                    isDense: true,
+                    prefixIcon: Icon(Icons.search, size: 16),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                  ),
+                ),
                 if (_hasActions) ...[
                   const SizedBox(height: 8),
                   Text(
@@ -376,12 +428,16 @@ class _SkillsPageState extends State<SkillsPage> {
           ),
         ),
         const SizedBox(width: 10),
-        _CountChip('${widget.skills.length}'),
+        _CountChip(
+          _query.isEmpty
+              ? '${widget.skills.length}'
+              : '${_visible.length} of ${widget.skills.length}',
+        ),
         if (!compact) ...[
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '↑↓ move · Enter open · n new goal',
+              '↑↓ move · Enter open · n new goal · / search',
               textAlign: TextAlign.right,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -406,6 +462,28 @@ class _SkillsPageState extends State<SkillsPage> {
     if (widget.skills.isEmpty) {
       return _centered(
         _EmptyState(onCreate: widget.onCreate, onNotice: _newGoal),
+      );
+    }
+    // A search that matches nothing is a state, not a blank panel: it names the
+    // query and the key that clears it (`docs/design.md` §8).
+    if (_visible.isEmpty) {
+      return _centered(
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.search_off, size: 26, color: LockedInColors.muted),
+            const SizedBox(height: 10),
+            Text(
+              'no goal matches “${_query.trim()}”',
+              style: TextStyle(color: LockedInColors.foreground, fontSize: 13),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Esc clears the search',
+              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            ),
+          ],
+        ),
       );
     }
 
@@ -440,9 +518,9 @@ class _SkillsPageState extends State<SkillsPage> {
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.only(bottom: 8),
-            itemCount: widget.skills.length,
+            itemCount: _visible.length,
             itemBuilder: (context, index) {
-              final skill = widget.skills[index];
+              final skill = _visible[index];
               final isSelected = index == _selected;
               return Padding(
                 key: _rowKey(skill.id),

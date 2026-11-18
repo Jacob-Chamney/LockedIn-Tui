@@ -116,8 +116,15 @@ leaves the frame at `$TMPDIR/lockedin-smoke/smoke.png` for inspection.
 - **Work** — `n` registers an existing folder. Writes and commands are off until
   they are switched on in Settings **and** the agent profile allows them; every
   write or command still needs its own approval.
+- **Sidebar** — grouped destinations with a live count each (sessions, goals,
+  projects), `RECENT` for the three newest sessions, and Achievements as its own
+  row over Stats.
+- **Managers** — `Sessions` sorts (`o`) and searches (`/`); `Skills` and `Work`
+  search by name (`/`), and a query that matches nothing says so and names `Esc`.
 - **Settings** — providers, models, budget, storage, archive, plugins, themes,
-  keybinds, appearance. Every change applies immediately.
+  keybinds, appearance. `Enter` on **theme** opens the picker: every palette with
+  its own swatch, the active one marked, `c` for the custom palette and `e` to
+  edit its twelve tokens. Every change applies immediately.
 - **Stats, Review, Archive, Knowledge** — read-only surfaces over the same data.
 
 `Alt+1…9` switches surfaces, `Alt+0` Settings, `Ctrl+K` opens the command

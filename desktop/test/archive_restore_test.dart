@@ -259,6 +259,8 @@ void main() {
       await store.refreshArchive();
       expect(store.archiveRows.length, 2);
       final sessionsBefore = store.sessions.length;
+      final archiveReads = _calls(core, 'archive.list');
+      final sessionReads = _calls(core, 'session.list');
 
       await store.restoreArchive(id: schoolArchiveId, side: 'school');
 
@@ -266,8 +268,8 @@ void main() {
       expect(core.archiveRestores.single['id'], schoolArchiveId);
       expect(core.archiveRestores.single['side'], 'school');
       // One successful restore re-reads both lists exactly once.
-      expect(_calls(core, 'archive.list'), 2);
-      expect(_calls(core, 'session.list'), 2);
+      expect(_calls(core, 'archive.list'), archiveReads + 1);
+      expect(_calls(core, 'session.list'), sessionReads + 1);
       expect(store.archiveRows.length, 1);
       expect(store.archiveRows.single.side, 'skills');
       expect(store.sessions.length, sessionsBefore + 1);
@@ -314,6 +316,9 @@ void main() {
     await store.start();
     await store.refreshArchive();
     expect(store.archiveRows.length, 2);
+    final archiveReads = _calls(core, 'archive.list');
+    final skillReads = _calls(core, 'skill.list');
+    final sessionReads = _calls(core, 'session.list');
 
     await store.restoreArchive(id: skillsArchiveId, side: 'skills');
 
@@ -322,9 +327,9 @@ void main() {
     expect(core.archiveRestores.single['side'], 'skills');
     // The archive is re-read and the goals list is refreshed; a goal is never a
     // live session, so `session.list` is only the boot read.
-    expect(_calls(core, 'archive.list'), 2);
-    expect(_calls(core, 'skill.list'), 1);
-    expect(_calls(core, 'session.list'), 1);
+    expect(_calls(core, 'archive.list'), archiveReads + 1);
+    expect(_calls(core, 'skill.list'), skillReads + 1);
+    expect(_calls(core, 'session.list'), sessionReads);
     expect(store.archiveRows.any((row) => row.id == skillsArchiveId), isFalse);
     expect(
       core.sessionRows.any((row) => row['id'] == skillsArchiveId),

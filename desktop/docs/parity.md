@@ -27,7 +27,7 @@ be verified in this environment.
 | source-bound chat, labelled history | done | `session_chat.dart`, `src/server/protocol.ts` | `session_detail_test.dart`, `server-session-chat.test.ts` |
 | memory extraction | done | `src/server/protocol.ts` (`recordTurn`) | `server-session-memory.test.ts`, `session_memory_test.dart` |
 | session opens on chat | done | `shell.dart` | `shell_session_test.dart` |
-| manager: sort/search/reopen/archive/delete/export | done | `sessions_page.dart` | `sessions_test.dart`, `sessions_sort_test.dart`, `session_actions_test.dart` |
+| manager: sort/search/reopen/archive/delete/export | done | `sessions_page.dart`, `skills_page.dart`, `work_page.dart` | `sessions_test.dart`, `sessions_sort_test.dart`, `session_actions_test.dart`, `manager_search_test.dart`: Sessions sorts and searches, Skills and Work search by name (and folder), and a query that matches nothing is a state with its next action |
 | source adding to an existing session | done | `features/sources/`, `source.add` | `sources_test.dart` |
 | session settings (prompt, import, re-extract) | done | `session_settings.dart` | `session_settings_test.dart` |
 
@@ -81,10 +81,10 @@ be verified in this environment.
 
 | Item | State | Where | Evidence |
 |---|---|---|---|
-| crimson + high contrast + Codex/Claude + palettes + custom | done | `theme/palette.dart`, `theme.custom.*` | `theme_test.dart`, `theme_custom_test.dart`, `server-theme-custom.test.ts`; the OpenCode palette set is deliberately not exposed |
+| crimson + high contrast + Codex/Claude + palettes + custom | done | `theme/palette.dart`, `features/settings/theme_picker.dart`, `theme.custom.*` | `theme_test.dart`, `theme_custom_test.dart`, `server-theme-custom.test.ts`; the Settings row opens a picker that lists every palette with its own swatch and marks the active one, `c` applies custom and `e` edits its twelve tokens. The OpenCode palette set is deliberately unexposed |
 | modal editing and mode correctness | done | `shell.dart` | `shell_session_test.dart`, `chat_page_test.dart` |
 | keymap registry, conflict check, generated help/overlay | done | `keymap/`, `shell/leader.dart` | `keymap_test.dart`, `shell_leader_test.dart` |
-| explorer grouping, counts, contextual rows | done | `shell.dart` sidebar | ten surfaces with shortcuts and hints, plus `RECENT`: the three newest readable sessions (`name · date`), newest first, opening that session. `shell_session_test.dart` |
+| explorer grouping, counts, contextual rows | done | `shell.dart` sidebar | grouped destinations (LEARN, PRODUCTIVITY, REFERENCE), a count per row from the snapshot the core already sent, Achievements as its own destination over Stats, Settings pinned under a rule, and `RECENT` for the three newest sessions. `shell_sidebar_test.dart` |
 | reader buffers, search, highlighting, dimming | done | `features/chat/{document_search,code_highlight}.dart` | `document_search_test.dart`, `markdown_highlight_test.dart` |
 | providers, keychain, explicit model choice | done | `settings_page.dart`, keychain addon | `settings_test.dart`, packaged-addon proof |
 | budget, usage, failure policy | done | `src/llm/budget.ts` | `bun run check` suites |

@@ -1132,9 +1132,19 @@ class CoreStore extends ChangeNotifier {
   }
 
   Future<void> refreshAll() async {
+    // The lists the sidebar counts are loaded at startup, not on first open:
+    // a count that reads `0` until the user visits the surface is worse than no
+    // count. Only the three library listings belong here: they are folder
+    // reads the shell already needs. The review queue is not (it scores every
+    // session's coverage), the archive is not (its GitHub backend would make a
+    // network call on the first frame), and the achievements snapshot is not
+    // (reading it records award dates, a write that belongs to opening the
+    // layer). Those counts appear once their surface has been opened.
     await Future.wait([
       refreshWorkspace(),
       refreshSessions(),
+      refreshSkills(),
+      refreshProjects(),
       refreshStats(),
       refreshSettings(),
       refreshKeybinds(),
