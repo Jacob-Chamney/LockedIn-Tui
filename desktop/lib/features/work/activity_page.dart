@@ -82,9 +82,9 @@ class _ActivityPageState extends State<ActivityPage> {
   final _rowKeys = <int, GlobalKey>{};
   var _selected = 0;
 
-  /// The row whose full record is showing, or -1. A click expands the row it
-  /// lands on: the summary line is not the whole decision.
-  var _expanded = -1;
+  /// The rows whose full record is showing. More than one can be open: the log
+  /// is a list to compare, not a set of tabs.
+  final _expanded = <int>{};
 
   int get _selectedRow => widget.records.isEmpty
       ? -1
@@ -396,12 +396,8 @@ class _ActivityPageState extends State<ActivityPage> {
           key: ValueKey('activity-row-$index'),
           borderRadius: BorderRadius.circular(7),
           onTap: () => setState(() {
-            if (_expanded == index) {
-              _expanded = -1;
-              return;
-            }
             _selected = index;
-            _expanded = index;
+            if (!_expanded.remove(index)) _expanded.add(index);
           }),
           child: Container(
             key: selected ? _selectedRowKey : null,
@@ -507,7 +503,7 @@ class _ActivityPageState extends State<ActivityPage> {
                             ),
                         ],
                       ),
-                      if (_expanded == index) ...[
+                      if (_expanded.contains(index)) ...[
                         const SizedBox(height: 8),
                         Container(
                           key: ValueKey('activity-expanded-$index'),

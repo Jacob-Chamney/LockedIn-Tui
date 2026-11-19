@@ -151,6 +151,31 @@ Future<void> openLog(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('more than one record can be expanded at once', (tester) async {
+    await pumpPage(
+      tester,
+      ActivityPage(
+        records: _list.records,
+        skipped: _list.skipped,
+        empty: _list.empty,
+        project: FakeCore.projectId,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('activity-row-0')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('activity-row-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('activity-row-1')));
+    await tester.pumpAndSettle();
+
+    // The log is a list to compare, so opening one row does not close another.
+    expect(find.byKey(const ValueKey('activity-expanded-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('activity-expanded-1')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a click expands a record and a second click collapses it', (
     tester,
   ) async {

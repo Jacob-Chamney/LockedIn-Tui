@@ -41,10 +41,15 @@ class SessionDetailView extends StatefulWidget {
     this.onCloseDocument,
     this.onOpenSettings,
     this.onOpenOutput,
+    this.initialStep,
   });
 
   /// The core's `session.open` projection, or null while it is unavailable.
   final SessionDetail? detail;
+
+  /// The step the reader should land on, when the session was opened from a
+  /// review item that names one. Null keeps the first step.
+  final int? initialStep;
 
   /// True while the shell is opening or refreshing the session.
   final bool loading;
@@ -172,8 +177,9 @@ class _SessionDetailViewState extends State<SessionDetailView> {
   int _lastSearchStart = -1;
 
   /// Task-item ordinal under the cursor. It is an ordinal in the markdown, not
-  /// a line number, because that is the index the core's toggle takes.
-  var _selectedStep = 0;
+  /// a line number, because that is the index the core's toggle takes. It
+  /// starts on [SessionDetailView.initialStep] when the shell named one.
+  late var _selectedStep = widget.initialStep ?? 0;
 
   /// True between the request and its answer; a second toggle is ignored rather
   /// than queued, so one press never writes twice.

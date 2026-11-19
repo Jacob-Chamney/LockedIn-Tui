@@ -125,6 +125,11 @@ class _SessionOutputViewState extends State<SessionOutputView> {
   /// does not move the document.
   int _lastSearchStart = -1;
 
+  /// The guide section under the cursor, for `[`/`]` + `x`. -1 means nothing
+  /// is selected yet. Presentation state only: the file is the truth and a mark
+  /// re-reads it.
+  var _sectionCursor = -1;
+
   /// Whether the guide's answers panel is expanded. This is presentation state:
   /// the answers text itself is cached by the store.
   var _showAnswers = false;
@@ -518,6 +523,34 @@ class _SessionOutputViewState extends State<SessionOutputView> {
       if (widget.onBack == null) return KeyEventResult.ignored;
       widget.onBack!();
       return KeyEventResult.handled;
+    }
+    // Guide sections: the keyboard path for the chips. `[`/`]` move the cursor,
+    // `x` marks the section under it. Only a guide with a mark callback (and
+    // sections) claims these keys, so the deck keeps `h`/`l`/`x` behaviour.
+    if (!_isDeck && widget.onMarkSection != null) {
+      final sections = _guideSections(widget.markdown ?? "");
+      if (sections.isNotEmpty) {
+        if (key == LogicalKeyboardKey.bracketLeft) {
+          setState(() {
+            _sectionCursor = _sectionCursor <= 0 ? 0 : _sectionCursor - 1;
+          });
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.bracketRight) {
+          setState(() {
+            _sectionCursor = _sectionCursor < 0
+                ? 0
+                : (_sectionCursor + 1).clamp(0, sections.length - 1);
+          });
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.keyX && _sectionCursor >= 0) {
+          if (event is KeyDownEvent) {
+            unawaited(widget.onMarkSection!.call(_sectionCursor));
+          }
+          return KeyEventResult.handled;
+        }
+      }
     }
     final deckKey = _deckKey(key, event);
     if (deckKey != null) return deckKey;
@@ -1096,7 +1129,8 @@ class _SessionOutputViewState extends State<SessionOutputView> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          '$done of ${sections.length} reviewed',
+          '$done of ${sections.length} reviewed · [ ] move · x mark · click a '
+          'section',
           style: TextStyle(color: LockedInColors.muted, fontSize: 11),
         ),
         const SizedBox(height: 6),
@@ -1108,7 +1142,10 @@ class _SessionOutputViewState extends State<SessionOutputView> {
               InkWell(
                 key: ValueKey('guide-section-$index'),
                 borderRadius: BorderRadius.circular(4),
-                onTap: () => unawaited(widget.onMarkSection!.call(index)),
+                onTap: () {
+                  setState(() => _sectionCursor = index);
+                  unawaited(widget.onMarkSection!.call(index));
+                },
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -1117,7 +1154,11 @@ class _SessionOutputViewState extends State<SessionOutputView> {
                   decoration: BoxDecoration(
                     color: LockedInColors.panel,
                     borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: LockedInColors.line),
+                    border: Border.all(
+                      color: index == _sectionCursor
+                          ? LockedInColors.primary
+                          : LockedInColors.line,
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,

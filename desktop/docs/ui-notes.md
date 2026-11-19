@@ -83,7 +83,11 @@ lives in `desktop/lib`.
     `<leader>e`), stars (hover = move, click = select, `Enter` = detail), deck
     choices (click = `1`–`4`), deck flip (click = `Tab`), approvals (buttons =
     `y`/`n`), settings rows (chevron = `Enter`), stats header (buttons = `a`/`x`).
-19. **Hover only tints; it never steals the selection.** A row highlights under
+19. **A queue row opens what it is about.** A review item carries the step it
+    names, so opening it lands the session reader on that step — a deep link,
+    not just the session. Activity rows expand independently, because the log is
+    a list to compare.
+20. **Hover only tints; it never steals the selection.** A row highlights under
     the pointer with the theme's hover wash, and nothing moves until the click.
 20. **A destructive decision is never keyboard-only.** Approve/reject and
     approve-and-run/deny are buttons on the card *and* keys, and a card's own
@@ -91,9 +95,9 @@ lives in `desktop/lib`.
 21. **`Esc` stops a reply before it means "back".** With a turn streaming, Esc
     cancels from any mode, in Chill and in every session/project/goal chat.
 22. **A reader keeps its document's grammar.** The study guide reveals with
-    `Enter`, builds with `b` and marks a section with its own chip (the pointer
-    path for the guide's `Reviewed` rows; `session.output.mark` writes the file).
-    `a`/`R` remain as aliases. The deck flips with `Tab`, answers with `1`–`4`,
+    `Enter`, builds with `b`, and marks a section with `[`/`]` + `x` or by
+    clicking its chip (`session.output.mark` writes the file). `a`/`R` remain as
+    aliases. The deck flips with `Tab`, answers with `1`–`4`,
     moves with `h`/`l`.
 23. **A step is toggled by the glyph it is drawn with.** The `☐` in the steps
     reader is a button that toggles that step, not the cursor's step.
