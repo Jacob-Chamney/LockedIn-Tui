@@ -32,8 +32,10 @@ lives in `desktop/lib`.
    reflow or an overlay, and `Esc` peels one layer at a time: a narrow window
    closes a star's detail before it leaves Achievements, and a deck returns to
    its session before the session list.
-7. **The composer keeps the draft.** Navigation never discards typed text; the
-   shell owns the composer state, so switching surfaces and coming back is safe.
+7. **The composer keeps the draft.** The shell owns the Chill composer's text
+   (`_chatDraft`), because switching surfaces disposes the page: leaving for
+   Sessions and coming back must not lose a half-typed question. A sent turn
+   clears it; a blocked send keeps it.
 8. **Statusline is state, panels are content.** Mode, scope, tokens and cost stay
    in the one status line; hints for the focused layer go in its footer.
 9. **Empty states name the next key.** No screen says "nothing here": a list
