@@ -25,19 +25,39 @@ Future<CoreStore> pumpShell(
   return store;
 }
 
-const _digits = [
-  LogicalKeyboardKey.digit1,
-  LogicalKeyboardKey.digit2,
-  LogicalKeyboardKey.digit3,
-  LogicalKeyboardKey.digit4,
-  LogicalKeyboardKey.digit5,
-  LogicalKeyboardKey.digit6,
+/// The leader key per surface ordinal (1 = Chat … 0 = Settings), matching the
+/// terminal app's grammar: `Space c`, `Space h`, `Space g`, `Space s`, `Space t`,
+/// `Space p`, `Space v`, `Space f`, `Space n`, `Space ,`.
+const _surfaceLeaderKeys = <LogicalKeyboardKey>[
+  LogicalKeyboardKey.keyC,
+  LogicalKeyboardKey.keyH,
+  LogicalKeyboardKey.keyG,
+  LogicalKeyboardKey.keyS,
+  LogicalKeyboardKey.keyT,
+  LogicalKeyboardKey.keyP,
+  LogicalKeyboardKey.keyV,
+  LogicalKeyboardKey.keyF,
+  LogicalKeyboardKey.keyN,
+  LogicalKeyboardKey.comma,
 ];
 
-Future<void> pressAlt(WidgetTester tester, int digit) async {
-  await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
-  await tester.sendKeyEvent(_digits[digit - 1]);
-  await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+/// Open a surface the way the terminal app does: `Space`, then the leader key.
+Future<void> openSurface(WidgetTester tester, int surface) async {
+  // Leave INSERT first: the leader is a NORMAL-mode chord, exactly as in the
+  // terminal app, and the chat composer holds the keyboard on first paint. The
+  // status bar is the shell's own answer for the mode, so this never presses
+  // Esc on a page that would treat it as "back".
+  if (find.text('INSERT').evaluate().isNotEmpty) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+  }
+  // The alternate leader: `Space` is a local action on the deck, the steps
+  // reader and the approvals view, and navigation must work from all of them.
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  // `0` is the tenth surface (Settings), as in the terminal app.
+  final index = surface == 0 ? _surfaceLeaderKeys.length - 1 : surface - 1;
+  await tester.sendKeyEvent(_surfaceLeaderKeys[index]);
   await tester.pumpAndSettle();
 }
 
@@ -48,7 +68,7 @@ Future<CoreStore> openGoal(
   Size size = const Size(1280, 800),
 }) async {
   final store = await pumpShell(tester, core: core, size: size);
-  await pressAlt(tester, 3);
+  await openSurface(tester, 3);
   await tester.sendKeyEvent(LogicalKeyboardKey.enter);
   await tester.pumpAndSettle();
   return store;
@@ -204,7 +224,7 @@ void main() {
     expect(store.activeSkillChatId, 'chat-2');
     expect(store.skillChat?.messages, hasLength(6));
 
-    await pressAlt(tester, 1);
+    await openSurface(tester, 1);
 
     expect(find.text('Chill'), findsWidgets);
     expect(

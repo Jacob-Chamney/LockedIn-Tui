@@ -165,25 +165,48 @@ void main() {
       ], reason: 'the shell surfaces and the registry key table must agree');
       for (var index = 0; index < surfaceActionIds.length; index++) {
         final row = registry.rowFor('surface.${surfaceActionIds[index]}')!;
-        // Nine surfaces take Alt+1…9; the tenth takes Alt+0.
-        expect(row.binding.format(), 'alt+${surfaceDefaultKey(index)}');
+        // The terminal app's grammar: every surface is a leader chord.
+        expect(row.binding.format(), 'space+${surfaceLeaderKey(index)}');
         expect(row.custom, isFalse);
         expect(row.group, ActionGroup.context);
       }
+      // The nine chords the TUI uses, pinned by name so a reshuffle is visible.
+      expect(
+        [
+          for (final id in surfaceActionIds)
+            registry.rowFor('surface.$id')!.binding.format(),
+        ],
+        [
+          'space+c',
+          'space+h',
+          'space+g',
+          'space+s',
+          'space+t',
+          'space+p',
+          'space+v',
+          'space+f',
+          'space+n',
+          'space+,',
+        ],
+      );
       expect(registry.rowFor('palette')!.binding.format(), 'ctrl+k');
       expect(registry.rowFor('refresh')!.binding.format(), 'space+r');
-      expect(registry.rowFor('retry')!.binding.format(), 'space+t');
+      expect(registry.rowFor('retry')!.binding.format(), 'ctrl+r');
+      final shell = KeymapRegistry(catalogue: shellActionCatalogue());
+      expect(shell.rowFor('sidebar')!.binding.format(), 'space+e');
+      expect(shell.rowFor('achievements')!.binding.format(), 'space+i');
+      // The learning verbs the terminal app keeps on the leader.
+      expect(shell.rowFor('new-lock-in')!.binding.format(), 'space+l');
+      expect(shell.rowFor('flashcards')!.binding.format(), 'space+k');
       expect(registry.rowFor('leader')!.binding.format(), 'space');
       expect(registry.rowFor('help')!.binding.format(), '?');
       expect(registry.rowFor('close')!.binding.format(), 'escape');
       expect(registry.rowFor('leader')!.fixed, isTrue);
       expect(registry.rowFor('close')!.fixed, isTrue);
-      // Every default is either a working chord the core stores or the one
-      // documented shell-only form (`alt+<digit>`).
+      // Every default is a chord the core can store: no shell-only forms left.
       for (final row in registry.rows) {
-        final storable = row.binding.isStorable;
         expect(
-          storable || row.binding.alt,
+          row.binding.isStorable,
           isTrue,
           reason: '${row.id} has an impossible default',
         );
@@ -191,12 +214,12 @@ void main() {
     });
 
     test('a stored override replaces exactly one row', () {
-      final registry = KeymapRegistry(keybinds: const {'refresh': 'space+g'});
+      final registry = KeymapRegistry(keybinds: const {'refresh': 'space+z'});
       final overridden = registry.rowFor('refresh')!;
       expect(overridden.custom, isTrue);
-      expect(overridden.binding.format(), 'space+g');
+      expect(overridden.binding.format(), 'space+z');
       // Every other row keeps its default.
-      expect(registry.rowFor('retry')!.binding.format(), 'space+t');
+      expect(registry.rowFor('retry')!.binding.format(), 'ctrl+r');
       expect(registry.rowFor('retry')!.custom, isFalse);
       expect(registry.rowFor('palette')!.binding.format(), 'ctrl+k');
     });
@@ -246,11 +269,17 @@ void main() {
       'resolves a chord to its action, and a rebound one stops resolving',
       () {
         final registry = KeymapRegistry();
+        // `Space t` is Stats, and a bare `t` is not a chord: surfaces live on
+        // the leader, as they do in the terminal app.
         expect(
           registry
-              .resolveChord(logical: LogicalKeyboardKey.digit5, alt: true)
+              .resolveChord(logical: LogicalKeyboardKey.keyT, character: 't')
               ?.id,
-          'surface.stats',
+          isNull,
+        );
+        expect(
+          registry.leaderRows().any((row) => row.id == 'surface.stats'),
+          isTrue,
         );
         expect(
           registry
@@ -283,11 +312,13 @@ void main() {
           ),
           isNull,
         );
-        expect(
-          KeymapRegistry(keybinds: const {'surface.stats': 'space+t'})
-              .resolveChord(logical: LogicalKeyboardKey.digit5, alt: true),
-          isNull,
+        // A stored override is what resolves: Space+h was Sessions, and after
+        // the rebind it is Stats.
+        final rebound = KeymapRegistry(
+          keybinds: const {'surface.stats': 'space+h'},
         );
+        expect(rebound.rowFor('surface.stats')!.binding.format(), 'space+h');
+        expect(rebound.rowFor('surface.sessions')!.binding.format(), 'space+h');
       },
     );
 
@@ -318,12 +349,12 @@ void main() {
     ) async {
       await _pumpSettings(
         tester,
-        keymap: KeymapRegistry(keybinds: const {'refresh': 'space+g'}),
+        keymap: KeymapRegistry(keybinds: const {'refresh': 'space+z'}),
         onSetKeybind: (action, binding, {fixed = false}) async {},
       );
       expect(find.text('KEYBINDS'), findsOneWidget);
-      expect(find.text('Space g'), findsOneWidget);
-      expect(find.text('Alt+1'), findsOneWidget);
+      expect(find.text('Space z'), findsOneWidget);
+      expect(find.text('Space c'), findsOneWidget);
       expect(find.text('Ctrl+K'), findsOneWidget);
       for (final label in const ['chat', 'palette', 'leader', 'help']) {
         expect(find.text(label), findsWidgets, reason: 'missing row $label');
@@ -365,7 +396,7 @@ void main() {
       (tester) async {
         await _pumpSettings(
           tester,
-          keymap: KeymapRegistry(keybinds: const {'refresh': 'space+g'}),
+          keymap: KeymapRegistry(keybinds: const {'refresh': 'space+z'}),
           onSetKeybind: (action, binding, {fixed = false}) async {
             throw const RpcException(
               -32000,
@@ -390,7 +421,7 @@ void main() {
           find.text('Ctrl+K is already bound to palette.'),
           findsOneWidget,
         );
-        expect(find.text('Space g'), findsOneWidget);
+        expect(find.text('Space z'), findsOneWidget);
       },
     );
 
@@ -399,7 +430,7 @@ void main() {
       final writes = <String?>[];
       await _pumpSettings(
         tester,
-        keymap: KeymapRegistry(keybinds: const {'refresh': 'space+g'}),
+        keymap: KeymapRegistry(keybinds: const {'refresh': 'space+z'}),
         onSetKeybind: (action, binding, {fixed = false}) async {
           actions.add(action);
           writes.add(binding);

@@ -36,21 +36,39 @@ Future<void> pressColon(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> pressAlt(WidgetTester tester, int digit) async {
-  const digits = [
-    LogicalKeyboardKey.digit1,
-    LogicalKeyboardKey.digit2,
-    LogicalKeyboardKey.digit3,
-    LogicalKeyboardKey.digit4,
-    LogicalKeyboardKey.digit5,
-    LogicalKeyboardKey.digit6,
-    LogicalKeyboardKey.digit7,
-    LogicalKeyboardKey.digit8,
-    LogicalKeyboardKey.digit9,
-  ];
-  await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
-  await tester.sendKeyEvent(digits[digit - 1]);
-  await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+/// The leader key per surface ordinal (1 = Chat … 0 = Settings), matching the
+/// terminal app's grammar: `Space c`, `Space h`, `Space g`, `Space s`, `Space t`,
+/// `Space p`, `Space v`, `Space f`, `Space n`, `Space ,`.
+const _surfaceLeaderKeys = <LogicalKeyboardKey>[
+  LogicalKeyboardKey.keyC,
+  LogicalKeyboardKey.keyH,
+  LogicalKeyboardKey.keyG,
+  LogicalKeyboardKey.keyS,
+  LogicalKeyboardKey.keyT,
+  LogicalKeyboardKey.keyP,
+  LogicalKeyboardKey.keyV,
+  LogicalKeyboardKey.keyF,
+  LogicalKeyboardKey.keyN,
+  LogicalKeyboardKey.comma,
+];
+
+/// Open a surface the way the terminal app does: `Space`, then the leader key.
+Future<void> openSurface(WidgetTester tester, int surface) async {
+  // Leave INSERT first: the leader is a NORMAL-mode chord, exactly as in the
+  // terminal app, and the chat composer holds the keyboard on first paint. The
+  // status bar is the shell's own answer for the mode, so this never presses
+  // Esc on a page that would treat it as "back".
+  if (find.text('INSERT').evaluate().isNotEmpty) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+  }
+  // The alternate leader: `Space` is a local action on the deck, the steps
+  // reader and the approvals view, and navigation must work from all of them.
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  // `0` is the tenth surface (Settings), as in the terminal app.
+  final index = surface == 0 ? _surfaceLeaderKeys.length - 1 : surface - 1;
+  await tester.sendKeyEvent(_surfaceLeaderKeys[index]);
   await tester.pumpAndSettle();
 }
 
@@ -100,7 +118,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(CommandLine),
-        matching: find.textContaining('Alt+5'),
+        matching: find.textContaining('Space t'),
       ),
       findsOneWidget,
     );
@@ -159,7 +177,7 @@ void main() {
     tester,
   ) async {
     await pumpShell(tester);
-    await pressAlt(tester, 2);
+    await openSurface(tester, 2);
     expect(find.text('Physics — Unit 4'), findsOneWidget);
 
     await pressColon(tester);
@@ -195,7 +213,7 @@ void main() {
     tester,
   ) async {
     await pumpShell(tester);
-    await pressAlt(tester, 2);
+    await openSurface(tester, 2);
     await pressColon(tester);
 
     await tester.enterText(find.byKey(const ValueKey('command-input')), 'q');
@@ -210,7 +228,10 @@ void main() {
 
   testWidgets('a rebound surface changes the command row hint', (tester) async {
     final store = await pumpShell(tester);
-    await store.setKeybind('surface.stats', 'space+t');
+    // `space+1` is free: every surface default is a letter, as in the terminal
+    // app, so a digit is an obvious override to prove the row follows the
+    // registry rather than a hard-coded list.
+    await store.setKeybind('surface.stats', 'space+1');
     await tester.pumpAndSettle();
 
     await pressColon(tester);
@@ -218,14 +239,14 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(CommandLine),
-        matching: find.textContaining('Space t'),
+        matching: find.textContaining('Space 1'),
       ),
       findsOneWidget,
     );
     expect(
       find.descendant(
         of: find.byType(CommandLine),
-        matching: find.textContaining('Alt+5'),
+        matching: find.textContaining('Space t'),
       ),
       findsNothing,
     );
@@ -235,7 +256,7 @@ void main() {
     tester,
   ) async {
     await pumpShell(tester);
-    await pressAlt(tester, 2);
+    await openSurface(tester, 2);
 
     // `/` focuses the Sessions search field; the field then holds the keyboard.
     await tester.sendKeyEvent(LogicalKeyboardKey.slash);

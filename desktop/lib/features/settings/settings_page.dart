@@ -1081,35 +1081,54 @@ class _SettingsBodyState extends State<_SettingsBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => _select(index),
-            child: Container(
-              key: ValueKey('settings-row-${row.id}'),
-              padding: const EdgeInsets.fromLTRB(9, 8, 12, 9),
-              decoration: BoxDecoration(
-                color: selected ? LockedInColors.panel : Colors.transparent,
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (selected)
-                    Container(
-                      key: const ValueKey('settings-selected'),
-                      width: 3,
-                      height: 15,
-                      margin: const EdgeInsets.only(top: 2, right: 9),
-                      decoration: BoxDecoration(
-                        color: LockedInColors.primary,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    )
-                  else
-                    const SizedBox(width: 12),
-                  Expanded(
-                    child: widget.narrow ? _stackedRow(row) : _wideRow(row),
-                  ),
-                ],
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _select(index),
+              child: Container(
+                key: ValueKey('settings-row-${row.id}'),
+                padding: const EdgeInsets.fromLTRB(9, 8, 12, 9),
+                decoration: BoxDecoration(
+                  color: selected ? LockedInColors.panel : Colors.transparent,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (selected)
+                      Container(
+                        key: const ValueKey('settings-selected'),
+                        width: 3,
+                        height: 15,
+                        margin: const EdgeInsets.only(top: 2, right: 9),
+                        decoration: BoxDecoration(
+                          color: LockedInColors.primary,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      )
+                    else
+                      const SizedBox(width: 12),
+                    Expanded(
+                      child: widget.narrow ? _stackedRow(row) : _wideRow(row),
+                    ),
+                    if (_rowHasControl(row))
+                      IconButton(
+                        key: ValueKey('settings-activate-${row.id}'),
+                        tooltip: 'Enter',
+                        onPressed: _canRun(row)
+                            ? () {
+                                _select(index);
+                                _activate();
+                              }
+                            : null,
+                        icon: const Icon(Icons.chevron_right, size: 16),
+                        visualDensity: VisualDensity.compact,
+                        color: LockedInColors.muted,
+                      )
+                    else
+                      const SizedBox(width: 12),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1194,6 +1213,25 @@ class _SettingsBodyState extends State<_SettingsBody> {
         ],
       ),
     );
+  }
+
+  /// True when [row] has something `Enter` can run, so it gets a button.
+  bool _rowHasControl(_SettingRow row) =>
+      row.edit != null ||
+      row.policy != null ||
+      row.decision != null ||
+      row.work != null ||
+      row.keybind != null;
+
+  /// True when this build can actually run the row's control. A read-only page
+  /// keeps the chevron but disables it, so the pointer never promises more than
+  /// the keyboard can do.
+  bool _canRun(_SettingRow row) {
+    if (row.policy != null) return widget.onSetMcpPolicy != null;
+    if (row.decision != null) return widget.onSetDecision != null;
+    if (row.work != null) return widget.onSetWorkPermissions != null;
+    if (row.keybind != null) return widget.onSetKeybind != null;
+    return row.edit != null && widget.onSaveSettings != null;
   }
 
   Widget _wideRow(_SettingRow row) {
@@ -3312,14 +3350,37 @@ class _CustomPaletteDialogState extends State<_CustomPaletteDialog> {
                   ),
                 ],
                 const SizedBox(height: 8),
-                Text(
-                  'j/k move · Enter edit · r reset · R reset all · s save · '
-                  'Esc back',
-                  style: TextStyle(
-                    color: LockedInColors.muted,
-                    fontSize: 11,
-                    height: 1.4,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'j/k move · Enter edit · r reset · R reset all · s save · '
+                        'Esc back',
+                        style: TextStyle(
+                          color: LockedInColors.muted,
+                          fontSize: 11,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      key: const ValueKey('custom-palette-reset-all'),
+                      onPressed: _resetAll,
+                      child: const Text('reset all'),
+                    ),
+                    const SizedBox(width: 6),
+                    OutlinedButton(
+                      key: const ValueKey('custom-palette-cancel'),
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('cancel'),
+                    ),
+                    const SizedBox(width: 6),
+                    FilledButton(
+                      key: const ValueKey('custom-palette-save'),
+                      onPressed: () => unawaited(_save()),
+                      child: const Text('save'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -3342,6 +3403,10 @@ class _CustomPaletteDialogState extends State<_CustomPaletteDialog> {
         _editing = false;
         _error = null;
       }),
+      onDoubleTap: () {
+        setState(() => _selected = index);
+        _beginEdit();
+      },
       child: Container(
         padding: const EdgeInsets.fromLTRB(4, 6, 6, 6),
         color: selected ? LockedInColors.panel : Colors.transparent,

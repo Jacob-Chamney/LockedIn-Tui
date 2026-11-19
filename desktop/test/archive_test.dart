@@ -65,6 +65,59 @@ Future<void> pumpArchive(
 }
 
 void main() {
+  testWidgets('restore and delete are buttons on the row', (tester) async {
+    final restored = <String>[];
+    final deleted = <String>[];
+    final rows = [
+      ArchiveRow.fromJson({
+        'id': '2026-11-01-0900-physics',
+        'side': 'school',
+        'name': 'Physics — Unit 4',
+        'date': '2026-11-01T10:00:00Z',
+        'sizeBytes': 18422,
+        'backend': 'folder',
+        'kind': 'session',
+      }),
+    ];
+
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: lockedInTheme(),
+        home: Scaffold(
+          body: ArchivePage(
+            rows: rows,
+            loading: false,
+            onRestore: (row) async => restored.add(row.id),
+            onDelete: (row) async => deleted.add(row.id),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The buttons start the same confirmation flow the keys do; the page owns
+    // it, so a tap opens the named confirm rather than acting at once.
+    await tester.tap(find.byKey(ValueKey('archive-restore-${rows.first.id}')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Restore'), findsWidgets);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(ValueKey('archive-delete-${rows.first.id}')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Delete'), findsWidgets);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    expect(restored, isEmpty);
+    expect(deleted, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
   test('ArchiveRow tolerates missing and mistyped fields', () {
     final row = ArchiveRow.fromJson({
       'id': 'kept',

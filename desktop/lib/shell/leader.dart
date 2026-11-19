@@ -42,6 +42,8 @@ class _LeaderOverlayState extends State<LeaderOverlay> {
     // A node-level handler runs before any ancestor, so the second key of a
     // leader chord is never eaten by the surface underneath.
     _focus.onKeyEvent = _onKey;
+    // The shell root already holds focus, so `autofocus` alone does not move it
+    // here; ask for it explicitly on the first frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focus.requestFocus();
     });
@@ -86,6 +88,18 @@ class _LeaderOverlayState extends State<LeaderOverlay> {
       widget.onClose();
       return KeyEventResult.handled;
     }
+    // Which-key first: a chord's own key runs its row. This has to come before
+    // j/k movement, because the terminal app binds `Space j` and `Space k`.
+    final keyboard = HardwareKeyboard.instance;
+    final token = Binding.keyToken(event.logicalKey, event.character);
+    if (token != null && !keyboard.isControlPressed && !keyboard.isAltPressed) {
+      for (final row in widget.rows) {
+        if (row.binding.isLeader && row.binding.key == token) {
+          _run(row);
+          return KeyEventResult.handled;
+        }
+      }
+    }
     if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.keyJ) {
       _move(1);
       return KeyEventResult.handled;
@@ -108,18 +122,6 @@ class _LeaderOverlayState extends State<LeaderOverlay> {
       if (index >= 0) _run(widget.rows[index]);
       return KeyEventResult.handled;
     }
-    // Which-key: the chord's own key runs the row, so `Space e` needs no second
-    // decision. Movement keys are claimed above and win if a row uses one.
-    final keyboard = HardwareKeyboard.instance;
-    final token = Binding.keyToken(event.logicalKey, event.character);
-    if (token != null && !keyboard.isControlPressed && !keyboard.isAltPressed) {
-      for (final row in widget.rows) {
-        if (row.binding.isLeader && row.binding.key == token) {
-          _run(row);
-          return KeyEventResult.handled;
-        }
-      }
-    }
     return KeyEventResult.handled;
   }
 
@@ -128,6 +130,7 @@ class _LeaderOverlayState extends State<LeaderOverlay> {
     final index = _index;
     return Focus(
       focusNode: _focus,
+      autofocus: true,
       onKeyEvent: _onKey,
       child: Stack(
         children: [

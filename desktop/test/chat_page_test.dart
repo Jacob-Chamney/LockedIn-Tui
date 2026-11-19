@@ -141,6 +141,49 @@ void main() {
     expect(cancelled, isTrue);
   });
 
+  testWidgets('Esc stops the reply, with the composer still focused', (
+    tester,
+  ) async {
+    var cancelled = false;
+    await tester.pumpWidget(
+      _app(
+        ChatPage(
+          chat: _chat(
+            status: 'streaming',
+            messages: const [
+              ChatMessageView(
+                id: 'u',
+                role: 'user',
+                text: 'hi',
+                outcome: 'done',
+              ),
+              ChatMessageView(
+                id: 'a',
+                role: 'assistant',
+                text: '',
+                outcome: null,
+              ),
+            ],
+            streamed: 'partial answer',
+          ),
+          online: true,
+          configured: true,
+          onCancel: () => cancelled = true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The composer holds focus while a turn streams; Esc must still stop it.
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+
+    expect(cancelled, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('core outcomes map to stopped and failed markers', (
     tester,
   ) async {

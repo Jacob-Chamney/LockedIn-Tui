@@ -25,19 +25,39 @@ Future<CoreStore> pumpShell(
   return store;
 }
 
-const _digits = [
-  LogicalKeyboardKey.digit1,
-  LogicalKeyboardKey.digit2,
-  LogicalKeyboardKey.digit3,
-  LogicalKeyboardKey.digit4,
-  LogicalKeyboardKey.digit5,
-  LogicalKeyboardKey.digit6,
+/// The leader key per surface ordinal (1 = Chat … 0 = Settings), matching the
+/// terminal app's grammar: `Space c`, `Space h`, `Space g`, `Space s`, `Space t`,
+/// `Space p`, `Space v`, `Space f`, `Space n`, `Space ,`.
+const _surfaceLeaderKeys = <LogicalKeyboardKey>[
+  LogicalKeyboardKey.keyC,
+  LogicalKeyboardKey.keyH,
+  LogicalKeyboardKey.keyG,
+  LogicalKeyboardKey.keyS,
+  LogicalKeyboardKey.keyT,
+  LogicalKeyboardKey.keyP,
+  LogicalKeyboardKey.keyV,
+  LogicalKeyboardKey.keyF,
+  LogicalKeyboardKey.keyN,
+  LogicalKeyboardKey.comma,
 ];
 
-Future<void> pressAlt(WidgetTester tester, int digit) async {
-  await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
-  await tester.sendKeyEvent(_digits[digit - 1]);
-  await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+/// Open a surface the way the terminal app does: `Space`, then the leader key.
+Future<void> openSurface(WidgetTester tester, int surface) async {
+  // Leave INSERT first: the leader is a NORMAL-mode chord, exactly as in the
+  // terminal app, and the chat composer holds the keyboard on first paint. The
+  // status bar is the shell's own answer for the mode, so this never presses
+  // Esc on a page that would treat it as "back".
+  if (find.text('INSERT').evaluate().isNotEmpty) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+  }
+  // The alternate leader: `Space` is a local action on the deck, the steps
+  // reader and the approvals view, and navigation must work from all of them.
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  // `0` is the tenth surface (Settings), as in the terminal app.
+  final index = surface == 0 ? _surfaceLeaderKeys.length - 1 : surface - 1;
+  await tester.sendKeyEvent(_surfaceLeaderKeys[index]);
   await tester.pumpAndSettle();
 }
 
@@ -51,7 +71,7 @@ Future<CoreStore> openSession(
   final store = await pumpShell(tester, core: core, size: size);
   await store.openSession(FakeCore.sessionId);
   await tester.pumpAndSettle();
-  await pressAlt(tester, 2);
+  await openSurface(tester, 2);
   return store;
 }
 
@@ -65,7 +85,11 @@ void main() {
     tester,
   ) async {
     await openSession(tester);
-    await pressAlt(tester, 4);
+    await openSurface(tester, 4);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+    await tester.pumpAndSettle();
 
     expect(find.text('lecture-4.md'), findsOneWidget);
     expect(find.text('complex-numbers.pdf'), findsOneWidget);
@@ -79,7 +103,7 @@ void main() {
     tester,
   ) async {
     await pumpShell(tester);
-    await pressAlt(tester, 4);
+    await openSurface(tester, 4);
 
     expect(find.text('open a session first'), findsOneWidget);
     expect(find.text('lecture-4.md'), findsNothing);
@@ -91,7 +115,7 @@ void main() {
     tester,
   ) async {
     final store = await pumpShell(tester);
-    await pressAlt(tester, 2);
+    await openSurface(tester, 2);
 
     await openWizard(tester);
     expect(find.text('New lock-in'), findsOneWidget);
@@ -128,7 +152,7 @@ void main() {
 
   testWidgets('Esc on the wizard returns to the session list', (tester) async {
     final store = await pumpShell(tester);
-    await pressAlt(tester, 2);
+    await openSurface(tester, 2);
     await openWizard(tester);
     expect(find.text('New lock-in'), findsOneWidget);
 
@@ -144,14 +168,14 @@ void main() {
 
   testWidgets('Sources and the wizard fit 800x600', (tester) async {
     await openSession(tester, size: const Size(800, 600));
-    await pressAlt(tester, 4);
+    await openSurface(tester, 4);
     expect(find.text('lecture-4.md'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('the New lock-in wizard fits 800x600', (tester) async {
     await pumpShell(tester, size: const Size(800, 600));
-    await pressAlt(tester, 2);
+    await openSurface(tester, 2);
     await openWizard(tester);
 
     expect(find.text('New lock-in'), findsOneWidget);

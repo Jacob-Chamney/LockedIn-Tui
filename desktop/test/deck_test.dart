@@ -169,18 +169,39 @@ Future<void> pressShiftM(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> pressAlt(WidgetTester tester, int digit) async {
-  const digits = [
-    LogicalKeyboardKey.digit1,
-    LogicalKeyboardKey.digit2,
-    LogicalKeyboardKey.digit3,
-    LogicalKeyboardKey.digit4,
-    LogicalKeyboardKey.digit5,
-    LogicalKeyboardKey.digit6,
-  ];
-  await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
-  await tester.sendKeyEvent(digits[digit - 1]);
-  await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+/// The leader key per surface ordinal (1 = Chat … 0 = Settings), matching the
+/// terminal app's grammar: `Space c`, `Space h`, `Space g`, `Space s`, `Space t`,
+/// `Space p`, `Space v`, `Space f`, `Space n`, `Space ,`.
+const _surfaceLeaderKeys = <LogicalKeyboardKey>[
+  LogicalKeyboardKey.keyC,
+  LogicalKeyboardKey.keyH,
+  LogicalKeyboardKey.keyG,
+  LogicalKeyboardKey.keyS,
+  LogicalKeyboardKey.keyT,
+  LogicalKeyboardKey.keyP,
+  LogicalKeyboardKey.keyV,
+  LogicalKeyboardKey.keyF,
+  LogicalKeyboardKey.keyN,
+  LogicalKeyboardKey.comma,
+];
+
+/// Open a surface the way the terminal app does: `Space`, then the leader key.
+Future<void> openSurface(WidgetTester tester, int surface) async {
+  // Leave INSERT first: the leader is a NORMAL-mode chord, exactly as in the
+  // terminal app, and the chat composer holds the keyboard on first paint. The
+  // status bar is the shell's own answer for the mode, so this never presses
+  // Esc on a page that would treat it as "back".
+  if (find.text('INSERT').evaluate().isNotEmpty) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+  }
+  // The alternate leader: `Space` is a local action on the deck, the steps
+  // reader and the approvals view, and navigation must work from all of them.
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  // `0` is the tenth surface (Settings), as in the terminal app.
+  final index = surface == 0 ? _surfaceLeaderKeys.length - 1 : surface - 1;
+  await tester.sendKeyEvent(_surfaceLeaderKeys[index]);
   await tester.pumpAndSettle();
 }
 
@@ -409,7 +430,7 @@ void main() {
   });
 
   group('the deck reader', () {
-    testWidgets('shows one question, a plain card flips with Space, h/l move', (
+    testWidgets('shows one question, a plain card flips with Tab, h/l move', (
       tester,
     ) async {
       await pumpDeck(tester, deckView(onMarkCard: (_, _) async {}));
@@ -418,14 +439,15 @@ void main() {
       expect(find.byKey(const ValueKey('deck-choice-1')), findsOneWidget);
       expect(find.text('card 1 / 2'), findsOneWidget);
 
-      // Card 2 has no choices, so Space reveals its answer like it always did.
+      // Card 2 has no choices, so Tab reveals its answer (`Space` is the
+      // leader, as in the terminal app).
       await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
       await tester.pumpAndSettle();
       expect(find.text('What is a stack frame?'), findsOneWidget);
       expect(find.text('The memory a call reserves.'), findsNothing);
       expect(find.text('card 2 / 2'), findsOneWidget);
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('deck-answer')), findsOneWidget);
       expect(find.text('The memory a call reserves.'), findsOneWidget);
@@ -596,7 +618,7 @@ void main() {
         size: const Size(800, 600),
       );
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pumpAndSettle();
 
       expect(find.text('ANSWER'), findsOneWidget);
@@ -850,7 +872,7 @@ void main() {
       expect(find.byKey(const ValueKey('deck-hint-flip')), findsOneWidget);
       expect(find.text('Energy.'), findsNothing);
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('deck-answer')), findsOneWidget);
@@ -925,7 +947,7 @@ void main() {
       await tester.pumpAndSettle();
       await store.openSession(FakeCore.sessionId);
       await tester.pumpAndSettle();
-      await pressAlt(tester, 2);
+      await openSurface(tester, 2);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
       await tester.pumpAndSettle();

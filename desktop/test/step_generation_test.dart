@@ -102,18 +102,39 @@ Future<CoreStore> pumpShell(
   return store;
 }
 
-Future<void> pressAlt(WidgetTester tester, int digit) async {
-  final keys = [
-    LogicalKeyboardKey.digit1,
-    LogicalKeyboardKey.digit2,
-    LogicalKeyboardKey.digit3,
-    LogicalKeyboardKey.digit4,
-    LogicalKeyboardKey.digit5,
-    LogicalKeyboardKey.digit6,
-  ];
-  await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
-  await tester.sendKeyEvent(keys[digit - 1]);
-  await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+/// The leader key per surface ordinal (1 = Chat … 0 = Settings), matching the
+/// terminal app's grammar: `Space c`, `Space h`, `Space g`, `Space s`, `Space t`,
+/// `Space p`, `Space v`, `Space f`, `Space n`, `Space ,`.
+const _surfaceLeaderKeys = <LogicalKeyboardKey>[
+  LogicalKeyboardKey.keyC,
+  LogicalKeyboardKey.keyH,
+  LogicalKeyboardKey.keyG,
+  LogicalKeyboardKey.keyS,
+  LogicalKeyboardKey.keyT,
+  LogicalKeyboardKey.keyP,
+  LogicalKeyboardKey.keyV,
+  LogicalKeyboardKey.keyF,
+  LogicalKeyboardKey.keyN,
+  LogicalKeyboardKey.comma,
+];
+
+/// Open a surface the way the terminal app does: `Space`, then the leader key.
+Future<void> openSurface(WidgetTester tester, int surface) async {
+  // Leave INSERT first: the leader is a NORMAL-mode chord, exactly as in the
+  // terminal app, and the chat composer holds the keyboard on first paint. The
+  // status bar is the shell's own answer for the mode, so this never presses
+  // Esc on a page that would treat it as "back".
+  if (find.text('INSERT').evaluate().isNotEmpty) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+  }
+  // The alternate leader: `Space` is a local action on the deck, the steps
+  // reader and the approvals view, and navigation must work from all of them.
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  // `0` is the tenth surface (Settings), as in the terminal app.
+  final index = surface == 0 ? _surfaceLeaderKeys.length - 1 : surface - 1;
+  await tester.sendKeyEvent(_surfaceLeaderKeys[index]);
   await tester.pumpAndSettle();
 }
 
@@ -428,7 +449,7 @@ void main() {
     ) async {
       final core = FakeCore();
       await pumpShell(tester, core: core);
-      await pressAlt(tester, 2);
+      await openSurface(tester, 2);
       await fillWizard(tester, name: 'Chemistry — Unit 5');
       await tester.tap(find.byKey(const ValueKey('new-session-create')));
       await tester.pumpAndSettle();
@@ -451,7 +472,7 @@ void main() {
     ) async {
       final core = FakeCore();
       final store = await pumpShell(tester, core: core);
-      await pressAlt(tester, 2);
+      await openSurface(tester, 2);
       await fillWizard(tester, name: 'History — Unit 2');
 
       await tester.tap(find.byKey(const ValueKey('new-session-steps')));
@@ -470,7 +491,7 @@ void main() {
     testWidgets('the generated session detail fits 800x600', (tester) async {
       final core = FakeCore();
       await pumpShell(tester, core: core, size: const Size(800, 600));
-      await pressAlt(tester, 2);
+      await openSurface(tester, 2);
       await fillWizard(tester, name: 'Biology — Unit 1');
       await tester.tap(find.byKey(const ValueKey('new-session-create')));
       await tester.pumpAndSettle();

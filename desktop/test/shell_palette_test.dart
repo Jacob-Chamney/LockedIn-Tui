@@ -54,13 +54,13 @@ void main() {
             find.byKey(const ValueKey('palette-binding-surface.sessions')),
           )
           .data,
-      'Alt+2',
+      'Space h',
     );
     expect(
       tester
           .widget<Text>(find.byKey(const ValueKey('palette-binding-sidebar')))
           .data,
-      'Ctrl+B',
+      'Space e',
     );
     expect(
       tester

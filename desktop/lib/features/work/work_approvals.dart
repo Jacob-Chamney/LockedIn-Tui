@@ -208,6 +208,22 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
     return failure.toString();
   }
 
+  /// Put the cursor on the card with [id] before a button decides it.
+  ///
+  /// The verbs read the selected row, so a card's own button has to select that
+  /// card first; otherwise `approve` on card 2 would apply card 1.
+  void _selectFor(String id) {
+    final at = _writes.indexWhere((write) => write.id == id);
+    if (at >= 0) {
+      setState(() => _selected = at);
+      return;
+    }
+    final command = _commands.indexWhere((item) => item.id == id);
+    if (command >= 0) {
+      setState(() => _selected = _writes.length + command);
+    }
+  }
+
   Future<void> _approve() async {
     if (_busy) return;
     final write = _selectedWrite;
@@ -629,14 +645,52 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
               ),
             ],
             const SizedBox(height: 8),
-            Text(
-              _writesBlocked
-                  ? 'approve is off in Settings → Work · n reject'
-                  : canApprove
-                  ? 'y approve ${hunks.length} of ${write.hunks.length} '
-                        'hunk${write.hunks.length == 1 ? '' : 's'} · n reject'
-                  : 'read-only',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+            Row(
+              children: [
+                if (!deciding) ...[
+                  OutlinedButton(
+                    key: ValueKey('approval-reject-${write.id}'),
+                    onPressed: canDecide
+                        ? () {
+                            _selectFor(write.id);
+                            _reject();
+                          }
+                        : null,
+                    child: const Text('reject'),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    key: ValueKey('approval-approve-${write.id}'),
+                    onPressed: canApprove
+                        ? () {
+                            _selectFor(write.id);
+                            _approve();
+                          }
+                        : null,
+                    child: Text(
+                      hunks.length == write.hunks.length &&
+                              write.hunks.isNotEmpty
+                          ? 'approve'
+                          : 'approve ${hunks.length}',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                Expanded(
+                  child: Text(
+                    _writesBlocked
+                        ? 'approve is off in Settings → Work · n reject'
+                        : canApprove
+                        ? 'y approve ${hunks.length} of ${write.hunks.length} '
+                              'hunk${write.hunks.length == 1 ? '' : 's'} · n reject'
+                        : 'read-only',
+                    style: TextStyle(
+                      color: LockedInColors.muted,
+                      fontSize: 10.5,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -861,15 +915,48 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
               ),
             ],
             const SizedBox(height: 8),
-            Text(
-              _commandsBlocked
-                  ? 'approve is off in Settings → Work · n deny'
-                  : canApprove
-                  ? 'y approve and run · n deny'
-                  : widget.onDecideCommand == null
-                  ? 'read-only'
-                  : 'deciding…',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+            Row(
+              children: [
+                if (!deciding) ...[
+                  OutlinedButton(
+                    key: ValueKey('approval-deny-${command.id}'),
+                    onPressed: canDecide
+                        ? () {
+                            _selectFor(command.id);
+                            _reject();
+                          }
+                        : null,
+                    child: const Text('deny'),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    key: ValueKey('approval-run-${command.id}'),
+                    onPressed: canApprove
+                        ? () {
+                            _selectFor(command.id);
+                            _approve();
+                          }
+                        : null,
+                    child: const Text('approve and run'),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                Expanded(
+                  child: Text(
+                    _commandsBlocked
+                        ? 'approve is off in Settings → Work · n deny'
+                        : canApprove
+                        ? 'y approve and run · n deny'
+                        : widget.onDecideCommand == null
+                        ? 'read-only'
+                        : 'deciding…',
+                    style: TextStyle(
+                      color: LockedInColors.muted,
+                      fontSize: 10.5,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

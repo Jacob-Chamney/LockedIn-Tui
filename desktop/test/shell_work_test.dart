@@ -25,25 +25,40 @@ Future<CoreStore> pumpShell(
   return store;
 }
 
-const _digits = [
-  LogicalKeyboardKey.digit1,
-  LogicalKeyboardKey.digit2,
-  LogicalKeyboardKey.digit3,
-  LogicalKeyboardKey.digit4,
-  LogicalKeyboardKey.digit5,
-  LogicalKeyboardKey.digit6,
-  LogicalKeyboardKey.digit7,
-  LogicalKeyboardKey.digit8,
-  LogicalKeyboardKey.digit9,
+/// One-based surface digit: the shell maps `Alt+N` to `Surface.values[N - 1]`.
+/// The leader key per surface ordinal (1 = Chat … 0 = Settings), matching the
+/// terminal app's grammar: `Space c`, `Space h`, `Space g`, `Space s`, `Space t`,
+/// `Space p`, `Space v`, `Space f`, `Space n`, `Space ,`.
+const _surfaceLeaderKeys = <LogicalKeyboardKey>[
+  LogicalKeyboardKey.keyC,
+  LogicalKeyboardKey.keyH,
+  LogicalKeyboardKey.keyG,
+  LogicalKeyboardKey.keyS,
+  LogicalKeyboardKey.keyT,
+  LogicalKeyboardKey.keyP,
+  LogicalKeyboardKey.keyV,
+  LogicalKeyboardKey.keyF,
+  LogicalKeyboardKey.keyN,
+  LogicalKeyboardKey.comma,
 ];
 
-/// One-based surface digit: the shell maps `Alt+N` to `Surface.values[N - 1]`.
-Future<void> pressAlt(WidgetTester tester, int digit) async {
-  await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
-  await tester.sendKeyEvent(
-    digit == 0 ? LogicalKeyboardKey.digit0 : _digits[digit - 1],
-  );
-  await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+/// Open a surface the way the terminal app does: `Space`, then the leader key.
+Future<void> openSurface(WidgetTester tester, int surface) async {
+  // Leave INSERT first: the leader is a NORMAL-mode chord, exactly as in the
+  // terminal app, and the chat composer holds the keyboard on first paint. The
+  // status bar is the shell's own answer for the mode, so this never presses
+  // Esc on a page that would treat it as "back".
+  if (find.text('INSERT').evaluate().isNotEmpty) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+  }
+  // The alternate leader: `Space` is a local action on the deck, the steps
+  // reader and the approvals view, and navigation must work from all of them.
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  // `0` is the tenth surface (Settings), as in the terminal app.
+  final index = surface == 0 ? _surfaceLeaderKeys.length - 1 : surface - 1;
+  await tester.sendKeyEvent(_surfaceLeaderKeys[index]);
   await tester.pumpAndSettle();
 }
 
@@ -98,10 +113,10 @@ void main() {
   testWidgets('Alt+6 opens Work and Alt+0 keeps Settings last', (tester) async {
     await pumpShell(tester);
 
-    await pressAlt(tester, 6);
+    await openSurface(tester, 6);
     expect(find.text('WORK PROJECTS'), findsOneWidget);
 
-    await pressAlt(tester, 0);
+    await openSurface(tester, 0);
     expect(find.text('friend'), findsOneWidget);
     expect(find.text('WORK PROJECTS'), findsNothing);
     expect(tester.takeException(), isNull);
@@ -111,7 +126,7 @@ void main() {
     tester,
   ) async {
     final store = await pumpShell(tester);
-    await pressAlt(tester, 6);
+    await openSurface(tester, 6);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
@@ -134,16 +149,16 @@ void main() {
 
   testWidgets('switching surfaces keeps the open project', (tester) async {
     final store = await pumpShell(tester);
-    await pressAlt(tester, 6);
+    await openSurface(tester, 6);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
     expect(store.activeProjectId, FakeCore.projectId);
 
-    await pressAlt(tester, 1);
+    await openSurface(tester, 1);
     expect(find.text('Chill'), findsWidgets);
     expect(find.text('PROJECT'), findsNothing);
 
-    await pressAlt(tester, 6);
+    await openSurface(tester, 6);
     expect(store.activeProjectId, FakeCore.projectId);
     expect(find.text('PROJECT'), findsOneWidget);
     expect(find.text('Prefer small diffs.'), findsOneWidget);
@@ -153,7 +168,7 @@ void main() {
 
   testWidgets('a missing project root is one readable warning', (tester) async {
     await pumpShell(tester);
-    await pressAlt(tester, 6);
+    await openSurface(tester, 6);
 
     // Arrow to the archived swarm whose folder is gone.
     await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
@@ -171,7 +186,7 @@ void main() {
   testWidgets('Work and the project detail fit 800x600', (tester) async {
     await pumpShell(tester, size: const Size(800, 600));
 
-    await pressAlt(tester, 6);
+    await openSurface(tester, 6);
     expect(find.text('WORK PROJECTS'), findsOneWidget);
     expect(tester.takeException(), isNull);
 

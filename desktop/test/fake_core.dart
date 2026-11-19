@@ -1837,7 +1837,7 @@ class FakeCore implements CoreConnection {
   /// The stored `ui.keybinds` table, seeded with the two overrides every test
   /// sees. They are deliberately *not* surface shortcuts or the palette: a
   /// seeded override must never change what an existing test presses.
-  final _keybinds = <String, String>{'refresh': 'space+g', 'retry': 'space+y'};
+  final _keybinds = <String, String>{'refresh': 'space+z', 'retry': 'space+y'};
 
   /// The stored `ui.fixed_keybinds` table. Empty by default; a test that needs a
   /// fixed-table override seeds one through `keybinds.set`.

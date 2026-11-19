@@ -25,25 +25,45 @@ Future<CoreStore> pumpShell(
 }
 
 Future<void> pressSpace(WidgetTester tester) async {
-  await tester.sendKeyEvent(LogicalKeyboardKey.space);
+  // The alternate leader: `Space` is a local action on the deck, the steps
+  // reader and the approvals view, and navigation must work from all of them.
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
   await tester.pumpAndSettle();
 }
 
-Future<void> pressAlt(WidgetTester tester, int digit) async {
-  const digits = [
-    LogicalKeyboardKey.digit1,
-    LogicalKeyboardKey.digit2,
-    LogicalKeyboardKey.digit3,
-    LogicalKeyboardKey.digit4,
-    LogicalKeyboardKey.digit5,
-    LogicalKeyboardKey.digit6,
-    LogicalKeyboardKey.digit7,
-    LogicalKeyboardKey.digit8,
-    LogicalKeyboardKey.digit9,
-  ];
-  await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
-  await tester.sendKeyEvent(digits[digit - 1]);
-  await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+/// The leader key per surface ordinal (1 = Chat … 0 = Settings), matching the
+/// terminal app's grammar: `Space c`, `Space h`, `Space g`, `Space s`, `Space t`,
+/// `Space p`, `Space v`, `Space f`, `Space n`, `Space ,`.
+const _surfaceLeaderKeys = <LogicalKeyboardKey>[
+  LogicalKeyboardKey.keyC,
+  LogicalKeyboardKey.keyH,
+  LogicalKeyboardKey.keyG,
+  LogicalKeyboardKey.keyS,
+  LogicalKeyboardKey.keyT,
+  LogicalKeyboardKey.keyP,
+  LogicalKeyboardKey.keyV,
+  LogicalKeyboardKey.keyF,
+  LogicalKeyboardKey.keyN,
+  LogicalKeyboardKey.comma,
+];
+
+/// Open a surface the way the terminal app does: `Space`, then the leader key.
+Future<void> openSurface(WidgetTester tester, int surface) async {
+  // Leave INSERT first: the leader is a NORMAL-mode chord, exactly as in the
+  // terminal app, and the chat composer holds the keyboard on first paint. The
+  // status bar is the shell's own answer for the mode, so this never presses
+  // Esc on a page that would treat it as "back".
+  if (find.text('INSERT').evaluate().isNotEmpty) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+  }
+  // The alternate leader: `Space` is a local action on the deck, the steps
+  // reader and the approvals view, and navigation must work from all of them.
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  // `0` is the tenth surface (Settings), as in the terminal app.
+  final index = surface == 0 ? _surfaceLeaderKeys.length - 1 : surface - 1;
+  await tester.sendKeyEvent(_surfaceLeaderKeys[index]);
   await tester.pumpAndSettle();
 }
 
@@ -62,9 +82,9 @@ void main() {
       expect(find.text(group), findsOneWidget, reason: 'missing group $group');
     }
     // The stored override, not the default: the overlay shows what runs.
-    expect(find.text('Space g'), findsOneWidget);
+    expect(find.text('Space z'), findsOneWidget);
     expect(find.text('Space r'), findsNothing);
-    expect(find.text('Alt+1'), findsWidgets);
+    expect(find.text('Space h'), findsWidgets);
     expect(find.text('Ctrl+K'), findsOneWidget);
     expect(find.text('j/k move · Enter run · Esc close'), findsOneWidget);
   });
@@ -109,7 +129,7 @@ void main() {
     final before = _workspaceReads(core);
 
     await pressSpace(tester);
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyG);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
     await tester.pumpAndSettle();
 
     expect(find.byType(LeaderOverlay), findsNothing);
@@ -122,8 +142,8 @@ void main() {
     final before = _workspaceReads(core);
 
     await pressSpace(tester);
-    // `r` is the default refresh, but the fake stores `space+g`.
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyR);
+    // `q` has no leader row (quit is `Ctrl+Q`, a direct chord).
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyQ);
     await tester.pumpAndSettle();
 
     expect(find.byType(LeaderOverlay), findsOneWidget);
@@ -135,23 +155,23 @@ void main() {
     (tester) async {
       final store = await pumpShell(tester);
 
-      await store.setKeybind('surface.stats', 'space+t');
+      await store.setKeybind('surface.stats', 'space+1');
       await tester.pumpAndSettle();
 
-      await pressAlt(tester, 5);
+      // The old chord no longer opens Stats: `Space t` is free now.
+      await openSurface(tester, 5);
       expect(find.text('TOKENS'), findsNothing);
-      expect(find.text('Ask anything…'), findsOneWidget);
 
       await pressSpace(tester);
       // The sidebar row also shows the real binding now; scope the leader row.
       expect(
         find.descendant(
           of: find.byType(LeaderOverlay),
-          matching: find.text('Space t'),
+          matching: find.text('Space 1'),
         ),
         findsOneWidget,
       );
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyT);
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit1);
       await tester.pumpAndSettle();
 
       expect(find.byType(LeaderOverlay), findsNothing);
@@ -163,7 +183,7 @@ void main() {
     tester,
   ) async {
     await pumpShell(tester);
-    await pressAlt(tester, 2);
+    await openSurface(tester, 2);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.slash);
     await tester.pumpAndSettle();

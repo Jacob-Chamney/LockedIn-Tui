@@ -453,7 +453,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
       if (down) _answerChoice(choice);
       return KeyEventResult.handled;
     }
-    if (key == LogicalKeyboardKey.space) {
+    if (key == LogicalKeyboardKey.tab) {
       if (down && deck != null) setState(deck.flip);
       return KeyEventResult.handled;
     }
@@ -823,7 +823,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'Space flips the card',
+                          'Tab flips the card',
                           key: const ValueKey('deck-hint-flip'),
                           style: TextStyle(
                             color: LockedInColors.muted,
@@ -942,7 +942,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
           choiceCard
               ? '1–4 answer · Enter next · h/l move · k known · m missed · '
                     's shuffle · r reset · M missed only · d markdown'
-              : 'Space flip · h/l move · k known · m missed · s shuffle · '
+              : 'Tab flip · h/l move · k known · m missed · s shuffle · '
                     'r reset · M missed only · d markdown',
           style: TextStyle(
             color: LockedInColors.muted,

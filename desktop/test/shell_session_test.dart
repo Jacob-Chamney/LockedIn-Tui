@@ -25,19 +25,39 @@ Future<CoreStore> pumpShell(
   return store;
 }
 
-const _digits = [
-  LogicalKeyboardKey.digit1,
-  LogicalKeyboardKey.digit2,
-  LogicalKeyboardKey.digit3,
-  LogicalKeyboardKey.digit4,
-  LogicalKeyboardKey.digit5,
-  LogicalKeyboardKey.digit6,
+/// The leader key per surface ordinal (1 = Chat … 0 = Settings), matching the
+/// terminal app's grammar: `Space c`, `Space h`, `Space g`, `Space s`, `Space t`,
+/// `Space p`, `Space v`, `Space f`, `Space n`, `Space ,`.
+const _surfaceLeaderKeys = <LogicalKeyboardKey>[
+  LogicalKeyboardKey.keyC,
+  LogicalKeyboardKey.keyH,
+  LogicalKeyboardKey.keyG,
+  LogicalKeyboardKey.keyS,
+  LogicalKeyboardKey.keyT,
+  LogicalKeyboardKey.keyP,
+  LogicalKeyboardKey.keyV,
+  LogicalKeyboardKey.keyF,
+  LogicalKeyboardKey.keyN,
+  LogicalKeyboardKey.comma,
 ];
 
-Future<void> pressAlt(WidgetTester tester, int digit) async {
-  await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
-  await tester.sendKeyEvent(_digits[digit - 1]);
-  await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+/// Open a surface the way the terminal app does: `Space`, then the leader key.
+Future<void> openSurface(WidgetTester tester, int surface) async {
+  // Leave INSERT first: the leader is a NORMAL-mode chord, exactly as in the
+  // terminal app, and the chat composer holds the keyboard on first paint. The
+  // status bar is the shell's own answer for the mode, so this never presses
+  // Esc on a page that would treat it as "back".
+  if (find.text('INSERT').evaluate().isNotEmpty) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+  }
+  // The alternate leader: `Space` is a local action on the deck, the steps
+  // reader and the approvals view, and navigation must work from all of them.
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  // `0` is the tenth surface (Settings), as in the terminal app.
+  final index = surface == 0 ? _surfaceLeaderKeys.length - 1 : surface - 1;
+  await tester.sendKeyEvent(_surfaceLeaderKeys[index]);
   await tester.pumpAndSettle();
 }
 
@@ -51,7 +71,7 @@ Future<CoreStore> openSession(
   final store = await pumpShell(tester, core: core, size: size);
   await store.openSession(FakeCore.sessionId);
   await tester.pumpAndSettle();
-  await pressAlt(tester, 2);
+  await openSurface(tester, 2);
   return store;
 }
 
@@ -71,6 +91,66 @@ Future<void> sendSessionTurn(WidgetTester tester, String text) async {
 }
 
 void main() {
+  testWidgets('a session chat draft survives leaving the session', (
+    tester,
+  ) async {
+    final store = await openSession(tester);
+    await openSessionChat(tester, store);
+
+    const composer = ValueKey('session-chat-composer');
+    await tester.tap(find.byKey(composer));
+    await tester.pump();
+    await tester.enterText(find.byKey(composer), 'half a follow-up');
+    await tester.pump();
+
+    // Leave for another surface and come back to the same session chat: the
+    // draft is still there, exactly as in Chill.
+    await openSurface(tester, 1);
+    await openSurface(tester, 2);
+    // The session is still open, so the chat is one `c` away again.
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<TextField>(find.byKey(composer)).controller?.text,
+      'half a follow-up',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Space l starts a lock-in and Space k opens the deck', (
+    tester,
+  ) async {
+    final store = await pumpShell(tester);
+
+    // `Space l` is the terminal app's new-lock-in verb.
+    await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
+    await tester.pumpAndSettle();
+    expect(find.text('New lock-in'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    // With no session open, `Space k` lands on the sessions manager.
+    await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.pumpAndSettle();
+    expect(find.text('LOCK-IN SESSIONS'), findsOneWidget);
+
+    // With a session open it opens that session's deck.
+    await store.openSession(FakeCore.sessionId);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.pumpAndSettle();
+    expect(store.outputKind, 'flashcards');
+    expect(find.text('FLASHCARDS'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the sidebar lists the newest sessions under RECENT', (
     tester,
   ) async {
@@ -192,10 +272,7 @@ void main() {
     await store.openSession(FakeCore.sessionId);
     await tester.pumpAndSettle();
 
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
-    await tester.sendKeyEvent(LogicalKeyboardKey.digit2);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
-    await tester.pumpAndSettle();
+    await openSurface(tester, 2);
 
     // The shell reads coverage with the detail, so the card has real counts.
     expect(find.byKey(const ValueKey('session-coverage-card')), findsOneWidget);
@@ -277,7 +354,7 @@ void main() {
       findsOneWidget,
     );
 
-    await pressAlt(tester, 1);
+    await openSurface(tester, 1);
 
     expect(find.text('Chill'), findsWidgets);
     expect(

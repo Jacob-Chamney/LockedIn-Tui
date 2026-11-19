@@ -118,7 +118,7 @@ leaves the frame at `$TMPDIR/lockedin-smoke/smoke.png` for inspection.
   write or command still needs its own approval.
 - **Sidebar** — grouped destinations with a live count each (sessions, goals,
   projects), `RECENT` for the three newest sessions, and Achievements as its own
-  row over Stats. `Ctrl+B` cycles expanded → icons → hidden; the top-bar button
+  row over Stats. `Space e` cycles expanded → icons → hidden; the top-bar button
   and the 26 px rail chip do the same with a mouse.
 - **Managers** — `Sessions` sorts (`o`) and searches (`/`); `Skills` and `Work`
   search by name (`/`), and a query that matches nothing says so and names `Esc`.
@@ -134,7 +134,10 @@ leaves the frame at `$TMPDIR/lockedin-smoke/smoke.png` for inspection.
   edit its twelve tokens. Every change applies immediately.
 - **Stats, Review, Archive, Knowledge** — read-only surfaces over the same data.
 
-`Alt+1…9` switches surfaces, `Alt+0` Settings, `Ctrl+K` opens the command
+`Space` + a key switches surfaces (`c` chat, `h` sessions, `g` skills, `s`
+sources, `t` stats, `p` work, `v` review, `f` archive, `n` knowledge, `,`
+settings, `i` achievements, `e` sidebar, `l` new lock-in, `k` flashcards), `\`
+opens the leader where `Space` is a local action, and `Ctrl+K` opens the command
 palette, `Esc` leaves a dialog.
 
 ## What is not done

@@ -79,23 +79,39 @@ Future<CoreStore> pumpShell(
 }
 
 /// One-based surface digit over `Surface.values`, with `0` for the tenth.
-Future<void> pressAlt(WidgetTester tester, int digit) async {
-  const digits = [
-    LogicalKeyboardKey.digit1,
-    LogicalKeyboardKey.digit2,
-    LogicalKeyboardKey.digit3,
-    LogicalKeyboardKey.digit4,
-    LogicalKeyboardKey.digit5,
-    LogicalKeyboardKey.digit6,
-    LogicalKeyboardKey.digit7,
-    LogicalKeyboardKey.digit8,
-    LogicalKeyboardKey.digit9,
-  ];
-  await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
-  await tester.sendKeyEvent(
-    digit == 0 ? LogicalKeyboardKey.digit0 : digits[digit - 1],
-  );
-  await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+/// The leader key per surface ordinal (1 = Chat … 0 = Settings), matching the
+/// terminal app's grammar: `Space c`, `Space h`, `Space g`, `Space s`, `Space t`,
+/// `Space p`, `Space v`, `Space f`, `Space n`, `Space ,`.
+const _surfaceLeaderKeys = <LogicalKeyboardKey>[
+  LogicalKeyboardKey.keyC,
+  LogicalKeyboardKey.keyH,
+  LogicalKeyboardKey.keyG,
+  LogicalKeyboardKey.keyS,
+  LogicalKeyboardKey.keyT,
+  LogicalKeyboardKey.keyP,
+  LogicalKeyboardKey.keyV,
+  LogicalKeyboardKey.keyF,
+  LogicalKeyboardKey.keyN,
+  LogicalKeyboardKey.comma,
+];
+
+/// Open a surface the way the terminal app does: `Space`, then the leader key.
+Future<void> openSurface(WidgetTester tester, int surface) async {
+  // Leave INSERT first: the leader is a NORMAL-mode chord, exactly as in the
+  // terminal app, and the chat composer holds the keyboard on first paint. The
+  // status bar is the shell's own answer for the mode, so this never presses
+  // Esc on a page that would treat it as "back".
+  if (find.text('INSERT').evaluate().isNotEmpty) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+  }
+  // The alternate leader: `Space` is a local action on the deck, the steps
+  // reader and the approvals view, and navigation must work from all of them.
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  // `0` is the tenth surface (Settings), as in the terminal app.
+  final index = surface == 0 ? _surfaceLeaderKeys.length - 1 : surface - 1;
+  await tester.sendKeyEvent(_surfaceLeaderKeys[index]);
   await tester.pumpAndSettle();
 }
 
@@ -409,7 +425,7 @@ void main() {
   ) async {
     final core = FakeCore();
     await pumpShell(tester, core: core);
-    await pressAlt(tester, 9);
+    await openSurface(tester, 9);
 
     // The tree's second note, so the selection is a real move rather than 0.
     await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
@@ -460,7 +476,7 @@ void main() {
   testWidgets('Enter on a search hit reads that hit', (tester) async {
     final core = FakeCore();
     await pumpShell(tester, core: core);
-    await pressAlt(tester, 9);
+    await openSurface(tester, 9);
 
     await tester.enterText(
       find.byKey(const ValueKey('knowledge-search')),
@@ -488,7 +504,7 @@ void main() {
   ) async {
     final core = FakeCore(knowledgeReadFailure: 'the note could not be read');
     await pumpShell(tester, core: core);
-    await pressAlt(tester, 9);
+    await openSurface(tester, 9);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
@@ -514,15 +530,15 @@ void main() {
   testWidgets('switching surfaces collapses the reader', (tester) async {
     final core = FakeCore();
     await pumpShell(tester, core: core);
-    await pressAlt(tester, 9);
+    await openSurface(tester, 9);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('knowledge-reader')), findsOneWidget);
 
-    await pressAlt(tester, 1);
+    await openSurface(tester, 1);
     expect(find.byKey(const ValueKey('knowledge-reader')), findsNothing);
 
-    await pressAlt(tester, 9);
+    await openSurface(tester, 9);
     expect(find.byKey(const ValueKey('knowledge-reader')), findsNothing);
     expect(find.text('PHYSICS'), findsOneWidget);
     expect(tester.takeException(), isNull);
