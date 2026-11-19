@@ -388,6 +388,16 @@ class _ChatPageState extends State<ChatPage> {
       _clearAttachments();
       return KeyEventResult.handled;
     }
+    // `Esc` stops a reply first, from either mode: the composer keeps focus
+    // while a turn streams, and cancelling must not need a mode change
+    // (docs/product.md §3: "Esc during a reply cancels it").
+    if (key == LogicalKeyboardKey.escape && widget.onCancel != null) {
+      final streaming = widget.chat?.streaming ?? false;
+      if (streaming) {
+        if (event is KeyDownEvent) widget.onCancel!();
+        return KeyEventResult.handled;
+      }
+    }
     if (_composerFocus.hasFocus) return KeyEventResult.ignored;
     if (key == LogicalKeyboardKey.keyP) {
       if (_sending) return KeyEventResult.handled;

@@ -31,16 +31,31 @@ const surfaceActionIds = <String>[
   'settings',
 ];
 
-/// The default `Alt` key for a surface at [index] in [surfaceActionIds].
+/// The leader key for a surface at [index] in [surfaceActionIds].
 ///
-/// The first nine surfaces take `Alt+1…9` by index; the tenth takes `Alt+0`, so
-/// adding a surface never costs another one its shortcut. A surface beyond the
-/// tenth has no free digit and falls back to its index, which the registry's
-/// duplicate/chord validation reports rather than silently pretending.
-String surfaceDefaultKey(int index) {
-  if (index < 9) return '${index + 1}';
-  if (index == 9) return '0';
-  return '${index + 1}';
+/// This is the terminal app's grammar (`src/ui/keymap/defaults.ts`): `Space c`
+/// for Chill, `Space h` for lock-in sessions, `Space g` for skill goals,
+/// `Space ,` for Settings. The desktop had temporary `Alt+1…0` defaults while
+/// the leader overlay was being built; they are gone, because two switchers for
+/// the same action is exactly the drift the one-registry rule exists to stop.
+const surfaceLeaderKeys = <String>[
+  'c',
+  'h',
+  'g',
+  's',
+  't',
+  'p',
+  'v',
+  'f',
+  'n',
+  ',',
+];
+
+String surfaceLeaderKey(int index) {
+  if (index < 0 || index >= surfaceLeaderKeys.length) {
+    throw RangeError.index(index, surfaceLeaderKeys, 'surface');
+  }
+  return surfaceLeaderKeys[index];
 }
 
 /// One action the shell can run, with its default binding.
@@ -297,7 +312,7 @@ List<ActionSpec> defaultActionCatalogue() => [
       label: surfaceActionIds[index],
       hint: _surfaceHints[surfaceActionIds[index]] ?? 'open the surface',
       group: ActionGroup.context,
-      defaultBinding: Binding.direct(surfaceDefaultKey(index), alt: true),
+      defaultBinding: Binding.leader(surfaceLeaderKey(index)),
     ),
   const ActionSpec(
     id: 'palette',
@@ -325,7 +340,7 @@ List<ActionSpec> defaultActionCatalogue() => [
     label: 'retry',
     hint: 'reconnect the core',
     group: ActionGroup.global,
-    defaultBinding: Binding.leader('t'),
+    defaultBinding: Binding.direct('r', control: true),
   ),
   const ActionSpec(
     id: 'leader',
@@ -377,7 +392,40 @@ const achievementsAction = ActionSpec(
   label: 'achievements',
   hint: 'what you have unlocked',
   group: ActionGroup.global,
-  defaultBinding: Binding.leader('a'),
+  defaultBinding: Binding.leader('i'),
+);
+
+/// The alternate leader, for surfaces where `Space` is a local action.
+///
+/// `docs/design.md` §7.3: flashcards flip on Space (and the approvals and steps
+/// readers toggle with it), so those surfaces need a second way in. It opens the
+/// same overlay and reads the same registry.
+const leaderAltAction = ActionSpec(
+  id: 'leader-alt',
+  label: 'leader (alternate)',
+  hint: 'open the binding list on a surface that uses Space',
+  group: ActionGroup.system,
+  defaultBinding: Binding.direct('\\'),
+);
+
+/// The learning verbs the terminal app puts on the leader
+/// (`src/ui/keymap/defaults.ts`: `lock-in` on `Space l`, `flashcards` on
+/// `Space k`). They are shell actions because the shell owns the wizard and the
+/// output reader; the pages keep their own `n` / `f` keys as page-local verbs.
+const newLockInAction = ActionSpec(
+  id: 'new-lock-in',
+  label: 'new lock-in',
+  hint: 'start a session from files',
+  group: ActionGroup.global,
+  defaultBinding: Binding.leader('l'),
+);
+
+const flashcardsAction = ActionSpec(
+  id: 'flashcards',
+  label: 'flashcards',
+  hint: 'open the open session deck',
+  group: ActionGroup.global,
+  defaultBinding: Binding.leader('k'),
 );
 
 /// The sidebar toggle.
@@ -391,7 +439,7 @@ const sidebarAction = ActionSpec(
   label: 'sidebar',
   hint: 'cycle expanded, icons, hidden',
   group: ActionGroup.global,
-  defaultBinding: Binding.direct('b', control: true),
+  defaultBinding: Binding.leader('e'),
 );
 
 /// The catalogue the shell builds: every surface/default action plus the layers
@@ -403,5 +451,8 @@ const sidebarAction = ActionSpec(
 List<ActionSpec> shellActionCatalogue() => [
   ...defaultActionCatalogue(),
   achievementsAction,
+  newLockInAction,
+  flashcardsAction,
   sidebarAction,
+  leaderAltAction,
 ];

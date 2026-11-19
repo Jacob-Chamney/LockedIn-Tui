@@ -522,6 +522,18 @@ class _ArchivePageState extends State<ArchivePage> {
                 if (_busy) return;
                 setState(() => _selectedIndex = index);
               },
+              onRestore: widget.onRestore == null || _busy
+                  ? null
+                  : () {
+                      setState(() => _selectedIndex = index);
+                      unawaited(_restore(row));
+                    },
+              onDelete: widget.onDelete == null || _busy
+                  ? null
+                  : () {
+                      setState(() => _selectedIndex = index);
+                      unawaited(_delete(row));
+                    },
             ),
           ),
         );
@@ -592,6 +604,8 @@ class _ArchiveRowTile extends StatelessWidget {
     this.restoring = false,
     this.deleting = false,
     this.onTap,
+    this.onRestore,
+    this.onDelete,
   });
 
   final ArchiveRow row;
@@ -607,6 +621,11 @@ class _ArchiveRowTile extends StatelessWidget {
   final bool deleting;
 
   final VoidCallback? onTap;
+
+  /// The pointer path for `Enter` / `d`. Both still confirm first; the buttons
+  /// only start the same flow the keys do.
+  final VoidCallback? onRestore;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -685,6 +704,23 @@ class _ArchiveRowTile extends StatelessWidget {
                 key: ValueKey('archive-deleting'),
                 style: TextStyle(color: LockedInColors.error, fontSize: 11),
               ),
+            ] else if (onRestore != null || onDelete != null) ...[
+              const SizedBox(width: 8),
+              if (onRestore != null)
+                TextButton(
+                  key: ValueKey('archive-restore-${row.id}'),
+                  onPressed: onRestore,
+                  child: const Text('restore'),
+                ),
+              if (onDelete != null)
+                IconButton(
+                  key: ValueKey('archive-delete-${row.id}'),
+                  tooltip: 'delete (d)',
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline, size: 16),
+                  visualDensity: VisualDensity.compact,
+                  color: LockedInColors.muted,
+                ),
             ],
           ],
         ),

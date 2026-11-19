@@ -229,7 +229,9 @@ echo "== wide set ($WIDE)"
 launch_app "$WIDE"
 
 shot chat
-key alt+2
+key Escape
+key space
+key h
 shot sessions
 key Return
 shot session-detail
@@ -248,17 +250,23 @@ DISPLAY="$DISPLAY_NUM" xdotool key --clearmodifiers 1
 sleep 0.35
 shot deck-confetti
 key Escape
-key alt+3
+key Escape
+key space
+key g
 shot skills
 key Return
 shot skill-detail
-key alt+5
+key Escape
+key space
+key t
 shot stats
 # `a` opens the achievement inventory over Stats.
 key a
 shot achievements
 key Escape
-key alt+6
+key Escape
+key space
+key p
 shot work
 key Return
 shot work-detail
@@ -266,17 +274,25 @@ shot work-detail
 key l
 shot activity
 key Escape
-key alt+7
+key Escape
+key space
+key v
 shot review
-key alt+8
+key Escape
+key space
+key f
 shot archive-empty
-key alt+9
+key Escape
+key space
+key n
 shot knowledge
 # The first tree row is a school note; Enter opens it in the reader.
 key Return
 shot knowledge-reader
 key Escape
-key alt+0
+key Escape
+key space
+key comma
 shot settings
 
 # `Enter` on the theme row opens the picker: the catalogue, each palette's own

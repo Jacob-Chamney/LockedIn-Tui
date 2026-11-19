@@ -32,17 +32,54 @@ String? countFor(WidgetTester tester, String row) {
   return tester.widget<Text>(finder).data;
 }
 
-/// The chord the registry gives the sidebar action, so a rebind test would not
-/// have to change this file.
+/// The registry's chord for the sidebar: the terminal app's `<leader>e`.
 Future<void> pressSidebarChord(WidgetTester tester) async {
-  await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-  await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
-  await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+  // The alternate leader: `Space` is a local action on the deck, the steps
+  // reader and the approvals view, and navigation must work from all of them.
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+  await tester.pumpAndSettle();
+}
+
+/// The leader key per surface ordinal (1 = Chat … 0 = Settings), matching the
+/// terminal app's grammar: `Space c`, `Space h`, `Space g`, `Space s`, `Space t`,
+/// `Space p`, `Space v`, `Space f`, `Space n`, `Space ,`.
+const _surfaceLeaderKeys = <LogicalKeyboardKey>[
+  LogicalKeyboardKey.keyC,
+  LogicalKeyboardKey.keyH,
+  LogicalKeyboardKey.keyG,
+  LogicalKeyboardKey.keyS,
+  LogicalKeyboardKey.keyT,
+  LogicalKeyboardKey.keyP,
+  LogicalKeyboardKey.keyV,
+  LogicalKeyboardKey.keyF,
+  LogicalKeyboardKey.keyN,
+  LogicalKeyboardKey.comma,
+];
+
+/// Open a surface the way the terminal app does: `Space`, then the leader key.
+Future<void> openSurface(WidgetTester tester, int surface) async {
+  // Leave INSERT first: the leader is a NORMAL-mode chord, exactly as in the
+  // terminal app, and the chat composer holds the keyboard on first paint. The
+  // status bar is the shell's own answer for the mode, so this never presses
+  // Esc on a page that would treat it as "back".
+  if (find.text('INSERT').evaluate().isNotEmpty) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+  }
+  // The alternate leader: `Space` is a local action on the deck, the steps
+  // reader and the approvals view, and navigation must work from all of them.
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  // `0` is the tenth surface (Settings), as in the terminal app.
+  final index = surface == 0 ? _surfaceLeaderKeys.length - 1 : surface - 1;
+  await tester.sendKeyEvent(_surfaceLeaderKeys[index]);
   await tester.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('Ctrl+B cycles expanded, icons, hidden', (tester) async {
+  testWidgets('Space e cycles expanded, icons, hidden', (tester) async {
     await pumpShell(tester);
     expect(find.text('LEARN'), findsOneWidget);
     expect(find.text('Sessions'), findsWidgets);
@@ -92,10 +129,7 @@ void main() {
   testWidgets('the mode survives switching surfaces', (tester) async {
     await pumpShell(tester);
     await pressSidebarChord(tester); // icons
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
-    await tester.sendKeyEvent(LogicalKeyboardKey.digit2);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
-    await tester.pumpAndSettle();
+    await openSurface(tester, 2);
 
     expect(find.text('LEARN'), findsNothing);
     expect(find.text('LOCK-IN SESSIONS'), findsOneWidget);
@@ -135,8 +169,8 @@ void main() {
     // Chat has nothing countable, so it draws no count at all.
     expect(countFor(tester, 'chat'), isNull);
     // The chord is in the row's tooltip, not beside the count.
-    expect(find.byTooltip('Alt+2 · Sessions'), findsOneWidget);
-    expect(find.byTooltip('Alt+0 · Settings'), findsOneWidget);
+    expect(find.byTooltip('Space h · Sessions'), findsOneWidget);
+    expect(find.byTooltip('Space , · Settings'), findsOneWidget);
   });
 
   testWidgets('a count reads as a count and a chord as a chord', (
@@ -163,7 +197,7 @@ void main() {
 
     expect(countFor(tester, 'sessions'), '12');
     // The row's tooltip is the chord, so `12` cannot be read as one.
-    expect(find.byTooltip('Alt+2 · Sessions'), findsOneWidget);
+    expect(find.byTooltip('Space h · Sessions'), findsOneWidget);
   });
 
   testWidgets('Achievements is a destination of its own', (tester) async {
@@ -190,10 +224,7 @@ void main() {
     expect(countFor(tester, 'achievements'), isNull);
 
     // Stats, then `a` — the same path the registry action takes.
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
-    await tester.sendKeyEvent(LogicalKeyboardKey.digit5);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
-    await tester.pumpAndSettle();
+    await openSurface(tester, 5);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
     await tester.pumpAndSettle();
 
@@ -225,14 +256,8 @@ void main() {
 
     // Leave for Sessions and come back: chat is home, and the draft is still
     // there — losing it is the one thing a chat-first app must not do.
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
-    await tester.sendKeyEvent(LogicalKeyboardKey.digit2);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
-    await tester.pumpAndSettle();
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
-    await tester.sendKeyEvent(LogicalKeyboardKey.digit1);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
-    await tester.pumpAndSettle();
+    await openSurface(tester, 2);
+    await openSurface(tester, 1);
 
     expect(
       tester.widget<TextField>(find.byKey(composer)).controller?.text,

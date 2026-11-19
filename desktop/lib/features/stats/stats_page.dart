@@ -148,6 +148,10 @@ class _StatsPageState extends State<StatsPage> {
               scope: widget.scope,
               onRange: widget.onRange,
               onScope: widget.onScope,
+              onAchievements: widget.onAchievements,
+              onExport: widget.onExport == null
+                  ? null
+                  : () => unawaited(_openExport(widget.onExport!)),
             ),
           ),
           _StatsFooter(
@@ -219,6 +223,8 @@ class _Dashboard extends StatelessWidget {
     required this.scope,
     this.onRange,
     this.onScope,
+    this.onAchievements,
+    this.onExport,
   });
 
   final StatsSummary summary;
@@ -226,6 +232,10 @@ class _Dashboard extends StatelessWidget {
   final String scope;
   final ValueChanged<String>? onRange;
   final ValueChanged<String>? onScope;
+
+  /// The header's pointer paths for `a` and `x`.
+  final VoidCallback? onAchievements;
+  final VoidCallback? onExport;
 
   @override
   Widget build(BuildContext context) {
@@ -268,6 +278,29 @@ class _Dashboard extends StatelessWidget {
                           fontSize: 12,
                         ),
                       ),
+                      // The two header actions are keys (`a`, `x`); the buttons
+                      // are their pointer path, not a second implementation.
+                      if (onAchievements != null) ...[
+                        const SizedBox(width: 10),
+                        TextButton.icon(
+                          key: const ValueKey('stats-achievements'),
+                          onPressed: onAchievements,
+                          icon: const Icon(
+                            Icons.emoji_events_outlined,
+                            size: 15,
+                          ),
+                          label: const Text('achievements'),
+                        ),
+                      ],
+                      if (onExport != null) ...[
+                        const SizedBox(width: 6),
+                        OutlinedButton.icon(
+                          key: const ValueKey('stats-export'),
+                          onPressed: onExport,
+                          icon: const Icon(Icons.download_outlined, size: 15),
+                          label: const Text('export'),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 14),

@@ -628,7 +628,10 @@ class _KnowledgePageState extends State<KnowledgePage> {
               key: ValueKey('knowledge-hit-${hit.id}'),
               hit: hit,
               selected: index == _selected,
-              onTap: () => setState(() => _selectedIndex = index),
+              onTap: () {
+                setState(() => _selectedIndex = index);
+                _open();
+              },
             ),
           ),
         );
@@ -656,7 +659,10 @@ class _KnowledgePageState extends State<KnowledgePage> {
                 key: ValueKey('knowledge-note-${note.path}'),
                 note: note,
                 selected: position == _selected,
-                onTap: () => setState(() => _selectedIndex = position),
+                onTap: () {
+                  setState(() => _selectedIndex = position);
+                  _open();
+                },
               ),
             ),
           );

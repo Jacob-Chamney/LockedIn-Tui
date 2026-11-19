@@ -25,25 +25,40 @@ Future<CoreStore> pumpShell(
   return store;
 }
 
-const _digits = [
-  LogicalKeyboardKey.digit1,
-  LogicalKeyboardKey.digit2,
-  LogicalKeyboardKey.digit3,
-  LogicalKeyboardKey.digit4,
-  LogicalKeyboardKey.digit5,
-  LogicalKeyboardKey.digit6,
-  LogicalKeyboardKey.digit7,
-  LogicalKeyboardKey.digit8,
-  LogicalKeyboardKey.digit9,
+/// One-based surface digit over `Surface.values`, with `0` for the tenth.
+/// The leader key per surface ordinal (1 = Chat … 0 = Settings), matching the
+/// terminal app's grammar: `Space c`, `Space h`, `Space g`, `Space s`, `Space t`,
+/// `Space p`, `Space v`, `Space f`, `Space n`, `Space ,`.
+const _surfaceLeaderKeys = <LogicalKeyboardKey>[
+  LogicalKeyboardKey.keyC,
+  LogicalKeyboardKey.keyH,
+  LogicalKeyboardKey.keyG,
+  LogicalKeyboardKey.keyS,
+  LogicalKeyboardKey.keyT,
+  LogicalKeyboardKey.keyP,
+  LogicalKeyboardKey.keyV,
+  LogicalKeyboardKey.keyF,
+  LogicalKeyboardKey.keyN,
+  LogicalKeyboardKey.comma,
 ];
 
-/// One-based surface digit over `Surface.values`, with `0` for the tenth.
-Future<void> pressAlt(WidgetTester tester, int digit) async {
-  await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
-  await tester.sendKeyEvent(
-    digit == 0 ? LogicalKeyboardKey.digit0 : _digits[digit - 1],
-  );
-  await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+/// Open a surface the way the terminal app does: `Space`, then the leader key.
+Future<void> openSurface(WidgetTester tester, int surface) async {
+  // Leave INSERT first: the leader is a NORMAL-mode chord, exactly as in the
+  // terminal app, and the chat composer holds the keyboard on first paint. The
+  // status bar is the shell's own answer for the mode, so this never presses
+  // Esc on a page that would treat it as "back".
+  if (find.text('INSERT').evaluate().isNotEmpty) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+  }
+  // The alternate leader: `Space` is a local action on the deck, the steps
+  // reader and the approvals view, and navigation must work from all of them.
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  // `0` is the tenth surface (Settings), as in the terminal app.
+  final index = surface == 0 ? _surfaceLeaderKeys.length - 1 : surface - 1;
+  await tester.sendKeyEvent(_surfaceLeaderKeys[index]);
   await tester.pumpAndSettle();
 }
 
@@ -64,14 +79,14 @@ Future<void> search(WidgetTester tester, String text) async {
 }
 
 void main() {
-  testWidgets('Alt+9 opens Knowledge and reads the tree once on entry', (
+  testWidgets('Space n opens Knowledge and reads the tree once on entry', (
     tester,
   ) async {
     final core = FakeCore();
     await pumpShell(tester, core: core);
     expect(_calls(core, 'knowledge.tree'), 0, reason: 'not a boot read');
 
-    await pressAlt(tester, 9);
+    await openSurface(tester, 9);
 
     expect(find.text('KNOWLEDGE'), findsWidgets);
     expect(find.text('PHYSICS'), findsOneWidget);
@@ -92,9 +107,9 @@ void main() {
     expect(find.text('Knowledge'), findsWidgets);
     // The sidebar keeps the chord in the row's tooltip rather than beside the
     // label, where it read as a count.
-    expect(find.byTooltip('Alt+9 · Knowledge'), findsOneWidget);
-    // Settings is the tenth surface: its chord is Alt+0, not `10`.
-    expect(find.byTooltip('Alt+0 · Settings'), findsOneWidget);
+    expect(find.byTooltip('Space n · Knowledge'), findsOneWidget);
+    // Settings is `Space ,` — the terminal app's chord, not a digit.
+    expect(find.byTooltip('Space , · Settings'), findsOneWidget);
 
     await pressCtrlK(tester);
     expect(
@@ -117,16 +132,14 @@ void main() {
     expect(find.text('Entropy and the second law'), findsOneWidget);
   });
 
-  testWidgets('the leader overlay shows the real Alt+0 for Settings', (
-    tester,
-  ) async {
+  testWidgets('the leader overlay shows Space , for Settings', (tester) async {
     await pumpShell(tester);
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
     await tester.pumpAndSettle();
 
     expect(find.byType(LeaderOverlay), findsOneWidget);
-    expect(find.text('Alt+9'), findsOneWidget);
-    expect(find.text('Alt+0'), findsOneWidget);
+    expect(find.text('Space n'), findsOneWidget);
+    expect(find.text('Space ,'), findsOneWidget);
   });
 
   testWidgets('typing searches once with kind, side and history labels', (
@@ -134,7 +147,7 @@ void main() {
   ) async {
     final core = FakeCore();
     await pumpShell(tester, core: core);
-    await pressAlt(tester, 9);
+    await openSurface(tester, 9);
 
     await search(tester, 'boundary');
 
@@ -170,7 +183,7 @@ void main() {
   ) async {
     final core = FakeCore();
     await pumpShell(tester, core: core);
-    await pressAlt(tester, 9);
+    await openSurface(tester, 9);
 
     await search(tester, 'zzzz');
 
@@ -187,7 +200,7 @@ void main() {
     tester,
   ) async {
     await pumpShell(tester);
-    await pressAlt(tester, 9);
+    await openSurface(tester, 9);
     await search(tester, 'boundary');
     expect(find.text('PHYSICS'), findsNothing);
 
@@ -208,7 +221,7 @@ void main() {
   ) async {
     final core = FakeCore(knowledgeFailure: 'the vault could not be read');
     await pumpShell(tester, core: core);
-    await pressAlt(tester, 9);
+    await openSurface(tester, 9);
 
     expect(find.text('the vault could not be read'), findsOneWidget);
     expect(find.byKey(const ValueKey('knowledge-empty')), findsNothing);
@@ -221,7 +234,7 @@ void main() {
 
   testWidgets('Enter on a hit opens it in the reader', (tester) async {
     await pumpShell(tester);
-    await pressAlt(tester, 9);
+    await openSurface(tester, 9);
     await search(tester, 'boundary');
 
     // The platform's search action applies the word and returns the keyboard
@@ -238,7 +251,7 @@ void main() {
 
   testWidgets('the Knowledge surface fits 800x600', (tester) async {
     await pumpShell(tester, size: const Size(800, 600));
-    await pressAlt(tester, 9);
+    await openSurface(tester, 9);
 
     expect(find.text('KNOWLEDGE'), findsWidgets);
     expect(find.text('Entropy and the second law'), findsOneWidget);
@@ -254,7 +267,7 @@ void main() {
   ) async {
     final core = FakeCore();
     final store = await pumpShell(tester, core: core);
-    await pressAlt(tester, 9);
+    await openSurface(tester, 9);
     await search(tester, 'boundary');
     // The platform's search action hands the keyboard back to the list, so `s`
     // is the scope key rather than a character typed into the field.
@@ -285,7 +298,7 @@ void main() {
   ) async {
     final core = FakeCore();
     final store = await pumpShell(tester, core: core);
-    await pressAlt(tester, 9);
+    await openSurface(tester, 9);
 
     await tester.tap(find.byKey(const ValueKey('knowledge-scope-skills')));
     await tester.pumpAndSettle();
@@ -303,7 +316,7 @@ void main() {
   ) async {
     final core = FakeCore();
     final store = await pumpShell(tester, core: core);
-    await pressAlt(tester, 9);
+    await openSurface(tester, 9);
     expect(core.knowledgeScopes, ['all']);
 
     for (var press = 0; press < 3; press++) {
@@ -329,13 +342,13 @@ void main() {
 
   testWidgets('the scope survives a surface switch', (tester) async {
     final store = await pumpShell(tester);
-    await pressAlt(tester, 9);
+    await openSurface(tester, 9);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
     await tester.pumpAndSettle();
     expect(store.knowledgeScope, 'school');
 
-    await pressAlt(tester, 1);
-    await pressAlt(tester, 9);
+    await openSurface(tester, 1);
+    await openSurface(tester, 9);
 
     expect(store.knowledgeScope, 'school');
     expect(
@@ -351,7 +364,7 @@ void main() {
 
   testWidgets('[ and ] walk the search hits inside the reader', (tester) async {
     final store = await pumpShell(tester, core: FakeCore());
-    await pressAlt(tester, 9);
+    await openSurface(tester, 9);
     await search(tester, 'boundary');
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pumpAndSettle();

@@ -106,19 +106,39 @@ Future<CoreStore> pumpShell(
 }
 
 /// `Alt+N` for one surface: the shell maps the digit to `Surface.values[N - 1]`.
-Future<void> pressAlt(WidgetTester tester, int digit) async {
-  const digits = [
-    LogicalKeyboardKey.digit1,
-    LogicalKeyboardKey.digit2,
-    LogicalKeyboardKey.digit3,
-    LogicalKeyboardKey.digit4,
-    LogicalKeyboardKey.digit5,
-    LogicalKeyboardKey.digit6,
-    LogicalKeyboardKey.digit7,
-  ];
-  await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
-  await tester.sendKeyEvent(digits[digit - 1]);
-  await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+/// The leader key per surface ordinal (1 = Chat … 0 = Settings), matching the
+/// terminal app's grammar: `Space c`, `Space h`, `Space g`, `Space s`, `Space t`,
+/// `Space p`, `Space v`, `Space f`, `Space n`, `Space ,`.
+const _surfaceLeaderKeys = <LogicalKeyboardKey>[
+  LogicalKeyboardKey.keyC,
+  LogicalKeyboardKey.keyH,
+  LogicalKeyboardKey.keyG,
+  LogicalKeyboardKey.keyS,
+  LogicalKeyboardKey.keyT,
+  LogicalKeyboardKey.keyP,
+  LogicalKeyboardKey.keyV,
+  LogicalKeyboardKey.keyF,
+  LogicalKeyboardKey.keyN,
+  LogicalKeyboardKey.comma,
+];
+
+/// Open a surface the way the terminal app does: `Space`, then the leader key.
+Future<void> openSurface(WidgetTester tester, int surface) async {
+  // Leave INSERT first: the leader is a NORMAL-mode chord, exactly as in the
+  // terminal app, and the chat composer holds the keyboard on first paint. The
+  // status bar is the shell's own answer for the mode, so this never presses
+  // Esc on a page that would treat it as "back".
+  if (find.text('INSERT').evaluate().isNotEmpty) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+  }
+  // The alternate leader: `Space` is a local action on the deck, the steps
+  // reader and the approvals view, and navigation must work from all of them.
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  // `0` is the tenth surface (Settings), as in the terminal app.
+  final index = surface == 0 ? _surfaceLeaderKeys.length - 1 : surface - 1;
+  await tester.sendKeyEvent(_surfaceLeaderKeys[index]);
   await tester.pumpAndSettle();
 }
 
@@ -428,7 +448,7 @@ void main() {
         core: core,
         size: const Size(800, 600),
       );
-      await pressAlt(tester, 3);
+      await openSurface(tester, 3);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
       await tester.pumpAndSettle();
@@ -465,7 +485,7 @@ void main() {
     ) async {
       final core = FakeCore();
       final store = await pumpShell(tester, core: core);
-      await pressAlt(tester, 3);
+      await openSurface(tester, 3);
       await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
       await tester.pumpAndSettle();
       expect(find.text('New skill goal'), findsOneWidget);
@@ -485,15 +505,15 @@ void main() {
       tester,
     ) async {
       final store = await pumpShell(tester);
-      await pressAlt(tester, 3);
+      await openSurface(tester, 3);
 
       // The wizard is a layer of Skills: another surface closes it.
       await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
       await tester.pumpAndSettle();
       expect(find.text('New skill goal'), findsOneWidget);
 
-      await pressAlt(tester, 1);
-      await pressAlt(tester, 3);
+      await openSurface(tester, 1);
+      await openSurface(tester, 3);
       expect(find.text('New skill goal'), findsNothing);
       expect(find.text('SKILLS'), findsWidgets);
       expect(store.activeSkill, isNull);
@@ -503,8 +523,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(store.activeSkillId, FakeCore.skillId);
 
-      await pressAlt(tester, 1);
-      await pressAlt(tester, 3);
+      await openSurface(tester, 1);
+      await openSurface(tester, 3);
       expect(store.activeSkillId, FakeCore.skillId);
       expect(find.text('SKILL'), findsOneWidget);
       expect(find.text('COURSE'), findsOneWidget);

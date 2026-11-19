@@ -28,6 +28,8 @@ class SessionChatView extends StatefulWidget {
     this.onCancel,
     this.onRetry,
     this.onModeChanged,
+    this.initialText,
+    this.onDraftChanged,
   });
 
   /// The open session, used for the title and the empty-state copy.
@@ -51,6 +53,14 @@ class SessionChatView extends StatefulWidget {
   /// Chill. The page never switches mode itself.
   final ValueChanged<bool>? onModeChanged;
 
+  /// The draft the shell kept when this chat was last left. Switching surfaces
+  /// disposes the page, so the text is owned above it: a chat-first app must
+  /// never lose a draft.
+  final String? initialText;
+
+  /// Reports every keystroke of the draft to the shell.
+  final ValueChanged<String>? onDraftChanged;
+
   @override
   State<SessionChatView> createState() => _SessionChatViewState();
 }
@@ -65,6 +75,12 @@ class _SessionChatViewState extends State<SessionChatView> {
     super.initState();
     _composerFocus.onKeyEvent = _handleComposerKey;
     _composerFocus.addListener(_reportMode);
+    final draft = widget.initialText;
+    if (draft != null && draft.isNotEmpty) {
+      _composer.text = draft;
+      _composer.selection = TextSelection.collapsed(offset: draft.length);
+    }
+    _composer.addListener(_reportDraft);
   }
 
   @override
@@ -80,11 +96,16 @@ class _SessionChatViewState extends State<SessionChatView> {
 
   @override
   void dispose() {
+    _composer.removeListener(_reportDraft);
     _composerFocus.removeListener(_reportMode);
     _composerFocus.dispose();
     _composer.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  void _reportDraft() {
+    widget.onDraftChanged?.call(_composer.text);
   }
 
   void _reportMode() {
@@ -110,6 +131,15 @@ class _SessionChatViewState extends State<SessionChatView> {
       return KeyEventResult.ignored;
     }
     final key = event.logicalKey;
+    // Esc stops a streaming reply before it means "back": the composer keeps
+    // focus during a turn, and cancelling must not leave the chat.
+    if (key == LogicalKeyboardKey.escape && widget.onCancel != null) {
+      final streaming = widget.chat?.streaming ?? false;
+      if (streaming) {
+        if (event is KeyDownEvent) widget.onCancel!();
+        return KeyEventResult.handled;
+      }
+    }
     if (key == LogicalKeyboardKey.escape) {
       _composerFocus.unfocus();
       if (widget.onBack == null) return KeyEventResult.ignored;

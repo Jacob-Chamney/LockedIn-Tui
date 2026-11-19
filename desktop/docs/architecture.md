@@ -60,7 +60,8 @@ See `protocol.md` for the method table.
 
 - `desktop/lib/app.dart` — `MaterialApp`, theme, home.
 - `desktop/lib/shell/shell.dart` — top bar, sidebar, status bar, surface switch,
-  `Alt+1…9` and `Alt+0` shortcuts.
+  the leader (`Space` + a key) and `Alt+0`-style shortcuts are gone; every
+  surface is a leader chord, as in the terminal app.
 - `desktop/lib/features/<feature>/` — one folder per surface. Feature widgets
   do not own chrome; they compose the shell.
 - `desktop/lib/theme/palette.dart` — the single palette. Mirrors

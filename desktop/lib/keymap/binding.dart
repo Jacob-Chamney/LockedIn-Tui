@@ -12,11 +12,11 @@ enum BindingKind { leader, direct }
 /// [format] produces them again, so a stored override and a displayed row can
 /// never disagree.
 ///
-/// The shell's *default* bindings also use `alt+<digit>` for the surface
-/// switcher. [Binding.direct] can build one, but [isStorable] is false: the core
-/// refuses that form, so the shell never sends it. A surface keeps its `Alt+N`
-/// until the user rebinds it, and `Backspace` in the keybind editor (which sends
-/// `null`) is how the default comes back.
+/// [Binding.direct] can also build an `alt+<key>` chord, but [isStorable] is
+/// false: the core refuses that form, so the shell never stores one. No default
+/// uses it any more — surfaces are leader chords, as in the terminal app — and
+/// `Backspace` in the keybind editor (which sends `null`) is how a default comes
+/// back.
 class Binding {
   const Binding.direct(this.key, {this.control = false, this.alt = false})
     : kind = BindingKind.direct;

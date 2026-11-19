@@ -152,6 +152,43 @@ Finder markedRow(String id) => find.descendant(
 );
 
 void main() {
+  testWidgets('a row with a control has a chevron that runs it', (
+    tester,
+  ) async {
+    await pumpPage(
+      tester,
+      SettingsPage(
+        settings: populatedSettings(),
+        loading: false,
+        onSaveSettings: (patch) async {},
+      ),
+    );
+
+    // The pointer path for Enter: one click on the row's chevron opens the
+    // control the row stands for (here, the theme picker).
+    final chevron = find.byKey(const ValueKey('settings-activate-theme'));
+    expect(chevron, findsOneWidget);
+    await tester.tap(chevron);
+    await tester.pumpAndSettle();
+    expect(find.text('LockedIn Crimson'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('LockedIn Crimson'), findsNothing);
+
+    // A read-only page keeps the chevron but disables it: the row cannot be
+    // changed, so the pointer path must not pretend otherwise.
+    await pumpPage(
+      tester,
+      SettingsPage(settings: populatedSettings(), loading: false),
+    );
+    final disabled = tester.widget<IconButton>(
+      find.byKey(const ValueKey('settings-activate-theme')),
+    );
+    expect(disabled.onPressed, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('renders the populated settings groups', (tester) async {
     await pumpPage(
       tester,

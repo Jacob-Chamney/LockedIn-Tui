@@ -123,6 +123,16 @@ class _ShellState extends State<Shell> {
   /// chord never reaches the surface underneath.
   bool _leaderOpen = false;
 
+  /// The focus that held the keyboard when the leader opened, so closing it (or
+  /// running a chord) returns the user to the page they were on.
+  FocusNode? _focusBeforeLeader;
+
+  /// Bumped whenever a page should start fresh: a surface switch, or an overlay
+  /// action that ran. Pages take focus with `autofocus` on mount, and an overlay
+  /// leaves the keyboard on the shell root, so a remount is how a page-local key
+  /// (`n`, `g`, `/`, `Esc`) works again afterwards.
+  int _pageEpoch = 0;
+
   /// Whether an open session is showing its chat instead of its detail.
   ///
   /// The sheet has two layers: the session detail, then that session's chat.
@@ -204,6 +214,11 @@ class _ShellState extends State<Shell> {
   /// surfaces disposes the page, and a chat-first app must never lose a draft
   /// (the same rule OpenCode's composer follows).
   String _chatDraft = '';
+
+  /// Drafts for the other chats, keyed `session:<id>`, `project:<id>:<chat>`
+  /// and `goal:<id>:<chat>`. One map, one rule: every composer keeps its text
+  /// across navigation, not just Chill.
+  final _chatDrafts = <String, String>{};
 
   /// Whether the Achievements layer is open over Stats.
   ///
@@ -294,7 +309,13 @@ class _ShellState extends State<Shell> {
   void _select(Surface surface) {
     if (_paletteOpen) _closePalette();
     if (_commandOpen) _closeCommandLine();
-    if (_surface == surface) return;
+    if (_surface == surface) {
+      // Same surface: the page is still the destination, but it should be the
+      // thing holding the keyboard again.
+      if (_leaderOpen) _closeLeader();
+      setState(() => _pageEpoch += 1);
+      return;
+    }
     setState(() {
       _surface = surface;
       // The next surface starts in NORMAL and reports INSERT itself when its
@@ -473,6 +494,7 @@ class _ShellState extends State<Shell> {
   void _runAction(PaletteAction action) {
     _closePalette();
     action.run();
+    setState(() => _pageEpoch += 1);
   }
 
   void _openCommandLine() {
@@ -520,17 +542,29 @@ class _ShellState extends State<Shell> {
 
   void _openLeader() {
     if (_leaderOpen) return;
+    // Remember the page's focus node: the overlay takes the keyboard, and the
+    // page has to get it back or its own keys (Enter, /, g, Esc) stop working.
+    _focusBeforeLeader = FocusManager.instance.primaryFocus;
     setState(() => _leaderOpen = true);
   }
 
   void _closeLeader() {
     if (!_leaderOpen) return;
     setState(() => _leaderOpen = false);
+    final previous = _focusBeforeLeader;
+    _focusBeforeLeader = null;
+    if (previous == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (previous.context != null) previous.requestFocus();
+    });
   }
 
   void _runLeaderRow(KeymapRow row) {
     _closeLeader();
     _dispatchAction(row.id);
+    // A row that did not change surface (refresh, retry, sidebar) still has to
+    // hand the keyboard back to the page.
+    setState(() => _pageEpoch += 1);
   }
 
   /// Open the Achievements layer over Stats.
@@ -574,6 +608,7 @@ class _ShellState extends State<Shell> {
       case 'commands':
         _openCommandLine();
       case 'leader':
+      case 'leader-alt':
       case 'help':
         // `?` and `Space` show the same generated table: it is the help screen,
         // and it is also how a leader chord's second key is chosen.
@@ -586,6 +621,23 @@ class _ShellState extends State<Shell> {
         _openAchievements();
       case 'sidebar':
         _cycleSidebar();
+      case 'new-lock-in':
+        _select(Surface.sessions);
+        setState(() {
+          _wizardOpen = true;
+          _sessionChatOpen = false;
+          _sessionSettingsOpen = false;
+        });
+      case 'flashcards':
+        // With a session open the deck is one chord away; without one the
+        // sessions manager is where a session comes from, which is what the
+        // context-aware rule asks for (`docs/product.md` §5.4).
+        final id = store.activeSessionId;
+        if (id == null) {
+          _select(Surface.sessions);
+        } else {
+          unawaited(store.readOutput(id, 'flashcards'));
+        }
       case 'close':
         _closeLayer();
     }
@@ -720,7 +772,12 @@ class _ShellState extends State<Shell> {
                               unawaited(_openRecentSession(store, id)),
                         ),
                       VerticalDivider(width: 1, color: LockedInColors.line),
-                      Expanded(child: _body(store, keymap)),
+                      Expanded(
+                        child: KeyedSubtree(
+                          key: ValueKey('page-$_pageEpoch'),
+                          child: _body(store, keymap),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -1258,14 +1315,22 @@ class _ShellState extends State<Shell> {
       );
     }
 
+    final sessionDraftKey = sessionId == null ? null : 'session:$sessionId';
     return SessionChatView(
       detail: active,
       chat: store.sessionChat,
       loading: false,
       error: store.sessionChatError ?? store.error,
+      initialText: sessionDraftKey == null
+          ? null
+          : _chatDrafts[sessionDraftKey],
+      onDraftChanged: sessionDraftKey == null
+          ? null
+          : (text) => _chatDrafts[sessionDraftKey] = text,
       onBack: () => setState(() => _sessionChatOpen = false),
       onSend: (text) {
         if (sessionId != null) {
+          if (sessionDraftKey != null) _chatDrafts.remove(sessionDraftKey);
           unawaited(store.sendSessionChat(sessionId, text));
         }
       },
@@ -1343,16 +1408,24 @@ class _ShellState extends State<Shell> {
 
     final chatId = store.activeSkillChatId;
     if (_skillChatOpen && chatId != null) {
+      final goalDraftKey = skillId == null ? null : 'goal:$skillId:$chatId';
       return SkillChatView(
         skill: skill,
         chatId: chatId,
         chat: store.skillChat,
         loading: store.status == CoreStatus.connecting,
         error: store.skillChatError ?? store.error,
+        initialText: goalDraftKey == null ? null : _chatDrafts[goalDraftKey],
+        onDraftChanged: goalDraftKey == null
+            ? null
+            : (text) => _chatDrafts[goalDraftKey] = text,
         onBack: () => setState(() => _skillChatOpen = false),
         onSend: skillId == null
             ? null
-            : (text) => unawaited(store.sendSkillChat(skillId, chatId, text)),
+            : (text) {
+                if (goalDraftKey != null) _chatDrafts.remove(goalDraftKey);
+                unawaited(store.sendSkillChat(skillId, chatId, text));
+              },
         onCancel: skillId == null
             ? null
             : () => unawaited(store.cancelSkillChat(skillId, chatId)),
@@ -1582,16 +1655,30 @@ class _ShellState extends State<Shell> {
       );
     }
     if (_workChatOpen && chatId != null) {
+      final projectDraftKey = projectId == null
+          ? null
+          : 'project:$projectId:$chatId';
       return WorkChatView(
         project: project,
         chatId: chatId,
         chat: store.workChat,
         loading: store.status == CoreStatus.connecting,
         error: store.workChatError ?? store.error,
+        initialText: projectDraftKey == null
+            ? null
+            : _chatDrafts[projectDraftKey],
+        onDraftChanged: projectDraftKey == null
+            ? null
+            : (text) => _chatDrafts[projectDraftKey] = text,
         onBack: () => setState(() => _workChatOpen = false),
         onSend: projectId == null
             ? null
-            : (text) => unawaited(store.sendWorkChat(projectId, chatId, text)),
+            : (text) {
+                if (projectDraftKey != null) {
+                  _chatDrafts.remove(projectDraftKey);
+                }
+                unawaited(store.sendWorkChat(projectId, chatId, text));
+              },
         onCancel: projectId == null
             ? null
             : () => unawaited(store.cancelWorkChat(projectId, chatId)),
@@ -2220,7 +2307,9 @@ class _SidebarRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Tooltip(
-      message: shortcut.isEmpty ? label : 'Alt+$shortcut · $label',
+      // `shortcut` is the registry's display form (`Space e`, `Ctrl+K`), so the
+      // tooltip can never disagree with the binding.
+      message: shortcut.isEmpty ? label : '$shortcut · $label',
       waitDuration: const Duration(milliseconds: 500),
       child: Padding(
         padding: const EdgeInsets.only(bottom: 2),

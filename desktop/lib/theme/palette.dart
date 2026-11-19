@@ -339,6 +339,10 @@ ThemeData lockedInTheme() {
     scaffoldBackgroundColor: LockedInColors.background,
     dividerColor: LockedInColors.line,
     splashFactory: InkSparkle.splashFactory,
+    // Material's default hover wash is 4 % white, invisible on these surfaces.
+    // A panel lift is the pointer equivalent of the sidebar's selected row.
+    hoverColor: LockedInColors.panel.withValues(alpha: 0.55),
+    highlightColor: LockedInColors.panel.withValues(alpha: 0.35),
     textTheme: TextTheme(
       bodyLarge: body,
       bodyMedium: body,

@@ -56,6 +56,24 @@ Future<void> pumpSessions(
 }
 
 void main() {
+  testWidgets('a click opens the row, exactly like Enter', (tester) async {
+    final opened = <String>[];
+    await pumpSessions(
+      tester,
+      SessionsPage(
+        sessions: _sessions,
+        loading: false,
+        onOpen: (row) => opened.add(row.id),
+      ),
+    );
+
+    await tester.tap(find.text('Physics — Unit 4'));
+    await tester.pumpAndSettle();
+
+    expect(opened, ['physics-unit-4']);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('renders the header, rows, counts and badges', (tester) async {
     await pumpSessions(
       tester,

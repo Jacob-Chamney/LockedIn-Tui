@@ -9,7 +9,8 @@ lives in `desktop/lib`.
 ## Navigation and layout
 
 1. **One toggle key per rail, and it cycles.** Neovim users expect a toggle,
-   not a menu: `Ctrl+B` moves expanded → icons → hidden. It is a registry action
+   not a menu: `<leader>e` (the terminal app's `navigator`) moves expanded →
+   icons → hidden. It is a registry action
    (`keymap/registry.dart` → `sidebarAction`), so the tooltip, the palette and
    the Settings editor all read the same binding.
 2. **Hiding is a reflow, never an overlay.** The chat column widens; nothing
@@ -60,12 +61,34 @@ lives in `desktop/lib`.
     `pumpAndSettle` in the shell suite hang and would keep the compositor awake;
     the sky is static, and only the selection ring animates, once.
 
+15. **The leader is `<leader>e` for the rail and `Space` + a letter for every
+    surface**, exactly as `src/ui/keymap/defaults.ts` has it: `c` Chill, `h`
+    lock-in sessions, `g` skill goals, `s` sources, `t` stats, `p` work, `v`
+    review, `f` archive, `n` knowledge, `,` settings. `i` is achievements,
+    `l` starts a lock-in and `k` opens the open session's deck. The
+    temporary `Alt+1…0` desktop switcher is gone; two switchers for one action is
+    the drift the one-registry rule exists to stop.
+16. **`\` is the alternate leader** (`leaderAltAction`). `Space` is a local
+    action on the deck, the steps reader and the approvals view, so those
+    surfaces need a second way in (`docs/design.md` §7.3).
+17. **The deck flips on `Tab`**, as in the terminal app, which is what frees
+    `Space` to be the leader everywhere.
+
 ## Mouse
 
-15. **The pointer is an accelerator, never the only path.** Every click target
-    has a chord: sidebar rows (click = select), the rail toggle (click =
-    `Ctrl+B`), stars (hover = move, click = select, Enter = detail), deck
-    choices (click = `1`–`4`). Hover only tints; it never steals the selection.
+18. **The pointer is an accelerator, never the only path.** Every click target
+    has a chord and every chord that changes or destroys something has a button:
+    sidebar rows (click = select, `Enter` opens), the rail toggle (click =
+    `<leader>e`), stars (hover = move, click = select, `Enter` = detail), deck
+    choices (click = `1`–`4`), deck flip (click = `Tab`), approvals (buttons =
+    `y`/`n`), settings rows (chevron = `Enter`), stats header (buttons = `a`/`x`).
+19. **Hover only tints; it never steals the selection.** A row highlights under
+    the pointer with the theme's hover wash, and nothing moves until the click.
+20. **A destructive decision is never keyboard-only.** Approve/reject and
+    approve-and-run/deny are buttons on the card *and* keys, and a card's own
+    button selects that card first so it can only act on what it shows.
+21. **`Esc` stops a reply before it means "back".** With a turn streaming, Esc
+    cancels from any mode, in Chill and in every session/project/goal chat.
 
 ## Plugins
 

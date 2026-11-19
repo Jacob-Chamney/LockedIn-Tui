@@ -343,6 +343,12 @@ class _SessionsPageState extends State<SessionsPage> {
 
   /// Opens the row under the cursor. Iterating over [_visible] keeps the index
   /// honest when a search filter is active.
+  /// Move the cursor to [index] in the visible list.
+  void _selectIndex(int index) {
+    if (index < 0 || index >= _visible.length) return;
+    setState(() => _selectedIndex = index);
+  }
+
   void _openSelected() {
     final visible = _visible;
     final index = _selected;
@@ -625,6 +631,14 @@ class _SessionsPageState extends State<SessionsPage> {
                     selected: isSelected,
                     showDate: showDate,
                     busy: _actionId == session.id,
+                    // One click is Enter: select the row and open it. A list
+                    // where selection has no other purpose does not need the
+                    // click-select/double-click-open dance (`ui-notes.md` §15).
+                    onTap: () {
+                      if (_actionId != null) return;
+                      _selectIndex(index);
+                      _openSelected();
+                    },
                   ),
                 );
               },
@@ -654,6 +668,7 @@ class _SessionRowTile extends StatelessWidget {
     required this.selected,
     required this.showDate,
     this.busy = false,
+    this.onTap,
   });
 
   final SessionRow row;
@@ -664,6 +679,9 @@ class _SessionRowTile extends StatelessWidget {
   /// shows `working…` instead of its step count, so the user can see the core
   /// is running and the verbs are not offered twice.
   final bool busy;
+
+  /// Opens the row. Null keeps the tile inert (a read-only page).
+  final VoidCallback? onTap;
 
   /// Sessions are stored with an ISO timestamp; the list only needs the day.
   String get _dateLabel {
@@ -680,6 +698,18 @@ class _SessionRowTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final complete = row.stepsTotal > 0 && row.stepsDone >= row.stepsTotal;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(6),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(6),
+        onTap: onTap,
+        child: _body(context, theme, complete),
+      ),
+    );
+  }
+
+  Widget _body(BuildContext context, ThemeData theme, bool complete) {
     return Container(
       padding: const EdgeInsets.fromLTRB(0, 10, 12, 10),
       decoration: BoxDecoration(
