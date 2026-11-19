@@ -384,7 +384,24 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
           ],
           if (_hasHitOrder) ...[
             const SizedBox(width: 10),
+            // The pointer path for `[` / `]`: the same two moves the keys run.
+            IconButton(
+              key: const ValueKey('knowledge-reader-prev'),
+              tooltip: 'previous hit ([)',
+              onPressed: () => _moveHit(-1),
+              icon: const Icon(Icons.chevron_left, size: 17),
+              visualDensity: VisualDensity.compact,
+              color: LockedInColors.muted,
+            ),
             _positionChip(widget.hitIndex!, widget.hitIds.length),
+            IconButton(
+              key: const ValueKey('knowledge-reader-next'),
+              tooltip: 'next hit (])',
+              onPressed: () => _moveHit(1),
+              icon: const Icon(Icons.chevron_right, size: 17),
+              visualDensity: VisualDensity.compact,
+              color: LockedInColors.muted,
+            ),
           ],
         ],
       ),

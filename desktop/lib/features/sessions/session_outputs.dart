@@ -526,14 +526,20 @@ class _SessionOutputViewState extends State<SessionOutputView> {
     }
     // Only the initial press may start a read or a provider run.
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    // The study guide's verbs are the terminal app's: Enter reveals or hides
+    // the answer under the reader, `b` builds the guide. `a` and `R` stay as
+    // aliases so a hand used to the desktop build is not punished.
     if (!_isDeck &&
-        key == LogicalKeyboardKey.keyA &&
+        (key == LogicalKeyboardKey.enter ||
+            key == LogicalKeyboardKey.numpadEnter ||
+            key == LogicalKeyboardKey.keyA) &&
         widget.onReadAnswers != null &&
         widget.exists) {
       unawaited(_toggleAnswers());
       return KeyEventResult.handled;
     }
-    if (key == LogicalKeyboardKey.keyR && widget.onBuild != null) {
+    if ((key == LogicalKeyboardKey.keyB || key == LogicalKeyboardKey.keyR) &&
+        widget.onBuild != null) {
       unawaited(_build(confirm: widget.exists));
       return KeyEventResult.handled;
     }

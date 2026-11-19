@@ -192,6 +192,32 @@ Future<void> pumpPage(
 }
 
 void main() {
+  testWidgets('clicking a step checkbox toggles that step', (tester) async {
+    final toggled = <int>[];
+    await pumpPage(
+      tester,
+      SessionDetailView(
+        detail: detailWithSteps(
+          markdown: _stepsBothUnchecked,
+          done: 0,
+          total: 2,
+        ),
+        loading: false,
+        onToggleStep: (index) async => toggled.add(index),
+      ),
+    );
+
+    // The glyph is a button, and it toggles the step it is drawn on — not the
+    // cursor's step, which starts at 0.
+    final check = find.byKey(const ValueKey('step-check-1'));
+    await tester.ensureVisible(check);
+    await tester.pumpAndSettle();
+    await tester.tap(check);
+    await tester.pumpAndSettle();
+    expect(toggled, [1]);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('detail renders prompt, sources, steps and the checkbox rows', (
     tester,
   ) async {

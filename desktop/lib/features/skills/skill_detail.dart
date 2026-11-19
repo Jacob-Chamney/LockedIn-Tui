@@ -1204,6 +1204,9 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                     _selectedStage = index;
                     _notice = null;
                   });
+                  // A click on a stage is Enter: open its lesson. Editing the
+                  // curriculum keeps click = select so rows can be reordered.
+                  if (!_editingStages) _openStage();
                 },
           child: Container(
             key: selected ? _selectedStageKey : null,
@@ -1349,6 +1352,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                     _selectedChapter = index;
                     _notice = null;
                   });
+                  _openChapter();
                 },
           child: Container(
             key: selected ? _selectedChapterKey : null,

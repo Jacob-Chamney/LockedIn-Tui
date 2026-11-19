@@ -198,6 +198,15 @@ void main() {
       // The learning verbs the terminal app keeps on the leader.
       expect(shell.rowFor('new-lock-in')!.binding.format(), 'space+l');
       expect(shell.rowFor('flashcards')!.binding.format(), 'space+k');
+      // The Work verbs the terminal app keeps on the leader.
+      for (final (id, chord) in [
+        ('work-agents', 'space+m'),
+        ('work-chats', 'space+u'),
+        ('work-swarms', 'space+x'),
+        ('work-changes', 'space+d'),
+      ]) {
+        expect(shell.rowFor(id)!.binding.format(), chord);
+      }
       expect(registry.rowFor('leader')!.binding.format(), 'space');
       expect(registry.rowFor('help')!.binding.format(), '?');
       expect(registry.rowFor('close')!.binding.format(), 'escape');

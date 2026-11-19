@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -416,6 +418,38 @@ class _SwarmPageState extends State<SwarmPage> {
             )
           else if (widget.loading)
             _Chip('reading…', tone: LockedInColors.warning),
+          // The pointer path for r / x / d, gated on the same callbacks.
+          if (widget.onRefresh != null)
+            IconButton(
+              key: const ValueKey('swarm-refresh'),
+              tooltip: 'refresh (r)',
+              onPressed: _busy ? null : widget.onRefresh,
+              icon: const Icon(Icons.refresh, size: 17),
+              visualDensity: VisualDensity.compact,
+              color: LockedInColors.muted,
+            ),
+          if (board != null && widget.onCancel != null)
+            IconButton(
+              key: const ValueKey('swarm-cancel'),
+              tooltip: 'cancel the run (x)',
+              onPressed: _busy || !board.isRunning
+                  ? null
+                  : () => unawaited(widget.onCancel!(board.runId)),
+              icon: const Icon(Icons.stop_circle_outlined, size: 17),
+              visualDensity: VisualDensity.compact,
+              color: LockedInColors.warning,
+            ),
+          if (board != null && widget.onRemove != null)
+            IconButton(
+              key: const ValueKey('swarm-remove'),
+              tooltip: 'remove the record (d)',
+              onPressed: _busy || board.isRunning
+                  ? null
+                  : () => unawaited(widget.onRemove!(board.runId)),
+              icon: const Icon(Icons.delete_outline, size: 17),
+              visualDensity: VisualDensity.compact,
+              color: LockedInColors.muted,
+            ),
         ],
       ),
     );
@@ -791,6 +825,18 @@ class _SwarmPageState extends State<SwarmPage> {
                     ],
                   ),
                 ),
+                if ((task.status == 'failed' || task.status == 'blocked') &&
+                    widget.onRetry != null)
+                  TextButton(
+                    key: ValueKey('swarm-retry-${task.id}'),
+                    onPressed: _busy
+                        ? null
+                        : () {
+                            _select(index);
+                            unawaited(_retrySelected());
+                          },
+                    child: const Text('retry'),
+                  ),
               ],
             ),
           ),

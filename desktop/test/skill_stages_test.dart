@@ -106,6 +106,25 @@ Future<void> pressShift(WidgetTester tester, LogicalKeyboardKey key) async {
 }
 
 void main() {
+  testWidgets('a click on a stage opens its lesson', (tester) async {
+    final opened = <String>[];
+    await pumpDetail(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        onOpenStage: (id) async => opened.add(id),
+      ),
+    );
+
+    await tester.tap(
+      find.byKey(ValueKey('skill-stage-${_detail.stages.first.id}')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(opened, [_detail.stages.first.id]);
+    expect(tester.takeException(), isNull);
+  });
+
   test('a new stage is saved with no id, so the first add works', () async {
     // The core treats a present id as "this stage already exists" and refuses a
     // blank one, so sending `id: ""` made the first add fail in the packaged

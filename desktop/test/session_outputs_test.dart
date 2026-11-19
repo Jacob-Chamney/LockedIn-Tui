@@ -528,11 +528,6 @@ void main() {
 
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
-    // ignore: avoid_print
-    // ignore: avoid_print
-    print(
-      'PROBE exact=${find.text('STUDY TOOLS').evaluate().length} offstage=${find.text('STUDY TOOLS', skipOffstage: false).evaluate().length} containing=${find.textContaining('STUDY TOOLS').evaluate().length} kinds=${find.byType(Text).evaluate().where((e) => ((e.widget as Text).data ?? '').contains('STUDY')).map((e) => (e.widget as Text).data).toList()}',
-    );
     expect(find.text('STUDY TOOLS'), findsOneWidget);
     expect(find.text('SESSION'), findsOneWidget);
     expect(store.outputKind, isNull);

@@ -1583,8 +1583,15 @@ class _WorkDetailViewState extends State<WorkDetailView> {
         color: isSelected ? LockedInColors.panel : Colors.transparent,
         borderRadius: BorderRadius.circular(6),
         child: InkWell(
+          key: ValueKey('work-agent-${agent.id}'),
           borderRadius: BorderRadius.circular(6),
-          onTap: editable ? () => _selectAgent(index) : null,
+          // A click is Enter: select the agent and open its editor.
+          onTap: editable
+              ? () {
+                  _selectAgent(index);
+                  if (widget.onSaveAgent != null) _editAgent();
+                }
+              : null,
           child: Container(
             key: isSelected ? _selectedAgentKey : null,
             padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),

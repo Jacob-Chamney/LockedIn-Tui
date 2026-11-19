@@ -199,6 +199,55 @@ Future<void> openWorkProject(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('the board header and a failed task have buttons', (
+    tester,
+  ) async {
+    var refreshes = 0;
+    var cancels = 0;
+    var removes = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: lockedInTheme(),
+        home: Scaffold(
+          body: SwarmPage(
+            project: _project,
+            board: _settled,
+            runs: const [],
+            onRefresh: () => refreshes += 1,
+            onCancel: (runId) async => cancels += 1,
+            onRemove: (runId) async => removes += 1,
+            onRetry: (runId, taskId) async => throw UnimplementedError(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('swarm-refresh')));
+    await tester.pumpAndSettle();
+    expect(refreshes, 1);
+
+    // A finished run can be removed but not cancelled.
+    final cancel = tester.widget<IconButton>(
+      find.byKey(const ValueKey('swarm-cancel')),
+    );
+    expect(cancel.onPressed, isNull);
+    await tester.tap(find.byKey(const ValueKey('swarm-remove')));
+    await tester.pumpAndSettle();
+    expect(removes, 1);
+
+    // A failed task offers retry; a done one does not.
+    expect(
+      find.byKey(ValueKey('swarm-retry-${FakeCore.swarmTaskFailedId}')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(ValueKey('swarm-retry-${FakeCore.swarmTaskDoneId}')),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   group('swarm models', () {
     test('parse a documented board tolerantly', () {
       final board = SwarmBoardView.fromJson(_updatedBoard());

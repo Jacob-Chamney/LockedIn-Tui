@@ -63,6 +63,7 @@ Future<void> pumpReview(
   VoidCallback? onRefresh,
   ValueChanged<String>? onSide,
   VoidCallback? onBack,
+  Future<void> Function(String itemId, String result)? onMark,
   Size size = const Size(1280, 800),
   bool settle = true,
 }) async {
@@ -82,6 +83,7 @@ Future<void> pumpReview(
           onRefresh: onRefresh,
           onSide: onSide,
           onBack: onBack,
+          onMark: onMark,
         ),
       ),
     ),
@@ -95,6 +97,27 @@ Future<void> pumpReview(
 }
 
 void main() {
+  testWidgets('a row carries known and missed buttons', (tester) async {
+    final marks = <String>[];
+    await pumpReview(
+      tester,
+      queue: reviewFixture(),
+      onMark: (itemId, result) async => marks.add('$itemId:$result'),
+    );
+
+    final missed = find.byKey(const ValueKey('review-missed-step:physics:1'));
+    expect(missed, findsOneWidget);
+    await tester.tap(missed);
+    await tester.pumpAndSettle();
+    expect(marks, ['step:physics:1:missed']);
+
+    final known = find.byKey(const ValueKey('review-known-step:physics:1'));
+    await tester.tap(known);
+    await tester.pumpAndSettle();
+    expect(marks.last, 'step:physics:1:known');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the queue renders items, counts, a nudge and a diagnostic', (
     tester,
   ) async {

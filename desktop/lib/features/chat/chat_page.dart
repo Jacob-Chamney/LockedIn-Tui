@@ -40,6 +40,7 @@ class ChatPage extends StatefulWidget {
     this.onModeChanged,
     this.initialText,
     this.onDraftChanged,
+    this.onLinkModel,
   });
 
   final ChatSnapshot? chat;
@@ -73,6 +74,10 @@ class ChatPage extends StatefulWidget {
   /// Reports every keystroke of the draft to the shell, which keeps it until
   /// the next visit or a successful send.
   final ValueChanged<String>? onDraftChanged;
+
+  /// Opens Settings → Providers. The "link a model" copy is a link, not dead
+  /// text: it names the fix and it is the fix.
+  final VoidCallback? onLinkModel;
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -499,9 +504,16 @@ class _ChatPageState extends State<ChatPage> {
         body: 'Ask anything. This chat is read-only and keeps no vault access.',
         action: widget.configured
             ? null
-            : Text(
-                'link a model in Settings → Providers',
-                style: TextStyle(color: LockedInColors.warning, fontSize: 12),
+            : TextButton(
+                key: const ValueKey('chat-link-model'),
+                onPressed: widget.onLinkModel,
+                style: TextButton.styleFrom(
+                  foregroundColor: LockedInColors.warning,
+                ),
+                child: const Text(
+                  'link a model in Settings → Providers',
+                  style: TextStyle(fontSize: 12),
+                ),
               ),
       );
     }
