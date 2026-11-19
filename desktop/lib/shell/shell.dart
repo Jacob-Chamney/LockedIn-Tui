@@ -200,6 +200,11 @@ class _ShellState extends State<Shell> {
   /// is the useful middle state on a laptop, and `hidden` is the TUI's default.
   SidebarMode _sidebarMode = SidebarMode.expanded;
 
+  /// The Chill composer's unsent text. It lives in the shell because switching
+  /// surfaces disposes the page, and a chat-first app must never lose a draft
+  /// (the same rule OpenCode's composer follows).
+  String _chatDraft = '';
+
   /// Whether the Achievements layer is open over Stats.
   ///
   /// Achievements is a layer of Stats, not a surface: `a` (and the registry's
@@ -880,7 +885,14 @@ class _ShellState extends State<Shell> {
         online: store.isOnline,
         configured: store.configured,
         error: store.error,
-        onSend: store.sendChat,
+        initialText: _chatDraft,
+        onDraftChanged: (text) => _chatDraft = text,
+        onSend: (text) {
+          // A sent turn clears the draft; a refused send keeps it for another
+          // try, so the text is never lost to a blocked composer.
+          _chatDraft = '';
+          store.sendChat(text);
+        },
         onSendImages: (text, images) => store.sendChat(text, images: images),
         onCancel: store.cancelChat,
         onRetry: store.retry,

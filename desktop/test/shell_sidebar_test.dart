@@ -213,4 +213,31 @@ void main() {
     expect(find.byIcon(Icons.history), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('a Chill draft survives switching surfaces', (tester) async {
+    await pumpShell(tester);
+
+    const composer = ValueKey('chat-composer');
+    await tester.tap(find.byKey(composer));
+    await tester.pump();
+    await tester.enterText(find.byKey(composer), 'half a question');
+    await tester.pump();
+
+    // Leave for Sessions and come back: chat is home, and the draft is still
+    // there — losing it is the one thing a chat-first app must not do.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.digit2);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pumpAndSettle();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.digit1);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<TextField>(find.byKey(composer)).controller?.text,
+      'half a question',
+    );
+    expect(tester.takeException(), isNull);
+  });
 }

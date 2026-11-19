@@ -38,6 +38,8 @@ class ChatPage extends StatefulWidget {
     this.onRetry,
     this.error,
     this.onModeChanged,
+    this.initialText,
+    this.onDraftChanged,
   });
 
   final ChatSnapshot? chat;
@@ -62,6 +64,15 @@ class ChatPage extends StatefulWidget {
   final VoidCallback? onRetry;
   final String? error;
   final ValueChanged<bool>? onModeChanged;
+
+  /// The draft the shell kept when this page was last left. Switching surfaces
+  /// disposes the page, so the composer's text is owned above it: losing a
+  /// draft is the one thing a chat-first app must never do.
+  final String? initialText;
+
+  /// Reports every keystroke of the draft to the shell, which keeps it until
+  /// the next visit or a successful send.
+  final ValueChanged<String>? onDraftChanged;
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -88,10 +99,20 @@ class _ChatPageState extends State<ChatPage> {
     super.initState();
     _composerFocus.onKeyEvent = _handleComposerKey;
     _composerFocus.addListener(_reportMode);
+    final draft = widget.initialText;
+    if (draft != null && draft.isNotEmpty) {
+      _composer.text = draft;
+      _composer.selection = TextSelection.collapsed(offset: draft.length);
+    }
+    _composer.addListener(_reportDraft);
   }
 
   void _reportMode() {
     widget.onModeChanged?.call(_composerFocus.hasFocus);
+  }
+
+  void _reportDraft() {
+    widget.onDraftChanged?.call(_composer.text);
   }
 
   KeyEventResult _handleComposerKey(FocusNode node, KeyEvent event) {
@@ -118,6 +139,7 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   void dispose() {
+    _composer.removeListener(_reportDraft);
     _composerFocus.removeListener(_reportMode);
     _composerFocus.dispose();
     _composer.dispose();
@@ -552,6 +574,7 @@ class _ChatPageState extends State<ChatPage> {
                 children: [
                   Expanded(
                     child: TextField(
+                      key: const ValueKey('chat-composer'),
                       controller: _composer,
                       focusNode: _composerFocus,
                       minLines: 1,
