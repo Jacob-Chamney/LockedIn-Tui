@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'bridge/core_client.dart';
 import 'bridge/core_scope.dart';
 import 'bridge/models.dart';
+import 'effects/effect.dart';
 import 'shell/shell.dart';
 import 'theme/palette.dart';
 
@@ -26,6 +27,9 @@ class LockedInApp extends StatefulWidget {
 }
 
 class _LockedInAppState extends State<LockedInApp> {
+  /// The particle layer's controller. One per app, above the shell, so any
+  /// surface can celebrate without owning an animation.
+  final _effects = EffectController();
   late String _themeId;
   String _tokenSignature = '';
 
@@ -56,6 +60,7 @@ class _LockedInAppState extends State<LockedInApp> {
   @override
   void dispose() {
     widget.store.removeListener(_onStoreChanged);
+    _effects.dispose();
     super.dispose();
   }
 
@@ -92,7 +97,10 @@ class _LockedInAppState extends State<LockedInApp> {
         title: 'LockedIn',
         debugShowCheckedModeBanner: false,
         theme: lockedInTheme(),
-        home: const Shell(),
+        home: EffectScope(
+          controller: _effects,
+          child: EffectHost(controller: _effects, child: const Shell()),
+        ),
       ),
     );
   }

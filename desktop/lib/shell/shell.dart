@@ -65,6 +65,32 @@ enum Surface {
   final String hint;
 }
 
+/// How the navigation rail is showing.
+///
+/// The terminal UI hid its explorer by default; a desktop window that starts
+/// with no navigation is hostile, so the default is [expanded] and `Ctrl+B`
+/// cycles through the three states the research notes ask for: full labels,
+/// an icon rail, and nothing but a re-open chip (`docs/design.md` §2.2).
+enum SidebarMode {
+  expanded('expanded'),
+  icons('icons'),
+  hidden('hidden');
+
+  const SidebarMode(this.label);
+
+  final String label;
+
+  /// The next state in the cycle.
+  SidebarMode get next =>
+      SidebarMode.values[(index + 1) % SidebarMode.values.length];
+
+  IconData get icon => switch (this) {
+    SidebarMode.expanded => Icons.menu_open,
+    SidebarMode.icons => Icons.menu,
+    SidebarMode.hidden => Icons.menu,
+  };
+}
+
 /// Surface shortcuts come from the keymap registry (`alt+<n>` defaults: `1…9`
 /// then `0` for the tenth), so there is no second table here: the sidebar draws
 /// `Surface.values` and the registry decides which chord opens each one.
@@ -170,6 +196,10 @@ class _ShellState extends State<Shell> {
   /// reopens the same conversation.
   bool _skillChatOpen = false;
 
+  /// How the navigation rail is showing. A cycle, not a boolean: the icon rail
+  /// is the useful middle state on a laptop, and `hidden` is the TUI's default.
+  SidebarMode _sidebarMode = SidebarMode.expanded;
+
   /// Whether the Achievements layer is open over Stats.
   ///
   /// Achievements is a layer of Stats, not a surface: `a` (and the registry's
@@ -182,6 +212,12 @@ class _ShellState extends State<Shell> {
   /// The focus that held the keyboard when the command line opened, so closing
   /// it returns the user to where they were (a page's search field, a list).
   FocusNode? _focusBeforeCommand;
+
+  /// `Ctrl+B` as the registry spells it, for the rail's tooltips.
+  String _sidebarToggleLabel(KeymapRegistry keymap) {
+    final row = keymap.rowFor('sidebar');
+    return row == null ? 'sidebar' : row.binding.display;
+  }
 
   /// The count each sidebar row shows, when it has one.
   ///
@@ -240,6 +276,14 @@ class _ShellState extends State<Shell> {
       _sessionSettingsOpen = false;
     });
     await store.openSession(id);
+  }
+
+  /// Cycle the navigation rail: expanded → icons → hidden → expanded.
+  ///
+  /// The window is untouched, so the chat column widens and narrows instead of
+  /// being covered — a hidden rail is a reflow, never an overlay.
+  void _cycleSidebar() {
+    setState(() => _sidebarMode = _sidebarMode.next);
   }
 
   void _select(Surface surface) {
@@ -324,6 +368,10 @@ class _ShellState extends State<Shell> {
   /// commands run through [_dispatchAction] so there is one handler per action,
   /// not one per surface that offers it.
   List<PaletteAction> _paletteActions() {
+    // Every row that is a registry action shows that action's chord, so the
+    // palette teaches the shortcut it stands for (`docs/design.md` §7.2).
+    final keymap = _keymap(CoreScope.of(context));
+    String? chord(String id) => keymap.rowFor(id)?.binding.display;
     return [
       for (final surface in Surface.values)
         PaletteAction(
@@ -331,6 +379,7 @@ class _ShellState extends State<Shell> {
           label: surface.label,
           hint: surface.hint,
           icon: surface.icon,
+          binding: chord('surface.${surface.name}'),
           run: () => _select(surface),
         ),
       PaletteAction(
@@ -340,6 +389,7 @@ class _ShellState extends State<Shell> {
         label: 'commands',
         hint: 'type : to run a command by name',
         icon: Icons.terminal,
+        binding: chord('commands'),
         run: () => _dispatchAction('commands'),
       ),
       PaletteAction(
@@ -363,7 +413,16 @@ class _ShellState extends State<Shell> {
         label: 'achievements',
         hint: 'what you have unlocked',
         icon: Icons.emoji_events_outlined,
+        binding: chord('achievements'),
         run: () => _dispatchAction('achievements'),
+      ),
+      PaletteAction(
+        id: 'sidebar',
+        label: 'sidebar',
+        hint: 'cycle expanded, icons, hidden (${_sidebarMode.label} now)',
+        icon: Icons.vertical_split_outlined,
+        binding: chord('sidebar'),
+        run: () => _dispatchAction('sidebar'),
       ),
       const PaletteAction(
         id: 'palette.close',
@@ -520,6 +579,8 @@ class _ShellState extends State<Shell> {
         unawaited(store.retry());
       case 'achievements':
         _openAchievements();
+      case 'sidebar':
+        _cycleSidebar();
       case 'close':
         _closeLayer();
     }
@@ -593,7 +654,11 @@ class _ShellState extends State<Shell> {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 900;
+    final width = MediaQuery.sizeOf(context).width;
+    // Below 900 px the rail is icons whatever the mode says: the labels do not
+    // fit, and hiding the only navigation would strand a narrow window.
+    final compact = width < 900 || _sidebarMode == SidebarMode.icons;
+    final railHidden = width >= 900 && _sidebarMode == SidebarMode.hidden;
     final store = CoreScope.of(context);
     final keymap = _keymap(store);
     final pending = store.pendingPermission;
@@ -614,28 +679,41 @@ class _ShellState extends State<Shell> {
           children: [
             Column(
               children: [
-                _TopBar(surface: _surface, store: store),
+                _TopBar(
+                  surface: _surface,
+                  store: store,
+                  sidebar: _sidebarMode,
+                  toggleHint: _sidebarToggleLabel(keymap),
+                  onToggleSidebar: _cycleSidebar,
+                  railHidden: railHidden,
+                ),
                 Expanded(
                   child: Row(
                     children: [
-                      _Sidebar(
-                        compact: compact,
-                        active: _surface,
-                        footer: sidebarFooter,
-                        shortcuts: {
-                          for (final surface in Surface.values)
-                            surface: _shortcutLabel(
-                              keymap.rowFor('surface.${surface.name}'),
-                            ),
-                        },
-                        onSelect: _select,
-                        counts: _sidebarCounts(store),
-                        achievements: _achievementsCount(store),
-                        onAchievements: _openAchievements,
-                        recent: _recentSessions(store),
-                        onRecent: (id) =>
-                            unawaited(_openRecentSession(store, id)),
-                      ),
+                      if (railHidden)
+                        _SidebarRail(
+                          onShow: _cycleSidebar,
+                          hint: _sidebarToggleLabel(keymap),
+                        )
+                      else
+                        _Sidebar(
+                          compact: compact,
+                          active: _surface,
+                          footer: sidebarFooter,
+                          shortcuts: {
+                            for (final surface in Surface.values)
+                              surface: _shortcutLabel(
+                                keymap.rowFor('surface.${surface.name}'),
+                              ),
+                          },
+                          onSelect: _select,
+                          counts: _sidebarCounts(store),
+                          achievements: _achievementsCount(store),
+                          onAchievements: _openAchievements,
+                          recent: _recentSessions(store),
+                          onRecent: (id) =>
+                              unawaited(_openRecentSession(store, id)),
+                        ),
                       VerticalDivider(width: 1, color: LockedInColors.line),
                       Expanded(child: _body(store, keymap)),
                     ],
@@ -738,7 +816,7 @@ class _ShellState extends State<Shell> {
   /// registry's own binding, not a literal.
   String _statusHint(CoreStore store, KeymapRegistry keymap) {
     if (_surface == Surface.stats && _achievementsOpen) {
-      return 'j/k move · r reload · Esc back';
+      return 'hjkl / arrows move · Enter detail · r reload · Esc back';
     }
     if (_surface == Surface.knowledge && store.knowledgeDocumentOpen) {
       return 'j/k scroll · PgUp/PgDn page · Esc back';
@@ -1637,10 +1715,30 @@ class _ShellState extends State<Shell> {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.surface, required this.store});
+  const _TopBar({
+    required this.surface,
+    required this.store,
+    required this.sidebar,
+    required this.toggleHint,
+    required this.onToggleSidebar,
+    required this.railHidden,
+  });
 
   final Surface surface;
   final CoreStore store;
+
+  /// The rail's current state, so the button's icon and tooltip can say what
+  /// the next press will do.
+  final SidebarMode sidebar;
+
+  /// The registry's chord for that action (`Ctrl+B` by default).
+  final String toggleHint;
+
+  final VoidCallback onToggleSidebar;
+
+  /// True when the rail is fully hidden: the top-bar button is then the second
+  /// way back, beside the rail chip itself.
+  final bool railHidden;
 
   @override
   Widget build(BuildContext context) {
@@ -1654,6 +1752,28 @@ class _TopBar extends StatelessWidget {
       ),
       child: Row(
         children: [
+          // A pointer path for the same registry action the chord runs, so the
+          // sidebar is reachable with a mouse without being mouse-only.
+          Tooltip(
+            message: '${railHidden ? 'Show' : 'Cycle'} sidebar ($toggleHint)',
+            waitDuration: const Duration(milliseconds: 400),
+            child: InkWell(
+              key: const ValueKey('sidebar-toggle'),
+              borderRadius: BorderRadius.circular(4),
+              onTap: onToggleSidebar,
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(
+                  sidebar.icon,
+                  size: 18,
+                  color: railHidden
+                      ? LockedInColors.primary
+                      : LockedInColors.muted,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
           Text(
             'LOCKEDIN',
             style: theme.textTheme.labelLarge?.copyWith(
@@ -2026,6 +2146,45 @@ class _RecentItem extends StatelessWidget {
 /// label reads as a count, which is exactly what the old sidebar did: `Sessions
 /// 2` looked like two sessions whether the user had two or twenty. The count
 /// now sits next to the label and the digit sits in a bordered keycap.
+/// The 24 px rail left behind by a hidden sidebar.
+///
+/// It is deliberately not a 64 px icon rail: hiding is about giving the chat the
+/// width, so what remains is one affordance that says the navigation is there
+/// (`docs/design.md` §2.2: the explorer never covers the chat).
+class _SidebarRail extends StatelessWidget {
+  const _SidebarRail({required this.onShow, required this.hint});
+
+  final VoidCallback onShow;
+  final String hint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 26,
+      color: LockedInColors.surface,
+      alignment: Alignment.topCenter,
+      padding: const EdgeInsets.only(top: 8),
+      child: Tooltip(
+        message: 'Show sidebar ($hint)',
+        waitDuration: const Duration(milliseconds: 400),
+        child: InkWell(
+          key: const ValueKey('sidebar-rail'),
+          borderRadius: BorderRadius.circular(4),
+          onTap: onShow,
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: Icon(
+              Icons.chevron_right,
+              size: 16,
+              color: LockedInColors.muted,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SidebarRow extends StatelessWidget {
   const _SidebarRow({
     required this.label,

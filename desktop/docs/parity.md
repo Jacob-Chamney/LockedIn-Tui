@@ -84,7 +84,7 @@ be verified in this environment.
 | crimson + high contrast + Codex/Claude + palettes + custom | done | `theme/palette.dart`, `features/settings/theme_picker.dart`, `theme.custom.*` | `theme_test.dart`, `theme_custom_test.dart`, `server-theme-custom.test.ts`; the Settings row opens a picker that lists every palette with its own swatch and marks the active one, `c` applies custom and `e` edits its twelve tokens. The OpenCode palette set is deliberately unexposed |
 | modal editing and mode correctness | done | `shell.dart` | `shell_session_test.dart`, `chat_page_test.dart` |
 | keymap registry, conflict check, generated help/overlay | done | `keymap/`, `shell/leader.dart` | `keymap_test.dart`, `shell_leader_test.dart` |
-| explorer grouping, counts, contextual rows | done | `shell.dart` sidebar | grouped destinations (LEARN, PRODUCTIVITY, REFERENCE), a count per row from the snapshot the core already sent, Achievements as its own destination over Stats, Settings pinned under a rule, and `RECENT` for the three newest sessions. `shell_sidebar_test.dart` |
+| explorer grouping, counts, contextual rows | done | `shell.dart` sidebar | grouped destinations (LEARN, PRODUCTIVITY, REFERENCE) with a count per row, a `Ctrl+B` cycle expanded → icons → hidden (registry action, tooltip, palette and top-bar button all read it), Achievements as its own destination, Settings pinned, `RECENT`, and chords in tooltips. `shell_sidebar_test.dart` |
 | reader buffers, search, highlighting, dimming | done | `features/chat/{document_search,code_highlight}.dart` | `document_search_test.dart`, `markdown_highlight_test.dart` |
 | providers, keychain, explicit model choice | done | `settings_page.dart`, keychain addon | `settings_test.dart`, packaged-addon proof |
 | budget, usage, failure policy | done | `src/llm/budget.ts` | `bun run check` suites |
@@ -92,6 +92,8 @@ be verified in this environment.
 | archive folder + GitHub | done | `archive_page.dart`, `archive.*` | list, restore and delete on both sides and both backends; the session and skill managers push with `a` (`session.archive`, `skill.archive`) through the configured backend |
 | settings sections | done | `settings_page.dart` | `settings_test.dart` |
 | commands | done | `shell/command_line.dart` | `shell_command_test.dart` (registry-derived list, aliases, unknown input) |
+| achievements screen | done | `features/achievements/{star_map,star_field}.dart` | the inventory is a sky: one constellation per shelf, deterministic star positions, `hjkl`/arrows move by compass direction, `Enter` opens the detail, hover selects, click opens; locked stars are dim, unlocked ones glow, and the card shows the counter, difficulty and award date. `star_map_test.dart`, `achievements_test.dart`. See `ui-notes.md` |
+| celebration effects | done | `effects/effect.dart`, `features/sessions/flip_card.dart` | a correct flashcard answer rains confetti and turns the card over; the particle layer is a registry a plugin can contribute to, is a pure function of time, and degrades to an instant face swap under reduced motion. `effects_test.dart`, `deck_test.dart` |
 | 80×24 usability | not applicable | — | desktop minimum is 800×600 (`desktop/AGENTS.md` §4) |
 | packaging and install | **partial** | `scripts/desktop-*` | Linux: tarball plus a per-user install script (`--uninstall`) that CI runs on every build. Windows: zip plus an unsigned per-user NSIS setup, installed and uninstalled on the runner. **Authenticode signing needs a certificate, and a clean-machine install is not verified** |
 

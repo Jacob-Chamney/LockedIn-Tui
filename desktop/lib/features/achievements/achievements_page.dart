@@ -3,6 +3,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../bridge/models.dart';
 import '../../theme/palette.dart';
+import 'star_field.dart';
+import 'star_map.dart';
 
 /// The category order the inventory is grouped in.
 ///
@@ -64,9 +66,17 @@ class AchievementsPage extends StatefulWidget {
 }
 
 class _AchievementsPageState extends State<AchievementsPage> {
-  final _rowKeys = <String, GlobalKey>{};
   var _selectedIndex = 0;
   String? _selectedId;
+
+  /// True when a narrow window is showing the selected star's detail instead of
+  /// the sky. A wide window shows both, so this only matters below 720 px.
+  var _detailOpen = false;
+
+  /// Whether the last build was the narrow layout. Kept so `Esc` can peel the
+  /// detail layer before it leaves the page, without reading the tree size in a
+  /// key handler.
+  var _narrow = false;
 
   @override
   void didUpdateWidget(covariant AchievementsPage oldWidget) {
@@ -115,50 +125,58 @@ class _AchievementsPageState extends State<AchievementsPage> {
     return _categories.contains(category) ? category : 'other';
   }
 
-  int get _selected {
-    final rows = _flatRows;
-    if (rows.isEmpty) return -1;
-    return _selectedIndex.clamp(0, rows.length - 1);
+  /// The laid-out sky. Recomputed only when the rows change, so navigation and
+  /// rebuilds never move a star.
+  List<StarNode>? _nodesCache;
+  List<AchievementRow>? _nodesFrom;
+
+  List<StarNode> get _nodes {
+    if (!identical(_nodesFrom, widget.rows) || _nodesCache == null) {
+      _nodesFrom = widget.rows;
+      _nodesCache = layoutStars(_flatRows);
+    }
+    return _nodesCache!;
   }
 
-  GlobalKey _rowKey(int index, String id) => _rowKeys.putIfAbsent(
-    '$index:$id',
-    () => GlobalKey(debugLabel: 'achievement-$id'),
-  );
-
-  void _move(int delta) {
-    final rows = _flatRows;
-    if (rows.length < 2) return;
-    final current = _selectedIndex.clamp(0, rows.length - 1);
-    final next = (current + delta).clamp(0, rows.length - 1);
-    if (next == current) return;
-    setState(() {
-      _selectedIndex = next;
-      _selectedId = rows[next].id;
-    });
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _reveal(next, rows[next].id),
-    );
+  /// The selected star's position in the sky.
+  int get _selectedStar {
+    final nodes = _nodes;
+    if (nodes.isEmpty) return -1;
+    final id = _selectedId;
+    if (id != null) {
+      final at = nodes.indexWhere((node) => node.row.id == id);
+      if (at >= 0) return at;
+    }
+    return _selectedIndex.clamp(0, nodes.length - 1);
   }
 
-  void _select(int index) {
-    final rows = _flatRows;
-    if (index < 0 || index >= rows.length) return;
+  void _moveStar(StarDirection direction) {
+    final nodes = _nodes;
+    if (nodes.length < 2) return;
+    final from = _selectedStar;
+    final next = nearestInDirection(nodes, from, direction);
+    if (next == from) return;
+    _selectStar(next);
+  }
+
+  void _selectStar(int index) {
+    final nodes = _nodes;
+    if (index < 0 || index >= nodes.length) return;
     setState(() {
       _selectedIndex = index;
-      _selectedId = rows[index].id;
+      _selectedId = nodes[index].row.id;
     });
   }
 
-  void _reveal(int index, String id) {
-    final target = _rowKeys['$index:$id']?.currentContext;
-    if (target == null) return;
-    Scrollable.ensureVisible(
-      target,
-      alignment: 0.4,
-      duration: const Duration(milliseconds: 120),
-      curve: Curves.easeOut,
-    );
+  /// Enter (or a click on a narrow layout) opens the star's detail.
+  void _openStar() {
+    final nodes = _nodes;
+    final at = _selectedStar;
+    if (at < 0) return;
+    setState(() {
+      _selectedId = nodes[at].row.id;
+      _detailOpen = true;
+    });
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
@@ -166,18 +184,37 @@ class _AchievementsPageState extends State<AchievementsPage> {
       return KeyEventResult.ignored;
     }
     final key = event.logicalKey;
-    if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.keyJ) {
-      _move(1);
+    final direction = switch (key) {
+      LogicalKeyboardKey.arrowDown ||
+      LogicalKeyboardKey.keyJ => StarDirection.down,
+      LogicalKeyboardKey.arrowUp || LogicalKeyboardKey.keyK => StarDirection.up,
+      LogicalKeyboardKey.arrowLeft ||
+      LogicalKeyboardKey.keyH => StarDirection.left,
+      LogicalKeyboardKey.arrowRight ||
+      LogicalKeyboardKey.keyL => StarDirection.right,
+      _ => null,
+    };
+    if (direction != null) {
+      _moveStar(direction);
       return KeyEventResult.handled;
     }
-    if (key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.keyK) {
-      _move(-1);
+    // Enter opens the selected star: on a wide window the detail is already
+    // beside the sky, so this is what pins it on a narrow one.
+    if (key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter) {
+      _openStar();
       return KeyEventResult.handled;
     }
     // The verbs fire once per press, never on repeat: a held `r` must not queue
     // a second read.
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     if (key == LogicalKeyboardKey.escape) {
+      // One layer at a time: a narrow window closes the star's detail first,
+      // and only a second Esc leaves the page.
+      if (_narrow && _detailOpen) {
+        setState(() => _detailOpen = false);
+        return KeyEventResult.handled;
+      }
       widget.onBack?.call();
       return KeyEventResult.handled;
     }
@@ -193,6 +230,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 720;
+        _narrow = compact;
         return Focus(
           autofocus: true,
           onKeyEvent: _onKey,
@@ -264,85 +302,106 @@ class _AchievementsPageState extends State<AchievementsPage> {
 
   Widget _body({required bool compact}) {
     final rows = _flatRows;
-    final children = <Widget>[];
+    final notices = <Widget>[];
     if (widget.loading && rows.isNotEmpty) {
-      children.add(
+      notices.add(
         LinearProgressIndicator(
           minHeight: 2,
           color: LockedInColors.primary,
           backgroundColor: LockedInColors.line,
         ),
       );
-      children.add(const SizedBox(height: 10));
+      notices.add(const SizedBox(height: 8));
     }
     if (widget.error != null) {
-      children.add(
+      notices.add(
         _ErrorBlock(message: widget.error!, onRetry: widget.onRefresh),
       );
-      children.add(const SizedBox(height: 10));
+      notices.add(const SizedBox(height: 8));
     }
     if (widget.warning != null) {
-      children.add(
+      notices.add(
         Text(
           'note · ${widget.warning}',
           key: const ValueKey('achievements-warning'),
           style: TextStyle(color: LockedInColors.muted, fontSize: 11),
         ),
       );
-      children.add(const SizedBox(height: 10));
+      notices.add(const SizedBox(height: 8));
     }
     if (rows.isEmpty) {
-      if (widget.loading) {
-        children.add(const _LoadingState());
-      } else if (widget.error == null) {
-        children.add(const _EmptyState());
-      }
-    } else {
-      final selected = _selected;
-      for (final category in _groupOrder) {
-        final group = widget.rows
-            .where((row) => _groupOf(row) == category)
-            .toList(growable: false);
-        if (group.isEmpty) continue;
-        children.add(
-          Padding(
-            padding: const EdgeInsets.only(top: 2, bottom: 8),
-            child: _GroupHeader(
-              key: ValueKey('achievements-group-$category'),
-              category: category,
-              count: group.length,
-            ),
-          ),
+      if (widget.loading) return const _LoadingState();
+      if (widget.error != null) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: notices,
         );
-        for (final row in group) {
-          final index = rows.indexOf(row);
-          children.add(
-            Padding(
-              key: _rowKey(index, row.id),
-              padding: const EdgeInsets.only(bottom: 6),
-              child: _AchievementTile(
-                key: ValueKey('achievement-${row.id}'),
-                row: row,
-                selected: index == selected,
-                compact: compact,
-                onTap: () => _select(index),
-              ),
-            ),
-          );
-        }
       }
+      return const _EmptyState();
     }
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 8),
-      children: children,
+
+    final nodes = _nodes;
+    final selected = _selectedStar;
+    final sky = StarField(
+      nodes: nodes,
+      selected: selected,
+      onSelect: _selectStar,
+      onOpen: (_) => _openStar(),
     );
+
+    // A narrow window has no room for a sky and a card side by side, so the
+    // card becomes the layer Enter opens and Esc closes.
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ...notices,
+          Expanded(
+            child: _detailOpen
+                ? SingleChildScrollView(
+                    child: StarDetail(node: _nodeAt(selected), compact: true),
+                  )
+                : sky,
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ...notices,
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: sky),
+              const SizedBox(width: 18),
+              SizedBox(
+                width: 330,
+                child: SingleChildScrollView(
+                  child: StarDetail(node: _nodeAt(selected)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  StarNode? _nodeAt(int index) {
+    final nodes = _nodes;
+    if (index < 0 || index >= nodes.length) return null;
+    return nodes[index];
   }
 
   Widget _footer({required bool compact}) {
     final hints = <String>[
-      'j/k move',
+      'hjkl / arrows move',
+      if (compact && _detailOpen) 'Esc back to the sky' else 'Enter detail',
       if (widget.onRefresh != null) 'r reload',
-      if (widget.onBack != null) 'Esc back',
+      if (widget.onBack != null && !(compact && _detailOpen)) 'Esc back',
     ];
     return Row(
       children: [
@@ -361,169 +420,6 @@ class _AchievementsPageState extends State<AchievementsPage> {
           ),
       ],
     );
-  }
-}
-
-class _GroupHeader extends StatelessWidget {
-  const _GroupHeader({super.key, required this.category, required this.count});
-
-  final String category;
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(
-          '${category.toUpperCase()} · $count',
-          style: TextStyle(
-            color: LockedInColors.secondary,
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.1,
-          ),
-        ),
-        const SizedBox(width: 10),
-        const Expanded(child: Divider(height: 1)),
-      ],
-    );
-  }
-}
-
-class _AchievementTile extends StatelessWidget {
-  const _AchievementTile({
-    super.key,
-    required this.row,
-    required this.selected,
-    required this.compact,
-    required this.onTap,
-  });
-
-  final AchievementRow row;
-  final bool selected;
-  final bool compact;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final status = row.unlocked
-        ? (row.awardedAt == null ? '✓ earned' : '✓ ${row.awardedAt}')
-        : 'locked';
-    return Material(
-      color: selected ? LockedInColors.panel : LockedInColors.surface,
-      borderRadius: BorderRadius.circular(6),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Container(
-          key: selected ? const ValueKey('achievement-selected') : null,
-          padding: const EdgeInsets.fromLTRB(0, 10, 12, 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: selected
-                  ? LockedInColors.primary.withValues(alpha: 0.5)
-                  : LockedInColors.line,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 3,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: selected ? LockedInColors.primary : Colors.transparent,
-                  borderRadius: const BorderRadius.horizontal(
-                    right: Radius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      row.name.isEmpty ? row.id : row.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: selected
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        color: row.unlocked
-                            ? LockedInColors.foreground
-                            : LockedInColors.muted,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      row.task,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: LockedInColors.muted,
-                        fontSize: 11,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _progressLabel(row),
-                      key: ValueKey('achievement-progress-${row.id}'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: LockedInColors.muted,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    status,
-                    key: ValueKey('achievement-status-${row.id}'),
-                    style: TextStyle(
-                      color: row.unlocked
-                          ? LockedInColors.success
-                          : LockedInColors.muted,
-                      fontSize: 11,
-                      fontWeight: row.unlocked
-                          ? FontWeight.w600
-                          : FontWeight.w400,
-                    ),
-                  ),
-                  if (!compact && row.difficulty.isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      row.difficulty,
-                      style: TextStyle(
-                        color: LockedInColors.muted,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// `3 / 10 steps`, from the core's own numbers: [AchievementRow.value] is the
-  /// clamped bar value and [AchievementRow.progress] the raw counter.
-  static String _progressLabel(AchievementRow row) {
-    final counter = row.metric.isEmpty
-        ? '${row.value} / ${row.target}'
-        : '${row.value} / ${row.target} ${row.metric}';
-    return row.progress > row.target ? '$counter · ${row.progress}' : counter;
   }
 }
 

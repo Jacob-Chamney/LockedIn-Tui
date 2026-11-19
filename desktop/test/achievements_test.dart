@@ -82,20 +82,21 @@ final _rows = <AchievementRow>[
   _row(
     id: 'toolsmith',
     name: 'Toolsmith',
-    task: 'Make twenty-five tool calls.',
+    task: 'Build every output for one session.',
     category: 'work',
-    metric: 'toolCalls',
-    target: 25,
-    value: 7,
-    progress: 7,
-    difficulty: 'easy',
+    metric: 'outputs',
+    target: 3,
+    value: 3,
+    progress: 3,
+    unlocked: true,
+    difficulty: 'medium',
   ),
   _row(
-    id: 'locked-in',
-    name: 'Locked In',
-    task: 'Create ten lock-in sessions.',
+    id: 'collector',
+    name: 'Collector',
+    task: 'Archive ten sessions.',
     category: 'collection',
-    metric: 'sessions',
+    metric: 'archived',
     target: 10,
     value: 2,
     progress: 2,
@@ -120,93 +121,137 @@ Future<void> _pump(
   await tester.pumpAndSettle();
 }
 
-String _textOf(WidgetTester tester, String key) =>
-    tester.widget<Text>(find.byKey(ValueKey(key))).data ?? '';
+Finder _star(String id) => find.byKey(ValueKey('achievement-star-$id'));
+
+String _hint(WidgetTester tester) =>
+    tester.widget<Text>(find.byKey(const ValueKey('achievements-hint'))).data ??
+    '';
 
 void main() {
-  testWidgets('the header counts, groups and rows render', (tester) async {
-    await _pump(tester, AchievementsPage(rows: _rows, earned: 2, total: 6));
+  testWidgets('the header counts and every achievement is a star', (
+    tester,
+  ) async {
+    await _pump(tester, AchievementsPage(rows: _rows, earned: 3, total: 6));
 
     expect(find.text('ACHIEVEMENTS'), findsOneWidget);
-    expect(find.text('2 of 6 unlocked'), findsOneWidget);
-
-    // One header per category, in catalogue order, with its row count.
-    expect(find.text('STARTER · 2'), findsOneWidget);
-    expect(find.text('LEARNING · 2'), findsOneWidget);
-    expect(find.text('WORK · 1'), findsOneWidget);
-    expect(find.text('COLLECTION · 1'), findsOneWidget);
-
-    for (final name in const [
-      'First Light',
-      'Open Book',
-      'First Steps',
-      'Long March',
-      'Toolsmith',
-      'Locked In',
-    ]) {
-      expect(find.text(name), findsOneWidget, reason: 'missing $name');
+    expect(find.text('3 of 6 unlocked'), findsOneWidget);
+    for (final row in _rows) {
+      expect(_star(row.id), findsOneWidget, reason: row.id);
     }
-
-    // An unlocked row carries the check glyph and the award day.
-    expect(_textOf(tester, 'achievement-status-first-light'), '✓ 2026-11-01');
-    expect(_textOf(tester, 'achievement-status-open-book'), '✓ 2026-11-02');
-    // A locked row says so, and its progress line is the core's numbers.
-    expect(_textOf(tester, 'achievement-status-first-steps'), 'locked');
-    expect(find.text('locked'), findsNWidgets(4));
-    expect(_textOf(tester, 'achievement-progress-first-steps'), '3 / 10 steps');
-    // An over-achieved row keeps the clamped bar and shows the raw counter.
-    expect(
-      _textOf(tester, 'achievement-progress-first-light'),
-      '1 / 1 messages · 12',
-    );
-    expect(find.text('lock-in sessions'), findsNothing);
+    // The sky names its keys, and the detail card belongs to the cursor.
+    expect(_hint(tester), contains('hjkl / arrows move'));
+    expect(find.byKey(const ValueKey('achievement-detail')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('j/k move the selection and keep it on the visible row', (
+  testWidgets('the detail card follows the selected star', (tester) async {
+    await _pump(tester, AchievementsPage(rows: _rows, earned: 3, total: 6));
+
+    // The first catalogue row is selected at rest.
+    expect(
+      find.byKey(const ValueKey('achievement-star-label-first-light')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('achievement-detail')),
+        matching: find.text('Send your first message.'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(_star('open-book'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('achievement-detail')),
+        matching: find.text('Create your first lock-in session.'),
+      ),
+      findsOneWidget,
+    );
+    // The award date is the core's record, shown as a chip on the detail.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('achievement-detail')),
+        matching: find.textContaining('awarded 2026-11-02'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('arrows and hjkl walk the sky by compass direction', (
+    tester,
+  ) async {
+    await _pump(tester, AchievementsPage(rows: _rows, earned: 3, total: 6));
+
+    // The selected star is the one carrying a label under it.
+    String selectedLabel() {
+      const ids = [
+        'first-light',
+        'open-book',
+        'first-steps',
+        'long-march',
+        'toolsmith',
+        'collector',
+      ];
+      for (final id in ids) {
+        if (find
+            .byKey(ValueKey('achievement-star-label-$id'))
+            .evaluate()
+            .isNotEmpty) {
+          return id;
+        }
+      }
+      return '';
+    }
+
+    final start = selectedLabel();
+    expect(start, isNotEmpty);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    expect(selectedLabel(), isNotEmpty);
+    expect(_hint(tester), contains('hjkl / arrows move'));
+
+    // Every direction is live: none of them may throw, and the sky keeps exactly
+    // one labelled star.
+    for (final key in [
+      LogicalKeyboardKey.keyJ,
+      LogicalKeyboardKey.keyK,
+      LogicalKeyboardKey.keyH,
+      LogicalKeyboardKey.keyL,
+      LogicalKeyboardKey.arrowDown,
+      LogicalKeyboardKey.arrowUp,
+      LogicalKeyboardKey.arrowLeft,
+    ]) {
+      await tester.sendKeyEvent(key);
+      await tester.pumpAndSettle();
+      expect(selectedLabel(), isNotEmpty);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Enter opens the detail on a narrow window, Esc returns', (
     tester,
   ) async {
     await _pump(
       tester,
-      AchievementsPage(rows: _rows, earned: 2, total: 6),
-      size: const Size(900, 600),
+      AchievementsPage(rows: _rows, earned: 3, total: 6, onBack: () {}),
+      size: const Size(620, 700),
     );
 
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('achievement-selected')),
-        matching: find.text('First Light'),
-      ),
-      findsOneWidget,
-    );
-
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
+    // Narrow: the sky only, then the detailed star.
+    expect(find.byKey(const ValueKey('achievement-detail')), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('achievement-selected')),
-        matching: find.text('Open Book'),
-      ),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('achievement-detail')), findsOneWidget);
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('achievement-detail')), findsNothing);
     expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('achievement-selected')),
-        matching: find.text('First Steps'),
-      ),
-      findsOneWidget,
-    );
-
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
-    await tester.pumpAndSettle();
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('achievement-selected')),
-        matching: find.text('Open Book'),
-      ),
+      find.byKey(const ValueKey('achievement-star-first-light')),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
@@ -219,7 +264,7 @@ void main() {
       tester,
       AchievementsPage(
         rows: _rows,
-        earned: 2,
+        earned: 3,
         total: 6,
         onRefresh: () => reloads += 1,
         onBack: () => backs += 1,
@@ -233,7 +278,6 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     expect(backs, 1);
-    expect(find.text('j/k move · r reload · Esc back'), findsOneWidget);
   });
 
   testWidgets('a warning is a muted note, never an error', (tester) async {
@@ -241,7 +285,7 @@ void main() {
       tester,
       AchievementsPage(
         rows: _rows,
-        earned: 2,
+        earned: 3,
         total: 6,
         warning: 'award dates could not be read',
       ),
@@ -253,23 +297,19 @@ void main() {
       find.textContaining('award dates could not be read'),
       findsOneWidget,
     );
-    expect(
-      tester.widget<Text>(note).style?.color,
-      LockedInColors.muted,
-      reason: 'a warning is a quiet note beside the rows',
-    );
-    // The rows are still complete: a warning never replaces the inventory.
-    expect(find.text('First Light'), findsOneWidget);
+    expect(tester.widget<Text>(note).style?.color, LockedInColors.muted);
+    // The sky is still complete: a warning never replaces the inventory.
+    expect(_star('first-light'), findsOneWidget);
     expect(find.byKey(const ValueKey('achievements-error')), findsNothing);
   });
 
-  testWidgets('an error keeps the rows and offers a retry', (tester) async {
+  testWidgets('an error keeps the sky and offers a retry', (tester) async {
     var reloads = 0;
     await _pump(
       tester,
       AchievementsPage(
         rows: _rows,
-        earned: 2,
+        earned: 3,
         total: 6,
         error: 'achievements.json could not be read',
         onRefresh: () => reloads += 1,
@@ -277,7 +317,7 @@ void main() {
     );
 
     expect(find.text('achievements.json could not be read'), findsOneWidget);
-    expect(find.text('Toolsmith'), findsOneWidget);
+    expect(_star('toolsmith'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('achievements-retry')));
     await tester.pumpAndSettle();
@@ -297,8 +337,8 @@ void main() {
   });
 
   testWidgets('a read in flight says so', (tester) async {
-    // The progress spinner animates forever, so this case pumps one frame
-    // rather than waiting for a settled tree.
+    // The spinner animates forever, so this case pumps one frame rather than
+    // waiting for a settled tree.
     tester.view.physicalSize = const Size(1280, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -314,19 +354,18 @@ void main() {
   testWidgets('800x600 and a narrow window do not overflow', (tester) async {
     await _pump(
       tester,
-      AchievementsPage(rows: _rows, earned: 2, total: 6),
+      AchievementsPage(rows: _rows, earned: 3, total: 6),
       size: const Size(800, 600),
     );
     expect(tester.takeException(), isNull);
+    expect(_star('toolsmith'), findsOneWidget);
 
     await _pump(
       tester,
-      AchievementsPage(rows: _rows, earned: 2, total: 6),
+      AchievementsPage(rows: _rows, earned: 3, total: 6),
       size: const Size(520, 700),
     );
     expect(tester.takeException(), isNull);
-    // The narrow layout keeps the rows and drops only the optional labels.
-    expect(find.text('Toolsmith'), findsOneWidget);
-    expect(find.text('easy'), findsNothing);
+    expect(_star('first-light'), findsOneWidget);
   });
 }

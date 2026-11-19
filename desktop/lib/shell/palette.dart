@@ -15,6 +15,7 @@ class PaletteAction {
     required this.hint,
     required this.icon,
     required this.run,
+    this.binding,
   });
 
   /// Stable id, used for widget keys and tests.
@@ -25,6 +26,10 @@ class PaletteAction {
 
   /// Runs the action. The shell closes the palette around this call.
   final VoidCallback run;
+
+  /// The registry's chord for this action, shown on the row so the palette
+  /// teaches the shortcut instead of only being a list of names.
+  final String? binding;
 
   /// Filters on the label or the hint, case-insensitively.
   bool matches(String query) {
@@ -325,7 +330,27 @@ class _PaletteRow extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 10),
+            if (action.binding != null && action.binding!.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: LockedInColors.background,
+                  borderRadius: BorderRadius.circular(3),
+                  border: Border.all(color: LockedInColors.line),
+                ),
+                child: Text(
+                  action.binding!,
+                  key: ValueKey('palette-binding-${action.id}'),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+            ] else
+              const SizedBox(width: 10),
           ],
         ),
       ),

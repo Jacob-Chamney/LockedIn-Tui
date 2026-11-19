@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lockedin_desktop/app.dart';
 import 'package:lockedin_desktop/bridge/core_client.dart';
 import 'package:lockedin_desktop/features/sessions/deck.dart';
+import 'package:lockedin_desktop/effects/effect.dart';
 import 'package:lockedin_desktop/features/sessions/session_outputs.dart';
 import 'package:lockedin_desktop/theme/palette.dart';
 import 'package:material_ui/material_ui.dart';
@@ -106,7 +107,7 @@ String _twoChoiceDeck() =>
     '- [x] Energy.\n'
     '- [ ] Momentum.\n';
 
-Future<void> pumpDeck(
+Future<EffectController> pumpDeck(
   WidgetTester tester,
   Widget child, {
   Size size = const Size(800, 600),
@@ -115,13 +116,24 @@ Future<void> pumpDeck(
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
+  // The real app mounts this above the shell; a deck pumped on its own needs
+  // the same scope or a correct answer has nowhere to celebrate.
+  final effects = EffectController();
+  addTearDown(effects.dispose);
   await tester.pumpWidget(
     MaterialApp(
       theme: lockedInTheme(),
-      home: Scaffold(body: child),
+      home: EffectScope(
+        controller: effects,
+        child: EffectHost(
+          controller: effects,
+          child: Scaffold(body: child),
+        ),
+      ),
     ),
   );
   await tester.pumpAndSettle();
+  return effects;
 }
 
 SessionOutputView deckView({
@@ -628,6 +640,91 @@ void main() {
       for (final number in [1, 2, 3, 4]) {
         expect(_choiceMark(tester, number).data, isEmpty);
       }
+      expect(find.byKey(const ValueKey('deck-answer')), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a correct answer rains confetti and turns the card over', (
+      tester,
+    ) async {
+      final effects = await pumpDeck(
+        tester,
+        deckView(markdown: _choiceDeck(), onMarkCard: (_, _) async {}),
+      );
+
+      expect(find.byKey(const ValueKey('deck-answer')), findsNothing);
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit1);
+      await tester.pump();
+      // The burst starts on the answer, before the flip finishes.
+      expect(find.byKey(const ValueKey('effect-confetti')), findsOneWidget);
+
+      await tester.pumpAndSettle();
+      // Flipped: the answer is on the back, and the card stays on screen.
+      expect(find.byKey(const ValueKey('deck-answer')), findsOneWidget);
+      expect(find.text('Energy.'), findsWidgets);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('deck-answer'))).data,
+        'Energy.',
+      );
+      // And the burst is over.
+      expect(find.byKey(const ValueKey('effect-confetti')), findsNothing);
+      expect(effects.generation, 1);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a click answers a choice, exactly like 1–4', (tester) async {
+      await pumpDeck(
+        tester,
+        deckView(markdown: _choiceDeck(), onMarkCard: (_, _) async {}),
+      );
+
+      await tester.tap(find.byKey(const ValueKey('deck-choice-1')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('deck-answer')), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('deck-answer'))).data,
+        'Energy.',
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a second click does not answer again', (tester) async {
+      final marks = <String>[];
+      await pumpDeck(
+        tester,
+        deckView(
+          markdown: _choiceDeck(),
+          onMarkCard: (cardId, result) async => marks.add('$cardId:$result'),
+        ),
+      );
+
+      // The wrong row records one miss; clicking it again after the flip must
+      // not record a second one (the rows are inert once answered).
+      await tester.tap(find.byKey(const ValueKey('deck-choice-2')));
+      await tester.pumpAndSettle();
+      expect(marks, hasLength(1));
+
+      await tester.tap(
+        find.byKey(const ValueKey('deck-choice-2')),
+        warnIfMissed: false,
+      );
+      await tester.pumpAndSettle();
+      expect(marks, hasLength(1));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a wrong answer neither celebrates nor flips', (tester) async {
+      final effects = await pumpDeck(
+        tester,
+        deckView(markdown: _choiceDeck(), onMarkCard: (_, _) async {}),
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit2);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('effect-confetti')), findsNothing);
+      expect(effects.generation, 0);
       expect(find.byKey(const ValueKey('deck-answer')), findsNothing);
       expect(tester.takeException(), isNull);
     });

@@ -380,6 +380,20 @@ const achievementsAction = ActionSpec(
   defaultBinding: Binding.leader('a'),
 );
 
+/// The sidebar toggle.
+///
+/// One key cycles expanded → icons → hidden, which is the desktop reading of the
+/// TUI's hidden-by-default explorer (`docs/design.md` §2.4). It is a shell
+/// action rather than a surface switch, so it lives beside `achievements` and
+/// not in [surfaceActionIds].
+const sidebarAction = ActionSpec(
+  id: 'sidebar',
+  label: 'sidebar',
+  hint: 'cycle expanded, icons, hidden',
+  group: ActionGroup.global,
+  defaultBinding: Binding.direct('b', control: true),
+);
+
 /// The catalogue the shell builds: every surface/default action plus the layers
 /// that are not surfaces.
 ///
@@ -389,4 +403,5 @@ const achievementsAction = ActionSpec(
 List<ActionSpec> shellActionCatalogue() => [
   ...defaultActionCatalogue(),
   achievementsAction,
+  sidebarAction,
 ];
