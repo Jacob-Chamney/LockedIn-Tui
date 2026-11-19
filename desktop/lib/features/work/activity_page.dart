@@ -82,6 +82,10 @@ class _ActivityPageState extends State<ActivityPage> {
   final _rowKeys = <int, GlobalKey>{};
   var _selected = 0;
 
+  /// The row whose full record is showing, or -1. A click expands the row it
+  /// lands on: the summary line is not the whole decision.
+  var _expanded = -1;
+
   int get _selectedRow => widget.records.isEmpty
       ? -1
       : _selected.clamp(0, widget.records.length - 1);
@@ -389,8 +393,16 @@ class _ActivityPageState extends State<ActivityPage> {
         color: selected ? LockedInColors.panel : LockedInColors.surface,
         borderRadius: BorderRadius.circular(7),
         child: InkWell(
+          key: ValueKey('activity-row-$index'),
           borderRadius: BorderRadius.circular(7),
-          onTap: () => setState(() => _selected = index),
+          onTap: () => setState(() {
+            if (_expanded == index) {
+              _expanded = -1;
+              return;
+            }
+            _selected = index;
+            _expanded = index;
+          }),
           child: Container(
             key: selected ? _selectedRowKey : null,
             padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
@@ -495,6 +507,67 @@ class _ActivityPageState extends State<ActivityPage> {
                             ),
                         ],
                       ),
+                      if (_expanded == index) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          key: ValueKey('activity-expanded-$index'),
+                          padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                          decoration: BoxDecoration(
+                            color: LockedInColors.background,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: LockedInColors.line),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                record.at.isEmpty
+                                    ? 'time not recorded'
+                                    : record.at,
+                                style: TextStyle(
+                                  color: LockedInColors.muted,
+                                  fontSize: 10.5,
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
+                              if (record.argv.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  record.argv.join(' '),
+                                  style: TextStyle(
+                                    color: LockedInColors.foreground,
+                                    fontSize: 11,
+                                    fontFamily: 'monospace',
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                              if (hunks.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'hunks ${hunks.join(', ')}',
+                                  style: TextStyle(
+                                    color: LockedInColors.muted,
+                                    fontSize: 10.5,
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                              ],
+                              if (cwd.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'cwd ${record.cwd}',
+                                  style: TextStyle(
+                                    color: LockedInColors.muted,
+                                    fontSize: 10.5,
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

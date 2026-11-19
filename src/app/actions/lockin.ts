@@ -32,7 +32,11 @@ import {
   type StepPlan,
 } from "../../services/lockin/steps"
 import type { Result } from "../../domain/markdown"
+import { randomUUID } from "node:crypto"
+import { open, readFile, rename } from "node:fs/promises"
 import { join } from "node:path"
+
+import { toggleGuideSection } from "../../domain/guide"
 import type { Workspace } from "../../storage/workspace"
 
 export { previewFile as previewPickerFile } from "../../services/lockin/preview"
@@ -169,6 +173,54 @@ export async function toggleSessionStep(
   const toggled = await toggleStep({ folder: sessionFolder(workspace, id), index })
   if (!toggled.ok) return { ok: false, error: { message: toggled.error.kind === "blocked" ? toggled.error.message : "the steps file could not be written" } }
   return { ok: true, value: toggled.value.text }
+}
+
+/**
+ * Mark one study-guide section reviewed (or unreviewed).
+ *
+ * The guide is Markdown and the file is the truth: this reads
+ * `study-guide.md`, flips one `- [ ] Reviewed` row and the progress line
+ * (`src/domain/guide.ts`), and replaces the file atomically. A missing guide,
+ * an out-of-range section or a write failure changes nothing.
+ */
+export async function markGuideSection(input: {
+  workspace: Workspace
+  id: string
+  index: number
+}): Promise<Result<{ markdown: string; index: number; checked: boolean; done: number; total: number }, { message: string }>> {
+  const folder = join(input.workspace.paths.root, "school", "outputs", input.id)
+  const path = join(folder, "study-guide.md")
+  let markdown: string
+  try {
+    markdown = await readFile(path, "utf8")
+  } catch {
+    return { ok: false, error: { message: "build the study guide first: there is no study-guide.md for this session" } }
+  }
+
+  const result = toggleGuideSection(markdown, input.index)
+  if (!result.ok) return { ok: false, error: { message: result.message } }
+
+  // Temp file in the same folder, synced, then renamed over the destination.
+  const temp = join(folder, `.study-guide.tmp-${randomUUID()}`)
+  const handle = await open(temp, "w")
+  try {
+    await handle.writeFile(result.value.markdown, "utf8")
+    await handle.sync()
+  } finally {
+    await handle.close()
+  }
+  await rename(temp, path)
+
+  return {
+    ok: true,
+    value: {
+      markdown: result.value.markdown,
+      index: result.value.index,
+      checked: result.value.checked,
+      done: result.value.done,
+      total: result.value.total,
+    },
+  }
 }
 
 /** Add picked files to an existing, live session. */

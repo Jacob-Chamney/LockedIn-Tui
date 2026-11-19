@@ -1544,6 +1544,65 @@ describe("session.output.build and session.output.read", () => {
     expect(cards).toEqual({ markdown: deck.markdown, exists: true });
   });
 
+  test("mark toggles one section, the progress line, and nothing else", async () => {
+    const session = await biologySession();
+    const built = (await resultOf(generatingCore(async () => GUIDE), "session.output.build", {
+      id: session.id,
+      kind: "study-guide",
+    })) as { markdown: string };
+
+    const server = core();
+    const marked = (await resultOf(server, "session.output.mark", {
+      id: session.id,
+      index: 1,
+    })) as { markdown: string; checked: boolean; done: number; total: number; hash: string };
+
+    expect(marked.checked).toBe(true);
+    expect(marked.done).toBe(1);
+    expect(marked.total).toBeGreaterThan(1);
+    expect(marked.hash).toMatch(/^sha256:[0-9a-f]{64}$/);
+    // One bracket and the progress line are the only differences.
+    const before = built.markdown.split("\n");
+    const after = marked.markdown.split("\n");
+    const changed = before
+      .map((line, index) => (line === after[index] ? null : index))
+      .filter((index): index is number => index !== null);
+    expect(changed).toHaveLength(2);
+
+    // The file on disk is what the reply said it is.
+    const path = join(workspaceRoot, "school", "outputs", session.id, "study-guide.md");
+    expect(await readFile(path, "utf8")).toBe(marked.markdown);
+
+    // Toggling again restores the built document byte for byte.
+    const back = (await resultOf(server, "session.output.mark", {
+      id: session.id,
+      index: 1,
+    })) as { markdown: string; done: number };
+    expect(back.markdown).toBe(built.markdown);
+    expect(back.done).toBe(0);
+  });
+
+  test("mark refuses an out-of-range section and a session with no guide", async () => {
+    const session = await biologySession();
+    const server = core();
+
+    const missing = await ask(server, "session.output.mark", { id: session.id, index: 0 });
+    if (!("error" in missing)) throw new Error("a guide that does not exist must be refused");
+    expect(missing.error.retryable).toBe(false);
+    expect(missing.error.data).toMatchObject({ kind: "output", id: session.id });
+    expect(String((missing.error.data as { message?: string }).message)).toContain(
+      "build the study guide first",
+    );
+
+    await resultOf(generatingCore(async () => GUIDE), "session.output.build", {
+      id: session.id,
+      kind: "study-guide",
+    });
+    const beyond = await ask(server, "session.output.mark", { id: session.id, index: 99 });
+    if (!("error" in beyond)) throw new Error("an out-of-range section must be refused");
+    expect(beyond.error.retryable).toBe(false);
+  });
+
   test("an unknown session is the session shape and a bad shape is -32602", async () => {
     const server = core();
     const id = "2026-12-31-0000-missing";

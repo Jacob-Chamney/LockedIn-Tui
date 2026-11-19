@@ -404,6 +404,11 @@ class _ChatPageState extends State<ChatPage> {
       }
     }
     if (_composerFocus.hasFocus) return KeyEventResult.ignored;
+    // `i` is the terminal app's insert: back into the composer from NORMAL.
+    if (key == LogicalKeyboardKey.keyI) {
+      _composerFocus.requestFocus();
+      return KeyEventResult.handled;
+    }
     if (key == LogicalKeyboardKey.keyP) {
       if (_sending) return KeyEventResult.handled;
       unawaited(_pick());

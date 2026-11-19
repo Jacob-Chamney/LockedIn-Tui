@@ -2357,6 +2357,36 @@ class CoreStore extends ChangeNotifier {
   /// [outputError] and the previous document stays on screen; the method never
   /// throws. An answer for a reader the user has already closed or replaced is
   /// dropped by the ticket guard.
+  /// Mark one study-guide section reviewed (`session.output.mark`).
+  ///
+  /// The core rewrites one bracket and the progress line and returns the whole
+  /// document, so the reader replaces what it renders and never re-reads the
+  /// file. A refusal leaves the previous document and records one message.
+  Future<bool> markGuideSection(String sessionId, int index) async {
+    final id = sessionId.trim();
+    if (id.isEmpty) return false;
+    try {
+      final json = await _connection.call('session.output.mark', {
+        'id': id,
+        'index': index,
+      });
+      final markdown = json['markdown'];
+      if (markdown is! String) {
+        outputError = 'the core did not return the study guide';
+        notifyListeners();
+        return false;
+      }
+      outputMarkdown = markdown;
+      outputError = null;
+      notifyListeners();
+      return true;
+    } catch (failure) {
+      outputError = _messageOf(failure);
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> readOutput(String sessionId, String kind, {String? part}) async {
     final id = sessionId.trim();
     if (id.isEmpty) return;

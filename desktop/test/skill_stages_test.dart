@@ -106,6 +106,28 @@ Future<void> pressShift(WidgetTester tester, LogicalKeyboardKey key) async {
 }
 
 void main() {
+  testWidgets('the build-lesson button runs the same callback as b', (
+    tester,
+  ) async {
+    final built = <String>[];
+    await pumpDetail(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        onOpenStage: (id) async {},
+        onBuildStage: (id) async => built.add(id),
+      ),
+    );
+
+    final button = find.byKey(const ValueKey('skill-build-lesson'));
+    expect(button, findsOneWidget);
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+
+    expect(built, [_detail.stages.first.id]);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a click on a stage opens its lesson', (tester) async {
     final opened = <String>[];
     await pumpDetail(

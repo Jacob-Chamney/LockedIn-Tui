@@ -26,6 +26,7 @@ class ReviewPage extends StatefulWidget {
     this.onSide,
     this.onBack,
     this.onMark,
+    this.onOpen,
     this.markingId,
   });
 
@@ -55,6 +56,11 @@ class ReviewPage extends StatefulWidget {
   /// leaves the surface read-only, which is how the shell renders it until the
   /// store call is wired through.
   final Future<void> Function(String itemId, String result)? onMark;
+
+  /// Opens the item's own surface: a lock-in session for steps, cards and
+  /// memory, a skill goal for a stage. Null keeps the page read-only and drops
+  /// the verb, exactly like [onMark].
+  final ValueChanged<ReviewItem>? onOpen;
 
   /// The item the shell is currently marking, so `marking…` survives a rebuild.
   final String? markingId;
@@ -128,6 +134,12 @@ class _ReviewPageState extends State<ReviewPage> {
     final items = _orderedItems;
     if (items.isEmpty) return -1;
     return _selectedIndex.clamp(0, items.length - 1);
+  }
+
+  ReviewItem? get _selectedItem {
+    final items = _orderedItems;
+    final at = _selected;
+    return at < 0 ? null : items[at];
   }
 
   GlobalKey _rowKey(int index, String id) => _rowKeys.putIfAbsent(
@@ -228,6 +240,14 @@ class _ReviewPageState extends State<ReviewPage> {
     // The verbs fire once per press, never on key repeat: a held `r` must not
     // queue a second read and a held `s` must not spin through every side.
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter) {
+      final open = widget.onOpen;
+      final row = _selectedItem;
+      if (open == null || row == null) return KeyEventResult.ignored;
+      open(row);
+      return KeyEventResult.handled;
+    }
     if (key == LogicalKeyboardKey.keyK && widget.onMark != null) {
       unawaited(_mark('known'));
       return KeyEventResult.handled;
@@ -456,7 +476,12 @@ class _ReviewPageState extends State<ReviewPage> {
                 item: item,
                 selected: index == selected,
                 marking: marking == item.id,
-                onTap: () => _select(index),
+                onTap: () {
+                  _select(index);
+                  final open = widget.onOpen;
+                  final row = _selectedItem;
+                  if (open != null && row != null) open(row);
+                },
                 onKnown:
                     widget.onMark == null ||
                         marking == item.id ||

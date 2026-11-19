@@ -45,6 +45,7 @@ import {
   sessionTools,
   stepFailureMessage,
   toggleSessionStep,
+  markGuideSection,
   type SessionDocumentKind,
 } from "../app/actions/lockin";
 import {
@@ -219,6 +220,7 @@ export const CAPABILITIES = [
   "session.export",
   "session.output.build",
   "session.output.read",
+  "session.output.mark",
   "archive.list",
   "archive.restore",
   "archive.remove",
@@ -4129,6 +4131,54 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     }
   };
 
+
+  /**
+   * Mark one study-guide section reviewed (`docs/product.md` §5.2).
+   *
+   * `session.output.read` returns the guide; this is its one write. The core
+   * rewrites **one bracket character and the progress line** and replaces the
+   * file atomically, so every other byte — including the learner's own prose —
+   * survives. The reply carries the whole document, so the shell never re-reads
+   * or re-parses it.
+   */
+  const sessionOutputMark = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const rawId = params.id;
+    if (typeof rawId !== "string" || rawId.trim() === "") {
+      return invalid(id, "session.output.mark requires a session id");
+    }
+    const rawIndex = params.index;
+    if (typeof rawIndex !== "number" || !Number.isInteger(rawIndex) || rawIndex < 0) {
+      return invalid(id, "session.output.mark: index must be a non-negative whole number");
+    }
+
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const resolved = await resolveSession(id, current.value, rawId);
+    if ("error" in resolved) return resolved.error;
+    const sessionId = resolved.opened.session.id;
+
+    const marked = await markGuideSection({
+      workspace: current.value.workspace,
+      id: sessionId,
+      index: rawIndex,
+    });
+    if (!marked.ok) {
+      const message = oneLine(marked.error.message);
+      return failure(id, BOOT_FAILED, message, { kind: "output", id: sessionId, message }, false);
+    }
+    const markdown = marked.value.markdown;
+    return success(id, {
+      index: marked.value.index,
+      checked: marked.value.checked,
+      done: marked.value.done,
+      total: marked.value.total,
+      markdown,
+      hash: `sha256:${createHash("sha256").update(markdown).digest("hex")}`,
+    });
+  };
 
   /* ------------------------------------------------------------------------ */
   /* Session instructions (Flutter session settings)                          */
@@ -9776,6 +9826,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         return sessionOutputBuild(id, params);
       case "session.output.read":
         return sessionOutputRead(id, params);
+        case "session.output.mark":
+          return sessionOutputMark(id, params);
       case "archive.list":
         return archiveList(id);
       case "archive.restore":

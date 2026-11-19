@@ -151,7 +151,8 @@ class _SessionChatViewState extends State<SessionChatView> {
       _composerFocus.requestFocus();
       return KeyEventResult.handled;
     }
-    if (key == LogicalKeyboardKey.keyC && !_composerFocus.hasFocus) {
+    if ((key == LogicalKeyboardKey.keyC || key == LogicalKeyboardKey.keyI) &&
+        !_composerFocus.hasFocus) {
       _composerFocus.requestFocus();
       return KeyEventResult.handled;
     }

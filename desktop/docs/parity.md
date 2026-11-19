@@ -36,7 +36,7 @@ be verified in this environment.
 | Item | State | Where | Evidence |
 |---|---|---|---|
 | steps with atomic toggles and merge-on-regenerate | done | `session_detail.dart`, `session.generateSteps` | `session_detail_test.dart`, `server-generate-steps` |
-| study guide + answers | done | `session_outputs.dart` | `session_outputs_test.dart` |
+| study guide + answers | done | `session_outputs.dart`, `session.output.mark` | `session_outputs_test.dart`, `tests/unit/guide.test.ts`, `server-data` integration: sections are chips that mark the section they name, the file changes one bracket and the progress line, and a second mark restores it byte for byte |
 | flashcards flip + multiple choice | done | `deck.dart`, `session_outputs.dart` | `deck_test.dart` (flip, `1`–`4`, known/missed, shuffle, missed-only) |
 | context-aware generation | done | `session.output.build` | `session_outputs_test.dart` |
 | outputs open in reader | done | `session_outputs.dart` | `session_outputs_test.dart` |
