@@ -4,10 +4,12 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../bridge/protocol.dart';
+import '../../effects/effect.dart';
 import '../../theme/palette.dart';
 import '../chat/document_search.dart';
 import '../chat/markdown.dart';
 import 'deck.dart';
+import 'flip_card.dart';
 
 /// The session output reader: a study guide or a flashcard deck.
 ///
@@ -398,7 +400,13 @@ class _SessionOutputViewState extends State<SessionOutputView> {
     if (card == null || !card.isChoiceCard) return;
     if (!deck.answer(index)) return;
     final correct = card.choices[index].correct;
-    setState(() {});
+    // A correct choice is the one moment the app can celebrate without
+    // interrupting anything: it rains confetti and the card turns over to the
+    // answer. A wrong one stays put and records the miss.
+    if (correct) EffectScope.of(context)?.play('confetti');
+    setState(() {
+      if (correct && !deck.showAnswer) deck.flip();
+    });
     if (!correct) unawaited(_mark('missed'));
   }
 
@@ -783,38 +791,76 @@ class _SessionOutputViewState extends State<SessionOutputView> {
           ),
         ),
         const SizedBox(height: 12),
-        // A four-choice card shows its rows immediately: `1`–`4` answers it
-        // without a flip. Fewer than four choices keep the flip-only behaviour
-        // and reveal the choices with the answer.
-        if (choiceCard) ...[
-          for (var index = 0; index < card.choices.length; index++)
-            _deckChoice(deck, index, card.choices[index]),
-          const SizedBox(height: 8),
-          Text(
-            '1–4 answer · Enter next',
-            key: const ValueKey('deck-hint-choice'),
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+        // The question stays put; the panel under it turns over. That is the
+        // card flip: the answer arrives on the back, and the multiple-choice
+        // rows a learner answered are re-shown marked on that same back.
+        FlipCard(
+          showingBack: revealed,
+          front: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // A four-choice card shows its rows immediately: `1`–`4` answers
+              // it without a flip. Fewer than four choices keep the flip-only
+              // behaviour and reveal the choices with the answer.
+              if (choiceCard)
+                for (var index = 0; index < card.choices.length; index++)
+                  _deckChoice(deck, index, card.choices[index])
+              else
+                // The pointer path for the same action Space runs: a click on
+                // the hint turns the card, so the flip is not keyboard-only.
+                InkWell(
+                  key: const ValueKey('deck-flip-surface'),
+                  borderRadius: BorderRadius.circular(4),
+                  onTap: () => setState(deck.flip),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.flip_to_back,
+                          size: 14,
+                          color: LockedInColors.muted,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Space flips the card',
+                          key: const ValueKey('deck-hint-flip'),
+                          style: TextStyle(
+                            color: LockedInColors.muted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (choiceCard) ...[
+                const SizedBox(height: 8),
+                Text(
+                  '1–4 answer · Enter next',
+                  key: const ValueKey('deck-hint-choice'),
+                  style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+                ),
+              ],
+            ],
           ),
-          if (revealed) ...[const SizedBox(height: 12), ..._answerBody(card)],
-        ] else if (!revealed)
-          Text(
-            'Space flips the card',
-            key: const ValueKey('deck-hint-flip'),
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
-          )
-        else ...[
-          ..._answerBody(card),
-          if (card.hasChoices) ...[
-            const SizedBox(height: 12),
-            for (var index = 0; index < card.choices.length; index++)
-              _deckChoice(
-                deck,
-                index,
-                card.choices[index],
-                revealCorrect: true,
-              ),
-          ],
-        ],
+          back: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ..._answerBody(card),
+              if (card.hasChoices) ...[
+                const SizedBox(height: 12),
+                for (var index = 0; index < card.choices.length; index++)
+                  _deckChoice(
+                    deck,
+                    index,
+                    card.choices[index],
+                    revealCorrect: true,
+                  ),
+              ],
+            ],
+          ),
+        ),
         const SizedBox(height: 16),
         Wrap(
           spacing: 8,
@@ -1044,46 +1090,54 @@ class _SessionOutputViewState extends State<SessionOutputView> {
         ? LockedInColors.success
         : LockedInColors.foreground;
     final number = '${index + 1}';
+    final answerable = !deck.answered && !revealCorrect;
+    // The pointer is an accelerator for `1`–`4`, never a second path: the row
+    // is tappable while the card is unanswered and inert afterwards, exactly
+    // like the keys.
     return Padding(
       key: ValueKey('deck-choice-$number'),
       padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 18,
-            child: Text(
-              number,
-              key: ValueKey('deck-choice-$number-number'),
-              style: TextStyle(
-                color: LockedInColors.muted,
-                fontSize: 13,
-                height: 1.5,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(4),
+        onTap: answerable ? () => _answerChoice(index) : null,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 18,
+              child: Text(
+                number,
+                key: ValueKey('deck-choice-$number-number'),
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
               ),
             ),
-          ),
-          SizedBox(
-            width: 18,
-            child: Text(
-              mark,
-              key: ValueKey('deck-choice-$number-mark'),
-              style: TextStyle(
-                color: tone,
-                fontSize: 13,
-                height: 1.5,
-                fontWeight: FontWeight.w600,
+            SizedBox(
+              width: 18,
+              child: Text(
+                mark,
+                key: ValueKey('deck-choice-$number-mark'),
+                style: TextStyle(
+                  color: tone,
+                  fontSize: 13,
+                  height: 1.5,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              choice.text,
-              key: ValueKey('deck-choice-$number-text'),
-              style: TextStyle(color: tone, fontSize: 12.5, height: 1.45),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                choice.text,
+                key: ValueKey('deck-choice-$number-text'),
+                style: TextStyle(color: tone, fontSize: 12.5, height: 1.45),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

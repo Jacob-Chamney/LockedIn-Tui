@@ -118,9 +118,16 @@ leaves the frame at `$TMPDIR/lockedin-smoke/smoke.png` for inspection.
   write or command still needs its own approval.
 - **Sidebar** — grouped destinations with a live count each (sessions, goals,
   projects), `RECENT` for the three newest sessions, and Achievements as its own
-  row over Stats.
+  row over Stats. `Ctrl+B` cycles expanded → icons → hidden; the top-bar button
+  and the 26 px rail chip do the same with a mouse.
 - **Managers** — `Sessions` sorts (`o`) and searches (`/`); `Skills` and `Work`
   search by name (`/`), and a query that matches nothing says so and names `Esc`.
+- **Achievements** — a sky: one constellation per shelf. `hjkl`/arrows move by
+  compass direction, `Enter` opens the selected star, hover selects it, click
+  opens it. Unlocked stars glow; the card shows the counter, difficulty and
+  award date.
+- **Flashcards** — answering a four-choice card correctly rains confetti and
+  turns the card over to the answer. `Esc`/`Space` still flip by hand.
 - **Settings** — providers, models, budget, storage, archive, plugins, themes,
   keybinds, appearance. `Enter` on **theme** opens the picker: every palette with
   its own swatch, the active one marked, `c` for the custom palette and `e` to

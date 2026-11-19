@@ -42,6 +42,35 @@ Finder rowOfText(String text) => find.ancestor(
 );
 
 void main() {
+  testWidgets('every registry row shows its own chord', (tester) async {
+    await pumpShell(tester);
+    await pressCtrlK(tester);
+
+    // The palette is where a keyboard user learns a binding, so a row that is
+    // a registry action carries the chord that runs it.
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(const ValueKey('palette-binding-surface.sessions')),
+          )
+          .data,
+      'Alt+2',
+    );
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('palette-binding-sidebar')))
+          .data,
+      'Ctrl+B',
+    );
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('palette-binding-commands')))
+          .data,
+      ':',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Ctrl+K opens the palette over Chat with every action', (
     tester,
   ) async {

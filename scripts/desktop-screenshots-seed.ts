@@ -243,6 +243,49 @@ for (const spec of specs) {
   console.log("session:", result.value.session.id, "->", folder);
 }
 
+// A flashcard deck for the first session: the deck reader and the celebration
+// on a correct answer are part of the UI, so the screenshot set seeds one.
+const firstSessionId = Object.keys(sessionFolders)[0];
+if (firstSessionId !== undefined) {
+  const outputs = join(workspace.root, "school", "outputs", firstSessionId);
+  await mkdir(outputs, { recursive: true });
+  await writeFile(
+    join(outputs, "flashcards.md"),
+    [
+      "# Flashcards — Physics — Unit 4",
+      "",
+      "## Card 1",
+      "",
+      "Q: What does the derivative of kinetic energy with respect to velocity give?",
+      "A: Momentum — d(½mv²)/dv = mv.",
+      "M: no",
+      "K: no",
+      "",
+      "### Choices",
+      "- [x] Momentum — d(½mv²)/dv = mv.",
+      "- [ ] The mass of the body.",
+      "- [ ] The acceleration.",
+      "- [ ] The total work done.",
+      "",
+      "## Card 2",
+      "",
+      "Q: Which quantity is conserved in an isolated collision?",
+      "A: Momentum.",
+      "M: no",
+      "K: no",
+      "",
+      "### Choices",
+      "- [x] Momentum.",
+      "- [ ] Kinetic energy.",
+      "- [ ] Velocity.",
+      "- [ ] Acceleration.",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  console.log("deck:", join(outputs, "flashcards.md"));
+}
+
 // Chill history: local text only, exactly the file the core loads on chat.snapshot.
 await mkdir(dataDir, { recursive: true });
 const chill = {

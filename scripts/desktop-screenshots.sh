@@ -188,6 +188,10 @@ launch_app() {
     # A private bus plus a *fresh* keyring keeps the real keychain invisible.
     exec setsid dbus-run-session -- bash -c '
       printf "" | gnome-keyring-daemon --unlock --components=secrets >/dev/null 2>&1 || true
+      # A headless session has no settings daemon, so GTK animates nothing
+      # and Flutter reports reduced motion. The capture is of the real app, so
+      # the real default is restored.
+      gsettings set org.gnome.desktop.interface enable-animations true >/dev/null 2>&1 || true
       exec "$1"
     ' _ "$BUNDLE/lockedin_desktop"
   ) >"$TMP_HOME/app.log" 2>"$TMP_HOME/app.err" &
@@ -231,6 +235,19 @@ key Return
 shot session-detail
 key c
 shot session-chat
+
+# The deck celebration, from a known state: `Esc` leaves the chat for the
+# session detail, `f` opens the generated flashcard deck, and answering the
+# correct choice turns the card over while the confetti falls. The burst lasts
+# ~1.6 s, so this capture presses, waits a beat and shoots rather than using
+# the 1.6 s `key` helper.
+echo "== deck celebration"
+key Escape
+key f
+DISPLAY="$DISPLAY_NUM" xdotool key --clearmodifiers 1
+sleep 0.35
+shot deck-confetti
+key Escape
 key alt+3
 shot skills
 key Return

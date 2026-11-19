@@ -32,7 +32,76 @@ String? countFor(WidgetTester tester, String row) {
   return tester.widget<Text>(finder).data;
 }
 
+/// The chord the registry gives the sidebar action, so a rebind test would not
+/// have to change this file.
+Future<void> pressSidebarChord(WidgetTester tester) async {
+  await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+  await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
+  await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+  await tester.pumpAndSettle();
+}
+
 void main() {
+  testWidgets('Ctrl+B cycles expanded, icons, hidden', (tester) async {
+    await pumpShell(tester);
+    expect(find.text('LEARN'), findsOneWidget);
+    expect(find.text('Sessions'), findsWidgets);
+
+    // Expanded → icon rail: labels and counts go, icons stay.
+    await pressSidebarChord(tester);
+    expect(find.text('LEARN'), findsNothing);
+    expect(countFor(tester, 'sessions'), isNull);
+    expect(find.byIcon(Icons.history), findsOneWidget);
+    // The window is not covered: the chat is still there.
+    expect(find.text('Chill'), findsWidgets);
+
+    // Icon rail → hidden: only the re-open chip remains.
+    await pressSidebarChord(tester);
+    expect(find.byIcon(Icons.history), findsNothing);
+    expect(find.byKey(const ValueKey('sidebar-rail')), findsOneWidget);
+    expect(find.text('Chill'), findsWidgets);
+
+    // Hidden → expanded again.
+    await pressSidebarChord(tester);
+    expect(find.text('LEARN'), findsOneWidget);
+    expect(countFor(tester, 'sessions'), '2');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the top-bar button runs the same cycle with a mouse', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    expect(find.text('LEARN'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('sidebar-toggle')));
+    await tester.pumpAndSettle();
+    expect(find.text('LEARN'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('sidebar-toggle')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('sidebar-rail')), findsOneWidget);
+
+    // The rail chip is the second pointer path back.
+    await tester.tap(find.byKey(const ValueKey('sidebar-rail')));
+    await tester.pumpAndSettle();
+    expect(find.text('LEARN'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the mode survives switching surfaces', (tester) async {
+    await pumpShell(tester);
+    await pressSidebarChord(tester); // icons
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.digit2);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pumpAndSettle();
+
+    expect(find.text('LEARN'), findsNothing);
+    expect(find.text('LOCK-IN SESSIONS'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the sidebar groups its destinations', (tester) async {
     await pumpShell(tester);
 

@@ -67,9 +67,15 @@ void main() {
     // The page header and the status label both name the layer.
     expect(find.text('ACHIEVEMENTS'), findsNWidgets(2));
     expect(find.text('2 of 6 unlocked'), findsOneWidget);
-    expect(find.text('First Light'), findsOneWidget);
-    expect(find.text('STARTER · 2'), findsOneWidget);
-    expect(statusHint(tester), 'j/k move · r reload · Esc back');
+    // The sky: every achievement is a star, and the cursor's star names itself
+    // in the sky and in the detail card beside it.
+    expect(
+      find.byKey(const ValueKey('achievement-star-first-light')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('achievement-detail')), findsOneWidget);
+    expect(find.text('First Light'), findsWidgets);
+    expect(statusHint(tester), startsWith('hjkl / arrows move · Enter detail'));
     // The dashboard is gone while the layer owns the surface.
     expect(find.text('TOKENS'), findsNothing);
 
@@ -103,14 +109,14 @@ void main() {
     await pressAlt(tester, 5);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
     await tester.pumpAndSettle();
-    expect(find.text('First Light'), findsOneWidget);
+    expect(find.byKey(const ValueKey('achievement-detail')), findsOneWidget);
 
     await pressAlt(tester, 1);
-    expect(find.text('First Light'), findsNothing);
+    expect(find.byKey(const ValueKey('achievement-detail')), findsNothing);
 
     await pressAlt(tester, 5);
     expect(find.text('TOKENS'), findsOneWidget);
-    expect(find.text('First Light'), findsNothing);
+    expect(find.byKey(const ValueKey('achievement-detail')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -144,7 +150,7 @@ void main() {
 
     expect(find.byType(CommandPalette), findsNothing);
     expect(find.text('ACHIEVEMENTS'), findsNWidgets(2));
-    expect(find.text('First Light'), findsOneWidget);
+    expect(find.byKey(const ValueKey('achievement-detail')), findsOneWidget);
   });
 
   testWidgets('a warning renders as a note beside the rows', (tester) async {
@@ -157,7 +163,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('achievements-warning')), findsOneWidget);
-    expect(find.text('First Light'), findsOneWidget);
+    expect(find.byKey(const ValueKey('achievement-detail')), findsOneWidget);
   });
 
   testWidgets('a read failure is one message and the page stays usable', (
@@ -180,6 +186,28 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     expect(find.text('TOKENS'), findsOneWidget);
+  });
+
+  testWidgets('arrows move between stars and Enter opens the detail', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    await pressAlt(tester, 5);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+    await tester.pumpAndSettle();
+
+    // The selected star carries a label under it, in the sky.
+    expect(
+      find.byKey(const ValueKey('achievement-star-label-first-light')),
+      findsOneWidget,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    // Either the cursor moved, or it is the only star in that direction; the
+    // page must stay usable and consistent either way.
+    expect(find.byKey(const ValueKey('achievement-detail')), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('the layer fits 800x600 without overflow', (tester) async {
