@@ -133,6 +133,11 @@ class _ShellState extends State<Shell> {
   /// (`n`, `g`, `/`, `Esc`) works again afterwards.
   int _pageEpoch = 0;
 
+  /// The step to land on when a review item names one. Set as the session
+  /// opens, consumed by the detail, and cleared by the next plain open so it
+  /// cannot leak into another session.
+  int? _initialStep;
+
   /// Whether an open session is showing its chat instead of its detail.
   ///
   /// The sheet has two layers: the session detail, then that session's chat.
@@ -294,6 +299,7 @@ class _ShellState extends State<Shell> {
     setState(() {
       _sessionChatOpen = false;
       _sessionSettingsOpen = false;
+      _initialStep = null;
     });
     await store.openSession(id);
   }
@@ -1040,9 +1046,15 @@ class _ShellState extends State<Shell> {
             unawaited(store.openSkill(item.contextId));
           } else {
             _select(Surface.sessions);
+            // `step:<sessionId>:<index>` names the step the queue row is about,
+            // so the detail lands on it instead of the first step.
+            final step = item.kind == 'step'
+                ? _stepFromReviewId(item.id)
+                : null;
             setState(() {
               _sessionChatOpen = false;
               _sessionSettingsOpen = false;
+              _initialStep = step;
             });
             unawaited(_openSessionFromQueue(store, item.contextId));
           }
@@ -1226,6 +1238,7 @@ class _ShellState extends State<Shell> {
           // Open the detail first, then build the steps if the user asked for
           // them. The generation is a provider run: it must not hold the create
           // result, and the detail's own pending state shows the work.
+          _initialStep = null;
           unawaited(() async {
             await store.openSession(id);
             if (wantsSteps) await store.generateSteps(id);
@@ -1248,10 +1261,12 @@ class _ShellState extends State<Shell> {
           _sessionSettingsOpen = false;
         }),
         onOpen: (row) {
-          // A new row always lands on its detail, never a stale chat layer.
+          // A new row always lands on its detail, never a stale chat layer, and
+          // never on a step a review item asked for in another session.
           setState(() {
             _sessionChatOpen = false;
             _sessionSettingsOpen = false;
+            _initialStep = null;
           });
           unawaited(store.openSession(row.id));
         },
@@ -1331,6 +1346,8 @@ class _ShellState extends State<Shell> {
       }
       return SessionDetailView(
         detail: active,
+        // Consumed once: a later open of the same session starts at step 0.
+        initialStep: _initialStep,
         loading: store.status == CoreStatus.connecting,
         error: store.error,
         coverage: store.coverage,
@@ -1859,6 +1876,14 @@ class _ShellState extends State<Shell> {
   /// Open a session from the review queue: the detail, never a stale layer.
   Future<void> _openSessionFromQueue(CoreStore store, String id) async {
     await store.openSession(id);
+  }
+
+  /// The step ordinal a review id names (`step:<session>:<index>`), or null.
+  static int? _stepFromReviewId(String id) {
+    final parts = id.split(':');
+    if (parts.length < 3) return null;
+    final index = int.tryParse(parts.last);
+    return index != null && index >= 0 ? index : null;
   }
 
   Future<void> _openWorkChat(CoreStore store, String projectId) async {

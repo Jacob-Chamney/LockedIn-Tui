@@ -192,6 +192,33 @@ Future<void> pumpPage(
 }
 
 void main() {
+  testWidgets('initialStep puts the cursor on the named step', (tester) async {
+    await pumpPage(
+      tester,
+      SessionDetailView(
+        detail: detailWithSteps(
+          markdown: _stepsBothUnchecked,
+          done: 0,
+          total: 2,
+        ),
+        loading: false,
+        initialStep: 1,
+        onToggleStep: (_) async {},
+      ),
+    );
+
+    // The reader opens with the second step selected, which is what a review
+    // row about that step asks for.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('step-row-selected')),
+        matching: find.text('Derive the energy balance'),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('clicking a step checkbox toggles that step', (tester) async {
     final toggled = <int>[];
     await pumpPage(

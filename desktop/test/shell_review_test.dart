@@ -72,6 +72,32 @@ int _calls(FakeCore core, String method) =>
     core.calls.where((call) => call == method).length;
 
 void main() {
+  testWidgets('opening a step row lands on that step', (tester) async {
+    final core = FakeCore();
+    final store = await pumpShell(tester, core: core);
+    await openSurface(tester, 7);
+
+    // The fake's step item is `step:<sessionId>:1`; clicking it opens the
+    // session with the second step under the cursor.
+    final row = find.byKey(
+      const ValueKey('review-row-step:2026-11-01-0900-physics:1'),
+    );
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+
+    expect(store.activeSessionId, FakeCore.sessionId);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('step-row-selected')),
+        matching: find.text('Derive the energy balance'),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Alt+7 opens Review with the queue snapshot', (tester) async {
     await pumpShell(tester);
     await openSurface(tester, 7);
