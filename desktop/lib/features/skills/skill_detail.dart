@@ -1153,6 +1153,22 @@ class _SkillDetailViewState extends State<SkillDetailView> {
               backgroundColor: LockedInColors.line,
             ),
           ],
+          // The pointer path for `b`: build the selected stage's lesson.
+          if (!_editingStages &&
+              interactive &&
+              widget.onBuildStage != null &&
+              _selectedStageRow != null) ...[
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                key: const ValueKey('skill-build-lesson'),
+                onPressed: _stagesBusy ? null : _buildStage,
+                icon: const Icon(Icons.auto_stories_outlined, size: 15),
+                label: const Text('build lesson'),
+              ),
+            ),
+          ],
           if (stages.isNotEmpty || _editingStages) ...[
             const SizedBox(height: 10),
             Text(

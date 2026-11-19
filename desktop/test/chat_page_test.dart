@@ -141,6 +141,33 @@ void main() {
     expect(cancelled, isTrue);
   });
 
+  testWidgets('i returns to the composer from NORMAL', (tester) async {
+    var mode = false;
+    await tester.pumpWidget(
+      _app(
+        ChatPage(
+          chat: _chat(messages: const []),
+          online: true,
+          configured: true,
+          onSend: (_) {},
+          onModeChanged: (insert) => mode = insert,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Leave the composer, then `i` brings it back: the terminal app's insert.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyI);
+    await tester.pumpAndSettle();
+
+    expect(mode, isTrue);
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.focusNode?.hasFocus, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Esc stops the reply, with the composer still focused', (
     tester,
   ) async {

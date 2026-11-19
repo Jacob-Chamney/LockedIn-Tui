@@ -150,6 +150,42 @@ Future<void> openSurface(WidgetTester tester, int surface) async {
 }
 
 void main() {
+  testWidgets('guide sections are chips that mark the section they name', (
+    tester,
+  ) async {
+    final marked = <int>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: lockedInTheme(),
+        home: Scaffold(
+          body: SessionOutputView(
+            sessionName: _sessionName,
+            kind: 'study-guide',
+            markdown:
+                '# Study guide — Physics\n\n> 0 of 2 sections reviewed\n\n'
+                '## Energy balance\n\nWhat limits it?\n\n- [ ] Reviewed\n\n'
+                '## Momentum\n\nWhat is conserved?\n\n- [ ] Reviewed\n',
+            answers: null,
+            exists: true,
+            loading: false,
+            error: null,
+            onMarkSection: (index) async => marked.add(index),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('0 of 2 reviewed'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('guide-section-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('guide-section-1')));
+    await tester.pumpAndSettle();
+
+    expect(marked, [1]);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the study guide renders its header, label and body', (
     tester,
   ) async {

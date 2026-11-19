@@ -64,6 +64,7 @@ Future<void> pumpReview(
   ValueChanged<String>? onSide,
   VoidCallback? onBack,
   Future<void> Function(String itemId, String result)? onMark,
+  ValueChanged<ReviewItem>? onOpen,
   Size size = const Size(1280, 800),
   bool settle = true,
 }) async {
@@ -84,6 +85,7 @@ Future<void> pumpReview(
           onSide: onSide,
           onBack: onBack,
           onMark: onMark,
+          onOpen: onOpen,
         ),
       ),
     ),
@@ -97,6 +99,29 @@ Future<void> pumpReview(
 }
 
 void main() {
+  testWidgets('a row opens its own surface on click or Enter', (tester) async {
+    final opened = <String>[];
+    await pumpReview(
+      tester,
+      queue: reviewFixture(),
+      onOpen: (item) => opened.add('${item.kind}:${item.contextId}'),
+    );
+
+    // Click the step row: the same callback Enter runs.
+    final row = find.byKey(const ValueKey('review-row-step:physics:1'));
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    expect(opened, ['step:2026-11-01-0900-physics']);
+
+    // Enter on the selected row opens it too.
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(opened, hasLength(2));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a row carries known and missed buttons', (tester) async {
     final marks = <String>[];
     await pumpReview(

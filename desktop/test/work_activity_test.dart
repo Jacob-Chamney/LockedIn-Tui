@@ -151,6 +151,31 @@ Future<void> openLog(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('a click expands a record and a second click collapses it', (
+    tester,
+  ) async {
+    await pumpPage(
+      tester,
+      ActivityPage(
+        records: _list.records,
+        skipped: _list.skipped,
+        empty: _list.empty,
+        project: FakeCore.projectId,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('activity-expanded-0')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('activity-row-0')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('activity-expanded-0')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('activity-row-0')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('activity-expanded-0')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   group('ActivityPage', () {
     testWidgets('rows render kind, path or argv, decision and time', (
       tester,

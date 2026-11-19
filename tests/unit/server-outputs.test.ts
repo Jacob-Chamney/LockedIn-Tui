@@ -238,4 +238,37 @@ describe("session.output.read", () => {
     expect(error.retryable).toBe(false);
     expect(error.data).toMatchObject({ kind: "session", id: MISSING_ID });
   });
+
+  test("session.output.mark validates the id and the index without booting", async () => {
+    const { server, counter } = fakeCore();
+
+    for (const params of [
+      {},
+      { id: "" },
+      { id: MISSING_ID },
+      { id: MISSING_ID, index: -1 },
+      { id: MISSING_ID, index: 1.5 },
+      { id: MISSING_ID, index: "0" },
+    ]) {
+      const error = await errorOf(server, "session.output.mark", params);
+      expect(error.code).toBe(-32602);
+    }
+    const badIndex = await errorOf(server, "session.output.mark", {
+      id: MISSING_ID,
+      index: -1,
+    });
+    expect(badIndex.message).toContain("non-negative whole number");
+    expect(counter.calls).toBe(0);
+  });
+
+  test("session.output.mark on an unknown session is the session shape", async () => {
+    const { server } = fakeCore();
+    const error = await errorOf(server, "session.output.mark", {
+      id: MISSING_ID,
+      index: 0,
+    });
+    expect(error.code).toBe(BOOT_FAILED);
+    expect(error.retryable).toBe(false);
+    expect(error.data).toMatchObject({ kind: "session", id: MISSING_ID });
+  });
 });

@@ -1031,6 +1031,22 @@ class _ShellState extends State<Shell> {
         onSide: store.selectReviewSide,
         onMark: store.markReview,
         markingId: store.reviewMarkingId,
+        // The queue's rows open their own surface: a lock-in for steps, cards
+        // and memory, a skill goal for a stage. Like every other open, it is
+        // one click or Enter.
+        onOpen: (item) {
+          if (item.kind == 'stage') {
+            _select(Surface.skills);
+            unawaited(store.openSkill(item.contextId));
+          } else {
+            _select(Surface.sessions);
+            setState(() {
+              _sessionChatOpen = false;
+              _sessionSettingsOpen = false;
+            });
+            unawaited(_openSessionFromQueue(store, item.contextId));
+          }
+        },
         // Review is a snapshot over the workspace, not a layer: `Esc` goes
         // back to chat, the home surface, instead of inventing a parent list.
         onBack: () => _select(Surface.chat),
@@ -1298,6 +1314,9 @@ class _ShellState extends State<Shell> {
           onReadAnswers: sessionId == null
               ? null
               : () => store.readOutput(sessionId, outputKind, part: 'answers'),
+          onMarkSection: sessionId == null
+              ? null
+              : (index) => store.markGuideSection(sessionId, index),
           onMarkCard: sessionId == null
               ? null
               : (cardId, result) async {
@@ -1837,6 +1856,11 @@ class _ShellState extends State<Shell> {
   /// Open the project chat from the detail: resume the chat the user last had
   /// open, or let the core pick the newest one. The detail stays on screen until
   /// the core answers, so a refusal shows its message instead of an empty chat.
+  /// Open a session from the review queue: the detail, never a stale layer.
+  Future<void> _openSessionFromQueue(CoreStore store, String id) async {
+    await store.openSession(id);
+  }
+
   Future<void> _openWorkChat(CoreStore store, String projectId) async {
     final opened = await store.openWorkChat(
       projectId,

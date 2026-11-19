@@ -39,6 +39,7 @@ class SessionOutputView extends StatefulWidget {
     this.cardsMarkdown,
     this.onBuild,
     this.onReadAnswers,
+    this.onMarkSection,
     this.onMarkCard,
     this.onRetry,
     this.onBack,
@@ -81,6 +82,11 @@ class SessionOutputView extends StatefulWidget {
   /// Read the guide's answers part (`session.output.read` with `part: answers`).
   final Future<void> Function()? onReadAnswers;
 
+  /// Mark one guide section reviewed (`session.output.mark`). Null keeps the
+  /// guide read-only. The section list is the pointer path for the guide's
+  /// checkboxes; the document itself stays the rendered Markdown.
+  final Future<void> Function(int index)? onMarkSection;
+
   /// Record one card verdict through the shell's `review.mark`.
   ///
   /// [cardId] is the deck's own `card-N` and [result] is `known` or `missed`.
@@ -96,6 +102,13 @@ class SessionOutputView extends StatefulWidget {
 
   @override
   State<SessionOutputView> createState() => _SessionOutputViewState();
+}
+
+/// One guide section: its heading and whether it is marked reviewed.
+class _GuideSection {
+  const _GuideSection({required this.title, required this.checked});
+  final String title;
+  final bool checked;
 }
 
 class _SessionOutputViewState extends State<SessionOutputView> {
@@ -692,9 +705,16 @@ class _SessionOutputViewState extends State<SessionOutputView> {
     if (widget.loading && markdown == null) return _loadingRow();
     if (!widget.exists) return _emptyState();
     if (markdown == null) return _loadingRow();
+    final sections = _isDeck
+        ? const <_GuideSection>[]
+        : _guideSections(markdown);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (widget.onMarkSection != null && sections.isNotEmpty) ...[
+          _guideSectionList(sections),
+          const SizedBox(height: 12),
+        ],
         ChatMarkdown(text: markdown),
         if (!_isDeck && _showAnswers) ..._answersSection(),
         if (_isDeck) ...[
@@ -1045,6 +1065,92 @@ class _SessionOutputViewState extends State<SessionOutputView> {
 
   /// The revealed answer's body, shared by four-choice cards (where the choices
   /// are already on screen) and flip-only cards.
+  /// The guide's sections, in file order: heading plus its `Reviewed` row.
+  List<_GuideSection> _guideSections(String markdown) {
+    final lines = markdown.split("\n");
+    final sections = <_GuideSection>[];
+    String? heading;
+    for (final line in lines) {
+      if (line.startsWith("## ")) {
+        heading = line.substring(3).trim();
+        continue;
+      }
+      final match = RegExp(
+        r"^\s*[-*]\s+\[([ xX])\]\s*Reviewed\s*$",
+        caseSensitive: false,
+      ).firstMatch(line);
+      if (match != null && heading != null && heading.isNotEmpty) {
+        sections.add(
+          _GuideSection(title: heading, checked: match.group(1) != " "),
+        );
+        heading = null;
+      }
+    }
+    return sections;
+  }
+
+  /// One chip per section: the pointer path for marking it reviewed.
+  Widget _guideSectionList(List<_GuideSection> sections) {
+    final done = sections.where((section) => section.checked).length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '$done of ${sections.length} reviewed',
+          style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            for (var index = 0; index < sections.length; index++)
+              InkWell(
+                key: ValueKey('guide-section-$index'),
+                borderRadius: BorderRadius.circular(4),
+                onTap: () => unawaited(widget.onMarkSection!.call(index)),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: LockedInColors.panel,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: LockedInColors.line),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        sections[index].checked ? '☑' : '☐',
+                        style: TextStyle(
+                          color: sections[index].checked
+                              ? LockedInColors.success
+                              : LockedInColors.muted,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        sections[index].title,
+                        style: TextStyle(
+                          color: sections[index].checked
+                              ? LockedInColors.muted
+                              : LockedInColors.foreground,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
   List<Widget> _answerBody(Flashcard card) {
     return [
       Divider(height: 1, thickness: 1, color: LockedInColors.line),

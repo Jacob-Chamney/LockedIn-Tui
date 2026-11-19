@@ -8,7 +8,7 @@ to stderr.
 
 ```json
 → {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol":1,"client":"flutter"}}
-← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","chat.snapshot","chat.send","chat.cancel","session.chat.snapshot","session.chat.send","session.chat.cancel","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","keybinds.get","keybinds.set","work.list","work.open","work.create","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read"]}}
+← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","chat.snapshot","chat.send","chat.cancel","session.chat.snapshot","session.chat.send","session.chat.cancel","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","keybinds.get","keybinds.set","work.list","work.open","work.create","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read"]}}
 ```
 
 - `protocol` is an integer. A mismatch is a blocking shell error, not a retry.
@@ -506,6 +506,28 @@ Implemented today (`src/server/protocol.ts`, capability names in the handshake):
     error. An unknown or unreadable session is the shared session shape
     `data: {kind: "session", id, message}`; a blank/non-string `id` is `-32602`.
     Nothing on this path writes, generates, marks or archives.
+- `session.output.mark`: mark one **study-guide** section reviewed, or clear it.
+  This is the guide's only write (`docs/product.md` §5.2). `id` names the
+  session folder and `index` is the 0-based section ordinal in file order; a
+  blank id or an index that is not a non-negative whole number is `-32602`.
+
+  The core reads `study-guide.md`, flips **one bracket character** and the
+  `> N of M sections reviewed` line, and replaces the file atomically
+  (`src/domain/guide.ts`). Every other byte — including the learner's own prose —
+  survives, so toggling the same section twice restores the document byte for
+  byte.
+
+  ```json
+  {"index":1,"checked":true,"done":1,"total":3,"markdown":"# Study guide — …","hash":"sha256:…"}
+  ```
+
+  `markdown` is the file after the write, `checked` the new state, `done`/`total`
+  the recomputed counts and `hash` `sha256:<hex>` of the same bytes. A session
+  with no guide is `-32000`, `retryable: false`,
+  `data: {kind: "output", id, message}` with `build the study guide first`;
+  an out-of-range section is the same shape and the file is untouched. The
+  shell replaces what it renders from `markdown` and never re-reads the file.
+
 - `archive.list`: the **read-only** archive picker (`docs/product.md` §9). It
   lists what is already archived on both sides of the wall and takes no
   parameters; it never restores, deletes, exports, moves or writes anything. The
