@@ -365,12 +365,17 @@ class _SessionDetailViewState extends State<SessionDetailView> {
   }
 
   Future<void> _toggleSelected() async {
+    final count = _taskCount(widget.detail);
+    if (count == 0) return;
+    await _toggle(_selectedStep.clamp(0, count - 1));
+  }
+
+  /// Toggle one step by index: the keyboard path and the checkbox click share
+  /// it, so a click can only ever write the step it is drawn on.
+  Future<void> _toggle(int index) async {
     if (_toggling) return;
     final toggle = widget.onToggleStep;
     if (toggle == null) return;
-    final count = _taskCount(widget.detail);
-    if (count == 0) return;
-    final index = _selectedStep.clamp(0, count - 1);
     setState(() => _toggling = true);
     try {
       await toggle(index);
@@ -1836,16 +1841,31 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                 ),
               ),
               const SizedBox(width: 9),
-              SizedBox(
-                width: 20,
-                child: Text(
-                  checked ? '☑' : '☐',
-                  style: TextStyle(
-                    color: checked
-                        ? LockedInColors.success
-                        : LockedInColors.muted,
-                    fontSize: 15,
-                    height: 1.2,
+              // The glyph is the pointer's toggle: a checkbox that cannot be
+              // clicked is the first thing a mouse user tries.
+              InkWell(
+                key: ValueKey('step-check-$index'),
+                borderRadius: BorderRadius.circular(4),
+                onTap: widget.onToggleStep == null
+                    ? null
+                    : () {
+                        setState(() => _selectedStep = index);
+                        unawaited(_toggle(index));
+                      },
+                child: SizedBox(
+                  width: 26,
+                  height: 22,
+                  child: Center(
+                    child: Text(
+                      checked ? '☑' : '☐',
+                      style: TextStyle(
+                        color: checked
+                            ? LockedInColors.success
+                            : LockedInColors.muted,
+                        fontSize: 15,
+                        height: 1.2,
+                      ),
+                    ),
                   ),
                 ),
               ),

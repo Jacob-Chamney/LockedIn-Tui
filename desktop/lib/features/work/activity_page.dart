@@ -335,14 +335,39 @@ class _ActivityPageState extends State<ActivityPage> {
               fontFamily: 'monospace',
             ),
           ),
-        Text(
-          'kind · ${_kindLabel(widget.kind)}',
-          style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
-        ),
-        Text(
-          widget.onKind == null ? 'read-only' : 's cycles the kind filter',
-          style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
-        ),
+        if (widget.onKind == null)
+          Text(
+            'kind · ${_kindLabel(widget.kind)}',
+            style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+          )
+        else
+          // The filter is a chip: `s` and a click run the same cycle.
+          InkWell(
+            key: const ValueKey('activity-kind-filter'),
+            borderRadius: BorderRadius.circular(4),
+            onTap: _cycleKind,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: LockedInColors.panel,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: LockedInColors.line),
+              ),
+              child: Text(
+                'kind · ${_kindLabel(widget.kind)}',
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        if (widget.onKind != null)
+          Text(
+            's cycles the kind filter',
+            style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+          ),
       ],
     );
   }

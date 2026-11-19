@@ -1,110 +1,78 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lockedin_desktop/bridge/models.dart';
-import 'package:lockedin_desktop/features/work/work_approvals.dart';
-import 'package:lockedin_desktop/theme/palette.dart';
+import 'package:lockedin_desktop/app.dart';
+import 'package:lockedin_desktop/bridge/core_client.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// The pointer paths for actions that used to be keyboard-only.
-///
-/// Each case names the key it stands for, so a regression reads as "the button
-/// stopped running `y`", not "a widget moved".
-Future<void> _pump(WidgetTester tester, Widget child) async {
-  tester.view.physicalSize = const Size(1280, 800);
+import 'fake_core.dart';
+
+/// The second half of the pointer sweep: rows and controls that were keyboard
+/// only. Each case asserts the click reaches the same handler the key does.
+Future<CoreStore> pumpShell(
+  WidgetTester tester, {
+  FakeCore? core,
+  Size size = const Size(1280, 800),
+}) async {
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
-  await tester.pumpWidget(
-    MaterialApp(
-      theme: lockedInTheme(),
-      home: Scaffold(body: child),
-    ),
-  );
+  final store = CoreStore(connection: core ?? FakeCore());
+  addTearDown(store.dispose);
+  await store.start();
+  await tester.pumpWidget(LockedInApp(store: store));
+  await tester.pumpAndSettle();
+  return store;
+}
+
+Future<void> openSurface(WidgetTester tester, int surface) async {
+  if (find.text('INSERT').evaluate().isNotEmpty) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+  }
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  const keys = <LogicalKeyboardKey>[
+    LogicalKeyboardKey.keyC,
+    LogicalKeyboardKey.keyH,
+    LogicalKeyboardKey.keyG,
+    LogicalKeyboardKey.keyS,
+    LogicalKeyboardKey.keyT,
+    LogicalKeyboardKey.keyP,
+    LogicalKeyboardKey.keyV,
+    LogicalKeyboardKey.keyF,
+    LogicalKeyboardKey.keyN,
+    LogicalKeyboardKey.comma,
+  ];
+  final index = surface == 0 ? keys.length - 1 : surface - 1;
+  await tester.sendKeyEvent(keys[index]);
   await tester.pumpAndSettle();
 }
 
-const _hunk = HunkView(
-  index: 0,
-  oldStart: 1,
-  oldCount: 1,
-  newStart: 1,
-  newCount: 1,
-  lines: [HunkLineView(kind: 'add', text: 'new')],
-  oldLines: ['old\n'],
-  newLines: ['new\n'],
-);
-
-const _write = WorkWriteProposal(
-  id: 'w1',
-  projectId: 'p1',
-  path: 'notes.md',
-  kind: 'update',
-  diff: '--- a/notes.md\n+++ b/notes.md\n@@ -1,1 +1,1 @@\n-new\n+new\n',
-  hunks: [_hunk],
-  stats: WriteStats(added: 1, removed: 1),
-  baseHash: 'sha256:abc123',
-);
-
-const _command = WorkCommandProposal(
-  id: 'c1',
-  projectId: 'p1',
-  argv: ['printf', 'ok'],
-  cwd: '.',
-  reason: 'check',
-  risk: 'This process can read and write outside the project.',
-);
-
 void main() {
-  group('work approvals', () {
-    testWidgets('approve and reject are buttons, not only y/n', (tester) async {
-      final calls = <Map<String, dynamic>>[];
-      await _pump(
-        tester,
-        WorkApprovalsView(
-          approvals: const WorkApprovals(
-            writes: [_write],
-            commands: [_command],
-          ),
-          onDecideWrite: (id, decision, {hunks}) async {
-            calls.add({'write': id, 'decision': decision, 'hunks': hunks});
-          },
-          onDecideCommand: (id, decision, {reason}) async {
-            calls.add({'command': id, 'decision': decision});
-          },
-        ),
-      );
+  testWidgets('the model badge opens Settings', (tester) async {
+    await pumpShell(tester);
 
-      await tester.tap(find.byKey(const ValueKey('approval-reject-w1')));
-      await tester.pumpAndSettle();
-      expect(calls.single, {
-        'write': 'w1',
-        'decision': 'reject',
-        'hunks': null,
-      });
+    expect(find.byKey(const ValueKey('model-badge')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('model-badge')));
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const ValueKey('approval-approve-w1')));
-      await tester.pumpAndSettle();
-      expect(calls.last['decision'], 'approve');
-      expect(calls.last['hunks'], [0]);
+    expect(find.text('SETTINGS'), findsWidgets);
+    expect(find.text('username'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
-      await tester.tap(find.byKey(const ValueKey('approval-run-c1')));
-      await tester.pumpAndSettle();
-      expect(calls.last, {'command': 'c1', 'decision': 'approve'});
-      expect(tester.takeException(), isNull);
-    });
+  testWidgets('the chat link to a model opens Settings', (tester) async {
+    // Unconfigured is the state that shows the link at all.
+    await pumpShell(tester, core: FakeCore(configured: false));
 
-    testWidgets('a blocked approval is disabled, not silent', (tester) async {
-      await _pump(
-        tester,
-        const WorkApprovalsView(
-          approvals: WorkApprovals(writes: [_write], commands: []),
-        ),
-      );
+    final link = find.byKey(const ValueKey('chat-link-model'));
+    expect(link, findsOneWidget);
+    await tester.tap(link);
+    await tester.pumpAndSettle();
 
-      final approve = tester.widget<FilledButton>(
-        find.byKey(const ValueKey('approval-approve-w1')),
-      );
-      expect(approve.onPressed, isNull);
-      expect(find.text('read-only'), findsOneWidget);
-    });
+    expect(find.text('SETTINGS'), findsWidgets);
+    expect(find.text('username'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

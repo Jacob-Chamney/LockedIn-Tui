@@ -302,6 +302,13 @@ class _ShellState extends State<Shell> {
   ///
   /// The window is untouched, so the chat column widens and narrows instead of
   /// being covered — a hidden rail is a reflow, never an overlay.
+  /// Settings, for the badge and the composer's link: one destination, one
+  /// path, whether the user pressed `Space ,` or clicked.
+  void _openSettings() {
+    _select(Surface.settings);
+    if (_insert) setState(() => _insert = false);
+  }
+
   void _cycleSidebar() {
     setState(() => _sidebarMode = _sidebarMode.next);
   }
@@ -628,6 +635,35 @@ class _ShellState extends State<Shell> {
           _sessionChatOpen = false;
           _sessionSettingsOpen = false;
         });
+      case 'work-agents':
+      case 'work-changes':
+        // Both live on the project detail; the verbs are the way to it from
+        // anywhere, with any other layer collapsed.
+        _select(Surface.work);
+        final projectId = store.activeProjectId;
+        // No open project: the Work list is the next action, and it says so.
+        if (projectId == null) return;
+        setState(() {
+          _workChatOpen = false;
+          _workApprovalsOpen = false;
+          _swarmOpen = false;
+          _workActivityOpen = false;
+        });
+        unawaited(store.refreshWorkChanges(projectId));
+      case 'work-swarms':
+        _select(Surface.work);
+        if (store.activeProjectId == null) return;
+        setState(() {
+          _swarmOpen = true;
+          _workChatOpen = false;
+          _workApprovalsOpen = false;
+          _workActivityOpen = false;
+        });
+      case 'work-chats':
+        _select(Surface.work);
+        final chatProject = store.activeProjectId;
+        if (chatProject == null) return;
+        unawaited(_openWorkChat(store, chatProject));
       case 'flashcards':
         // With a session open the deck is one chord away; without one the
         // sessions manager is where a session comes from, which is what the
@@ -743,6 +779,7 @@ class _ShellState extends State<Shell> {
                   toggleHint: _sidebarToggleLabel(keymap),
                   onToggleSidebar: _cycleSidebar,
                   railHidden: railHidden,
+                  onOpenSettings: _openSettings,
                 ),
                 Expanded(
                   child: Row(
@@ -944,6 +981,7 @@ class _ShellState extends State<Shell> {
         error: store.error,
         initialText: _chatDraft,
         onDraftChanged: (text) => _chatDraft = text,
+        onLinkModel: _openSettings,
         onSend: (text) {
           // A sent turn clears the draft; a refused send keeps it for another
           // try, so the text is never lost to a blocked composer.
@@ -1821,6 +1859,7 @@ class _TopBar extends StatelessWidget {
     required this.toggleHint,
     required this.onToggleSidebar,
     required this.railHidden,
+    required this.onOpenSettings,
   });
 
   final Surface surface;
@@ -1838,6 +1877,9 @@ class _TopBar extends StatelessWidget {
   /// True when the rail is fully hidden: the top-bar button is then the second
   /// way back, beside the rail chip itself.
   final bool railHidden;
+
+  /// Settings, from the model badge.
+  final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -1890,7 +1932,7 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          _CoreChip(store: store),
+          _CoreChip(store: store, onOpenSettings: onOpenSettings),
         ],
       ),
     );
@@ -1898,9 +1940,13 @@ class _TopBar extends StatelessWidget {
 }
 
 class _CoreChip extends StatelessWidget {
-  const _CoreChip({required this.store});
+  const _CoreChip({required this.store, this.onOpenSettings});
 
   final CoreStore store;
+
+  /// The badge is the app's only model indicator, so it is also the way to
+  /// Settings → Providers with a mouse.
+  final VoidCallback? onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -1933,22 +1979,31 @@ class _CoreChip extends StatelessWidget {
         Icons.check_circle_outline,
       ),
     };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: LockedInColors.panel,
+    return Tooltip(
+      message: configured ? label : 'open Settings → Providers',
+      waitDuration: const Duration(milliseconds: 500),
+      child: InkWell(
+        key: const ValueKey('model-badge'),
         borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+        onTap: onOpenSettings,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: LockedInColors.panel,
+            borderRadius: BorderRadius.circular(6),
           ),
-        ],
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

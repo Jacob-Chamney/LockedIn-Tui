@@ -457,6 +457,24 @@ class _ReviewPageState extends State<ReviewPage> {
                 selected: index == selected,
                 marking: marking == item.id,
                 onTap: () => _select(index),
+                onKnown:
+                    widget.onMark == null ||
+                        marking == item.id ||
+                        item.kind == 'memory'
+                    ? null
+                    : () {
+                        _select(index);
+                        unawaited(_mark('known'));
+                      },
+                onMissed:
+                    widget.onMark == null ||
+                        marking == item.id ||
+                        item.kind == 'memory'
+                    ? null
+                    : () {
+                        _select(index);
+                        unawaited(_mark('missed'));
+                      },
               ),
             ),
           );
@@ -542,12 +560,19 @@ class _ReviewRow extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.marking = false,
+    this.onKnown,
+    this.onMissed,
   });
 
   final ReviewItem item;
   final bool selected;
   final VoidCallback onTap;
   final bool marking;
+
+  /// The pointer path for `k` and `m`. Null on a read-only row (session memory)
+  /// or while a mark is in flight.
+  final VoidCallback? onKnown;
+  final VoidCallback? onMissed;
 
   @override
   Widget build(BuildContext context) {
@@ -626,7 +651,24 @@ class _ReviewRow extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
+              if (onKnown != null || onMissed != null) ...[
+                TextButton(
+                  key: ValueKey('review-known-${item.id}'),
+                  onPressed: onKnown,
+                  child: const Text('known'),
+                ),
+                TextButton(
+                  key: ValueKey('review-missed-${item.id}'),
+                  onPressed: onMissed,
+                  style: TextButton.styleFrom(
+                    foregroundColor: LockedInColors.warning,
+                  ),
+                  child: const Text('missed'),
+                ),
+                const SizedBox(width: 4),
+              ],
+              const SizedBox(width: 8),
               Text(
                 trailing,
                 style: TextStyle(

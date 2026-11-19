@@ -65,7 +65,8 @@ lives in `desktop/lib`.
     surface**, exactly as `src/ui/keymap/defaults.ts` has it: `c` Chill, `h`
     lock-in sessions, `g` skill goals, `s` sources, `t` stats, `p` work, `v`
     review, `f` archive, `n` knowledge, `,` settings. `i` is achievements,
-    `l` starts a lock-in and `k` opens the open session's deck. The
+    `l` starts a lock-in, `k` opens the open session's deck, and Work keeps the
+    terminal app's verbs: `m` agents, `u` chats, `x` swarms, `d` changes. The
     temporary `Alt+1…0` desktop switcher is gone; two switchers for one action is
     the drift the one-registry rule exists to stop.
 16. **`\` is the alternate leader** (`leaderAltAction`). `Space` is a local
@@ -89,6 +90,11 @@ lives in `desktop/lib`.
     button selects that card first so it can only act on what it shows.
 21. **`Esc` stops a reply before it means "back".** With a turn streaming, Esc
     cancels from any mode, in Chill and in every session/project/goal chat.
+22. **A reader keeps its document's grammar.** The study guide reveals with
+    `Enter` and builds with `b` (the terminal app's keys); `a`/`R` remain as
+    aliases. The deck flips with `Tab`, answers with `1`–`4`, moves with `h`/`l`.
+23. **A step is toggled by the glyph it is drawn with.** The `☐` in the steps
+    reader is a button that toggles that step, not the cursor's step.
 
 ## Plugins
 

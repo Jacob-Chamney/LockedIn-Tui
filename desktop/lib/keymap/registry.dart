@@ -428,6 +428,41 @@ const flashcardsAction = ActionSpec(
   defaultBinding: Binding.leader('k'),
 );
 
+/// The Work verbs the terminal app puts on the leader: agents `m`, chats `u`,
+/// swarms `x`, changes `d`. They open the project's own layers, so they are
+/// shell actions; the page keeps its local `a`/`c`/`w`/`g` keys.
+const workAgentsAction = ActionSpec(
+  id: 'work-agents',
+  label: 'work agents',
+  hint: 'the open project roster',
+  group: ActionGroup.global,
+  defaultBinding: Binding.leader('m'),
+);
+
+const workChatsAction = ActionSpec(
+  id: 'work-chats',
+  label: 'work chats',
+  hint: 'open the project chat',
+  group: ActionGroup.global,
+  defaultBinding: Binding.leader('u'),
+);
+
+const workSwarmsAction = ActionSpec(
+  id: 'work-swarms',
+  label: 'work swarms',
+  hint: 'the swarm board',
+  group: ActionGroup.global,
+  defaultBinding: Binding.leader('x'),
+);
+
+const workChangesAction = ActionSpec(
+  id: 'work-changes',
+  label: 'work changes',
+  hint: 'the change summary',
+  group: ActionGroup.global,
+  defaultBinding: Binding.leader('d'),
+);
+
 /// The sidebar toggle.
 ///
 /// One key cycles expanded → icons → hidden, which is the desktop reading of the
@@ -453,6 +488,10 @@ List<ActionSpec> shellActionCatalogue() => [
   achievementsAction,
   newLockInAction,
   flashcardsAction,
+  workAgentsAction,
+  workChatsAction,
+  workSwarmsAction,
+  workChangesAction,
   sidebarAction,
   leaderAltAction,
 ];
