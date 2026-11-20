@@ -21,8 +21,11 @@ lives in `desktop/lib`.
 3. **Opening the rail gives it the keyboard.** `Space e` expands *and* focuses
    the rail, so `j`/`k` walk the rows, `Home`/`End` jump, and `Enter` opens the
    row and hands the keyboard back to the page. `Esc` (or `→`/`l`) gives the
-   keyboard back **without** shrinking, and `Space` shrinks. Two different
-   states — page keys and rail keys — never share one key silently.
+   keyboard back **without** shrinking. Only the switch resizes the rail: the
+   chord (`Space e`) or the top-bar button. `Space` stays the leader inside the
+   rail — a stray Space opens the leader overlay, it never shrinks the rail
+   under the user's hands. Two different states — page keys and rail keys —
+   never share one key silently.
 4. **The rail's keyboard and the rail's picture are one list.** The cursor index
    counts the rows `_sidebarGroups` draws and then the pinned Settings row; it
    is not `Surface.values`, which also carries Sources (leader-only) and orders
