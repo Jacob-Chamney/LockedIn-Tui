@@ -1,0 +1,101 @@
+name: Feature request
+description: Propose a new surface, behaviour or improvement.
+title: "[feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Start with the problem, not the implementation. Small, testable proposals land fastest.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can you not do today, or what is confusing/slow?
+      placeholder: I cannot tell which provider owns the active model without opening Settings.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: What should happen? Include the keys, pane or copy if you have them.
+      placeholder: Show the active provider on the Settings row and mark it in Providers.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Chat / composer
+        - Lock-in sessions
+        - Skill sessions / reader
+        - Work / projects / agents
+        - Settings / providers / models
+        - Archive / sources
+        - Storage / config / index
+        - LLM / streaming / usage
+        - Keys / navigation / layout
+        - Docs / tests / packaging
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What is in, and what is deliberately out?
+      placeholder: |
+        In: one Settings row and the Providers menu marker.
+        Out: changing how keys are stored or validated.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: How will we know it is done? Prefer observable behaviour and a test.
+      placeholder: |
+        - Settings shows `OpenCode Go` as the active provider.
+        - Providers opens with that row selected and a check mark.
+        - The behaviour is covered by a UI test.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional. Why is this approach better than the obvious alternatives?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - I can implement it
+        - I can test it
+        - I can help with docs
+        - I am only proposing it
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: invariants
+    attributes:
+      label: Repository fit
+      options:
+        - label: This does not require reading school material from a skills session, or vice versa (the school/skills wall).
+          required: true
+        - label: This does not add an automatic retry, silent model fallback, or automatic archive.
+          required: true
+        - label: Any secret involved will stay in the OS keychain, never in config, logs or prompts.
+          required: true
+        - label: I checked that this is not already covered by an existing issue.
+          required: true

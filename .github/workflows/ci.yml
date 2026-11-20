@@ -1,0 +1,137 @@
+name: CI
+
+# The same gate as `scripts/check.ts` on Linux and Windows, plus a Linux perf
+# job. No secrets, no write token, no artifact upload, no deploy step.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check (linux x64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Cache Bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - name: Require a lockfile
+        run: test -f bun.lock || { echo "bun.lock is missing; commit it before merging"; exit 1; }
+
+      - name: Install (frozen lockfile)
+        run: bun install --frozen-lockfile
+
+      # The suite shells out to host tools for PDF extraction. Without them the
+      # PDF tests skip (they do not fail), which would quietly remove coverage —
+      # so CI tries to install them. The mirror is occasionally unreachable;
+      # keep the attempt short and let the gate continue when it fails.
+      - name: Install host test tools
+        id: tools
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          APT="sudo apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=10 -o Acquire::https::Timeout=10"
+          $APT update
+          $APT install -y --no-install-recommends poppler-utils
+
+      - name: Note missing host tools
+        if: steps.tools.outcome == 'failure'
+        run: echo "::warning::poppler-utils could not be installed; PDF tests will skip"
+
+      - name: Check
+        run: ./scripts/check.sh
+
+  # The same gate on Windows. It exists so a Windows contributor is not the
+  # first person to discover a POSIX assumption; the perf gate stays Linux-only.
+  check-windows:
+    name: check (windows x64)
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Cache Bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - name: Install (frozen lockfile)
+        run: bun install --frozen-lockfile
+
+      - name: Check
+        run: bun run check
+
+  # WP-156: check.ts runs scripts/perf.ts, but a CI runner has no binary, so the
+  # gate would always skip here and a startup regression could never fail a PR.
+  # This job builds the host target and measures it. The seven-target matrix
+  # (linux glibc/musl x64/arm64, darwin x64/arm64, windows x64) is a release
+  # task, deliberately absent from the pull-request path.
+  perf:
+    name: perf (linux x64, first frame)
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Cache Bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - name: Install (frozen lockfile)
+        run: bun install --frozen-lockfile
+
+      - name: Build host artifact
+        run: bun run scripts/build.ts --target=bun-linux-x64
+
+      # tests/fixtures/perf/budget-standard.md: the budget is host-relative,
+      # not a promise. This shared two-core runner measures ~250-280 ms and
+      # sometimes stalls for 400-800 ms, so the gate uses the fastest of nine
+      # samples and a documented 1.9x tolerance. A real regression raises every
+      # sample; 160 ms x 1.9 = 304 ms, so a 2x regression still fails.
+      - name: Startup gate
+        run: bun run scripts/perf.ts --dir=dist --runs=9 --aggregate=best --host-factor=1.9
