@@ -56,7 +56,7 @@ void main() {
           chat: _chat(),
           online: true,
           configured: true,
-          onSend: (_) {},
+          onSend: (_) async => true,
           pickFiles: () async {
             picks += 1;
             return ['/home/me/Pictures/diagram.png'];
@@ -83,7 +83,7 @@ void main() {
           chat: _chat(),
           online: true,
           configured: true,
-          onSend: (_) {},
+          onSend: (_) async => true,
           pickFiles: _countingPicker('shot'),
         ),
       ),
@@ -114,7 +114,7 @@ void main() {
           chat: _chat(),
           online: true,
           configured: true,
-          onSend: (_) {},
+          onSend: (_) async => true,
           pickFiles: _countingPicker('shot'),
         ),
       ),
@@ -145,10 +145,11 @@ void main() {
           chat: _chat(),
           online: true,
           configured: true,
-          onSend: (_) {},
+          onSend: (_) async => true,
           onSendImages: (text, images) async {
             sentText = text;
             sentImages = images;
+            return true;
           },
           pickFiles: _countingPicker('shot'),
         ),
@@ -187,9 +188,10 @@ void main() {
           ),
           online: true,
           configured: false,
-          onSend: (_) {},
+          onSend: (_) async => true,
           onSendImages: (text, images) async {
             imagesSent += 1;
+            return true;
           },
           pickFiles: _countingPicker('shot'),
         ),
@@ -223,8 +225,10 @@ void main() {
           chat: _chat(),
           online: true,
           configured: true,
-          onSend: (_) {},
-          onSendImages: (text, images) async {},
+          onSend: (_) async => true,
+          onSendImages: (text, images) async {
+            return true;
+          },
           pickFiles: _countingPicker('shot'),
         ),
       ),

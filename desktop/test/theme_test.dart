@@ -259,7 +259,10 @@ void main() {
       expect(contrast.colorScheme.onPrimary, Colors.black);
 
       resetPalette();
-      expect(lockedInTheme().colorScheme.onPrimary, Colors.white);
+      // Crimson's #D9534F is 3.96:1 with white and 5.30:1 with black, so the
+      // measured rule takes black here too. `palette_contrast_test` checks the
+      // same pair for every palette.
+      expect(lockedInTheme().colorScheme.onPrimary, Colors.black);
     });
   });
 

@@ -131,6 +131,8 @@ class _LeaderOverlayState extends State<LeaderOverlay> {
     }
     if (key == LogicalKeyboardKey.enter ||
         key == LogicalKeyboardKey.numpadEnter) {
+      // A held Enter must not re-run the last row before the overlay unmounts.
+      if (event is! KeyDownEvent) return KeyEventResult.handled;
       final rows = _displayRows;
       final index = _index;
       if (index >= 0) _run(rows[index]);

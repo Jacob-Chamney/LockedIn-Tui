@@ -338,9 +338,17 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
   }
 
   Widget _header() {
+    // The reader sits in the main pane; the window is up to 208 px wider than
+    // the box this header actually gets.
+    return LayoutBuilder(
+      builder: (context, constraints) => _headerAt(constraints.maxWidth),
+    );
+  }
+
+  Widget _headerAt(double width) {
     final theme = Theme.of(context);
     final hit = widget.document?.hit;
-    final compact = MediaQuery.sizeOf(context).width < 700;
+    final compact = width < 700;
     final title = hit?.displayTitle ?? _idLabel(widget.documentId);
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 8, 14, 8),

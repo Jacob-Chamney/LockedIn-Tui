@@ -65,6 +65,16 @@ Future<void> openSurface(WidgetTester tester, int surface) async {
 /// 800 px wide, so the shortcut is the one path that works at every size.
 Future<void> openSettings(WidgetTester tester) => openSurface(tester, 0);
 
+/// Put the cursor on the PLUGINS group: `r` reconnects the servers only from
+/// the plugin rows, so it cannot spawn child processes from an unrelated one.
+Future<void> selectPlugins(WidgetTester tester) async {
+  final row = find.byKey(const ValueKey('settings-row-mcp-servers'));
+  await tester.ensureVisible(row);
+  await tester.pumpAndSettle();
+  await tester.tap(row);
+  await tester.pumpAndSettle();
+}
+
 int _calls(FakeCore core, String method) =>
     core.calls.where((call) => call == method).length;
 
@@ -120,6 +130,7 @@ void main() {
     expect(_calls(core, 'mcp.refresh'), 0);
     expect(find.textContaining('search_notes'), findsNothing);
 
+    await selectPlugins(tester);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyR);
     await tester.pumpAndSettle();
 
@@ -132,6 +143,7 @@ void main() {
     final core = FakeCore(mcpRefreshFailure: 'connection refused');
     await pumpShell(tester, core: core);
     await openSettings(tester);
+    await selectPlugins(tester);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.keyR);
     await tester.pumpAndSettle();

@@ -490,7 +490,7 @@ class _Dashboard extends StatelessWidget {
                               const _SectionTitle('MODELS'),
                               const Spacer(),
                               Text(
-                                '${summary.models.length} model${summary.models.length == 1 ? '' : 's'} · ${summary.overview.runs} runs',
+                                '${_plural(summary.models.length, 'model')} · ${_plural(summary.overview.runs, 'run')}',
                                 style: TextStyle(
                                   color: LockedInColors.muted,
                                   fontSize: 12,
@@ -541,7 +541,7 @@ class _Dashboard extends StatelessWidget {
                                             ),
                                           ),
                                           Text(
-                                            '${tool.calls} calls',
+                                            _plural(tool.calls, 'call'),
                                             style: TextStyle(
                                               color: LockedInColors.muted,
                                               fontSize: 11,
@@ -986,6 +986,10 @@ class _AreaChartPainter extends CustomPainter {
         oldDelegate.grid != grid;
   }
 }
+
+/// `1 call`, `2 calls` — a count with the right noun.
+String _plural(int count, String noun) =>
+    '$count $noun${count == 1 ? '' : 's'}';
 
 String _compact(int value) {
   if (value >= 1000000000) {

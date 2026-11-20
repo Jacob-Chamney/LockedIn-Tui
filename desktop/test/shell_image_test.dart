@@ -44,8 +44,11 @@ void main() {
             ),
             online: true,
             configured: true,
-            onSend: (_) {},
-            onSendImages: (text, images) async => sent.add((text, images)),
+            onSend: (_) async => true,
+            onSendImages: (text, images) async {
+              sent.add((text, images));
+              return true;
+            },
             pickFiles: () async => ['/tmp/cat.png'],
           ),
         ),
@@ -90,7 +93,10 @@ void main() {
             ),
             online: true,
             configured: true,
-            onSendImages: (text, images) async => sent.add((text, images)),
+            onSendImages: (text, images) async {
+              sent.add((text, images));
+              return true;
+            },
             pickFiles: () async => ['/tmp/shot-${++picks}.png'],
           ),
         ),

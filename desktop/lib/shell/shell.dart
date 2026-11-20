@@ -36,6 +36,8 @@ import '../theme/palette.dart';
 import 'command_line.dart';
 import 'leader.dart';
 import 'palette.dart';
+import '../features/chat/usage_text.dart';
+
 import 'plugin_permission.dart';
 
 enum Surface {
@@ -52,7 +54,7 @@ enum Surface {
   review(
     'Review',
     Icons.checklist,
-    'r refresh · s side · k known · m missed · Esc back',
+    'j/k move · Enter open · k known · m missed · r refresh · s side · Esc back',
   ),
   archive('Archive', Icons.archive_outlined, 'r refresh · Esc back'),
   knowledge(
@@ -85,9 +87,9 @@ enum SidebarMode {
   };
 }
 
-/// Surface shortcuts come from the keymap registry (`alt+<n>` defaults: `1…9`
-/// then `0` for the tenth), so there is no second table here: the sidebar draws
-/// `Surface.values` and the registry decides which chord opens each one.
+/// Surface shortcuts come from the keymap registry (`Space` + a letter, as in
+/// the terminal app), so there is no second table here: the sidebar draws its
+/// grouped destinations and the registry decides which chord opens each one.
 
 class Shell extends StatefulWidget {
   const Shell({super.key});
@@ -279,7 +281,7 @@ class _ShellState extends State<Shell> {
   /// leaving Stats collapses it.
   bool _achievementsOpen = false;
 
-  /// `Ctrl+B` as the registry spells it, for the rail's tooltips.
+  /// `Space e` as the registry spells it, for the rail's tooltips.
   String _sidebarToggleLabel(KeymapRegistry keymap) {
     final row = keymap.rowFor('sidebar');
     return row == null ? 'sidebar' : row.binding.display;
@@ -296,9 +298,9 @@ class _ShellState extends State<Shell> {
   Map<Surface, String> _sidebarCounts(CoreStore store) {
     final review = store.review?.counts.total ?? 0;
     return {
-      Surface.sessions: '${store.sessions.length}',
-      Surface.skills: '${store.skills.length}',
-      Surface.work: '${store.projects.length}',
+      Surface.sessions: store.sessionsLoaded ? '${store.sessions.length}' : '',
+      Surface.skills: store.skillsLoaded ? '${store.skills.length}' : '',
+      Surface.work: store.projectsLoaded ? '${store.projects.length}' : '',
       Surface.review: review == 0 ? '' : '$review',
       Surface.archive: store.archiveRows.isEmpty
           ? ''
@@ -345,10 +347,10 @@ class _ShellState extends State<Shell> {
     await store.openSession(id);
   }
 
-  /// Cycle the navigation rail: expanded → icons → hidden → expanded.
+  /// Switch the navigation rail between expanded and the icon rail.
   ///
   /// The window is untouched, so the chat column widens and narrows instead of
-  /// being covered — a hidden rail is a reflow, never an overlay.
+  /// being covered — the shrink is a reflow, never an overlay.
   /// Settings, for the badge and the composer's link: one destination, one
   /// path, whether the user pressed `Space ,` or clicked.
   void _openSettings() {
@@ -1190,6 +1192,9 @@ class _ShellState extends State<Shell> {
                   key: ValueKey('plugin-permission-${pending.requestId}'),
                   request: pending,
                   queued: store.queuedPermissions,
+                  expired: store.permissionExpired(pending.requestId),
+                  onDismissExpired: () =>
+                      store.dismissPermission(pending.requestId),
                   error: store.pluginPermissionError,
                   onConfirm: (allow) =>
                       store.confirmPermission(pending.requestId, allow),
@@ -1243,6 +1248,24 @@ class _ShellState extends State<Shell> {
   /// leader so the generated table is one key away, and the key it names is the
   /// registry's own binding, not a literal.
   String _statusHint(CoreStore store, KeymapRegistry keymap) {
+    // Chat's hint depends on whether a turn can be sent: naming "Enter send"
+    // over a disabled composer taught a key that did nothing.
+    if (_surface == Surface.chat) {
+      final chat = store.chat;
+      final blocked = chat?.blocked;
+      if (blocked != null) return '${blocked.reason} · Space leader';
+      if (chat?.streaming ?? false) return 'Esc stops · Space leader';
+      if (!store.configured) return 'no model · Space leader';
+      return 'Enter send · Shift+Enter newline · Space leader';
+    }
+    // Archive's own page names restore/delete; the status bar must not hide
+    // them behind a different name for `r`.
+    if (_surface == Surface.archive) {
+      return 'j/k move · Enter restore · d delete · r refresh · Esc back';
+    }
+    if (_surface == Surface.sources) {
+      return 'a add · r refresh · Esc back';
+    }
     if (_surface == Surface.stats && _achievementsOpen) {
       return 'hjkl / arrows move · Enter detail · r reload · Esc back';
     }
@@ -1261,8 +1284,8 @@ class _ShellState extends State<Shell> {
           return 'Ctrl+S save · Esc back';
         }
         return _sessionChatOpen
-            ? 'Enter send · Shift+Enter newline · Esc back'
-            : '↑↓ move · Space toggle · c chat · Esc back';
+            ? 'Enter send · Shift+Enter newline · Esc normal'
+            : '↑↓ move · Space toggle · c chat · \\ leader · Esc back';
       }
     }
     if (_surface == Surface.work && store.activeProject != null) {
@@ -1275,35 +1298,32 @@ class _ShellState extends State<Shell> {
       }
       if (_workApprovalsOpen) {
         return store.lastCommandOutcome != null
-            ? '↑↓ move · Space hunk · y approve · n reject · x dismiss result · '
-                  'Esc back'
-            : '↑↓ move · Space hunk · y approve · n reject · Esc back';
+            ? '↑↓ move · Space hunk · y approve · n reject · x dismiss · '
+                  '\\ leader · Esc back'
+            : '↑↓ move · Space hunk · y approve · n reject · \\ leader · '
+                  'Esc back';
       }
       // The project page's own keys: the statusline is where a keyboard user
       // looks first, and `Esc back` alone hid all of them.
       return _workChatOpen
-          ? 'Enter send · Shift+Enter newline · Esc back'
+          ? 'Enter send · Shift+Enter newline · Esc normal'
           : 'c chat · p approvals · w swarm · l activity · r refresh · Esc back';
     }
     if (_surface == Surface.skills) {
       if (_goalWizardOpen) return 'Tab next · Enter continue · Esc back';
       if (store.activeSkill != null) {
         if (_skillChatOpen) {
-          return 'Enter send · Shift+Enter newline · Esc back';
+          return 'Enter send · Shift+Enter newline · Esc normal';
         }
         if (store.skillLessonOpen) return 'b build · R rebuild · Esc back';
         if (store.skillChapterOpen) return 'Esc back';
         if (store.activeSkill?.hasStages ?? false) {
-          return '↑↓ move · Enter lesson · b build · c chat · N new chat · Esc back';
+          return '↑↓ move · Enter lesson · b build · c chat · Shift+N new chat · Esc back';
         }
         return '↑↓ move · Enter lesson · p practical · c chat · Esc back';
       }
     }
-    return _surface == Surface.chat
-        ? '${_surface.hint} · '
-              '${keymap.rowFor('leader')?.binding.display ?? 'Space'} '
-              'leader'
-        : _surface.hint;
+    return _surface.hint;
   }
 
   Widget _body(CoreStore store, KeymapRegistry keymap) {
@@ -1316,15 +1336,21 @@ class _ShellState extends State<Shell> {
         initialText: _chatDraft,
         onDraftChanged: (text) => _chatDraft = text,
         onLinkModel: _openSettings,
-        onSend: (text) {
-          // A sent turn clears the draft; a refused send keeps it for another
-          // try, so the text is never lost to a blocked composer.
-          _chatDraft = '';
-          store.sendChat(text);
+        onSend: (text) async {
+          // The draft clears only when the core accepted the turn; a refusal
+          // keeps it, and the banner above the composer says why.
+          final accepted = await store.sendChat(text);
+          if (accepted) _chatDraft = '';
+          return accepted;
         },
         onSendImages: (text, images) => store.sendChat(text, images: images),
+        sendError: store.chatSendError,
+        connecting: store.status == CoreStatus.connecting,
         onCancel: store.cancelChat,
-        onRetry: store.retry,
+        // A failed turn is retried by re-reading the transcript; restarting
+        // the core would drop approvals, swarms and every chat controller.
+        onRetry: () => unawaited(store.refreshChat()),
+        onReconnect: store.retry,
         onModeChanged: (insert) {
           if (_insert != insert) setState(() => _insert = insert);
         },
@@ -1345,7 +1371,7 @@ class _ShellState extends State<Shell> {
                 summary: store.stats,
                 loading: store.status == CoreStatus.connecting,
                 error: store.error,
-                onRetry: store.retry,
+                onRetry: () => unawaited(store.selectStats()),
                 range: store.stats?.range ?? 'all',
                 scope: store.stats?.scope ?? 'all',
                 onRange: (value) => store.selectStats(range: value),
@@ -1730,12 +1756,15 @@ class _ShellState extends State<Shell> {
           ? null
           : (text) => _chatDrafts[sessionDraftKey] = text,
       onBack: () => setState(() => _sessionChatOpen = false),
-      onSend: (text) {
-        if (sessionId != null) {
-          if (sessionDraftKey != null) _chatDrafts.remove(sessionDraftKey);
-          unawaited(store.sendSessionChat(sessionId, text));
+      onSend: (text) async {
+        if (sessionId == null) return false;
+        final accepted = await store.sendSessionChat(sessionId, text);
+        if (accepted && sessionDraftKey != null) {
+          _chatDrafts.remove(sessionDraftKey);
         }
+        return accepted;
       },
+      sendError: store.sessionChatError,
       onCancel: () {
         if (sessionId != null) unawaited(store.cancelSessionChat(sessionId));
       },
@@ -1824,10 +1853,18 @@ class _ShellState extends State<Shell> {
         onBack: () => setState(() => _skillChatOpen = false),
         onSend: skillId == null
             ? null
-            : (text) {
-                if (goalDraftKey != null) _chatDrafts.remove(goalDraftKey);
-                unawaited(store.sendSkillChat(skillId, chatId, text));
+            : (text) async {
+                final accepted = await store.sendSkillChat(
+                  skillId,
+                  chatId,
+                  text,
+                );
+                if (accepted && goalDraftKey != null) {
+                  _chatDrafts.remove(goalDraftKey);
+                }
+                return accepted;
               },
+        sendError: store.skillChatError,
         onCancel: skillId == null
             ? null
             : () => unawaited(store.cancelSkillChat(skillId, chatId)),
@@ -1855,12 +1892,16 @@ class _ShellState extends State<Shell> {
         loading: store.skillLessonLoading,
         error: store.skillLessonError,
         onBack: store.closeSkillLesson,
+        needsConfirm: store.skillLessonNeedsConfirm,
         onBuild: skillId == null
             ? null
             : () => unawaited(store.buildSkillLesson(skillId, stageId)),
         onRebuild: skillId == null
             ? null
-            : () => unawaited(store.buildSkillLesson(skillId, stageId)),
+            : () => unawaited(_rebuildLesson(store, skillId, stageId)),
+        onReplace: skillId == null
+            ? null
+            : () => unawaited(_replaceLesson(store, skillId, stageId)),
         onRetry: skillId == null ? null : store.retrySkillLesson,
       );
     }
@@ -2077,12 +2118,18 @@ class _ShellState extends State<Shell> {
         onBack: () => setState(() => _workChatOpen = false),
         onSend: projectId == null
             ? null
-            : (text) {
-                if (projectDraftKey != null) {
+            : (text) async {
+                final accepted = await store.sendWorkChat(
+                  projectId,
+                  chatId,
+                  text,
+                );
+                if (accepted && projectDraftKey != null) {
                   _chatDrafts.remove(projectDraftKey);
                 }
-                unawaited(store.sendWorkChat(projectId, chatId, text));
+                return accepted;
               },
+        sendError: store.workChatError,
         onCancel: projectId == null
             ? null
             : () => unawaited(store.cancelWorkChat(projectId, chatId)),
@@ -2187,6 +2234,60 @@ class _ShellState extends State<Shell> {
   /// read them and open the run the user last had, or the newest one. The board
   /// paints as soon as `work.swarm.board` answers, so a refusal shows its
   /// message on the page instead of an empty board.
+  /// Rebuild a lesson the user may already have read: ask by name first.
+  ///
+  /// The core refuses an unconfirmed rebuild of a `ready` lesson, so this is
+  /// the only path that replaces one; `buildSkillLesson` with `confirmed: true`
+  /// runs after the answer, and the store's ticket makes a late reply safe.
+  Future<void> _rebuildLesson(
+    CoreStore store,
+    String goalId,
+    String stageId,
+  ) async {
+    if (!await _confirmLessonReplace(store, stageId)) return;
+    if (!mounted) return;
+    await store.buildSkillLesson(goalId, stageId, confirmed: true);
+  }
+
+  /// Replace a lesson from the `confirm` refusal card, after the same prompt.
+  Future<void> _replaceLesson(
+    CoreStore store,
+    String goalId,
+    String stageId,
+  ) async {
+    if (!await _confirmLessonReplace(store, stageId)) return;
+    if (!mounted) return;
+    await store.buildSkillLesson(goalId, stageId, confirmed: true);
+  }
+
+  Future<bool> _confirmLessonReplace(CoreStore store, String stageId) async {
+    final title = store.activeSkillStage?.title ?? stageId;
+    final answer = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('replace the lesson'),
+        content: Text(
+          'Replace the ready lesson “$title”? Its generated sections are '
+          'rewritten from the goal’s sources; the file stays until the new one '
+          'is written.',
+        ),
+        actions: [
+          TextButton(
+            key: const ValueKey('lesson-replace-cancel'),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: const ValueKey('lesson-replace-confirm'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Replace'),
+          ),
+        ],
+      ),
+    );
+    return answer ?? false;
+  }
+
   Future<void> _openSwarm(CoreStore store, String projectId) async {
     setState(() => _swarmOpen = true);
     await store.refreshSwarms(projectId);
@@ -2247,7 +2348,7 @@ class _TopBar extends StatelessWidget {
   /// the next press will do.
   final SidebarMode sidebar;
 
-  /// The registry's chord for that action (`Ctrl+B` by default).
+  /// The registry's chord for that action (`Space e` by default).
   final String toggleHint;
 
   final VoidCallback onToggleSidebar;
@@ -2898,16 +2999,15 @@ class _StatusBar extends StatelessWidget {
 
   String _usageLabel() {
     final chat = this.chat;
-    if (chat == null) return '0 tok · cost unknown · $helpKey help';
+    // No snapshot is "not read", not "zero tokens spent".
+    if (chat == null) return '— tok · cost unknown · $helpKey help';
     final tokens = chat.usage.tokens;
     final compact = tokens >= 1000000
         ? '${(tokens / 1000000).toStringAsFixed(1)}M'
         : tokens >= 1000
         ? '${(tokens / 1000).toStringAsFixed(1)}K'
         : '$tokens';
-    final cost = chat.usage.costMicroUsd == null
-        ? 'cost unknown'
-        : '\$${(chat.usage.costMicroUsd! / 1000000).toStringAsFixed(4)}';
+    final cost = chatCostLabel(chat.usage.costMicroUsd);
     final duration = chat.usage.durationMs == null
         ? ''
         : ' · ${(chat.usage.durationMs! / 1000).toStringAsFixed(1)}s';
@@ -2928,7 +3028,9 @@ class _StatusBar extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: LockedInColors.background,
+              // The measured on-colour, not the page background: the two only
+              // meet by luck on a dark palette.
+              color: Theme.of(context).colorScheme.onPrimary,
               backgroundColor: LockedInColors.primary,
               fontSize: 10,
               fontWeight: FontWeight.w700,

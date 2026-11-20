@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import 'models.dart';
+import 'errors.dart';
 import 'protocol.dart';
 
 /// The transport surface a [CoreStore] needs. `CoreClient` is the real one;
@@ -349,6 +350,7 @@ class CoreStore extends ChangeNotifier {
     CoreConnection? connection,
     this.reconnectFactory,
     DateTime Function()? clock,
+    this.permissionTimeout = const Duration(seconds: 120),
   }) : _connection = connection ?? CoreClient(),
        _now = clock ?? DateTime.now;
 
@@ -366,6 +368,11 @@ class CoreStore extends ChangeNotifier {
   String? error;
   WorkspaceInfo? workspace;
   List<SessionRow> sessions = const [];
+
+  /// True once a list read has succeeded (an empty list counts). A surface
+  /// whose read has not answered prints no count rather than `0`, which reads
+  /// as "you have nothing".
+  bool sessionsLoaded = false;
   StatsSummary? stats;
   SettingsView? settings;
   ChatSnapshot? chat;
@@ -462,6 +469,39 @@ class CoreStore extends ChangeNotifier {
   /// How long the core waits for `mcp.confirm` before it denies the call.
   static const permissionWindow = Duration(seconds: 120);
 
+  /// How long a plugin prompt may wait before the core's own denial applies.
+  final Duration permissionTimeout;
+
+  /// Timers that mark a prompt expired when the core's own deadline passes.
+  final _permissionTimers = <String, Timer>{};
+
+  /// Prompts the core has already denied by timeout. They stay on screen until
+  /// dismissed, marked as expired, so the modal never offers an Allow that
+  /// cannot run the tool.
+  final _expiredPermissions = <String>{};
+
+  /// True when [requestId] waited past the core's window.
+  bool permissionExpired(String requestId) =>
+      _expiredPermissions.contains(requestId);
+
+  /// Drop an expired prompt. Nothing is sent: the core already denied it.
+  void dismissPermission(String requestId) {
+    _permissionTimers.remove(requestId)?.cancel();
+    _expiredPermissions.remove(requestId);
+    _permissionQueue.removeWhere((entry) => entry.$1.requestId == requestId);
+    notifyListeners();
+  }
+
+  void _expirePermission(String requestId) {
+    _permissionTimers.remove(requestId);
+    if (!_permissionQueue.any((entry) => entry.$1.requestId == requestId)) {
+      return;
+    }
+    _expiredPermissions.add(requestId);
+    pluginPermissionError = null;
+    notifyListeners();
+  }
+
   /// The last `mcp.confirm` failure, or null.
   ///
   /// Page-local, like [stepsError]: a failed answer keeps [pendingPermission]
@@ -471,7 +511,7 @@ class CoreStore extends ChangeNotifier {
   /// The read-only Review queue (`review.queue`), or null before the first read.
   ///
   /// The queue is a snapshot of what the workspace already records; marking
-  /// known/missed is a later packet. A failed read keeps the previous snapshot
+  /// known/missed goes through [markReview]. A failed read keeps the snapshot
   /// and records its reason in [reviewError].
   ReviewQueue? review;
 
@@ -1047,6 +1087,12 @@ class CoreStore extends ChangeNotifier {
   /// the goal folder is a read, but it is not part of the first frame.
   List<SkillRow> skills = const [];
 
+  /// See [sessionsLoaded].
+  bool skillsLoaded = false;
+
+  /// See [sessionsLoaded].
+  bool projectsLoaded = false;
+
   /// The open goal (`skill.open`), or null when the list is showing.
   ///
   /// The shell keeps this across surface switches, so leaving Skills and coming
@@ -1108,6 +1154,11 @@ class CoreStore extends ChangeNotifier {
   /// of a `ready` lesson lands here as the core's own message: the shell shows
   /// it and never retries on the user's behalf.
   String? skillLessonError;
+
+  /// True when the last build was refused only because a `ready` lesson
+  /// exists. The view turns this into a named "replace" confirmation instead
+  /// of a Retry that would fail the same way.
+  bool skillLessonNeedsConfirm = false;
 
   /// True when the open stage is the visible lesson layer.
   bool get skillLessonOpen => activeSkillStageId != null;
@@ -1275,15 +1326,24 @@ class CoreStore extends ChangeNotifier {
   }
 
   Future<void> refreshSessions() async {
-    final json = await _connection.call('session.list');
-    final raw = json['sessions'];
-    sessions = raw is List
-        ? raw
-              .whereType<Map>()
-              .map((row) => SessionRow.fromJson(Map<String, dynamic>.from(row)))
-              .toList()
-        : const [];
-    error = null;
+    try {
+      final json = await _connection.call('session.list');
+      final raw = json['sessions'];
+      sessions = raw is List
+          ? raw
+                .whereType<Map>()
+                .map(
+                  (row) => SessionRow.fromJson(Map<String, dynamic>.from(row)),
+                )
+                .toList()
+          : const [];
+      sessionsLoaded = true;
+      error = null;
+    } catch (failure) {
+      // A throw here used to become an unhandled future: the manager kept its
+      // stale rows with no banner and no way to know the read failed.
+      error = _messageOf(failure);
+    }
     notifyListeners();
   }
 
@@ -1357,10 +1417,27 @@ class CoreStore extends ChangeNotifier {
     }
   }
 
+  /// The last `settings.get` failure, or null.
+  ///
+  /// Per-surface, like the chat and lesson errors: the Settings page used to
+  /// render the single global `error`, so a Chill provider failure replaced the
+  /// whole page with "Settings could not load" — and its Retry could not clear
+  /// a slot it did not own.
+  String? settingsError;
+
+  /// Read the configuration. A failure is recorded once in [settingsError] and
+  /// the previous snapshot stays; a success clears it, so the page's Retry
+  /// works.
   Future<void> refreshSettings() async {
-    final json = await _connection.call('settings.get');
-    settings = SettingsView.fromJson(json);
-    notifyListeners();
+    try {
+      final json = await _connection.call('settings.get');
+      settings = SettingsView.fromJson(json);
+      settingsError = null;
+      notifyListeners();
+    } catch (failure) {
+      settingsError = _messageOf(failure);
+      notifyListeners();
+    }
   }
 
   /// Read the two stored keybind tables (`keybinds.get`).
@@ -1642,6 +1719,8 @@ class CoreStore extends ChangeNotifier {
       notifyListeners();
       rethrow;
     }
+    _permissionTimers.remove(id)?.cancel();
+    _expiredPermissions.remove(id);
     _permissionQueue.removeWhere((entry) => entry.$1.requestId == id);
     pluginPermissionError = null;
     notifyListeners();
@@ -2105,15 +2184,25 @@ class CoreStore extends ChangeNotifier {
   /// time; the shell never opens the file, and nothing is persisted — the
   /// transcript stays text only. The key is omitted when there is no image, so
   /// a text-only turn is byte-identical to the old request.
-  Future<void> sendChat(String text, {List<String> images = const []}) async {
+  /// The last `chat.send` refusal, shown in the Chill banner. Per-surface: a
+  /// refused Chill send never appears on another page.
+  String? chatSendError;
+
+  Future<bool> sendChat(String text, {List<String> images = const []}) async {
     try {
       await _connection.call('chat.send', {
         'text': text,
         if (images.isNotEmpty) 'images': images,
       });
-    } catch (failure) {
-      error = _messageOf(failure);
+      chatSendError = null;
       notifyListeners();
+      return true;
+    } catch (failure) {
+      // Per-surface, not the global error: the chat shows it in its banner and
+      // keeps the composer text, and no other page is told about it.
+      chatSendError = _messageOf(failure);
+      notifyListeners();
+      return false;
     }
   }
 
@@ -2976,14 +3065,16 @@ class CoreStore extends ChangeNotifier {
   ///
   /// Like [openSession], a failure is recorded in [error] rather than thrown:
   /// the streamed `session.chat.state` events remain authoritative.
-  Future<void> sendSessionChat(String id, String text) async {
+  Future<bool> sendSessionChat(String id, String text) async {
     try {
       await _connection.call('session.chat.send', {'id': id, 'text': text});
       _sessionChatErrors.remove(id);
       notifyListeners();
+      return true;
     } catch (failure) {
-      error = _messageOf(failure);
+      _sessionChatErrors[id] = _messageOf(failure);
       notifyListeners();
+      return false;
     }
   }
 
@@ -3021,6 +3112,7 @@ class CoreStore extends ChangeNotifier {
     try {
       final json = await _connection.call('work.list');
       projects = _projectRows(json);
+      projectsLoaded = true;
       error = null;
       notifyListeners();
     } catch (failure) {
@@ -3420,7 +3512,7 @@ class CoreStore extends ChangeNotifier {
   /// The transcript grows only from the core's `work.chat.state` events. A
   /// request failure is kept for that one chat in [workChatErrorFor], so a
   /// project chat refusal never looks like a shell-wide transport failure.
-  Future<void> sendWorkChat(
+  Future<bool> sendWorkChat(
     String projectId,
     String chatId,
     String text,
@@ -3433,9 +3525,11 @@ class CoreStore extends ChangeNotifier {
         'text': text,
       });
       if (_workChatErrors.remove(key) != null) notifyListeners();
+      return true;
     } catch (failure) {
       _workChatErrors[key] = _messageOf(failure);
       notifyListeners();
+      return false;
     }
   }
 
@@ -3775,6 +3869,7 @@ class CoreStore extends ChangeNotifier {
                 .map((row) => SkillRow.fromJson(Map<String, dynamic>.from(row)))
                 .toList()
           : const [];
+      skillsLoaded = true;
       // A successful read answers the question a previous failure was about.
       // Without this one refused `skill.open` stayed on screen as the list's
       // error until the app restarted.
@@ -3961,6 +4056,7 @@ class CoreStore extends ChangeNotifier {
     } catch (failure) {
       if (ticket != _skillLessonTicket) return;
       skillLessonError = _messageOf(failure);
+      skillLessonNeedsConfirm = _isConfirmFailure(failure);
     } finally {
       if (ticket == _skillLessonTicket) {
         skillLessonLoading = false;
@@ -3977,10 +4073,16 @@ class CoreStore extends ChangeNotifier {
   /// the lesson is already `ready` — is recorded once in [skillLessonError] with
   /// the core's own sentence and the previous lesson stays visible: the shell
   /// asks the user before a second attempt, never the store.
+  /// Build one stage's lesson.
+  ///
+  /// [confirmed] is only true after the user agreed to replace an existing
+  /// `ready` lesson; without it the core refuses with `kind: "confirm"` and the
+  /// file is untouched.
   Future<void> buildSkillLesson(
     String goalId,
     String stageId, {
     bool includeSolution = false,
+    bool confirmed = false,
   }) async {
     final goal = goalId.trim();
     final stage = stageId.trim();
@@ -3996,9 +4098,11 @@ class CoreStore extends ChangeNotifier {
         'goalId': goal,
         'stageId': stage,
         if (includeSolution) 'includeSolution': true,
+        if (confirmed) 'confirmed': true,
       });
       if (ticket != _skillLessonTicket) return;
       final result = SkillLessonResult.build(json);
+      skillLessonNeedsConfirm = false;
       skillLessonMarkdown = result.markdown;
       skillLessonExists = result.exists;
       skillLessonStatus = result.status;
@@ -4045,6 +4149,7 @@ class CoreStore extends ChangeNotifier {
     skillLessonStatus = '';
     skillLessonLoading = false;
     skillLessonError = null;
+    skillLessonNeedsConfirm = false;
     _skillLessonRetryBuild = false;
   }
 
@@ -4392,7 +4497,7 @@ class CoreStore extends ChangeNotifier {
   /// The transcript grows only from the core's `skill.chat.state` events. A
   /// request failure is kept for that one chat in [skillChatErrorFor], so a goal
   /// chat refusal never looks like a shell-wide transport failure.
-  Future<void> sendSkillChat(String goalId, String chatId, String text) async {
+  Future<bool> sendSkillChat(String goalId, String chatId, String text) async {
     final key = _skillChatKey(goalId, chatId);
     try {
       await _connection.call('skill.chat.send', {
@@ -4401,9 +4506,11 @@ class CoreStore extends ChangeNotifier {
         'text': text,
       });
       if (_skillChatErrors.remove(key) != null) notifyListeners();
+      return true;
     } catch (failure) {
       _skillChatErrors[key] = _messageOf(failure);
       notifyListeners();
+      return false;
     }
   }
 
@@ -4604,6 +4711,11 @@ class CoreStore extends ChangeNotifier {
     // A prompt belongs to the process that emitted it; a new process issues new
     // request ids and forgets the old ones, so a stale modal must not survive.
     _permissionQueue.clear();
+    for (final timer in _permissionTimers.values) {
+      timer.cancel();
+    }
+    _permissionTimers.clear();
+    _expiredPermissions.clear();
     pluginPermissionError = null;
     review = null;
     reviewLoading = false;
@@ -4726,6 +4838,11 @@ class CoreStore extends ChangeNotifier {
       }
       final first = _permissionQueue.isEmpty;
       _permissionQueue.add((request, _now()));
+      _permissionTimers[request.requestId]?.cancel();
+      _permissionTimers[request.requestId] = Timer(
+        permissionTimeout,
+        () => _expirePermission(request.requestId),
+      );
       // A new prompt at the head clears the last answer's failure; one that
       // only joins the queue must not wipe the message under the open prompt.
       if (first) pluginPermissionError = null;
@@ -4899,6 +5016,11 @@ class CoreStore extends ChangeNotifier {
       // nothing left to answer, so the prompt is dropped rather than left with
       // buttons that cannot work.
       _permissionQueue.clear();
+      for (final timer in _permissionTimers.values) {
+        timer.cancel();
+      }
+      _permissionTimers.clear();
+      _expiredPermissions.clear();
       pluginPermissionError = null;
       notifyListeners();
     }
@@ -4907,19 +5029,21 @@ class CoreStore extends ChangeNotifier {
   /// A whole number from a reply, tolerant of a missing or mistyped field.
   static int _countOf(Object? value) => value is num ? value.toInt() : 0;
 
-  String _messageOf(Object failure) {
-    if (failure is RpcException) {
-      final data = failure.data;
-      if (data is Map && data['message'] is String) {
-        return data['message'] as String;
-      }
-      return failure.message;
-    }
-    return failure.toString();
+  String _messageOf(Object failure) => userMessage(failure);
+
+  /// True when the core refused only because the lesson is already `ready`.
+  static bool _isConfirmFailure(Object failure) {
+    if (failure is! RpcException) return false;
+    final data = failure.data;
+    return data is Map && data['kind'] == 'confirm';
   }
 
   @override
   void dispose() {
+    for (final timer in _permissionTimers.values) {
+      timer.cancel();
+    }
+    _permissionTimers.clear();
     unawaited(_subscription?.cancel());
     unawaited(_connection.dispose());
     super.dispose();

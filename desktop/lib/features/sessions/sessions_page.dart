@@ -14,7 +14,7 @@ enum _SessionSort {
   dateDesc('date ↓'),
   dateAsc('date ↑'),
   nameAsc('name A–Z'),
-  sizeDesc('size ↓');
+  sizeDesc('sources ↓');
 
   const _SessionSort(this.label);
 
@@ -606,7 +606,7 @@ class _SessionsPageState extends State<SessionsPage> {
       );
     }
     if (widget.sessions.isEmpty) {
-      return _centered(const _EmptyState());
+      return _centered(_EmptyState(onCreate: widget.onCreate));
     }
 
     final visible = _visible;
@@ -816,9 +816,10 @@ class _SessionRowTile extends StatelessWidget {
           ],
           const SizedBox(width: 12),
           SizedBox(
-            width: 60,
+            width: 74,
             child: Text(
-              '${row.sources} src',
+              // Wide enough for "12 sources", the form the detail uses.
+              '${row.sources} ${row.sources == 1 ? 'source' : 'sources'}',
               textAlign: TextAlign.right,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(color: LockedInColors.muted, fontSize: 11),
@@ -1097,7 +1098,10 @@ class _LoadingState extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  const _EmptyState({this.onCreate});
+
+  /// The pointer path for `n`. Without it a mouse user could not start.
+  final VoidCallback? onCreate;
 
   @override
   Widget build(BuildContext context) {
@@ -1113,6 +1117,15 @@ class _EmptyState extends StatelessWidget {
           'n starts a new lock-in',
           style: TextStyle(color: LockedInColors.muted, fontSize: 12),
         ),
+        if (onCreate != null) ...[
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            key: const ValueKey('sessions-empty-new'),
+            onPressed: onCreate,
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('new lock-in'),
+          ),
+        ],
       ],
     );
   }

@@ -467,7 +467,7 @@ class _EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'no achievements in this build',
+              'the core sent no catalogue',
               key: const ValueKey('achievements-empty'),
               style: TextStyle(color: LockedInColors.muted),
             ),

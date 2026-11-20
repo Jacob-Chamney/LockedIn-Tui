@@ -593,7 +593,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
       unawaited(_build(confirm: widget.exists));
       return KeyEventResult.handled;
     }
-    // Leave shell shortcuts (Alt+1…9, Ctrl+K) to their own handlers.
+    // Leave shell shortcuts (the leader, Ctrl+K) to their own handlers.
     return KeyEventResult.ignored;
   }
 
@@ -730,7 +730,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
         TextButton(
           key: const ValueKey('session-output-close'),
           onPressed: widget.onBack,
-          child: const Text('Close'),
+          child: const Text('close'),
         ),
       ],
     );

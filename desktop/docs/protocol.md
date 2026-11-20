@@ -142,7 +142,7 @@ Implemented today (`src/server/protocol.ts`, capability names in the handshake):
 | `skill.archive` | `{goalId}` | `{action: "archive", backend: "folder" \| "github"}` |
 | `skill.remove` | `{goalId}` | `{action: "delete"}` |
 | `skill.export` | `{goalId}` | `{action: "export", path}` |
-| `skill.lesson.build` | `{goalId, stageId, includeSolution?}` | `{path, markdown, status, citations}` |
+| `skill.lesson.build` | `{goalId, stageId, includeSolution?, confirmed?}` | `{path, markdown, status, citations}` |
 | `skill.lesson.read` | `{goalId, stageId}` | `{markdown, exists}` |
 | `skill.sources.list` | `{goalId}` | `{sources: SkillSourceRow[]}` |
 | `skill.sources.add` | `{goalId, files}` | `{added, skipped}` |
@@ -442,8 +442,9 @@ Implemented today (`src/server/protocol.ts`, capability names in the handshake):
   (`docs/product.md` §5.1–§5.3) — a lock-in session's study guide and flashcard
   deck. These are **generated outputs, not sources**: they never become a
   source row, never enter source coverage and never count as a fact a chat may
-  cite. Nothing here marks a section reviewed, flips a card, answers a question
-  or records a miss; review marking is a later packet.
+  cite. Building an output does not mark a section reviewed, flip a card, answer
+  a question or record a miss: `session.output.mark` and `review.mark` own
+  those writes.
 
   Both methods name the session by folder id, never a path, and write only
   inside `<workspace>/school/outputs/<id>/`.
@@ -887,9 +888,10 @@ invented row.
   `swarm`. The id is derived from the name exactly as the TUI does
   (`makeProjectId`), the folder may not exist yet (it is created), and a folder
   that is already registered is refused rather than duplicated. The root is
-  never moved or deleted. Project instructions and agent profiles are edited by
-  later packets, so an `instructions` parameter is refused (`-32602`) instead of
-  being silently dropped; a refusal is `-32000`, `retryable: false`,
+  never moved or deleted. Creation does not take project instructions or agent
+  profiles (`work.agent.save` owns those), so an `instructions` parameter is
+  refused (`-32602`) instead of being silently dropped; a refusal is `-32000`,
+  `retryable: false`,
   `data: {kind: "project-create", message}`.
 
 `work.agent.*` and `work.defaultAgent` edit the project's **agent profiles**
@@ -1007,8 +1009,8 @@ so an agent saved before this method existed keeps loading unchanged.
 `work.changes` is the **read-only Changes summary** for one project
 (`docs/product.md` §8.5): what the working tree looks like now, not a diff to
 approve. It never stages, commits, checks anything out, or writes a byte inside
-the project root. It is **not** the write-approval surface — per-write approval
-and per-hunk review are later packets and use their own method when they land.
+the project root. It is **not** the write-approval surface: `work.write.propose`
+and `work.write.decide` own per-write approval and per-hunk review.
 
 - `work.changes` `{projectId}` → `{changes: ChangeSummary}`. `projectId` is a
   registered project id, never a path. The reply is the service's summary
@@ -1494,7 +1496,7 @@ credential. Only `mcp.policy.set` writes, and it writes configuration only.
   carries.
 - `mcp.policy.set` `{command, server, value}` → `{policy: PluginPolicy}` writes
   **one** policy cell (`docs/product.md` §11). This is the Settings write; the
-  per-call permission gate is still a later packet.
+  per-call permission gate is `mcp.confirm`.
 
   ```json
   → {"jsonrpc":"2.0","id":12,"method":"mcp.policy.set","params":{"command":"lockin","server":"notes","value":"off"}}
@@ -1589,8 +1591,8 @@ tool call.
 goal's course index, reads one chapter body and creates a goal with a chapter
 plan. Creation makes **one model call when a model is configured**; without one,
 or when the reply is unusable, it writes the built-in template and records
-`plan: "template"` (a model-written plan records `"model"`). A staged lesson
-build is a later packet. Nothing here archives, deletes or sends a chat.
+`plan: "template"` (a model-written plan records `"model"`). A staged lesson is
+`skill.lesson.build`. Nothing here archives, deletes or sends a chat.
 
 - `skill.list` → `{skills: SkillRow[]}`:
 
@@ -1800,7 +1802,7 @@ owns one lesson file at `skills/goals/<goalId>/lessons/NN-<slug>.md`, where the
 number is the stage's 1-based position in the curriculum. Both methods name the
 goal by folder id and the stage by its stored id — never a path.
 
-- `skill.lesson.build` `{goalId, stageId, includeSolution?}` →
+- `skill.lesson.build` `{goalId, stageId, includeSolution?, confirmed?}` →
   `{path, markdown, status, citations}`.
 
   ```json
@@ -1860,8 +1862,13 @@ goal by folder id and the stage by its stored id — never a path.
   - an existing `ready` lesson is `data: {kind: "confirm", goalId, stageId, status: "ready", message}`.
     `status` repeats the lesson's current status and `message` is the service's
     own sentence. The shell must ask the user before replacing it; the core
-    never assumes consent, and there is no confirmed parameter on this method
-    yet — a later packet adds the explicit rebuild path.
+    never assumes consent.
+
+  An existing `ready` lesson is **not** replaced silently: without
+  `confirmed: true` the reply is `-32000`, `retryable: false`,
+  `data: {kind: "confirm", goalId, stageId, status: "ready", message}` and the
+  file is untouched. The shell asks by name and re-sends the same request with
+  `confirmed: true`; a non-boolean `confirmed` is `-32602`.
 
   The shell may offer a retry (a new `skill.lesson.build` request after the user
   acts), never an automatic one. Nothing here archives, deletes, sends a chat
@@ -2326,8 +2333,9 @@ keymap registry: they read and write the two stored tables and nothing else.
   one message and never re-derives what it asked for. `keybinds.set` emits no
   change event and does not touch chat, sessions, sources or plugins; the
   in-process cache is refreshed from the config write, so `keybinds.get`
-  immediately reports the new keys. The Dart registry and the Settings keybind
-  UI are later packets.
+  immediately reports the new keys. The display catalogue is
+  `desktop/lib/keymap/registry.dart` and the editor is the KEYBINDS group in
+  Settings.
 
 ### Custom palette
 

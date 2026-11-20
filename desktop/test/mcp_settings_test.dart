@@ -309,6 +309,9 @@ void main() {
       ),
     );
 
+    // `r` belongs to the PLUGINS group: selecting its row is what puts the
+    // matrix (and the refresh) on screen.
+    await selectRow(tester, 'mcp-servers');
     await tester.sendKeyEvent(LogicalKeyboardKey.keyR);
     await tester.pump();
     expect(find.text('refreshing plugins…'), findsOneWidget);

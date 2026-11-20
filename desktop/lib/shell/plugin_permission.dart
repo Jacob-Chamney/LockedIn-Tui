@@ -21,7 +21,16 @@ class PluginPermissionModal extends StatefulWidget {
     required this.onConfirm,
     this.error,
     this.queued = 0,
+    this.expired = false,
+    this.onDismissExpired,
   });
+
+  /// True once the core's own 120 s window passed: the call was denied and
+  /// there is nothing left to allow. The prompt stays only to say so.
+  final bool expired;
+
+  /// Drop an expired prompt. Nothing is sent to the core.
+  final VoidCallback? onDismissExpired;
 
   /// How many more prompts are waiting behind this one. Each is answered on
   /// its own: there is no bulk approve.
@@ -106,6 +115,17 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (widget.expired) {
+      // The decision is gone: any of the usual keys dismisses the notice.
+      final key = event.logicalKey;
+      if (key == LogicalKeyboardKey.escape ||
+          key == LogicalKeyboardKey.enter ||
+          key == LogicalKeyboardKey.numpadEnter ||
+          key == LogicalKeyboardKey.space) {
+        widget.onDismissExpired?.call();
+      }
+      return KeyEventResult.handled;
+    }
     // Everything else is claimed: this is a modal decision, not a surface.
     if (_answering) return KeyEventResult.handled;
     final key = event.logicalKey;
@@ -327,7 +347,9 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
                           children: [
                             Expanded(
                               child: Text(
-                                _answering
+                                widget.expired
+                                    ? 'expired · the tool did not run'
+                                    : _answering
                                     ? 'answering…'
                                     : 'y allow · n deny · Esc deny',
                                 maxLines: 1,
@@ -339,27 +361,37 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
                               ),
                             ),
                             const SizedBox(width: 10),
-                            TextButton(
-                              key: PluginPermissionModal.denyKey,
-                              onPressed: _answering
-                                  ? null
-                                  : () => unawaited(_confirm(false)),
-                              child: const Text('Deny'),
-                            ),
-                            const SizedBox(width: 8),
-                            FilledButton(
-                              key: PluginPermissionModal.allowKey,
-                              style: FilledButton.styleFrom(
-                                backgroundColor: LockedInColors.warning,
-                                foregroundColor: contrastOn(
-                                  LockedInColors.warning,
+                            if (widget.expired)
+                              FilledButton(
+                                key: const ValueKey(
+                                  'plugin-permission-dismiss',
                                 ),
+                                onPressed: widget.onDismissExpired,
+                                child: const Text('Dismiss'),
+                              )
+                            else ...[
+                              TextButton(
+                                key: PluginPermissionModal.denyKey,
+                                onPressed: _answering
+                                    ? null
+                                    : () => unawaited(_confirm(false)),
+                                child: const Text('Deny'),
                               ),
-                              onPressed: _answering
-                                  ? null
-                                  : () => unawaited(_confirm(true)),
-                              child: const Text('Allow'),
-                            ),
+                              const SizedBox(width: 8),
+                              FilledButton(
+                                key: PluginPermissionModal.allowKey,
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: LockedInColors.warning,
+                                  foregroundColor: contrastOn(
+                                    LockedInColors.warning,
+                                  ),
+                                ),
+                                onPressed: _answering
+                                    ? null
+                                    : () => unawaited(_confirm(true)),
+                                child: const Text('Allow'),
+                              ),
+                            ],
                           ],
                         ),
                       ),

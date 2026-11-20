@@ -261,7 +261,7 @@ export function parseProjectMeta(
       kind: "invalid-meta",
       path,
       field: "schema",
-      message: "meta.json is not a JSON object",
+      message: "meta.json is not a JSON object; fix it in the project folder, or remove the project",
     })
   }
 

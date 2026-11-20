@@ -975,7 +975,14 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                   _Chip('running…', tone: LockedInColors.warning),
                   const SizedBox(width: 8),
                 ],
-                _Chip('cwd ${command.cwd.isEmpty ? '.' : command.cwd}'),
+                // A project-relative cwd can be deep; the chip is a value,
+                // so it caps and ellipsises instead of widening the row.
+                Flexible(
+                  child: _Chip(
+                    'cwd ${command.cwd.isEmpty ? '.' : command.cwd}',
+                    maxWidth: 220,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -1174,13 +1181,26 @@ class _OptInBlocked extends StatelessWidget {
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip(this.text, {this.tone});
+  const _Chip(this.text, {this.tone, this.maxWidth});
 
   final String text;
   final Color? tone;
 
+  /// Caps a chip whose text is a value (a path), never a label.
+  final double? maxWidth;
+
   @override
   Widget build(BuildContext context) {
+    final label = Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: tone ?? LockedInColors.muted,
+        fontSize: 10,
+        fontWeight: FontWeight.w600,
+      ),
+    );
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
@@ -1188,14 +1208,12 @@ class _Chip extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: LockedInColors.line),
       ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: tone ?? LockedInColors.muted,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+      child: maxWidth == null
+          ? label
+          : ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxWidth!),
+              child: label,
+            ),
     );
   }
 }

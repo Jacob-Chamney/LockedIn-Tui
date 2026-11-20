@@ -8,6 +8,8 @@ import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
 import '../../theme/palette.dart';
 import 'attachments.dart';
+import 'chat_failure.dart';
+import 'usage_text.dart';
 import 'markdown.dart';
 import 'transcript_scroll.dart';
 import '../keys.dart';
@@ -20,7 +22,7 @@ typedef AttachmentPicker = Future<List<String>> Function();
 ///
 /// The callback throws on failure so the page can keep the chips and show one
 /// readable reason instead of clearing work the core never accepted.
-typedef ImageSend = Future<void> Function(String text, List<String> images);
+typedef ImageSend = Future<bool> Function(String text, List<String> images);
 
 /// Chill chat over the core's `chat.*` protocol.
 ///
@@ -35,9 +37,12 @@ class ChatPage extends StatefulWidget {
     this.configured = false,
     this.onSend,
     this.onSendImages,
+    this.sendError,
+    this.connecting = false,
     this.pickFiles,
     this.onCancel,
     this.onRetry,
+    this.onReconnect,
     this.error,
     this.onModeChanged,
     this.initialText,
@@ -51,7 +56,10 @@ class ChatPage extends StatefulWidget {
 
   /// A text-only turn. Kept separate from [onSendImages] so existing shell and
   /// test call sites stay a plain `ValueChanged<String>`.
-  final ValueChanged<String>? onSend;
+  /// Send one text turn. **True means the core accepted it**, and only then
+  /// does the composer clear: a refused send used to lose the text and say
+  /// nothing, because `sendChat` swallowed the refusal into the global error.
+  final Future<bool> Function(String text)? onSend;
 
   /// A turn with images attached, forwarded to `chat.send {text, images}`.
   ///
@@ -59,12 +67,25 @@ class ChatPage extends StatefulWidget {
   /// locally instead of silently dropping the chips.
   final ImageSend? onSendImages;
 
+  /// The last `chat.send` refusal, shown in the banner above the composer.
+  final String? sendError;
+
+  /// True while the core is starting. A normal launch used to render as
+  /// "core offline", the same card as a crash, with a Retry that raced the
+  /// start.
+  final bool connecting;
+
   /// Test seam: a scripted picker. Production leaves it null and the platform
   /// image dialog is used.
   final AttachmentPicker? pickFiles;
 
   final VoidCallback? onCancel;
+
+  /// Re-read the transcript after a failed turn.
   final VoidCallback? onRetry;
+
+  /// Restart the core. Only the `core offline` card offers this.
+  final VoidCallback? onReconnect;
   final String? error;
   final ValueChanged<bool>? onModeChanged;
 
@@ -104,6 +125,10 @@ class _ChatPageState extends State<ChatPage> {
 
   /// True while an image send is in flight, so a turn is never claimed twice.
   var _sending = false;
+
+  /// True while the platform image picker is open, so a held `p` cannot open
+  /// several.
+  var _picking = false;
 
   @override
   void initState() {
@@ -173,7 +198,7 @@ class _ChatPageState extends State<ChatPage> {
         chat?.blocked == null;
   }
 
-  void _send() {
+  Future<void> _send() async {
     if (_sending) return;
     final text = _composer.text.trim();
     final images = [for (final attachment in _attachments) attachment.path];
@@ -183,8 +208,13 @@ class _ChatPageState extends State<ChatPage> {
     if (!_canSend) return;
 
     if (images.isEmpty) {
-      if (text.isEmpty || widget.onSend == null) return;
-      widget.onSend!(text);
+      final send = widget.onSend;
+      if (text.isEmpty || send == null) return;
+      final accepted = await send(text);
+      if (!mounted) return;
+      // A refusal keeps the text: the core did not take the turn, and the
+      // banner above the composer says why.
+      if (!accepted) return;
       _composer.clear();
       if (_notice != null) setState(() => _notice = null);
       return;
@@ -214,13 +244,13 @@ class _ChatPageState extends State<ChatPage> {
     List<String> images,
   ) async {
     try {
-      await send(text, images);
+      final accepted = await send(text, images);
       if (!mounted) return;
       setState(() {
         _sending = false;
-        _attachments.clear();
+        if (accepted) _attachments.clear();
       });
-      _composer.clear();
+      if (accepted) _composer.clear();
     } catch (failure) {
       if (!mounted) return;
       setState(() {
@@ -319,39 +349,44 @@ class _ChatPageState extends State<ChatPage> {
   /// Ask for images and attach what still fits. A fifth image is refused with
   /// one visible message; nothing is dropped silently.
   Future<void> _pick() async {
-    if (_sending) return;
-    final pick = widget.pickFiles ?? _defaultPickFiles;
-
-    final List<String> paths;
+    if (_sending || _picking) return;
+    _picking = true;
     try {
-      paths = await pick();
-    } catch (failure) {
-      if (!mounted) return;
-      setState(() => _notice = _reason(failure));
-      return;
-    }
-    if (!mounted || paths.isEmpty) return;
+      final pick = widget.pickFiles ?? _defaultPickFiles;
 
-    var refused = false;
-    final next = [..._attachments];
-    for (final path in paths) {
-      final trimmed = path.trim();
-      if (trimmed.isEmpty) continue;
-      if (next.length >= maxChatImages) {
-        refused = true;
-        continue;
+      final List<String> paths;
+      try {
+        paths = await pick();
+      } catch (failure) {
+        if (!mounted) return;
+        setState(() => _notice = _reason(failure));
+        return;
       }
-      if (next.any((attachment) => attachment.path == trimmed)) continue;
-      next.add(ChatAttachment(path: trimmed));
+      if (!mounted || paths.isEmpty) return;
+
+      var refused = false;
+      final next = [..._attachments];
+      for (final path in paths) {
+        final trimmed = path.trim();
+        if (trimmed.isEmpty) continue;
+        if (next.length >= maxChatImages) {
+          refused = true;
+          continue;
+        }
+        if (next.any((attachment) => attachment.path == trimmed)) continue;
+        next.add(ChatAttachment(path: trimmed));
+      }
+      setState(() {
+        _attachments
+          ..clear()
+          ..addAll(next);
+        _notice = refused
+            ? 'four images max · remove one to attach another'
+            : null;
+      });
+    } finally {
+      _picking = false;
     }
-    setState(() {
-      _attachments
-        ..clear()
-        ..addAll(next);
-      _notice = refused
-          ? 'four images max · remove one to attach another'
-          : null;
-    });
   }
 
   void _removeAttachment(int index) {
@@ -427,7 +462,9 @@ class _ChatPageState extends State<ChatPage> {
     final scrolled = scrollKey(_scroll, event);
     if (scrolled != null) return scrolled;
     if (key == LogicalKeyboardKey.keyP) {
-      if (_sending) return KeyEventResult.handled;
+      if (event is! KeyDownEvent || _sending || _picking) {
+        return KeyEventResult.handled;
+      }
       unawaited(_pick());
       return KeyEventResult.handled;
     }
@@ -457,22 +494,39 @@ class _ChatPageState extends State<ChatPage> {
               children: [
                 Text('Chill', style: theme.textTheme.titleMedium),
                 const SizedBox(width: 10),
-                Text(
-                  widget.configured
-                      ? 'read-only · ${chat?.model ?? 'model'}'
-                      : 'read-only · no model',
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+                Flexible(
+                  child: Text(
+                    widget.configured
+                        ? 'read-only · ${chat?.model ?? 'model'}'
+                        : 'read-only · no model',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+                  ),
                 ),
                 const Spacer(),
                 _BridgeChip(
                   online: widget.online,
                   configured: widget.configured,
                   streaming: streaming,
+                  connecting: widget.connecting,
                 ),
               ],
             ),
           ),
           Expanded(child: _body(chat)),
+          if (chat?.error != null)
+            ChatFailureBanner(
+              failed: chat!.error!.failed,
+              kept: chat.error!.kept,
+              next: chat.error!.next,
+              onRetry: widget.onRetry,
+            )
+          else if (widget.sendError != null && widget.sendError!.isNotEmpty)
+            ChatFailureBanner(
+              failed: widget.sendError!,
+              kept: 'your message is still in the composer',
+            ),
           _composerBox(canSend, streaming),
         ],
       ),
@@ -480,34 +534,32 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _body(ChatSnapshot? chat) {
+    if (!widget.online && widget.connecting) {
+      return const _Centered(
+        title: 'connecting…',
+        body: 'Starting the core and reading the workspace.',
+      );
+    }
     if (!widget.online) {
       return _Centered(
         title: 'core offline',
         body:
             widget.error ?? 'The Bun core is not running. Start it and retry.',
-        action: widget.onRetry == null
+        action: widget.onReconnect == null
             ? null
             : FilledButton(
-                onPressed: widget.onRetry,
-                child: const Text('Retry'),
+                onPressed: widget.onReconnect,
+                child: const Text('Reconnect'),
               ),
       );
     }
     if (chat == null) {
-      return const _Centered(
-        title: 'chat unavailable',
-        body: 'The core has not returned a chat snapshot yet.',
-      );
-    }
-    if (chat.error != null) {
       return _Centered(
-        title: 'the last turn failed',
-        body: [
-          chat.error!.failed,
-          if (chat.error!.kept.isNotEmpty) chat.error!.kept,
-          if (chat.error!.next.isNotEmpty) chat.error!.next,
-        ].join('\n'),
-        action: widget.onRetry == null
+        title: widget.connecting ? 'connecting…' : 'chat unavailable',
+        body: widget.connecting
+            ? 'Starting the core and reading the workspace.'
+            : 'The core has not returned a chat snapshot yet.',
+        action: widget.connecting || widget.onRetry == null
             ? null
             : FilledButton(
                 onPressed: widget.onRetry,
@@ -571,7 +623,7 @@ class _ChatPageState extends State<ChatPage> {
     final hint = blocked != null
         ? '${blocked.reason} · ${blocked.fix}'
         : !widget.online
-        ? 'core offline'
+        ? (widget.connecting ? 'connecting…' : 'core offline')
         : !widget.configured
         ? 'no model connected · link a key in Settings → Providers'
         : streaming
@@ -606,6 +658,8 @@ class _ChatPageState extends State<ChatPage> {
                 child: Text(
                   hint,
                   key: const ValueKey('chat-composer-hint'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: blocked != null
                         ? LockedInColors.warning
@@ -660,7 +714,7 @@ class _ChatPageState extends State<ChatPage> {
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
                     '${_compact(widget.chat!.usage.tokens)} tok · '
-                    '${widget.chat!.usage.costMicroUsd == null ? 'cost unknown' : '\$${(widget.chat!.usage.costMicroUsd! / 1000000).toStringAsFixed(4)}'}'
+                    '${chatCostLabel(widget.chat!.usage.costMicroUsd)}'
                     '${widget.chat!.usage.durationMs == null ? '' : ' · ${(widget.chat!.usage.durationMs! / 1000).toStringAsFixed(1)}s'}',
                     style: TextStyle(color: LockedInColors.muted, fontSize: 11),
                   ),
@@ -860,15 +914,19 @@ class _BridgeChip extends StatelessWidget {
     required this.online,
     required this.configured,
     required this.streaming,
+    this.connecting = false,
   });
 
   final bool online;
+  final bool connecting;
   final bool configured;
   final bool streaming;
 
   @override
   Widget build(BuildContext context) {
-    final (label, color) = !online
+    final (label, color) = connecting
+        ? ('connecting…', LockedInColors.warning)
+        : !online
         ? ('core offline', LockedInColors.muted)
         : streaming
         ? ('streaming', LockedInColors.primary)

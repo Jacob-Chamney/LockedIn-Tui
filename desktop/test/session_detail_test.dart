@@ -477,7 +477,10 @@ void main() {
         detail: _detail,
         loading: false,
         chat: _chat(messages: const [_userTurn, _assistantTurn]),
-        onSend: sent.add,
+        onSend: (text) async {
+          sent.add(text);
+          return true;
+        },
         onCancel: () => cancelled++,
       ),
     );
@@ -512,7 +515,10 @@ void main() {
           ],
           streamed: 'partial answer',
         ),
-        onSend: sent.add,
+        onSend: (text) async {
+          sent.add(text);
+          return true;
+        },
         onCancel: () => cancelled++,
       ),
     );
@@ -540,7 +546,10 @@ void main() {
               fix: 'raise it in Settings',
             ),
           ),
-          onSend: sent.add,
+          onSend: (text) async {
+            sent.add(text);
+            return true;
+          },
         ),
       );
 
@@ -583,7 +592,7 @@ void main() {
         detail: _detail,
         loading: false,
         chat: _chat(),
-        onSend: (_) {},
+        onSend: (_) async => true,
       ),
     );
 
@@ -602,7 +611,7 @@ void main() {
         detail: _detail,
         loading: false,
         chat: _chat(messages: const [_userTurn, _assistantTurn]),
-        onSend: (_) {},
+        onSend: (_) async => true,
         onBack: () => backs++,
       ),
     );
@@ -645,7 +654,10 @@ void main() {
         detail: _detail,
         loading: false,
         chat: _chat(model: null),
-        onSend: sent.add,
+        onSend: (text) async {
+          sent.add(text);
+          return true;
+        },
       ),
     );
 
@@ -673,7 +685,7 @@ void main() {
         detail: _detail,
         loading: false,
         chat: _chat(messages: const [_userTurn, _assistantTurn]),
-        onSend: (_) {},
+        onSend: (_) async => true,
         onModeChanged: modes.add,
       ),
     );
@@ -694,7 +706,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('session chat failure is one readable error with a retry', (
+  testWidgets('session chat failure keeps the transcript and offers a retry', (
     tester,
   ) async {
     var retried = 0;
@@ -715,7 +727,10 @@ void main() {
       ),
     );
 
-    expect(find.text('the last turn failed'), findsOneWidget);
+    // The failure is a banner beside the transcript, not a card that replaces
+    // it: the earlier turns are still readable (docs/product.md §3.2).
+    expect(find.byKey(const ValueKey('chat-failure-banner')), findsOneWidget);
+    expect(find.text(_userTurn.text), findsOneWidget);
     expect(
       find.textContaining('provider rejected the request'),
       findsOneWidget,
@@ -723,7 +738,7 @@ void main() {
     expect(find.textContaining('your message is kept'), findsOneWidget);
     expect(find.textContaining('relink the key in Settings'), findsOneWidget);
 
-    await tester.tap(find.text('Retry'));
+    await tester.tap(find.byKey(const ValueKey('chat-failure-retry')));
     await tester.pump();
     expect(retried, 1);
     expect(tester.takeException(), isNull);
@@ -772,7 +787,7 @@ void main() {
           detail: _detail,
           loading: false,
           chat: _chat(messages: const [_userTurn, _assistantTurn]),
-          onSend: (_) {},
+          onSend: (_) async => true,
         ),
         width: size.width,
         height: size.height,

@@ -348,11 +348,17 @@ class _ReviewPageState extends State<ReviewPage> {
           ),
         ),
         if (!compact)
-          Text(
-            widget.onMark == null
-                ? 'r refresh · s side'
-                : 'k known · m missed · r refresh · s side',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+          // The status bar carries the full list; the header keeps the verbs it
+          // can fit, and ellipsises rather than overflowing a narrow window.
+          Flexible(
+            child: Text(
+              widget.onMark == null
+                  ? 'r refresh · s side'
+                  : 'k known · m missed · r refresh · s side',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            ),
           ),
       ],
     );
@@ -513,7 +519,7 @@ class _ReviewPageState extends State<ReviewPage> {
       children.add(
         widget.onMark == null
             ? Text(
-                'snapshot · marking arrives later',
+                'snapshot · marking is available',
                 key: ValueKey('review-readonly'),
                 style: TextStyle(color: LockedInColors.muted, fontSize: 11),
               )
@@ -1070,7 +1076,8 @@ class _EmptyState extends StatelessWidget {
           Text('nothing to review', style: theme.textTheme.titleMedium),
           const SizedBox(height: 6),
           Text(
-            'finish a step or miss a card to fill this queue',
+            'leave a lock-in step unchecked or miss a flashcard to fill this '
+            'queue',
             textAlign: TextAlign.center,
             style: TextStyle(color: LockedInColors.muted, fontSize: 12),
           ),

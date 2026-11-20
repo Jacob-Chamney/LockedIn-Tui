@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lockedin_desktop/bridge/core_client.dart';
@@ -151,6 +153,32 @@ void main() {
     expect(sent, ['/home/me/input/week-5.md', '/home/me/input/solutions.pdf']);
     expect(find.text('added 2 · skipped 0'), findsOneWidget);
     expect(find.byKey(const ValueKey('sources-notice')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a held a opens one picker, not one per repeat', (tester) async {
+    var picks = 0;
+    final never = Completer<List<String>>();
+    await pumpPage(
+      tester,
+      SourcesPage(
+        session: session(),
+        loading: false,
+        sources: _sources,
+        pickFiles: () {
+          picks += 1;
+          return never.future;
+        },
+        onAdd: (paths) async => const SourceAddResult(added: 0, skipped: 0),
+      ),
+    );
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyA);
+    await tester.sendKeyRepeatEvent(LogicalKeyboardKey.keyA);
+    await tester.pump();
+
+    // One press, one dialog: the guard used to be set only after the await.
+    expect(picks, 1);
     expect(tester.takeException(), isNull);
   });
 

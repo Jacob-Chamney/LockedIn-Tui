@@ -487,6 +487,12 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
       await tester.pumpAndSettle();
 
+      // Resetting every override asks first, and names the count.
+      expect(find.text('reset all keybinds'), findsOneWidget);
+      expect(find.textContaining('2 customised bindings'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('keybind-reset-confirm')));
+      await tester.pumpAndSettle();
+
       expect(actions, ['refresh', 'retry']);
       expect(writes, [null, null]);
     });

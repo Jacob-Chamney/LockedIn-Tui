@@ -117,9 +117,10 @@ void main() {
     expect(find.text('SKILLS'), findsOneWidget);
     expect(find.text('Read disassembly output'), findsOneWidget);
     expect(find.text('Rust ownership'), findsOneWidget);
-    expect(find.text('2/4 stages'), findsOneWidget);
-    expect(find.text('no stages'), findsOneWidget);
+    // One model per row: the course shows chapters, the curriculum goal shows
+    // stages, and neither shows the other's zero.
     expect(find.text('1/3 chapters'), findsOneWidget);
+    expect(find.text('2/4 stages'), findsNothing);
     expect(find.text('2 chats'), findsOneWidget);
     expect(find.text('no chats'), findsOneWidget);
     expect(find.text('opened 2026-11-15'), findsOneWidget);

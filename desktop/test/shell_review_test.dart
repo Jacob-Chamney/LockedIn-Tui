@@ -111,7 +111,9 @@ void main() {
     expect(find.byKey(const ValueKey('review-diagnostics')), findsOneWidget);
     expect(find.byKey(const ValueKey('review-mark-hint')), findsOneWidget);
     expect(
-      find.text('r refresh · s side · k known · m missed · Esc back'),
+      find.text(
+        'j/k move · Enter open · k known · m missed · r refresh · s side · Esc back',
+      ),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);

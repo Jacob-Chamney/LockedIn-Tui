@@ -1952,7 +1952,7 @@ async function readSkillMeta(
   try {
     const text = await readFile(join(courseFolder(workspace, goalId), "meta.json"), "utf8");
     const parsed: unknown = JSON.parse(text);
-    if (!isRecord(parsed)) return { message: "the goal's meta.json is not a JSON object" };
+    if (!isRecord(parsed)) return { message: "the goal's meta.json is not a JSON object; fix it in the goal folder, or delete the goal" };
     return { meta: parsed };
   } catch (error) {
     return { message: oneLine(messageOf(error)) };
@@ -7699,9 +7699,10 @@ export function createCoreServer(options: CoreOptions): CoreServer {
    * the write, so a malformed reply, an uncited claim or a citation of a source
    * this goal does not have is refused before the lesson file is touched.
    *
-   * `confirmed: false` is deliberate: replacing an existing `ready` lesson is a
-   * user decision, so the service returns `confirm` and the shell asks. The
-   * reply's `path` is goal-relative (`lessons/02-<slug>.md`), never absolute.
+   * Replacing an existing `ready` lesson is a user decision: unless the caller
+   * sends `confirmed: true` the service returns `confirm`, and the shell asks
+   * by name before repeating the call. The reply's `path` is goal-relative
+   * (`lessons/02-<slug>.md`), never absolute.
    */
   const skillLessonBuild = async (
     id: RpcId,
@@ -7712,6 +7713,12 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       return invalid(id, "skill.lesson.build: includeSolution must be a boolean");
     }
     const includeSolution = rawSolution === true;
+
+    const rawConfirmed = params.confirmed;
+    if (rawConfirmed !== undefined && typeof rawConfirmed !== "boolean") {
+      return invalid(id, "skill.lesson.build: confirmed must be a boolean");
+    }
+    const confirmed = rawConfirmed === true;
 
     // Shape before boot: a malformed request never opens the workspace.
     if (typeof params.goalId !== "string" || params.goalId.trim() === "") {
@@ -7768,7 +7775,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       stageId: target.stageId,
       draft: parsed.draft,
       ...(includeSolution ? { includeSolution: true } : {}),
-      confirmed: false,
+      ...(confirmed ? { confirmed: true } : {}),
     });
     if (!built.ok) {
       const message = oneLine(built.error.message);

@@ -302,9 +302,9 @@ class KeymapRegistry {
 /// The built-in catalogue: the ten surfaces, then the shell verbs.
 ///
 /// A default is a real, working chord, never a placeholder. Surface defaults are
-/// `Alt+1…9` then `Alt+0` (derived from [surfaceActionIds] order, so a new
-/// surface gets its slot without a second list); every other default is a
-/// documented storable form.
+/// `Space` + a letter, derived from [surfaceActionIds] order so a new surface
+/// gets its key without a second list; every other default is a documented
+/// storable form.
 List<ActionSpec> defaultActionCatalogue() => [
   for (var index = 0; index < surfaceActionIds.length; index++)
     ActionSpec(

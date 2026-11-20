@@ -3,6 +3,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../bridge/models.dart';
 import '../../theme/palette.dart';
+import '../chat/chat_failure.dart';
+import '../chat/usage_text.dart';
 import '../chat/markdown.dart';
 import '../chat/transcript_scroll.dart';
 import '../keys.dart';
@@ -29,6 +31,7 @@ class WorkChatView extends StatefulWidget {
     this.error,
     this.onBack,
     this.onSend,
+    this.sendError,
     this.onCancel,
     this.onRetry,
     this.onModeChanged,
@@ -51,7 +54,12 @@ class WorkChatView extends StatefulWidget {
   /// `Esc` and the back control return to the project detail.
   final VoidCallback? onBack;
 
-  final ValueChanged<String>? onSend;
+  /// Send one turn. **True means the core accepted it**, and only then does
+  /// the composer clear: a refusal used to lose the text silently.
+  final Future<bool> Function(String text)? onSend;
+
+  /// The last send refusal for this chat, shown in the banner.
+  final String? sendError;
   final VoidCallback? onCancel;
   final VoidCallback? onRetry;
 
@@ -180,9 +188,10 @@ class _WorkChatViewState extends State<WorkChatView> {
     return KeyEventResult.ignored;
   }
 
-  void _send() {
+  Future<void> _send() async {
     final text = _composer.text.trim();
-    if (text.isEmpty || widget.onSend == null) return;
+    final send = widget.onSend;
+    if (text.isEmpty || send == null) return;
     final chat = widget.chat;
     // The same rule as the Send button: with no model the core refuses the
     // turn, and clearing the composer first lost the text.
@@ -192,8 +201,10 @@ class _WorkChatViewState extends State<WorkChatView> {
         chat.blocked != null) {
       return;
     }
-    widget.onSend!(text);
-    _composer.clear();
+    final accepted = await send(text);
+    if (!mounted) return;
+    // A refusal keeps the text: the core did not take the turn.
+    if (accepted) _composer.clear();
   }
 
   @override
@@ -212,6 +223,18 @@ class _WorkChatViewState extends State<WorkChatView> {
               backgroundColor: LockedInColors.line,
             ),
           Expanded(child: _body()),
+          if (widget.chat?.error != null)
+            ChatFailureBanner(
+              failed: widget.chat!.error!.failed,
+              kept: widget.chat!.error!.kept,
+              next: widget.chat!.error!.next,
+              onRetry: widget.onRetry,
+            )
+          else if (widget.sendError != null && widget.sendError!.isNotEmpty)
+            ChatFailureBanner(
+              failed: widget.sendError!,
+              kept: 'your message is still in the composer',
+            ),
           _composerBox(),
         ],
       ),
@@ -300,23 +323,6 @@ class _WorkChatViewState extends State<WorkChatView> {
         ],
       );
     }
-    if (chat.error != null) {
-      return _stateCard(
-        icon: Icons.error_outline,
-        tone: LockedInColors.error,
-        title: 'the last turn failed',
-        body: [
-          chat.error!.failed,
-          if (chat.error!.kept.isNotEmpty) chat.error!.kept,
-          if (chat.error!.next.isNotEmpty) chat.error!.next,
-        ].where((line) => line.isNotEmpty).join('\n'),
-        actions: [
-          if (widget.onRetry != null)
-            FilledButton(onPressed: widget.onRetry, child: const Text('Retry')),
-        ],
-      );
-    }
-
     final messages = chat.messages;
     if (messages.isEmpty && !chat.streaming) {
       return _stateCard(
@@ -402,6 +408,8 @@ class _WorkChatViewState extends State<WorkChatView> {
                 child: Text(
                   hint,
                   key: const ValueKey('session-chat-hint'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: blocked != null
                         ? LockedInColors.warning
@@ -678,9 +686,7 @@ class _StatusChip extends StatelessWidget {
 }
 
 String _usageLabel(ChatUsageView usage) {
-  final cost = usage.costMicroUsd == null
-      ? 'cost unknown'
-      : '\$${(usage.costMicroUsd! / 1000000).toStringAsFixed(4)}';
+  final cost = chatCostLabel(usage.costMicroUsd);
   final duration = usage.durationMs == null
       ? null
       : '${(usage.durationMs! / 1000).toStringAsFixed(1)}s';

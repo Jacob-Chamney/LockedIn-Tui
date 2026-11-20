@@ -789,9 +789,17 @@ class _SessionDetailViewState extends State<SessionDetailView> {
   }
 
   Widget _header() {
+    // Measured on the pane, not the window: the rail is 64–208 px of the
+    // window, so `MediaQuery` said "roomy" while the header had 200 px less.
+    return LayoutBuilder(
+      builder: (context, constraints) => _headerAt(constraints.maxWidth),
+    );
+  }
+
+  Widget _headerAt(double width) {
     final theme = Theme.of(context);
     final detail = widget.detail;
-    final compact = MediaQuery.sizeOf(context).width < 560;
+    final compact = width < 560;
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 8, 14, 8),
       decoration: BoxDecoration(

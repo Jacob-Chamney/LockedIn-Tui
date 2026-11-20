@@ -188,7 +188,9 @@ class _Star extends StatelessWidget {
                     ),
                     if (selected)
                       Positioned(
-                        top: 30,
+                        // A star near the bottom edge gets its label above, so
+                        // the two lines stay inside the clipped sky.
+                        top: node.unit.dy > 0.8 ? -34 : 30,
                         left: -40,
                         right: -40,
                         child: Text(

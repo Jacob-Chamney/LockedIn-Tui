@@ -48,6 +48,11 @@ class _WorkPageState extends State<WorkPage> {
   final _rowKeys = <String, GlobalKey>{};
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
+
+  /// The page's own node: where the keyboard returns after the search field.
+  /// `unfocus()` alone moves it to the enclosing scope, which deadened every
+  /// list key until the user clicked.
+  final _pageFocus = FocusNode(debugLabel: 'work');
   var _selectedIndex = 0;
   var _dialogOpen = false;
 
@@ -75,6 +80,7 @@ class _WorkPageState extends State<WorkPage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _pageFocus.dispose();
     _searchFocus.dispose();
     super.dispose();
   }
@@ -140,6 +146,7 @@ class _WorkPageState extends State<WorkPage> {
     if (key == LogicalKeyboardKey.escape && _query.isNotEmpty) {
       _searchController.clear();
       setState(() => _query = '');
+      _pageFocus.requestFocus();
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowDown ||
@@ -170,6 +177,7 @@ class _WorkPageState extends State<WorkPage> {
       builder: (context, constraints) {
         final showMode = constraints.maxWidth >= 520;
         return Focus(
+          focusNode: _pageFocus,
           autofocus: true,
           onKeyEvent: _onKey,
           child: Padding(
@@ -253,7 +261,9 @@ class _WorkPageState extends State<WorkPage> {
         _ErrorState(message: error, onRefresh: widget.onRefresh),
       );
     }
-    if (widget.projects.isEmpty) return _centered(const _EmptyState());
+    if (widget.projects.isEmpty) {
+      return _centered(_EmptyState(onCreate: _create));
+    }
     if (_visible.isEmpty) {
       return _centered(
         Column(
@@ -913,7 +923,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
             _availableChanges(changes)
           else if (changes != null)
             _unavailableChanges(changes)
-          else if (error == null)
+          else if (error == null && !loading)
             _EmptyNote(
               tone: LockedInColors.muted,
               title: 'the working tree has not been read yet',
@@ -931,7 +941,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
             const SizedBox(height: 4),
           ],
           Text(
-            'read-only summary · writes are approved later',
+            'read-only summary · approve writes in Approvals (`p`)',
             style: TextStyle(
               color: LockedInColors.muted,
               fontSize: 10.5,
@@ -1039,7 +1049,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
             _ErrorState(message: error),
             const SizedBox(height: 10),
           ],
-          if (total == 0)
+          if (total == 0 && !widget.approvalsLoading && error == null)
             _EmptyNote(
               tone: LockedInColors.muted,
               title: 'no approvals pending',
@@ -1483,11 +1493,9 @@ class _WorkDetailViewState extends State<WorkDetailView> {
     return _Card(
       label: 'ACTIVITY',
       trailing: _ValueChip(
-        count == 0
-            ? 'no records'
-            : count == 1
-            ? '1 record'
-            : '$count records',
+        // The log is read with a filter and a page cap, so this is the number
+        // of rows the card can open, not the project's total.
+        count == 0 ? 'no records' : '$count shown',
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2153,7 +2161,11 @@ class _LoadingState extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  const _EmptyState({this.onCreate});
+
+  /// The pointer path for `n`. Without it a mouse user could not register the
+  /// first project.
+  final VoidCallback? onCreate;
 
   @override
   Widget build(BuildContext context) {
@@ -2169,6 +2181,15 @@ class _EmptyState extends StatelessWidget {
           'n registers one',
           style: TextStyle(color: LockedInColors.muted, fontSize: 12),
         ),
+        if (onCreate != null) ...[
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            key: const ValueKey('work-empty-new'),
+            onPressed: onCreate,
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('new project'),
+          ),
+        ],
       ],
     );
   }

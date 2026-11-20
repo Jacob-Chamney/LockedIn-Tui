@@ -72,6 +72,11 @@ class _SkillsPageState extends State<SkillsPage> {
   final _rowKeys = <String, GlobalKey>{};
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
+
+  /// The page's own node: where the keyboard returns after the search field.
+  /// `unfocus()` alone moves it to the enclosing scope, which deadened every
+  /// list key until the user clicked.
+  final _pageFocus = FocusNode(debugLabel: 'skills');
   var _selectedIndex = 0;
 
   /// The live search query. Filtering is a projection of the rows the shell
@@ -119,6 +124,7 @@ class _SkillsPageState extends State<SkillsPage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _pageFocus.dispose();
     _searchFocus.dispose();
     super.dispose();
   }
@@ -354,6 +360,7 @@ class _SkillsPageState extends State<SkillsPage> {
     if (key == LogicalKeyboardKey.escape && _query.isNotEmpty) {
       _searchController.clear();
       setState(() => _query = '');
+      _pageFocus.requestFocus();
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.escape &&
@@ -375,6 +382,7 @@ class _SkillsPageState extends State<SkillsPage> {
         final showChapters = constraints.maxWidth >= 700;
         final showOpened = constraints.maxWidth >= 620;
         return Focus(
+          focusNode: _pageFocus,
           autofocus: true,
           onKeyEvent: _onKey,
           child: Padding(
@@ -592,15 +600,20 @@ class _SkillRowTile extends StatelessWidget {
   /// is running and the verbs are not offered twice.
   final bool busy;
 
+  /// A curriculum goal's stages, or empty for a course (which has chapters
+  /// instead). Showing both made a healthy course read as incomplete.
   String get _stageLabel {
-    if (skill.stageTotal <= 0) return 'no stages';
+    final chapters = skill.chaptersTotal ?? 0;
+    if (chapters > 0) return '';
+    if (skill.stageTotal <= 0) return '';
     return '${skill.stageDone}/${skill.stageTotal} stages';
   }
 
+  /// A course's chapters, or empty for a curriculum goal.
   String get _chaptersLabel {
     final done = skill.chaptersDone ?? 0;
     final total = skill.chaptersTotal ?? 0;
-    if (total <= 0) return 'no chapters';
+    if (total <= 0) return '';
     return '$done/$total chapters';
   }
 
@@ -700,7 +713,7 @@ class _SkillRowTile extends StatelessWidget {
                   ],
                 ),
               ),
-              if (showChapters) ...[
+              if (showChapters && _chaptersLabel.isNotEmpty) ...[
                 const SizedBox(width: 12),
                 SizedBox(
                   width: 92,
@@ -734,32 +747,38 @@ class _SkillRowTile extends StatelessWidget {
                   style: TextStyle(color: LockedInColors.muted, fontSize: 11),
                 ),
               ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 84,
-                child: busy
-                    ? Text(
-                        'working…',
-                        key: ValueKey('skill-row-busy'),
-                        textAlign: TextAlign.right,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: LockedInColors.primary,
-                          fontSize: 11,
-                        ),
-                      )
-                    : Text(
-                        _stageLabel,
-                        textAlign: TextAlign.right,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: skill.complete
-                              ? LockedInColors.success
-                              : LockedInColors.muted,
-                          fontSize: 11,
-                        ),
-                      ),
-              ),
+              if (busy) ...[
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 84,
+                  child: Text(
+                    'working…',
+                    key: ValueKey('skill-row-busy'),
+                    textAlign: TextAlign.right,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: LockedInColors.primary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ] else if (_stageLabel.isNotEmpty) ...[
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 84,
+                  child: Text(
+                    _stageLabel,
+                    textAlign: TextAlign.right,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: skill.complete
+                          ? LockedInColors.success
+                          : LockedInColors.muted,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -1122,7 +1141,9 @@ class _SkillConfirmDialog extends StatelessWidget {
             style: destructive
                 ? FilledButton.styleFrom(
                     backgroundColor: LockedInColors.error,
-                    foregroundColor: LockedInColors.background,
+                    // The theme derives onError by measurement; `background`
+                    // is only readable while the palette is dark.
+                    foregroundColor: Theme.of(context).colorScheme.onError,
                   )
                 : null,
             onPressed: () => Navigator.of(context).pop(true),

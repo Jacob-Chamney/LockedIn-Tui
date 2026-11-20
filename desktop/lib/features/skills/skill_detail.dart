@@ -697,7 +697,9 @@ class _SkillDetailViewState extends State<SkillDetailView> {
         if (event is KeyDownEvent) unawaited(_removeStage());
         return KeyEventResult.handled;
       }
-      return KeyEventResult.handled;
+      // Anything else (Space for the leader, `?`, `:`) belongs to the shell:
+      // this mode owns its letters, not the whole keyboard.
+      return KeyEventResult.ignored;
     }
     if (key == LogicalKeyboardKey.escape) {
       if (widget.onBack == null) return KeyEventResult.ignored;
@@ -985,7 +987,9 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             ),
           ),
           const SizedBox(height: 10),
-          if (sources.isEmpty)
+          if (sources.isEmpty &&
+              !widget.sourcesLoading &&
+              widget.sourcesError == null)
             _EmptyNote(
               tone: interactive ? LockedInColors.warning : LockedInColors.muted,
               title: 'no sources yet',
@@ -1537,7 +1541,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                       key: const ValueKey('skill-new-chat-card'),
                       onPressed: widget.onNewChat,
                       icon: const Icon(Icons.add_comment_outlined, size: 16),
-                      label: const Text('New chat · N'),
+                      label: const Text('New chat · Shift+N'),
                     ),
                   ],
                 ],
@@ -2018,7 +2022,9 @@ class _StageConfirmDialog extends StatelessWidget {
             key: const ValueKey('skill-stage-remove-confirm'),
             style: FilledButton.styleFrom(
               backgroundColor: LockedInColors.error,
-              foregroundColor: LockedInColors.background,
+              // The theme derives onError by measurement; `background` is only
+              // readable while the palette is dark.
+              foregroundColor: Theme.of(context).colorScheme.onError,
             ),
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(confirmLabel),

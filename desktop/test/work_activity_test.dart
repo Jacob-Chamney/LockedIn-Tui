@@ -375,7 +375,7 @@ void main() {
       );
 
       expect(find.text('ACTIVITY'), findsOneWidget);
-      expect(find.text('4 records'), findsOneWidget);
+      expect(find.text('4 shown'), findsOneWidget);
       expect(find.text('l opens the log'), findsOneWidget);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
@@ -393,7 +393,7 @@ void main() {
         size: const Size(1200, 1800),
       );
 
-      expect(find.text('2 records'), findsOneWidget);
+      expect(find.text('2 shown'), findsOneWidget);
       expect(find.text('l opens the log'), findsNothing);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
