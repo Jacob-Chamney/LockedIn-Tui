@@ -84,8 +84,8 @@ class SessionRow {
 
 /// One archived item from `archive.list`: a session, goal or project copy.
 ///
-/// The archive is a read-only listing in this build — restore, delete and export
-/// are later packets — so the row is a projection only. Parsing is tolerant: a
+/// The archive row is a projection of what the core listed; restore, delete and
+/// export are `archive.*` calls, not this model. Parsing is tolerant: a
 /// missing or mistyped field becomes an empty string or zero rather than
 /// throwing, because one malformed row must not blank the whole picker.
 class ArchiveRow {
@@ -3098,8 +3098,8 @@ class KnowledgeHit {
 
 /// One note under a topic in the Knowledge tree (`knowledge.tree`).
 ///
-/// [path] is workspace-relative; the reader that opens it is a later packet, so
-/// the shell only shows the path and the updated date.
+/// [path] is workspace-relative; the reader that opens it (`KnowledgeReader`)
+/// receives the same id from the tree.
 class KnowledgeNote {
   const KnowledgeNote({
     required this.path,

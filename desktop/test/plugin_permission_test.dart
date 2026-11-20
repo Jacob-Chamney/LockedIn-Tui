@@ -261,6 +261,35 @@ void main() {
     ]);
   });
 
+  test(
+    'a prompt past the core window is marked expired and cannot allow',
+    () async {
+      final core = FakeCore();
+      final store = CoreStore(
+        connection: core,
+        permissionTimeout: const Duration(milliseconds: 20),
+      );
+      addTearDown(store.dispose);
+      await store.start();
+
+      core.emitPermission(
+        requestId: 'perm-1',
+        server: 'notes',
+        tool: 'write_note',
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+
+      // The core denied the call at its deadline; the prompt stays only to say
+      // so, and offering Allow would run nothing.
+      expect(store.pendingPermission?.requestId, 'perm-1');
+      expect(store.permissionExpired('perm-1'), isTrue);
+
+      store.dismissPermission('perm-1');
+      expect(store.pendingPermission, isNull);
+      expect(core.permissionConfirms, isEmpty);
+    },
+  );
+
   test('an answer after the core stopped waiting says it expired', () async {
     var now = DateTime.utc(2026, 11, 19, 10);
     final core = FakeCore();

@@ -357,7 +357,7 @@ void main() {
     );
 
     expect(
-      find.text('j/k move · Enter restore · d delete · r reload'),
+      find.text('j/k move · Enter restore · d delete · r refresh'),
       findsOneWidget,
     );
     // `r` is still the reload, never a verb.

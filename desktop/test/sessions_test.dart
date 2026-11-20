@@ -91,8 +91,8 @@ void main() {
     expect(find.text('2026-10-24'), findsOneWidget);
     expect(find.text('2026-10-02'), findsOneWidget);
 
-    expect(find.text('3 src'), findsOneWidget);
-    expect(find.text('12 src'), findsOneWidget);
+    expect(find.text('3 sources'), findsOneWidget);
+    expect(find.text('12 sources'), findsOneWidget);
     expect(find.text('4/8 steps'), findsOneWidget);
     expect(find.text('no steps'), findsOneWidget);
     expect(find.text('6/6 steps'), findsOneWidget);

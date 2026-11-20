@@ -327,7 +327,7 @@ void main() {
   testWidgets('an empty reply invites a re-read', (tester) async {
     await _pump(tester, const AchievementsPage());
 
-    expect(find.text('no achievements in this build'), findsOneWidget);
+    expect(find.text('the core sent no catalogue'), findsOneWidget);
     expect(
       find.text('the core sent no catalogue; r re-reads it'),
       findsOneWidget,

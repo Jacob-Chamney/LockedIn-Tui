@@ -293,6 +293,34 @@ describe("stats.summary", () => {
   });
 });
 
+describe("skill.lesson.build", () => {
+  // Replacing a ready lesson is a user decision: the flag is validated before
+  // the workspace is opened, so a malformed request never boots.
+  test("rejects a non-boolean confirmed without booting", async () => {
+    const { server, counter } = fakeCore();
+    const error = await errorOf(server, "skill.lesson.build", {
+      goalId: "goal-1",
+      stageId: "stage-1",
+      confirmed: "yes",
+    });
+    expect(error.code).toBe(-32602);
+    expect(error.message).toContain("confirmed");
+    expect(counter.calls).toBe(0);
+  });
+
+  test("rejects a non-boolean includeSolution without booting", async () => {
+    const { server, counter } = fakeCore();
+    const error = await errorOf(server, "skill.lesson.build", {
+      goalId: "goal-1",
+      stageId: "stage-1",
+      includeSolution: 1,
+    });
+    expect(error.code).toBe(-32602);
+    expect(error.message).toContain("includeSolution");
+    expect(counter.calls).toBe(0);
+  });
+});
+
 describe("settings.get", () => {
   test("returns the booted settings as plain data", async () => {
     const { server, services } = fakeCore();

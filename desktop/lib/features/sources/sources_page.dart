@@ -63,6 +63,9 @@ class SourcesPage extends StatefulWidget {
 
 class _SourcesPageState extends State<SourcesPage> {
   var _busy = false;
+
+  /// True while the platform picker is open, so a held `a` opens one.
+  var _picking = false;
   String? _notice;
   var _noticeOk = true;
   String? _failure;
@@ -148,11 +151,13 @@ class _SourcesPageState extends State<SourcesPage> {
   Future<void> _add() async {
     final onAdd = widget.onAdd;
     final session = widget.session;
-    if (onAdd == null || session == null || _busy) return;
-    final pick = widget.pickFiles ?? _defaultPickFiles;
-
+    if (onAdd == null || session == null || _busy || _picking) return;
+    // The picker is claimed before it opens: the busy flag used to be set only
+    // after the await, so every key repeat started another dialog.
+    _picking = true;
     final List<String> paths;
     try {
+      final pick = widget.pickFiles ?? _defaultPickFiles;
       paths = await pick();
     } catch (failure) {
       if (!mounted) return;
@@ -161,6 +166,8 @@ class _SourcesPageState extends State<SourcesPage> {
         _failure = _reason(failure);
       });
       return;
+    } finally {
+      _picking = false;
     }
     if (paths.isEmpty || !mounted) return;
 
@@ -173,16 +180,14 @@ class _SourcesPageState extends State<SourcesPage> {
       final result = await onAdd(paths);
       if (!mounted) return;
       setState(() {
-        _busy = false;
         _noticeOk = !result.nothingNew;
         _notice = _feedback(result);
       });
     } catch (failure) {
       if (!mounted) return;
-      setState(() {
-        _busy = false;
-        _failure = _reason(failure);
-      });
+      setState(() => _failure = _reason(failure));
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -240,6 +245,9 @@ class _SourcesPageState extends State<SourcesPage> {
     // `Ctrl+R` reconnect). A bare-letter page key must never read them.
     if (modifierHeld) return KeyEventResult.ignored;
     if (!_hasSession) return KeyEventResult.ignored;
+    // One press, one action: a held key used to call the platform picker again
+    // on every repeat, because `_busy` was set after the await.
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.keyA && widget.onAdd != null) {
       _add();

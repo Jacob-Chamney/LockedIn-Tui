@@ -102,7 +102,9 @@ void main() {
     expect(find.text('SKILLS'), findsWidgets);
     expect(find.text('Read disassembly output'), findsOneWidget);
     expect(find.text('Rust ownership'), findsOneWidget);
-    expect(find.text('2/4 stages'), findsOneWidget);
+    // The course row reports chapters; its stage count is not drawn.
+    expect(find.text('2/4 stages'), findsNothing);
+    expect(find.text('1/3 chapters'), findsOneWidget);
     expect(find.text('meta.json could not be read'), findsOneWidget);
     expect(find.text('Enter open · n new goal · Esc back'), findsOneWidget);
     expect(tester.takeException(), isNull);

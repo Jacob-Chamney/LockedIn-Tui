@@ -450,7 +450,7 @@ export function toMetaJson(goal: SkillGoal): Record<string, unknown> {
 
 export function fromMetaJson(raw: unknown): Result<{ goal: SkillGoal; mirror: CurriculumMirror[] | null }, GoalError> {
   if (typeof raw !== "object" || raw === null) {
-    return err({ kind: "storage", path: GOAL_META_FILE, message: "meta.json is not an object" })
+    return err({ kind: "storage", path: GOAL_META_FILE, message: "meta.json is not an object; fix it in the goal folder, or delete the goal" })
   }
   const record = raw as Record<string, unknown>
   if (record.schema !== GOAL_SCHEMA) {

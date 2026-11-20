@@ -4369,10 +4369,17 @@ class FakeCore implements CoreConnection {
       if (buildFailure != null) {
         throw _skillLessonRefusal(goalId, stageId, buildFailure);
       }
-      // A `ready` lesson is never replaced without the user's consent, and this
-      // method has no confirmed parameter yet: the core's confirm sentence is
-      // the whole answer.
-      if (stageId == readyLessonStageId) {
+      // A `ready` lesson is never replaced without the user's consent: the
+      // first build answers with the `confirm` shape, and only a repeat with
+      // `confirmed: true` writes.
+      final rawConfirm = params?['confirmed'];
+      if (rawConfirm != null && rawConfirm is! bool) {
+        throw const RpcException(
+          -32602,
+          'skill.lesson.build confirmed must be a boolean',
+        );
+      }
+      if (stageId == readyLessonStageId && rawConfirm != true) {
         throw _skillLessonConfirm(goalId, stageId, title);
       }
       final solution = rawSolution == true

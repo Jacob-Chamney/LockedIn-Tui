@@ -35,6 +35,8 @@ class SkillLessonView extends StatefulWidget {
     this.onBuild,
     this.onRebuild,
     this.onRetry,
+    this.needsConfirm = false,
+    this.onReplace,
   });
 
   /// The stage folder id the core resolved (`stage-1`, `stage-2`, …).
@@ -80,6 +82,13 @@ class SkillLessonView extends StatefulWidget {
 
   /// Repeat the read or build that failed.
   final VoidCallback? onRetry;
+
+  /// True when the only reason the build failed is that the lesson is already
+  /// `ready`. The card then offers a named replacement, not a dead Retry.
+  final bool needsConfirm;
+
+  /// Replace the existing ready lesson, after the caller asked by name.
+  final VoidCallback? onReplace;
 
   @override
   State<SkillLessonView> createState() => _SkillLessonViewState();
@@ -239,13 +248,24 @@ class _SkillLessonViewState extends State<SkillLessonView> {
 
     final error = widget.error;
     if (error != null) {
+      // A `confirm` refusal is not a failure to retry: replacing a ready
+      // lesson is a decision, so it is asked by name.
+      final replace = widget.needsConfirm && widget.onReplace != null;
       return _stateCard(
         icon: Icons.error_outline,
-        tone: LockedInColors.error,
-        title: 'could not build or read this lesson',
+        tone: replace ? LockedInColors.warning : LockedInColors.error,
+        title: replace
+            ? 'this lesson is already ready'
+            : 'could not build or read this lesson',
         body: error,
         actions: [
-          if (widget.onRetry != null)
+          if (replace)
+            FilledButton(
+              key: const ValueKey('skill-lesson-replace'),
+              onPressed: widget.onReplace,
+              child: const Text('Replace lesson'),
+            )
+          else if (widget.onRetry != null)
             FilledButton(
               key: const ValueKey('skill-lesson-retry'),
               onPressed: widget.onRetry,

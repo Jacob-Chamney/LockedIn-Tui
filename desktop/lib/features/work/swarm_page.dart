@@ -482,9 +482,12 @@ class _SwarmPageState extends State<SwarmPage> {
                   _ErrorNote(message: _actionError!),
                   const SizedBox(height: 12),
                 ],
-                if (board == null)
-                  _emptyCard()
-                else ...[
+                // The error note above already explains a failed read; the
+                // empty card would claim "no runs yet" over a state the app
+                // could not read.
+                if (board == null) ...[
+                  if (widget.error == null) _emptyCard(),
+                ] else ...[
                   _runCard(board),
                   const SizedBox(height: 14),
                   if (widget.runs.length > 1) ...[

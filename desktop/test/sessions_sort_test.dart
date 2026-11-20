@@ -11,7 +11,7 @@ import 'package:material_ui/material_ui.dart';
 /// * date ↓ — Anatomy (11-10), Zoology (11-01), Botany (10-20)
 /// * date ↑ — Botany, Zoology, Anatomy
 /// * name A–Z — Anatomy, Botany, Zoology
-/// * size ↓ — Zoology (7 sources), Anatomy (5), Botany (1)
+/// * sources ↓ — Zoology (7 sources), Anatomy (5), Botany (1)
 const _sessions = <SessionRow>[
   SessionRow(
     id: 'alpha',
@@ -110,7 +110,7 @@ void main() {
       findsOneWidget,
     );
 
-    for (final label in ['date ↑', 'name A–Z', 'size ↓', 'date ↓']) {
+    for (final label in ['date ↑', 'name A–Z', 'sources ↓', 'date ↓']) {
       await pressO(tester);
       expect(find.text('sort · $label'), findsOneWidget);
     }
@@ -135,7 +135,7 @@ void main() {
     expectOrder(tester, ['Anatomy', 'Botany', 'Zoology']);
 
     await pressO(tester);
-    expect(find.text('sort · size ↓'), findsOneWidget);
+    expect(find.text('sort · sources ↓'), findsOneWidget);
     // The size proxy is source count first, largest first.
     expectOrder(tester, ['Zoology', 'Anatomy', 'Botany']);
     expect(tester.takeException(), isNull);
@@ -176,9 +176,9 @@ void main() {
     expect(opened?.id, 'alpha');
     expect(opened?.name, 'Zoology');
 
-    // size ↓ leads with Zoology now, and Enter still opens the same session.
+    // sources ↓ leads with Zoology now, and Enter still opens the same session.
     await pressO(tester);
-    expect(find.text('sort · size ↓'), findsOneWidget);
+    expect(find.text('sort · sources ↓'), findsOneWidget);
     expect(selectedName(tester), 'Zoology');
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();

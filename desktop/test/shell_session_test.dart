@@ -339,7 +339,7 @@ void main() {
     expect(find.text('SESSION'), findsOneWidget);
     expect(find.text('SESSIONS'), findsNothing);
     expect(
-      find.text('↑↓ move · Space toggle · c chat · Esc back'),
+      find.text('↑↓ move · Space toggle · c chat · \\ leader · Esc back'),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
@@ -354,8 +354,9 @@ void main() {
     expect(find.byKey(const ValueKey('session-chat-composer')), findsOneWidget);
     expect(find.text('SESSION CHAT'), findsOneWidget);
     expect(
-      find.text('Enter send · Shift+Enter newline · Esc back'),
-      findsOneWidget,
+      // The page strip and the status bar now agree: Esc leaves INSERT first.
+      find.text('Enter send · Shift+Enter newline · Esc normal'),
+      findsWidgets,
     );
 
     await sendSessionTurn(tester, 'hello');

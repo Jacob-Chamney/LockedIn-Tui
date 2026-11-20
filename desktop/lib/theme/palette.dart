@@ -301,12 +301,31 @@ abstract final class LockedInColors {
 
 /// Label/icon colour for text drawn on [color].
 ///
-/// Crimson's red is dark enough for white labels, which is the identity the
-/// shell already ships; a very light fill (high contrast's `#FF8080`, luminance
-/// ~0.38) would leave white almost invisible, so it takes black instead of
-/// shipping an unreadable button.
-Color contrastOn(Color color) =>
-    color.computeLuminance() > 0.35 ? Colors.black : Colors.white;
+/// Measured, not guessed: white and black are equally legible at luminance
+/// **0.179**, so the better of the two is chosen per colour. A fixed threshold
+/// of 0.35 (the old rule) picked white for every mid-tone fill, which put
+/// crimson's buttons at 3.96:1 and its error fills at 3.03:1 — below the 4.5:1
+/// `docs/design.md` §3.1 requires. Every built-in palette's primary now takes
+/// black labels; that is the accessible choice, and it is what the filled and
+/// error buttons use.
+Color contrastOn(Color color) {
+  final luminance = color.computeLuminance();
+  final onWhite = 1.05 / (luminance + 0.05);
+  final onBlack = (luminance + 0.05) / 0.05;
+  return onWhite >= onBlack ? Colors.white : Colors.black;
+}
+
+/// The WCAG contrast ratio between [a] and [b] (1–21).
+///
+/// Exposed for the theme test, which checks every token pair of every palette
+/// rather than trusting the screenshot.
+double contrastRatio(Color a, Color b) {
+  final high = a.computeLuminance();
+  final low = b.computeLuminance();
+  final lighter = high > low ? high : low;
+  final darker = high > low ? low : high;
+  return (lighter + 0.05) / (darker + 0.05);
+}
 
 ThemeData lockedInTheme() {
   final onPrimary = contrastOn(LockedInColors.primary);
@@ -318,7 +337,7 @@ ThemeData lockedInTheme() {
         primary: LockedInColors.primary,
         onPrimary: onPrimary,
         secondary: LockedInColors.secondary,
-        onSecondary: LockedInColors.background,
+        onSecondary: contrastOn(LockedInColors.secondary),
         surface: LockedInColors.surface,
         onSurface: LockedInColors.foreground,
         error: LockedInColors.error,

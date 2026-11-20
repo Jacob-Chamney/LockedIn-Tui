@@ -92,7 +92,7 @@ void main() {
     expect(find.textContaining('18.0 KB · folder'), findsOneWidget);
     expect(find.textContaining('2.0 KB · folder'), findsOneWidget);
     expect(
-      find.text('j/k move · Enter restore · d delete · r reload'),
+      find.text('j/k move · Enter restore · d delete · r refresh'),
       findsOneWidget,
     );
     expect(find.text('r refresh · Esc back'), findsWidgets);
@@ -120,7 +120,9 @@ void main() {
 
     expect(find.text('nothing archived yet'), findsOneWidget);
     expect(
-      find.text('archive a session or goal to see it here'),
+      find.text(
+        'archive one from Sessions or Skills with `a`; it appears here',
+      ),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);

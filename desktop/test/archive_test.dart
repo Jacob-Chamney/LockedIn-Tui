@@ -209,7 +209,9 @@ void main() {
     expect(find.byKey(const ValueKey('archive-empty')), findsOneWidget);
     expect(find.text('nothing archived yet'), findsOneWidget);
     expect(
-      find.text('archive a session or goal to see it here'),
+      find.text(
+        'archive one from Sessions or Skills with `a`; it appears here',
+      ),
       findsOneWidget,
     );
     expect(find.text('read-only'), findsOneWidget);

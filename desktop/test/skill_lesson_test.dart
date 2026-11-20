@@ -746,7 +746,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('rebuilding a ready lesson shows the core confirm message', (
+    testWidgets('rebuilding a ready lesson asks by name, then replaces it', (
       tester,
     ) async {
       final store = await openCurriculum(tester);
@@ -764,8 +764,17 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
       await tester.pumpAndSettle();
 
-      expect(find.text('could not build or read this lesson'), findsOneWidget);
-      expect(find.textContaining('is ready; rebuilding'), findsOneWidget);
+      // The replacement is a named decision, not a dead Retry: the dialog
+      // names the stage before anything is written.
+      expect(find.text('replace the lesson'), findsOneWidget);
+      expect(find.textContaining('Calling conventions'), findsWidgets);
+
+      await tester.tap(find.byKey(const ValueKey('lesson-replace-confirm')));
+      await tester.pumpAndSettle();
+
+      expect(store.skillLessonError, isNull);
+      expect(store.skillLessonNeedsConfirm, isFalse);
+      expect(find.textContaining('Built draft'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 

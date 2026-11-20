@@ -105,7 +105,7 @@ class _ArchivePageState extends State<ArchivePage> {
     final parts = <String>['j/k move'];
     if (widget.onRestore != null) parts.add('Enter restore');
     if (widget.onDelete != null) parts.add('d delete');
-    if (widget.onRefresh != null) parts.add('r reload');
+    if (widget.onRefresh != null) parts.add('r refresh');
     return parts.length == 1 ? 'read-only' : parts.join(' · ');
   }
 
@@ -1048,7 +1048,9 @@ class _DeleteDialog extends StatelessWidget {
             key: const ValueKey('archive-delete-confirm'),
             style: FilledButton.styleFrom(
               backgroundColor: LockedInColors.error,
-              foregroundColor: LockedInColors.background,
+              // The theme derives onError by measurement; `background` is only
+              // readable while the palette is dark.
+              foregroundColor: Theme.of(context).colorScheme.onError,
             ),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Delete'),
@@ -1106,7 +1108,7 @@ class _EmptyState extends StatelessWidget {
           Text('nothing archived yet', style: theme.textTheme.titleMedium),
           const SizedBox(height: 6),
           Text(
-            'archive a session or goal to see it here',
+            'archive one from Sessions or Skills with `a`; it appears here',
             textAlign: TextAlign.center,
             style: TextStyle(color: LockedInColors.muted, fontSize: 12),
           ),

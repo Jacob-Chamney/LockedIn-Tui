@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:material_ui/material_ui.dart';
 
+import '../theme/palette.dart';
+
 // A sandboxed visual effect: a short, non-blocking animation the shell paints
 // above the UI.
 //
@@ -67,6 +69,16 @@ class Effect {
       .inscribe(Size.zero, Rect.fromLTWH(0, 0, size.width, size.height))
       .center;
 
+  /// Six tokens the burst draws from, read at call time.
+  static List<Color> _confettiPalette() => [
+    LockedInColors.primary,
+    LockedInColors.error,
+    LockedInColors.success,
+    LockedInColors.warning,
+    LockedInColors.secondary,
+    LockedInColors.accent,
+  ];
+
   /// The default celebration: confetti raining from just above the centre.
   factory Effect.confetti({
     int count = 160,
@@ -74,16 +86,8 @@ class Effect {
     List<Color>? palette,
   }) {
     final random = Random(seed);
-    final colours =
-        palette ??
-        const [
-          Color(0xFFD9534F),
-          Color(0xFFFF6B6B),
-          Color(0xFF7FA37A),
-          Color(0xFFD8B26A),
-          Color(0xFF9AA3AD),
-          Color(0xFFFF8A65),
-        ];
+    // The active palette, so a burst follows high contrast and a custom one.
+    final colours = palette ?? _confettiPalette();
     return Effect(
       name: 'confetti',
       duration: const Duration(milliseconds: 1600),

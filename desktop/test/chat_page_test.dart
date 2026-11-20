@@ -12,13 +12,16 @@ ChatSnapshot _chat({
   List<ChatMessageView> messages = const [],
   String streamed = '',
   ChatBlocked? blocked,
+  ChatFailure? error,
+  String model = 'openai/gpt-4.1-mini',
 }) => ChatSnapshot(
   status: status,
-  model: 'openai/gpt-4.1-mini',
+  model: model,
   streamed: streamed,
   messages: messages,
   usage: _usage,
   blocked: blocked,
+  error: error,
 );
 
 Widget _app(Widget child) => MaterialApp(
@@ -35,7 +38,10 @@ void main() {
           chat: _chat(),
           online: true,
           configured: true,
-          onSend: (text) => sent = text,
+          onSend: (text) async {
+            sent = text;
+            return true;
+          },
         ),
       ),
     );
@@ -60,7 +66,10 @@ void main() {
           chat: _chat(),
           online: true,
           configured: true,
-          onSend: (text) => sent = text,
+          onSend: (text) async {
+            sent = text;
+            return true;
+          },
         ),
       ),
     );
@@ -90,7 +99,7 @@ void main() {
           chat: _chat(),
           online: true,
           configured: true,
-          onSend: (_) {},
+          onSend: (_) async => true,
           onModeChanged: (insert) => mode = insert,
         ),
       ),
@@ -149,7 +158,7 @@ void main() {
           chat: _chat(messages: const []),
           online: true,
           configured: true,
-          onSend: (_) {},
+          onSend: (_) async => true,
           onModeChanged: (insert) => mode = insert,
         ),
       ),
@@ -276,7 +285,10 @@ void main() {
           chat: _chat(),
           online: true,
           configured: false,
-          onSend: (text) => sent = text,
+          onSend: (text) async {
+            sent = text;
+            return true;
+          },
         ),
       ),
     );
@@ -294,15 +306,16 @@ void main() {
     expect(sent, '');
   });
 
-  testWidgets('offline shows the reason and a retry', (tester) async {
-    var retried = false;
+  testWidgets('offline shows the reason and reconnects', (tester) async {
+    var reconnected = false;
     await tester.pumpWidget(
       _app(
         ChatPage(
           online: false,
           configured: false,
           error: 'bun not found',
-          onRetry: () => retried = true,
+          onRetry: () {},
+          onReconnect: () => reconnected = true,
         ),
       ),
     );
@@ -310,8 +323,114 @@ void main() {
 
     expect(find.text('core offline'), findsWidgets);
     expect(find.text('bun not found'), findsOneWidget);
-    await tester.tap(find.text('Retry'));
+    // Restarting the core is a reconnect, not a retry of the last message.
+    await tester.tap(find.text('Reconnect'));
+    expect(reconnected, isTrue);
+  });
+
+  testWidgets('a launch in progress says connecting, not offline', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(ChatPage(online: false, configured: false, connecting: true)),
+    );
+    await tester.pumpAndSettle();
+
+    // The body card and the composer line both say it is starting.
+    expect(find.text('connecting…'), findsWidgets);
+    expect(find.text('core offline'), findsNothing);
+    expect(find.text('Reconnect'), findsNothing);
+  });
+
+  testWidgets('a failed turn keeps the transcript and offers a retry', (
+    tester,
+  ) async {
+    var retried = false;
+    await tester.pumpWidget(
+      _app(
+        ChatPage(
+          chat: _chat(
+            messages: const [
+              ChatMessageView(
+                id: 'm1',
+                role: 'user',
+                text: 'where do the limits come from?',
+              ),
+            ],
+            error: const ChatFailure(
+              failed: 'provider rejected the request',
+              kept: 'your question is kept',
+              next: 'relink the key',
+            ),
+          ),
+          online: true,
+          configured: true,
+          onRetry: () => retried = true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The message is still readable: the failure is a banner, not a page.
+    expect(find.text('where do the limits come from?'), findsOneWidget);
+    expect(find.byKey(const ValueKey('chat-failure-banner')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('chat-failure-retry')));
+    await tester.pump();
     expect(retried, isTrue);
+  });
+
+  testWidgets('a refused send keeps the composer text', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        ChatPage(
+          chat: _chat(),
+          online: true,
+          configured: true,
+          onSend: (_) async => false,
+          sendError: 'the core is busy',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('chat-composer')),
+      'a question worth keeping',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('chat-composer')));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('chat-composer')))
+          .controller
+          ?.text,
+      'a question worth keeping',
+    );
+    expect(find.textContaining('the core is busy'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the header ellipsises a long model id at 800x600', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final longModel = 'openrouter/${'a-very-long-vendor-model-tag/' * 4}end';
+    await tester.pumpWidget(
+      _app(
+        ChatPage(chat: _chat(model: longModel), online: true, configured: true),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The model string is a value, not a layout decision: it may not overflow.
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('an empty transcript invites a message', (tester) async {

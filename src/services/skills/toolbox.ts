@@ -202,7 +202,7 @@ async function loadGoal(input: { workspace: Workspace; goalId: string }): Promis
     return err({
       kind: "storage",
       path: join(folder, "meta.json"),
-      message: "meta.json sources must be a list",
+      message: "meta.json sources must be a list; fix it in the goal folder",
     })
   }
   const sources: SkillSource[] = []

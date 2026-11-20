@@ -4,6 +4,9 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
 import '../../bridge/core_scope.dart';
+import '../../bridge/errors.dart';
+import '../keys.dart';
+
 import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
 import '../../keymap/binding.dart';
@@ -436,9 +439,15 @@ class _SettingsBodyState extends State<_SettingsBody> {
     // A row waiting for a chord owns the keyboard until it has one: the chord is
     // data, not navigation, so `j` or `Enter` must not also move the cursor.
     if (_capturingId != null) {
+      // A captured chord is data: Ctrl+Q, Alt+1 and friends are valid input
+      // here, so the modifier guard comes after this branch.
       _capture(event);
       return KeyEventResult.handled;
     }
+    // `Ctrl+C` on the theme row used to write `ui.theme = custom`; every bare
+    // letter on this page writes configuration, so a modified chord must never
+    // reach it. `Ctrl+S` is not bound here (session settings owns it).
+    if (modifierHeld) return KeyEventResult.ignored;
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.keyJ) {
       _select(_selected + 1);
@@ -484,12 +493,15 @@ class _SettingsBodyState extends State<_SettingsBody> {
       }
       if (key == LogicalKeyboardKey.backspace ||
           key == LogicalKeyboardKey.delete) {
+        if (event is! KeyDownEvent) return KeyEventResult.handled;
         unawaited(_writeKeybind(keybind, null));
         return KeyEventResult.handled;
       }
       if (key == LogicalKeyboardKey.keyR) {
+        // A held key wrote the whole reset loop: one press, one decision.
+        if (event is! KeyDownEvent) return KeyEventResult.handled;
         if (HardwareKeyboard.instance.isShiftPressed) {
-          unawaited(_resetAllKeybinds());
+          unawaited(_confirmResetAll());
         } else {
           unawaited(_writeKeybind(keybind, null));
         }
@@ -542,7 +554,13 @@ class _SettingsBodyState extends State<_SettingsBody> {
       _activate();
       return KeyEventResult.handled;
     }
-    if (key == LogicalKeyboardKey.keyR && widget.onRefreshMcp != null) {
+    // `r` reconnects the plugin servers only from the PLUGINS group (its server
+    // and policy rows); elsewhere it used to spawn child processes with nothing
+    // on screen about it.
+    final pluginRow = row != null && row.id.startsWith('mcp-');
+    if (key == LogicalKeyboardKey.keyR &&
+        pluginRow &&
+        widget.onRefreshMcp != null) {
       _refreshMcp();
       return KeyEventResult.handled;
     }
@@ -622,13 +640,14 @@ class _SettingsBodyState extends State<_SettingsBody> {
       await write(cell.actionId, binding, fixed: cell.fixed);
       if (!mounted) return;
       setState(() => _savingId = null);
-    } on RpcException catch (error) {
+    } catch (failure) {
       if (!mounted) return;
       setState(() {
-        _savingId = null;
         _rowErrorId = 'keybind-${cell.actionId}';
-        _rowError = error.message;
+        _rowError = userMessage(failure);
       });
+    } finally {
+      if (mounted) setState(() => _savingId = null);
     }
   }
 
@@ -638,6 +657,36 @@ class _SettingsBodyState extends State<_SettingsBody> {
   /// no-op success, and asking seventeen times for nothing is not the point of
   /// the key. The first refusal stops the loop so the message names the row that
   /// failed rather than hiding it behind the rest.
+  /// Ask before clearing every stored override, naming the count.
+  Future<void> _confirmResetAll() async {
+    final count = _rows.where((row) => row.keybind?.custom ?? false).length;
+    if (count == 0) return;
+    final answer = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('reset all keybinds'),
+        content: Text(
+          count == 1
+              ? 'Clear the one customised binding? The default comes back.'
+              : 'Clear all $count customised bindings? The defaults come back.',
+        ),
+        actions: [
+          TextButton(
+            key: const ValueKey('keybind-reset-cancel'),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: const ValueKey('keybind-reset-confirm'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+    if (answer == true) await _resetAllKeybinds();
+  }
+
   Future<void> _resetAllKeybinds() async {
     if (widget.onSetKeybind == null || _savingId != null) return;
     final overrides = [
@@ -683,6 +732,37 @@ class _SettingsBodyState extends State<_SettingsBody> {
     }
     if (row.policy != null && widget.onSetMcpPolicy != null) {
       _advancePolicy(row);
+      return;
+    }
+    // The three row families below used to draw an enabled chevron and then
+    // fall through to `edit == null`, so the button did nothing and the action
+    // was keyboard-only. Each branch is the same call Enter makes.
+    final keybind = row.keybind;
+    if (keybind != null) {
+      if (widget.onSetKeybind == null) return;
+      setState(() {
+        _capturingId = row.id;
+        _rowErrorId = null;
+        _rowError = null;
+      });
+      return;
+    }
+    final decision = row.decision;
+    if (decision != null) {
+      if (decision.kind == _DecisionKind.model) {
+        _explainDecisionModel(row);
+        return;
+      }
+      final write = widget.onSetDecision;
+      if (write == null) return;
+      unawaited(_toggleDecision(row, decision, write));
+      return;
+    }
+    final work = row.work;
+    if (work != null) {
+      final write = widget.onSetWorkPermissions;
+      if (write == null) return;
+      unawaited(_toggleWork(row, work, write));
       return;
     }
     final edit = row.edit;
@@ -739,13 +819,14 @@ class _SettingsBodyState extends State<_SettingsBody> {
         _noticeId = 'theme';
         _notice = 'theme: ${paletteLabel(picked)}';
       });
-    } on RpcException catch (error) {
+    } catch (failure) {
       if (!mounted) return;
       setState(() {
-        _savingId = null;
         _rowErrorId = 'theme';
-        _rowError = error.message;
+        _rowError = userMessage(failure);
       });
+    } finally {
+      if (mounted) setState(() => _savingId = null);
     }
   }
 
@@ -776,13 +857,14 @@ class _SettingsBodyState extends State<_SettingsBody> {
         _savingId = null;
         _customApplied = true;
       });
-    } on RpcException catch (error) {
+    } catch (failure) {
       if (!mounted) return;
       setState(() {
-        _savingId = null;
         _rowErrorId = 'theme';
-        _rowError = error.message;
+        _rowError = userMessage(failure);
       });
+    } finally {
+      if (mounted) setState(() => _savingId = null);
     }
   }
 
@@ -843,13 +925,14 @@ class _SettingsBodyState extends State<_SettingsBody> {
       await write(cell.command, cell.server, next);
       if (!mounted) return;
       setState(() => _savingId = null);
-    } on RpcException catch (error) {
+    } catch (failure) {
       if (!mounted) return;
       setState(() {
-        _savingId = null;
         _rowErrorId = row.id;
-        _rowError = error.message;
+        _rowError = userMessage(failure);
       });
+    } finally {
+      if (mounted) setState(() => _savingId = null);
     }
   }
 
@@ -881,13 +964,14 @@ class _SettingsBodyState extends State<_SettingsBody> {
       await write(enabled: !cell.enabled);
       if (!mounted) return;
       setState(() => _savingId = null);
-    } on RpcException catch (error) {
+    } catch (failure) {
       if (!mounted) return;
       setState(() {
-        _savingId = null;
         _rowErrorId = row.id;
-        _rowError = error.message;
+        _rowError = userMessage(failure);
       });
+    } finally {
+      if (mounted) setState(() => _savingId = null);
     }
   }
 
@@ -915,13 +999,14 @@ class _SettingsBodyState extends State<_SettingsBody> {
       );
       if (!mounted) return;
       setState(() => _savingId = null);
-    } on RpcException catch (error) {
+    } catch (failure) {
       if (!mounted) return;
       setState(() {
-        _savingId = null;
         _rowErrorId = row.id;
-        _rowError = error.message;
+        _rowError = userMessage(failure);
       });
+    } finally {
+      if (mounted) setState(() => _savingId = null);
     }
   }
 
@@ -955,13 +1040,14 @@ class _SettingsBodyState extends State<_SettingsBody> {
       await save(build());
       if (!mounted) return;
       setState(() => _savingId = null);
-    } on RpcException catch (error) {
+    } catch (failure) {
       if (!mounted) return;
       setState(() {
-        _savingId = null;
         _rowErrorId = row.id;
-        _rowError = error.message;
+        _rowError = userMessage(failure);
       });
+    } finally {
+      if (mounted) setState(() => _savingId = null);
     }
   }
 
@@ -1838,12 +1924,11 @@ class _SettingEditorDialogState extends State<_SettingEditorDialog> {
       await widget.onSave(build(_controller.text));
       if (!mounted) return;
       Navigator.of(context).pop();
-    } on RpcException catch (error) {
+    } catch (failure) {
       if (!mounted) return;
-      setState(() {
-        _saving = false;
-        _failure = error.message;
-      });
+      setState(() => _failure = userMessage(failure));
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -2125,12 +2210,11 @@ class _ConnectModelDialogState extends State<_ConnectModelDialog> {
       await widget.onSaveSettings(patch);
       if (!mounted) return;
       Navigator.of(context).pop();
-    } on RpcException catch (error) {
+    } catch (failure) {
       if (!mounted) return;
-      setState(() {
-        _saving = false;
-        _error = error.message;
-      });
+      setState(() => _error = userMessage(failure));
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -3240,12 +3324,11 @@ class _CustomPaletteDialogState extends State<_CustomPaletteDialog> {
       final saved = await widget.onSave({..._overrides});
       if (!mounted) return;
       Navigator.of(context).pop(saved.values);
-    } on RpcException catch (error) {
+    } catch (failure) {
       if (!mounted) return;
-      setState(() {
-        _saving = false;
-        _error = error.message;
-      });
+      setState(() => _error = userMessage(failure));
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 

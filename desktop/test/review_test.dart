@@ -192,7 +192,7 @@ void main() {
     );
 
     // Read-only copy: this surface never marks.
-    expect(find.text('snapshot · marking arrives later'), findsOneWidget);
+    expect(find.text('snapshot · marking is available'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -224,10 +224,13 @@ void main() {
     expect(find.byKey(const ValueKey('review-empty')), findsOneWidget);
     expect(find.text('nothing to review'), findsOneWidget);
     expect(
-      find.text('finish a step or miss a card to fill this queue'),
+      find.text(
+        'leave a lock-in step unchecked or miss a flashcard to fill this '
+        'queue',
+      ),
       findsOneWidget,
     );
-    expect(find.text('snapshot · marking arrives later'), findsOneWidget);
+    expect(find.text('snapshot · marking is available'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
