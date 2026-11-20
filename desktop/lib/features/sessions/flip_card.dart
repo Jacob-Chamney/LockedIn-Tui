@@ -78,19 +78,33 @@ class _FlipCardState extends State<FlipCard>
         child: widget.showingBack ? widget.back : widget.front,
       );
     }
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        final angle = _controller.value * math.pi;
-        final showingBack = angle > math.pi / 2;
-        // The back is pre-rotated by π so it is not mirrored when it arrives.
-        final transform = Matrix4.identity()
-          ..setEntry(3, 2, 0.0012)
-          ..rotateY(showingBack ? angle - math.pi : angle);
-        return Transform(
-          alignment: Alignment.center,
-          transform: transform,
-          child: showingBack ? widget.back : widget.front,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Perspective is per pixel, so a fixed value that suits a 300 px card
+        // doubles the near edge of a 900 px one and throws its text across the
+        // header above it. Scale it to the face instead: the near edge grows by
+        // at most ~12% whatever the width.
+        final half = constraints.hasBoundedWidth
+            ? constraints.maxWidth / 2
+            : 300.0;
+        final depth = 0.11 / math.max(half, 1);
+        return ClipRect(
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) {
+              final angle = _controller.value * math.pi;
+              final showingBack = angle > math.pi / 2;
+              // The back is pre-rotated by π so it is not mirrored on arrival.
+              final transform = Matrix4.identity()
+                ..setEntry(3, 2, depth)
+                ..rotateY(showingBack ? angle - math.pi : angle);
+              return Transform(
+                alignment: Alignment.center,
+                transform: transform,
+                child: showingBack ? widget.back : widget.front,
+              );
+            },
+          ),
         );
       },
     );

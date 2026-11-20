@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../theme/palette.dart';
 
@@ -278,6 +279,8 @@ class _KnowledgePageState extends State<KnowledgePage> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    // Modified chords belong to the shell's registry.
+    if (modifierHeld) return KeyEventResult.ignored;
     final key = event.logicalKey;
     final editing = _searchFocus.hasFocus;
     if (key == LogicalKeyboardKey.escape) {
@@ -713,13 +716,19 @@ class _ScopeChip extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (selected) ...[
-                const Icon(Icons.check, size: 11, color: Colors.white),
+                Icon(
+                  Icons.check,
+                  size: 11,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
                 const SizedBox(width: 5),
               ],
               Text(
                 label,
                 style: TextStyle(
-                  color: selected ? Colors.white : LockedInColors.muted,
+                  color: selected
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : LockedInColors.muted,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),

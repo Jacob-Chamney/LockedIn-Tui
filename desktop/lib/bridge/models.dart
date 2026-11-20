@@ -1770,6 +1770,53 @@ class WorkCommandProposal {
   }
 }
 
+/// `work.command.decide` — what happened to one decided command.
+///
+/// An approved command is a process the user chose to run, so its result is
+/// theirs to see: the exit code, whether it hit the service's time limit, and
+/// what it printed. A denial starts nothing and carries no output.
+class CommandOutcome {
+  const CommandOutcome({
+    required this.decision,
+    required this.argv,
+    required this.cwd,
+    required this.exitCode,
+    required this.stdout,
+    required this.stderr,
+    required this.timedOut,
+  });
+
+  /// `approve` or `deny`.
+  final String decision;
+  final List<String> argv;
+  final String cwd;
+
+  /// The process's exit code, or null when nothing ran (a denial) or the
+  /// process ended without one (a timeout).
+  final int? exitCode;
+  final String stdout;
+  final String stderr;
+  final bool timedOut;
+
+  bool get approved => decision == 'approve';
+
+  /// True only for a command that ran to completion and exited 0.
+  bool get succeeded => approved && !timedOut && exitCode == 0;
+
+  factory CommandOutcome.fromJson(Map<String, dynamic> json) {
+    final code = json['exitCode'];
+    return CommandOutcome(
+      decision: _string(json['decision']),
+      argv: _strings(json['argv']),
+      cwd: _string(json['cwd']),
+      exitCode: code is num ? code.toInt() : null,
+      stdout: _string(json['stdout']),
+      stderr: _string(json['stderr']),
+      timedOut: _bool(json['timedOut']),
+    );
+  }
+}
+
 /// `work.approvals.list` — the pending writes and commands for one project.
 ///
 /// Both lists are a projection of the core's process memory: a proposal is a

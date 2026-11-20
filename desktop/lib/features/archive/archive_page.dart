@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
 import '../../theme/palette.dart';
@@ -212,6 +213,9 @@ class _ArchivePageState extends State<ArchivePage> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    // Modified chords belong to the shell's registry (`Ctrl+K` palette,
+    // `Ctrl+R` reconnect). A bare-letter page key must never read them.
+    if (modifierHeld) return KeyEventResult.ignored;
     // A confirmation dialog owns the keyboard while it is open.
     if (_dialogOpen) return KeyEventResult.ignored;
     final key = event.logicalKey;

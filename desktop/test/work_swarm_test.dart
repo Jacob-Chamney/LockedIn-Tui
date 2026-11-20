@@ -232,7 +232,12 @@ void main() {
       find.byKey(const ValueKey('swarm-cancel')),
     );
     expect(cancel.onPressed, isNull);
+    // The button takes the same path as `d`: a named confirmation first.
     await tester.tap(find.byKey(const ValueKey('swarm-remove')));
+    await tester.pumpAndSettle();
+    expect(removes, 0, reason: 'nothing is removed before the confirmation');
+    expect(find.textContaining('Remove run'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('swarm-remove-confirm')));
     await tester.pumpAndSettle();
     expect(removes, 1);
 

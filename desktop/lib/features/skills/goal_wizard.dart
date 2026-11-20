@@ -191,8 +191,14 @@ class _GoalWizardState extends State<GoalWizard> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
-    if (_busy) return KeyEventResult.ignored;
     final key = event.logicalKey;
+    if (_busy) {
+      // A create is in flight. `Esc` must not fall through to the shell, which
+      // would unmount the wizard and leave the session it created unopened.
+      return key == LogicalKeyboardKey.escape
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored;
+    }
     if (key == LogicalKeyboardKey.escape) {
       _back();
       return KeyEventResult.handled;

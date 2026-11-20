@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../theme/palette.dart';
 import 'star_field.dart';
@@ -183,6 +184,9 @@ class _AchievementsPageState extends State<AchievementsPage> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    // Modified chords belong to the shell's registry (`Ctrl+K` palette,
+    // `Ctrl+R` reconnect). A bare-letter page key must never read them.
+    if (modifierHeld) return KeyEventResult.ignored;
     final key = event.logicalKey;
     final direction = switch (key) {
       LogicalKeyboardKey.arrowDown ||

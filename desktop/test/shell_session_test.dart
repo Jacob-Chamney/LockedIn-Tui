@@ -102,6 +102,41 @@ Future<void> expandSidebar(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('Esc in the search field gives the list its keys back', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    await openSurface(tester, 2);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.slash);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('sessions-search')),
+      'phys',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Physics — Unit 4'), findsOneWidget);
+
+    String selected() {
+      final marker = find.byKey(const ValueKey('session-row-selected'));
+      if (marker.evaluate().isEmpty) return '';
+      final text = find.descendant(of: marker, matching: find.byType(Text));
+      return tester.widget<Text>(text.first).data ?? '';
+    }
+
+    // One Esc clears the query and returns the keyboard to the page, not to
+    // the focus scope: the list's own keys must keep working.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(selected(), 'Audit session', reason: 'the query is gone');
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(selected(), 'Physics — Unit 4', reason: 'the list has the keys');
+    expect(find.text('SESSIONS'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a session chat draft survives leaving the session', (
     tester,
   ) async {

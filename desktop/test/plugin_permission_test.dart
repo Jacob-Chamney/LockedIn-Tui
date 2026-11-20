@@ -215,7 +215,7 @@ void main() {
     expect(find.byKey(PluginPermissionModal.allowKey), findsOneWidget);
   });
 
-  testWidgets('a second request replaces the first prompt', (tester) async {
+  testWidgets('a second request waits behind the first prompt', (tester) async {
     final core = FakeCore();
     final store = await pumpShell(tester, core: core);
 
@@ -228,6 +228,8 @@ void main() {
     expect(find.text('PLUGIN WRITE · notes'), findsOneWidget);
     expect(find.text('write_note'), findsOneWidget);
 
+    // Two chats can each be waiting on an answer. The first prompt must stay
+    // answerable: replacing it left its turn hanging until the core denied it.
     core.emitPermission(
       requestId: 'perm-2',
       server: 'wiki',
@@ -236,18 +238,53 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(store.pendingPermission?.requestId, 'perm-2');
-    expect(find.text('PLUGIN WRITE · wiki'), findsOneWidget);
-    expect(find.text('delete_note'), findsOneWidget);
-    expect(find.text('write_note'), findsNothing);
-    expect(find.text('{\n  "title": "Old page"\n}'), findsOneWidget);
+    expect(store.pendingPermission?.requestId, 'perm-1');
+    expect(store.queuedPermissions, 1);
+    expect(find.text('PLUGIN WRITE · notes'), findsOneWidget);
+    expect(find.text('1 more waiting'), findsOneWidget);
+    expect(find.text('delete_note'), findsNothing);
 
+    // Each prompt is answered on its own, in arrival order.
     await tester.sendKeyEvent(LogicalKeyboardKey.keyY);
     await tester.pumpAndSettle();
-    // Only the live request is answered; the replaced one is gone.
+    expect(store.pendingPermission?.requestId, 'perm-2');
+    expect(find.text('PLUGIN WRITE · wiki'), findsOneWidget);
+    expect(find.text('{\n  "title": "Old page"\n}'), findsOneWidget);
+    expect(find.text('1 more waiting'), findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+    await tester.pumpAndSettle();
+    expect(store.pendingPermission, isNull);
     expect(core.permissionConfirms, [
-      {'requestId': 'perm-2', 'allow': true},
+      {'requestId': 'perm-1', 'allow': true},
+      {'requestId': 'perm-2', 'allow': false},
     ]);
+  });
+
+  test('an answer after the core stopped waiting says it expired', () async {
+    var now = DateTime.utc(2026, 11, 19, 10);
+    final core = FakeCore();
+    final store = CoreStore(connection: core, clock: () => now);
+    addTearDown(store.dispose);
+    await store.start();
+
+    core.emitPermission(
+      requestId: 'perm-1',
+      server: 'notes',
+      tool: 'write_note',
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(store.pendingPermission?.requestId, 'perm-1');
+
+    // The core denies an unanswered prompt at 120 s and forgets the id. A late
+    // Allow would be acknowledged with `{ok: true}` and look as if it ran.
+    now = now.add(const Duration(seconds: 121));
+    await store.confirmPermission('perm-1', true);
+
+    expect(core.permissionConfirms, isEmpty, reason: 'nothing is sent');
+    expect(store.pendingPermission, isNull);
+    expect(store.error, contains('expired'));
+    expect(store.error, contains('nothing ran'));
   });
 
   testWidgets('the prompt traps j/k so the surface underneath does not move', (

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
 import '../../theme/palette.dart';
@@ -83,6 +84,13 @@ class _SessionsPageState extends State<SessionsPage> {
 
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
+
+  /// The page's own node, where the keyboard returns after the search field.
+  ///
+  /// `unfocus()` moves the keyboard to the enclosing scope, not to this page,
+  /// so after `/`, a query and `Esc` the list's keys were dead and a second
+  /// `Esc` fell through to the shell and left Sessions.
+  final _pageFocus = FocusNode(debugLabel: 'sessions');
   final _rowKeys = <String, GlobalKey>{};
 
   var _selectedIndex = 0;
@@ -113,6 +121,7 @@ class _SessionsPageState extends State<SessionsPage> {
 
   @override
   void dispose() {
+    _pageFocus.dispose();
     _searchController.dispose();
     _searchFocus.dispose();
     super.dispose();
@@ -251,6 +260,9 @@ class _SessionsPageState extends State<SessionsPage> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    // Modified chords belong to the shell's registry (`Ctrl+K` palette,
+    // `Ctrl+R` reconnect). A bare-letter page key must never read them.
+    if (modifierHeld) return KeyEventResult.ignored;
     final typing = _searchFocus.hasFocus;
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.arrowDown ||
@@ -316,7 +328,7 @@ class _SessionsPageState extends State<SessionsPage> {
         (typing || _searchController.text.isNotEmpty)) {
       _searchController.clear();
       setState(() => _selectedIndex = 0);
-      _searchFocus.unfocus();
+      _pageFocus.requestFocus();
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -454,6 +466,7 @@ class _SessionsPageState extends State<SessionsPage> {
         final showDate = constraints.maxWidth >= 700;
         final compact = constraints.maxWidth < 560;
         return Focus(
+          focusNode: _pageFocus,
           autofocus: true,
           onKeyEvent: _onKey,
           child: Padding(
@@ -468,6 +481,9 @@ class _SessionsPageState extends State<SessionsPage> {
                   controller: _searchController,
                   focusNode: _searchFocus,
                   onChanged: _onQueryChanged,
+                  // Enter keeps the query and hands the list its keys back.
+                  onSubmitted: (_) => _pageFocus.requestFocus(),
+                  onTapOutside: (_) => _pageFocus.requestFocus(),
                   decoration: const InputDecoration(
                     hintText: 'search sessions',
                     isDense: true,

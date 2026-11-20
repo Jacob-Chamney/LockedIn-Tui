@@ -120,6 +120,26 @@ void main() {
     expect(find.text('TOKENS'), findsOneWidget);
   });
 
+  testWidgets('a name outranks a hint that merely mentions the query', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    await pressCtrlK(tester);
+
+    // Stats' hint lists `a achievements`, so both rows match `achiev`. The
+    // action whose *name* matches must be the one Enter runs.
+    await tester.enterText(
+      find.byKey(const ValueKey('palette-search')),
+      'achiev',
+    );
+    await tester.pumpAndSettle();
+
+    expect(rowOfText('achievements'), findsOneWidget);
+    expect(inPalette('Stats'), findsOneWidget);
+    expect(rowOfText('Stats'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Esc closes the palette without changing the surface', (
     tester,
   ) async {

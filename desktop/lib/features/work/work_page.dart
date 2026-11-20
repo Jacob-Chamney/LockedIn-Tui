@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
 import '../../theme/palette.dart';
@@ -123,7 +124,15 @@ class _WorkPageState extends State<WorkPage> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    // Modified chords belong to the shell's registry (`Ctrl+K` palette,
+    // `Ctrl+R` reconnect). A bare-letter page key must never read them.
+    if (modifierHeld) return KeyEventResult.ignored;
     final key = event.logicalKey;
+    // While the search field is focused every bare key is text: `n` would
+    // otherwise open the new-project dialog mid-query.
+    if (_searchFocus.hasFocus && key != LogicalKeyboardKey.escape) {
+      return KeyEventResult.ignored;
+    }
     if (key == LogicalKeyboardKey.slash) {
       if (event is KeyDownEvent) _searchFocus.requestFocus();
       return KeyEventResult.handled;
@@ -633,6 +642,9 @@ class _WorkDetailViewState extends State<WorkDetailView> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    // Modified chords belong to the shell's registry (`Ctrl+K` palette,
+    // `Ctrl+R` reconnect). A bare-letter page key must never read them.
+    if (modifierHeld) return KeyEventResult.ignored;
     // A dialog owns the keyboard while it is open.
     if (_dialogOpen) return KeyEventResult.ignored;
     final key = event.logicalKey;
@@ -671,6 +683,16 @@ class _WorkDetailViewState extends State<WorkDetailView> {
       if (event is KeyDownEvent) widget.onRefreshChanges!();
       return KeyEventResult.handled;
     }
+    // `a` comes before the empty-list guard: a brand-new project has no agents,
+    // and that is exactly when its first one has to be creatable. It needs no
+    // selection, so an empty roster does not block it.
+    if (key == LogicalKeyboardKey.keyA &&
+        widget.onSaveAgent != null &&
+        _canEditAgents &&
+        !_savingAgent) {
+      if (event is KeyDownEvent) _createAgent();
+      return KeyEventResult.handled;
+    }
     if (_savingAgent || !_canEditAgents || _agents.isEmpty) {
       return KeyEventResult.ignored;
     }
@@ -686,10 +708,6 @@ class _WorkDetailViewState extends State<WorkDetailView> {
         key == LogicalKeyboardKey.numpadEnter) {
       if (widget.onSaveAgent == null) return KeyEventResult.ignored;
       _editAgent();
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.keyA && widget.onSaveAgent != null) {
-      if (event is KeyDownEvent) _createAgent();
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.keyD && widget.onDeleteAgent != null) {
@@ -1286,8 +1304,8 @@ class _WorkDetailViewState extends State<WorkDetailView> {
               tone: LockedInColors.muted,
               title: 'no project instructions yet',
               body:
-                  'Each agent uses its own instructions. Project-wide '
-                  'instructions are edited in a later packet.',
+                  'Each agent uses its own instructions. Open an agent with '
+                  'Enter to edit its prompt.',
             )
           : Text(
               instructions,
@@ -1541,23 +1559,51 @@ class _WorkDetailViewState extends State<WorkDetailView> {
             _ErrorState(message: _agentError!),
             const SizedBox(height: 10),
           ],
-          if (agents.isEmpty)
+          if (agents.isEmpty) ...[
             _EmptyNote(
               tone: LockedInColors.muted,
               title: 'no agents yet',
               body: editable
-                  ? 'a creates one. A chat project otherwise uses the core '
-                        'default profile.'
+                  ? 'A chat project otherwise uses the core default profile.'
                   : 'A chat project uses the core default profile.',
-            )
-          else
+            ),
+            if (editable) ...[
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton.icon(
+                  key: const ValueKey('work-agent-add'),
+                  onPressed: _savingAgent ? null : _createAgent,
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('add agent'),
+                ),
+              ),
+            ],
+          ] else
             for (var index = 0; index < agents.length; index++)
               _agentRow(agents[index], index, editable: editable),
           if (editable) ...[
             const SizedBox(height: 10),
-            Text(
-              'a new · Enter edit · d delete · m default',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+            // `Wrap`, not `Row`: at 800 px the hint and the button together
+            // are wider than the card, and a `Spacer` cannot shrink text.
+            Wrap(
+              spacing: 10,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  'a new · Enter edit · d delete · m default',
+                  style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+                ),
+                TextButton.icon(
+                  key: const ValueKey('work-agent-add-inline'),
+                  onPressed: _savingAgent ? null : _createAgent,
+                  icon: const Icon(Icons.add, size: 15),
+                  // Not "new agent": that is the editor dialog's title, and
+                  // two widgets with one label make a test tap ambiguous.
+                  label: const Text('add'),
+                ),
+              ],
             ),
           ],
         ],

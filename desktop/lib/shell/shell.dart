@@ -43,7 +43,11 @@ enum Surface {
   sessions('Sessions', Icons.history, '↑↓ move · / search · Esc clear'),
   skills('Skills', Icons.school_outlined, 'Enter open · n new goal · Esc back'),
   sources('Sources', Icons.folder_open_outlined, 'a add · r reload'),
-  stats('Stats', Icons.insights_outlined, 'r range · s scope · x export'),
+  stats(
+    'Stats',
+    Icons.insights_outlined,
+    'r range · s scope · a achievements · x export',
+  ),
   work('Work', Icons.work_outline, 'n new project · Enter open · Esc back'),
   review(
     'Review',
@@ -56,7 +60,7 @@ enum Surface {
     Icons.hub_outlined,
     '/ search · j/k move · Enter open · Esc back',
   ),
-  settings('Settings', Icons.tune, 'connect a model · ↑↓ move');
+  settings('Settings', Icons.tune, '↑↓ move · Enter edit · Esc back');
 
   const Surface(this.label, this.icon, this.hint);
 
@@ -113,15 +117,35 @@ class _ShellState extends State<Shell> {
   /// chord never reaches the surface underneath.
   bool _leaderOpen = false;
 
-  /// The focus that held the keyboard when the leader opened, so closing it (or
-  /// running a chord) returns the user to the page they were on.
-  FocusNode? _focusBeforeLeader;
+  /// The node that held the keyboard before the first overlay opened.
+  ///
+  /// One slot for the palette, the command line and the leader: an overlay
+  /// opened *from* another overlay must return to where the first one came
+  /// from, not to the previous overlay's dead node. It is consumed when the
+  /// last overlay closes.
+  FocusNode? _focusBeforeOverlay;
 
-  /// Bumped whenever a page should start fresh: a surface switch, or an overlay
-  /// action that ran. Pages take focus with `autofocus` on mount, and an overlay
-  /// leaves the keyboard on the shell root, so a remount is how a page-local key
-  /// (`n`, `g`, `/`, `Esc`) works again afterwards.
+  /// The node that held the keyboard before the rail took it.
+  FocusNode? _focusBeforeRail;
+
+  /// A probe around the page: `hasFocus` is true while anything inside the
+  /// page holds the keyboard. It never takes focus itself.
+  final FocusNode _pageProbe = FocusNode(
+    debugLabel: 'page',
+    canRequestFocus: false,
+    skipTraversal: true,
+  );
+
+  /// The last resort for a page nothing can hand the keyboard back to.
+  ///
+  /// Focus is normally *returned* to the node that had it. A page is only
+  /// remounted (so its `autofocus` runs again) when that node is gone and
+  /// nothing in the page holds focus. Remounting on every overlay action, as
+  /// this used to, threw away a half-filled wizard, an unsaved `prompt.md`
+  /// edit, and every list's search and selection.
   int _pageEpoch = 0;
+
+  bool get _overlayOpen => _paletteOpen || _commandOpen || _leaderOpen;
 
   /// The step to land on when a review item names one. Set as the session
   /// opens, consumed by the detail, and cleared by the next plain open so it
@@ -218,6 +242,26 @@ class _ShellState extends State<Shell> {
   /// The focus the rail takes when it is opened from the keyboard.
   final FocusNode _sidebarFocus = FocusNode(debugLabel: 'sidebar');
 
+  /// The cursor row's key, so `j` keeps it on screen in a short rail.
+  final GlobalKey _sidebarCursorKey = GlobalKey(debugLabel: 'sidebar-cursor');
+
+  /// True below 900 px, where the rail is icons whatever the mode says.
+  bool _narrow = false;
+
+  @override
+  void initState() {
+    super.initState();
+    FocusManager.instance.addEarlyKeyEventHandler(_earlyKey);
+  }
+
+  @override
+  void dispose() {
+    FocusManager.instance.removeEarlyKeyEventHandler(_earlyKey);
+    _sidebarFocus.dispose();
+    _pageProbe.dispose();
+    super.dispose();
+  }
+
   /// The Chill composer's unsent text. It lives in the shell because switching
   /// surfaces disposes the page, and a chat-first app must never lose a draft
   /// (the same rule OpenCode's composer follows).
@@ -234,12 +278,6 @@ class _ShellState extends State<Shell> {
   /// `achievements` action) opens it, `Esc` returns to the dashboard, and
   /// leaving Stats collapses it.
   bool _achievementsOpen = false;
-
-  FocusNode? _focusBeforePalette;
-
-  /// The focus that held the keyboard when the command line opened, so closing
-  /// it returns the user to where they were (a page's search field, a list).
-  FocusNode? _focusBeforeCommand;
 
   /// `Ctrl+B` as the registry spells it, for the rail's tooltips.
   String _sidebarToggleLabel(KeymapRegistry keymap) {
@@ -318,12 +356,28 @@ class _ShellState extends State<Shell> {
     if (_insert) setState(() => _insert = false);
   }
 
-  /// `Space e`: expand the rail and give it the keyboard, or shrink it and hand
-  /// the keyboard back. Two states, one switch.
-  void _cycleSidebar() {
+  /// The rail's switch: expand it, or shrink it and hand the keyboard back.
+  ///
+  /// [focus] is true for the chord (`Space e`): a keyboard user who opens the
+  /// rail wants to walk it. The top-bar button passes false — a pointer user
+  /// expanding the rail is about to click, and taking the keyboard there left
+  /// the page unable to accept focus.
+  ///
+  /// Below 900 px the rail is icons whatever the mode says, so the chord only
+  /// moves the keyboard in and out of it and the mode is left alone.
+  void _cycleSidebar({bool focus = true}) {
+    if (_narrow) {
+      if (!focus) return;
+      if (_sidebarFocused) {
+        _leaveSidebar();
+      } else {
+        _focusSidebar();
+      }
+      return;
+    }
     if (_sidebarMode == SidebarMode.icons) {
       setState(() => _sidebarMode = SidebarMode.expanded);
-      _focusSidebar();
+      if (focus) _focusSidebar();
       return;
     }
     setState(() => _sidebarMode = SidebarMode.icons);
@@ -332,13 +386,17 @@ class _ShellState extends State<Shell> {
 
   /// Give the rail the keyboard so `j`/`k`/`Enter` work the moment it opens.
   ///
-  /// The request is repeated once a frame has painted (the `Focus` widget has
-  /// to be in the tree first); the page subtree is excluded from focus while
-  /// the flag is set, so a composer cannot take it back mid-request.
+  /// The request waits for a painted frame (the `Focus` widget has to be in the
+  /// tree first); the page subtree is excluded from focus while the flag is
+  /// set, so a composer cannot take it back mid-request.
   void _focusSidebar() {
+    final current = FocusManager.instance.primaryFocus;
+    if (current != null && current != _sidebarFocus && _inPage(current)) {
+      _focusBeforeRail = current;
+    }
     setState(() => _sidebarFocused = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_sidebarFocused) return;
+      if (!mounted || !_sidebarFocused || _overlayOpen) return;
       if (_sidebarFocus.context == null) return;
       _sidebarFocus.requestFocus();
     });
@@ -346,27 +404,63 @@ class _ShellState extends State<Shell> {
 
   /// Hand the keyboard back to the page, keeping the rail exactly as it is.
   ///
-  /// The page is remounted (the epoch key) because a page takes focus with
-  /// `autofocus` on mount; that is the same rule that gives it focus after an
-  /// overlay action.
-  void _leaveSidebar() {
-    if (!_sidebarFocused) return;
-    setState(() {
-      _sidebarFocused = false;
-      _pageEpoch += 1;
-    });
-    _sidebarFocus.unfocus();
+  /// [restore] is false when the pointer is what took it back: the click itself
+  /// is the focus request, and asking for the previous node afterwards would
+  /// pull the keyboard out of the field the user just clicked.
+  void _leaveSidebar({bool restore = true}) {
+    if (!_sidebarFocused && !_sidebarFocus.hasFocus) return;
+    setState(() => _sidebarFocused = false);
+    final previous = _focusBeforeRail;
+    _focusBeforeRail = null;
+    if (restore) _returnToPage(previous);
   }
 
-  /// Keep the flag honest when the keyboard leaves the rail another way — a
-  /// click into the page, or a layer that takes focus. The next frame re-checks,
-  /// because a transient loss (an epoch remount) must not drop the cursor.
+  /// Keep the flag honest when the keyboard leaves the rail another way. The
+  /// next frame re-checks, because a transient loss must not drop the cursor,
+  /// and an overlay opened from the rail is not a loss at all: the rail gets
+  /// the keyboard back when it closes.
   void _onSidebarFocusChange(bool hasFocus) {
     if (hasFocus || !_sidebarFocused) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_sidebarFocused) return;
+      if (!mounted || !_sidebarFocused || _overlayOpen) return;
       if (FocusManager.instance.primaryFocus == _sidebarFocus) return;
       setState(() => _sidebarFocused = false);
+    });
+  }
+
+  bool _inPage(FocusNode node) => node.ancestors.contains(_pageProbe);
+
+  /// Put the keyboard where it belongs once the current frame has settled.
+  ///
+  /// In order: an open overlay keeps it; a focused rail gets it; [previous] (the
+  /// node that had it before an overlay or the rail) gets it back if it is still
+  /// in the page. Only when none of those apply and nothing in the page holds
+  /// focus is the page remounted so its `autofocus` runs again.
+  void _returnToPage([FocusNode? previous]) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _overlayOpen) return;
+      if (CoreScope.of(context).pendingPermission != null) return;
+      if (_sidebarFocused) {
+        if (_sidebarFocus.context != null) _sidebarFocus.requestFocus();
+        return;
+      }
+      final target = previous ?? _focusBeforeOverlay;
+      _focusBeforeOverlay = null;
+      if (target != null &&
+          target != _sidebarFocus &&
+          target.context != null &&
+          target.canRequestFocus &&
+          _inPage(target)) {
+        target.requestFocus();
+        return;
+      }
+      // A page mounted in this frame takes focus with `autofocus`, which the
+      // focus manager applies in a microtask after the frame. Look afterwards.
+      scheduleMicrotask(() {
+        if (!mounted || _overlayOpen || _sidebarFocused) return;
+        if (_pageProbe.hasFocus) return;
+        setState(() => _pageEpoch += 1);
+      });
     });
   }
 
@@ -384,6 +478,18 @@ class _ShellState extends State<Shell> {
     final last = _sidebarTargets.length - 1;
     setState(() {
       _sidebarCursor = (_sidebarCursor + delta).clamp(0, last);
+    });
+    // The rail scrolls when it is taller than the window, so the cursor must
+    // follow the picture: `j` past Archive used to walk off the bottom.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = _sidebarCursorKey.currentContext;
+      if (target == null) return;
+      Scrollable.ensureVisible(
+        target,
+        alignment: 0.5,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+      );
     });
   }
 
@@ -454,13 +560,20 @@ class _ShellState extends State<Shell> {
     if (_commandOpen) _closeCommandLine();
     if (_surface == surface) {
       // Same surface: the page is still the destination, but it should be the
-      // thing holding the keyboard again.
+      // thing holding the keyboard again, in NORMAL.
       if (_leaderOpen) _closeLeader();
-      setState(() => _pageEpoch += 1);
+      setState(() {
+        _sidebarFocused = false;
+        _insert = false;
+      });
+      _returnToPage();
       return;
     }
     setState(() {
       _surface = surface;
+      // Navigating gives the keyboard to the page that opens.
+      _sidebarFocused = false;
+      _focusBeforeRail = null;
       // The next surface starts in NORMAL and reports INSERT itself when its
       // composer takes focus.
       _insert = false;
@@ -617,48 +730,40 @@ class _ShellState extends State<Shell> {
     return binding.alt ? binding.key : binding.display;
   }
 
+  /// Remember who had the keyboard before the first overlay took it.
+  void _rememberFocus() {
+    if (_overlayOpen) return;
+    final current = FocusManager.instance.primaryFocus;
+    _focusBeforeOverlay = current != null && _inPage(current) ? current : null;
+  }
+
   void _openPalette() {
     if (_paletteOpen) return;
-    _focusBeforePalette = FocusManager.instance.primaryFocus;
+    _rememberFocus();
     setState(() => _paletteOpen = true);
   }
 
   void _closePalette() {
     if (!_paletteOpen) return;
     setState(() => _paletteOpen = false);
-    final previous = _focusBeforePalette;
-    _focusBeforePalette = null;
-    if (previous == null) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // The node may have left the tree with its surface; a dead node keeps no
-      // context and is simply skipped.
-      if (previous.context != null) previous.requestFocus();
-    });
+    _returnToPage();
   }
 
   void _runAction(PaletteAction action) {
     _closePalette();
     action.run();
-    if (!_sidebarFocused) setState(() => _pageEpoch += 1);
   }
 
   void _openCommandLine() {
     if (_commandOpen) return;
-    _focusBeforeCommand = FocusManager.instance.primaryFocus;
+    _rememberFocus();
     setState(() => _commandOpen = true);
   }
 
   void _closeCommandLine() {
     if (!_commandOpen) return;
     setState(() => _commandOpen = false);
-    final previous = _focusBeforeCommand;
-    _focusBeforeCommand = null;
-    if (previous == null) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // The node may have left the tree with its surface; a dead node keeps no
-      // context and is simply skipped.
-      if (previous.context != null) previous.requestFocus();
-    });
+    _returnToPage();
   }
 
   /// Run one command: dismiss the line first, then dispatch the registry action.
@@ -687,35 +792,24 @@ class _ShellState extends State<Shell> {
 
   void _openLeader() {
     if (_leaderOpen) return;
-    // Remember the page's focus node: the overlay takes the keyboard, and the
-    // page has to get it back or its own keys (Enter, /, g, Esc) stop working.
-    _focusBeforeLeader = FocusManager.instance.primaryFocus;
+    _rememberFocus();
     setState(() => _leaderOpen = true);
   }
 
   void _closeLeader() {
     if (!_leaderOpen) return;
     setState(() => _leaderOpen = false);
-    final previous = _focusBeforeLeader;
-    _focusBeforeLeader = null;
-    if (previous == null) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // The rail can be the node the overlay took focus from, and the chord
-      // that follows may have shrunk it. Restoring focus to a closed rail would
-      // leave its keys live without its cursor.
-      if (previous == _sidebarFocus && !_sidebarFocused) return;
-      if (previous.context != null) previous.requestFocus();
-    });
+    _returnToPage();
   }
 
   void _runLeaderRow(KeymapRow row) {
+    // `?` and the two leader rows *are* this overlay: running one from inside
+    // it would close and reopen the same table for nothing.
+    if (row.id == 'leader' || row.id == 'leader-alt' || row.id == 'help') {
+      return;
+    }
     _closeLeader();
     _dispatchAction(row.id);
-    // A row that did not change surface (refresh, retry) still has to hand the
-    // keyboard back to the page. The sidebar row is the exception: it just
-    // asked the rail to take the keyboard, and remounting the page here would
-    // autofocus it straight back.
-    if (!_sidebarFocused) setState(() => _pageEpoch += 1);
   }
 
   /// Open the Achievements layer over Stats.
@@ -796,31 +890,56 @@ class _ShellState extends State<Shell> {
         unawaited(store.refreshWorkChanges(projectId));
       case 'work-swarms':
         _select(Surface.work);
-        if (store.activeProjectId == null) return;
-        setState(() {
-          _swarmOpen = true;
-          _workChatOpen = false;
-          _workApprovalsOpen = false;
-          _workActivityOpen = false;
-        });
+        final swarmProject = store.activeProjectId;
+        if (swarmProject == null) return;
+        // Opens the board's newest run as well as the layer: setting the flag
+        // alone left `activeSwarm` null, so the page showed its empty card even
+        // when runs existed.
+        unawaited(_openSwarm(store, swarmProject));
       case 'work-chats':
         _select(Surface.work);
         final chatProject = store.activeProjectId;
         if (chatProject == null) return;
+        // Collapse the sibling layers first, or `_work()` keeps rendering the
+        // board/approvals/activity the chord was meant to leave.
+        setState(() {
+          _workApprovalsOpen = false;
+          _swarmOpen = false;
+          _workActivityOpen = false;
+        });
         unawaited(_openWorkChat(store, chatProject));
       case 'flashcards':
         // With a session open the deck is one chord away; without one the
         // sessions manager is where a session comes from, which is what the
-        // context-aware rule asks for (`docs/product.md` §5.4).
+        // context-aware rule asks for (`docs/product.md` §5.4). The surface is
+        // selected either way: the deck is a layer of Sessions, so from Chill
+        // the chord used to change nothing on screen.
         final id = store.activeSessionId;
-        if (id == null) {
-          _select(Surface.sessions);
-        } else {
-          unawaited(store.readOutput(id, 'flashcards'));
-        }
+        _select(Surface.sessions);
+        setState(() {
+          _sessionChatOpen = false;
+          _sessionSettingsOpen = false;
+          _wizardOpen = false;
+        });
+        if (id != null) unawaited(store.readOutput(id, 'flashcards'));
       case 'close':
         _closeLayer();
     }
+  }
+
+  /// The review queue's step, consumed by the first build of the detail.
+  ///
+  /// The value used to be passed on every build, so every remount of the detail
+  /// (back from chat, settings or an output) jumped back to that step.
+  int? _stepToLandOn() {
+    final step = _initialStep;
+    if (step == null) return null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _initialStep == step) {
+        setState(() => _initialStep = null);
+      }
+    });
+    return step;
   }
 
   /// Close one layer: an overlay first, then the surface back to chat.
@@ -843,6 +962,21 @@ class _ShellState extends State<Shell> {
     if (_surface != Surface.chat) _select(Surface.chat);
   }
 
+  /// The transcript the status bar should report: whichever chat is on screen.
+  ChatSnapshot? _visibleChat(CoreStore store) {
+    if (_surface == Surface.sessions &&
+        (_sessionChatOpen || store.outputKind == 'flashcards')) {
+      return store.sessionChat;
+    }
+    if (_surface == Surface.skills && _skillChatOpen) {
+      return store.skillChat;
+    }
+    if (_surface == Surface.work && _workChatOpen) {
+      return store.workChat;
+    }
+    return store.chat;
+  }
+
   /// True when the focused widget is an editable text field.
   ///
   /// A bare chord (a character, or `Space`) is `INPUT` while the user is typing:
@@ -859,32 +993,60 @@ class _ShellState extends State<Shell> {
   /// Root-level key resolution through the registry, so a focused composer or
   /// search field cannot swallow a modifier chord and no second key list exists.
   KeyEventResult _rootKey(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-      return KeyEventResult.ignored;
-    }
+    // One press, one action. Auto-repeat used to re-dispatch: a held `Esc`
+    // closed Achievements and then left Stats as well, and a held `Ctrl+R`
+    // restarted the core over and over.
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
     // An overlay owns the keyboard: its own handler runs first, and the surface
     // underneath must not also act on the same press. A pending plugin write
     // prompt is the strictest case: the core is waiting on that answer.
-    if (_paletteOpen ||
-        _commandOpen ||
-        _leaderOpen ||
-        CoreScope.of(context).pendingPermission != null) {
+    if (_overlayOpen || CoreScope.of(context).pendingPermission != null) {
       return KeyEventResult.ignored;
     }
     final row = _keymap(CoreScope.of(context)).resolve(event);
     if (row == null) return KeyEventResult.ignored;
-    // `:` is the one bare chord that still fires over a page's text field: a
-    // focused search box must not swallow the command line (the palette solves
-    // the same problem with Ctrl+K, a modified chord). A chat composer is the
-    // exception — it reports INSERT, and there `:` is a character to type.
-    if (row.id == 'commands' && !_insert) {
-      _dispatchAction(row.id);
+    final typing = _insert || _editingText();
+    // `Esc` in a text field nobody else claimed leaves the field, not the
+    // surface: the keyboard goes back to the page, which is NORMAL mode.
+    if (row.id == 'close' && typing) {
+      FocusManager.instance.primaryFocus?.unfocus(
+        disposition: UnfocusDisposition.previouslyFocusedChild,
+      );
+      if (_insert) setState(() => _insert = false);
       return KeyEventResult.handled;
     }
-    // A bare chord only fires in NORMAL mode with no text field focused.
-    if (!row.binding.hasModifier && (_insert || _editingText())) {
+    // A bare chord only fires in NORMAL mode with no text field focused. That
+    // includes `:`: opening the command line from a text field meant a colon
+    // could not be typed into the lock-in instructions or a goal.
+    if (!row.binding.hasModifier && typing) return KeyEventResult.ignored;
+    _dispatchAction(row.id);
+    return KeyEventResult.handled;
+  }
+
+  /// Modified chords (`Ctrl+K`, `Ctrl+R`) resolve before any page sees them.
+  ///
+  /// A page's `Focus` handler runs before the shell's root handler, and every
+  /// page reads bare letters: `Ctrl+K` was `k` to them. On Review and the deck
+  /// that marked an item *known* on disk instead of opening the palette. An
+  /// early handler runs ahead of the focus tree, so the registry's modified
+  /// chords win everywhere, and a chord the registry does not bind (`Ctrl+S`,
+  /// `Ctrl+C`) is left for the page and the platform.
+  KeyEventResult _earlyKey(KeyEvent event) {
+    if (event is! KeyDownEvent || !mounted) return KeyEventResult.ignored;
+    final keyboard = HardwareKeyboard.instance;
+    if (!keyboard.isControlPressed && !keyboard.isAltPressed) {
       return KeyEventResult.ignored;
     }
+    // A dialog route owns its keys; so does an overlay or a consent prompt.
+    if (!(ModalRoute.of(context)?.isCurrent ?? true)) {
+      return KeyEventResult.ignored;
+    }
+    final store = CoreScope.of(context);
+    if (_overlayOpen || store.pendingPermission != null) {
+      return KeyEventResult.ignored;
+    }
+    final row = _keymap(store).resolve(event);
+    if (row == null || !row.binding.hasModifier) return KeyEventResult.ignored;
     _dispatchAction(row.id);
     return KeyEventResult.handled;
   }
@@ -894,7 +1056,8 @@ class _ShellState extends State<Shell> {
     final width = MediaQuery.sizeOf(context).width;
     // Below 900 px the rail is icons whatever the mode says: the labels do not
     // fit, and a narrow window still needs its navigation.
-    final compact = width < 900 || _sidebarMode == SidebarMode.icons;
+    _narrow = width < 900;
+    final compact = _narrow || _sidebarMode == SidebarMode.icons;
     final store = CoreScope.of(context);
     final keymap = _keymap(store);
     final pending = store.pendingPermission;
@@ -921,13 +1084,15 @@ class _ShellState extends State<Shell> {
                   store: store,
                   sidebar: _sidebarMode,
                   toggleHint: _sidebarToggleLabel(keymap),
-                  onToggleSidebar: _cycleSidebar,
+                  // The button resizes; only the chord also takes the keys.
+                  onToggleSidebar: () => _cycleSidebar(focus: false),
                   onOpenSettings: _openSettings,
                 ),
                 Expanded(
                   child: Row(
                     children: [
                       _Sidebar(
+                        cursorKey: _sidebarCursorKey,
                         focusNode: _sidebarFocus,
                         onKey: _sidebarKey,
                         onFocusChange: _onSidebarFocusChange,
@@ -957,11 +1122,22 @@ class _ShellState extends State<Shell> {
                         // leader's focus restore both run in the same frame,
                         // and a request that lands second would steal the rail
                         // mid-chord.
-                        child: ExcludeFocus(
-                          excluding: _sidebarFocused,
-                          child: KeyedSubtree(
-                            key: ValueKey('page-$_pageEpoch'),
-                            child: _body(store, keymap),
+                        // `_pageProbe` never takes focus; it only answers
+                        // "is the keyboard somewhere in the page". A click in
+                        // the page is the pointer's way of saying "here", so it
+                        // releases the rail and lets the click itself focus.
+                        child: Listener(
+                          onPointerDown: (_) {
+                            if (_sidebarFocused) {
+                              _leaveSidebar(restore: false);
+                            }
+                          },
+                          child: Focus(
+                            focusNode: _pageProbe,
+                            child: KeyedSubtree(
+                              key: ValueKey('page-$_pageEpoch'),
+                              child: _body(store, keymap),
+                            ),
                           ),
                         ),
                       ),
@@ -969,7 +1145,9 @@ class _ShellState extends State<Shell> {
                   ),
                 ),
                 _StatusBar(
-                  store: store,
+                  // The tokens and cost belong to the transcript on screen,
+                  // not always to Chill's.
+                  chat: _visibleChat(store),
                   insert: _insert,
                   label: _statusLabel(store),
                   hint: _statusHint(store, keymap),
@@ -1011,6 +1189,7 @@ class _ShellState extends State<Shell> {
                 child: PluginPermissionModal(
                   key: ValueKey('plugin-permission-${pending.requestId}'),
                   request: pending,
+                  queued: store.queuedPermissions,
                   error: store.pluginPermissionError,
                   onConfirm: (allow) =>
                       store.confirmPermission(pending.requestId, allow),
@@ -1095,11 +1274,16 @@ class _ShellState extends State<Shell> {
             'r refresh · Esc back';
       }
       if (_workApprovalsOpen) {
-        return '↑↓ move · Space hunk · y approve · n reject · Esc back';
+        return store.lastCommandOutcome != null
+            ? '↑↓ move · Space hunk · y approve · n reject · x dismiss result · '
+                  'Esc back'
+            : '↑↓ move · Space hunk · y approve · n reject · Esc back';
       }
+      // The project page's own keys: the statusline is where a keyboard user
+      // looks first, and `Esc back` alone hid all of them.
       return _workChatOpen
           ? 'Enter send · Shift+Enter newline · Esc back'
-          : 'Esc back';
+          : 'c chat · p approvals · w swarm · l activity · r refresh · Esc back';
     }
     if (_surface == Surface.skills) {
       if (_goalWizardOpen) return 'Tab next · Enter continue · Esc back';
@@ -1160,7 +1344,7 @@ class _ShellState extends State<Shell> {
             : StatsPage(
                 summary: store.stats,
                 loading: store.status == CoreStatus.connecting,
-                error: store.status == CoreStatus.failed ? store.error : null,
+                error: store.error,
                 onRetry: store.retry,
                 range: store.stats?.range ?? 'all',
                 scope: store.stats?.scope ?? 'all',
@@ -1235,7 +1419,7 @@ class _ShellState extends State<Shell> {
         settings: store.settings,
         loading:
             store.status == CoreStatus.connecting && store.settings == null,
-        error: store.status == CoreStatus.failed ? store.error : null,
+        error: store.error,
         onRefresh: store.refreshSettings,
         providers: store.providers,
         providersError: store.providersError,
@@ -1397,7 +1581,7 @@ class _ShellState extends State<Shell> {
         sessions: store.sessions,
         loading:
             store.status == CoreStatus.connecting && store.sessions.isEmpty,
-        error: store.status == CoreStatus.failed ? store.error : null,
+        error: store.error,
         onRefresh: store.refreshSessions,
         onCreate: () => setState(() {
           _wizardOpen = true;
@@ -1491,7 +1675,7 @@ class _ShellState extends State<Shell> {
       return SessionDetailView(
         detail: active,
         // Consumed once: a later open of the same session starts at step 0.
-        initialStep: _initialStep,
+        initialStep: _stepToLandOn(),
         loading: store.status == CoreStatus.connecting,
         error: store.error,
         coverage: store.coverage,
@@ -1870,6 +2054,8 @@ class _ShellState extends State<Shell> {
         onDecideCommand: projectId == null
             ? null
             : (id, decision) => store.decideCommand(id, decision),
+        lastCommand: store.lastCommandOutcome,
+        onDismissLastCommand: store.dismissCommandOutcome,
       );
     }
     if (_workChatOpen && chatId != null) {
@@ -2122,7 +2308,13 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          _CoreChip(store: store, onOpenSettings: onOpenSettings),
+          // The badge may shrink; the breadcrumb keeps its space.
+          Flexible(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: _CoreChip(store: store, onOpenSettings: onOpenSettings),
+            ),
+          ),
         ],
       ),
     );
@@ -2187,9 +2379,15 @@ class _CoreChip extends StatelessWidget {
             children: [
               Icon(icon, size: 14, color: color),
               const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+              // A long model id must give way, not overflow the top bar: the
+              // badge is the last thing before the window edge.
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+                ),
               ),
             ],
           ),
@@ -2244,6 +2442,7 @@ const _sidebarGroups = <_SidebarGroup>[
 class _Sidebar extends StatelessWidget {
   const _Sidebar({
     required this.compact,
+    required this.cursorKey,
     required this.active,
     required this.footer,
     required this.shortcuts,
@@ -2305,6 +2504,18 @@ class _Sidebar extends StatelessWidget {
 
   final ValueChanged<Surface> onSelect;
 
+  /// The cursor row's key, owned by the shell so `j` can scroll it into view.
+  final GlobalKey cursorKey;
+
+  /// Every destination in the order the rail draws them, then Settings.
+  static final _entries = <_SidebarEntry>[
+    for (final group in _sidebarGroups) ...group.$2,
+  ];
+
+  /// The keyboard cursor's index for a drawn row: its position in [_entries],
+  /// and `_entries.length` for the pinned Settings row.
+  static int _indexOf(_SidebarEntry entry) => _entries.indexOf(entry);
+
   String _countFor(_SidebarEntry entry) => switch (entry) {
     _SurfaceEntry(:final surface) => counts[surface] ?? '',
     _AchievementsEntry() => achievements,
@@ -2324,9 +2535,6 @@ class _Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // The cursor counts the surface rows, then the Achievements row.
-    var row = -1;
-    int nextRow() => ++row;
     final body = Container(
       width: compact ? 64 : 208,
       color: LockedInColors.surface,
@@ -2363,7 +2571,10 @@ class _Sidebar extends StatelessWidget {
                     if (group.$1 == null && !compact) const SizedBox(height: 4),
                     for (final entry in group.$2)
                       _SidebarRow(
-                        cursor: focused && nextRow() == cursor,
+                        key: focused && _indexOf(entry) == cursor
+                            ? cursorKey
+                            : null,
+                        cursor: focused && _indexOf(entry) == cursor,
                         label: switch (entry) {
                           _SurfaceEntry(:final surface) => surface.label,
                           _AchievementsEntry() => 'Achievements',
@@ -2373,7 +2584,9 @@ class _Sidebar extends StatelessWidget {
                           _AchievementsEntry() => Icons.emoji_events_outlined,
                         },
                         count: compact ? '' : _countFor(entry),
-                        shortcut: compact ? '' : _shortcutFor(entry),
+                        // The chord stays in the tooltip in the icon rail: it
+                        // is the only place a keyboard user can learn it there.
+                        shortcut: _shortcutFor(entry),
                         selected: _selected(entry),
                         compact: compact,
                         onTap: switch (entry) {
@@ -2414,11 +2627,12 @@ class _Sidebar extends StatelessWidget {
               child: Container(height: 1, color: LockedInColors.line),
             ),
           _SidebarRow(
-            cursor: focused && nextRow() == cursor,
+            key: focused && cursor == _entries.length ? cursorKey : null,
+            cursor: focused && cursor == _entries.length,
             label: Surface.settings.label,
             icon: Surface.settings.icon,
             count: '',
-            shortcut: compact ? '' : (shortcuts[Surface.settings] ?? ''),
+            shortcut: shortcuts[Surface.settings] ?? '',
             selected: active == Surface.settings,
             compact: compact,
             onTap: () => onSelect(Surface.settings),
@@ -2517,6 +2731,7 @@ class _RecentItem extends StatelessWidget {
 /// now sits next to the label and the digit sits in a bordered keycap.
 class _SidebarRow extends StatelessWidget {
   const _SidebarRow({
+    super.key,
     required this.label,
     required this.icon,
     required this.count,
@@ -2572,65 +2787,82 @@ class _SidebarRow extends StatelessWidget {
                   color: cursor ? LockedInColors.accent : Colors.transparent,
                 ),
               ),
-              child: Row(
-                mainAxisAlignment: compact
-                    ? MainAxisAlignment.center
-                    : MainAxisAlignment.start,
+              // The active destination keeps its accent bar pinned to the row's
+              // left edge in both rail widths; the keyboard cursor is the
+              // outline above, so the two never collide. The bar is a layer
+              // (not a row child) so a centred icon stays centred beside it.
+              child: Stack(
                 children: [
-                  // The active destination keeps its accent bar; the keyboard
-                  // cursor is the outline above, so the two never collide.
-                  Container(
-                    width: 2,
-                    height: 40,
-                    color: selected
-                        ? LockedInColors.primary
-                        : Colors.transparent,
-                  ),
-                  Icon(
-                    icon,
-                    size: 18,
-                    color: selected
-                        ? LockedInColors.primary
-                        : LockedInColors.muted,
-                  ),
-                  if (!compact) ...[
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: selected
-                              ? LockedInColors.foreground
-                              : LockedInColors.muted,
-                          fontWeight: selected
-                              ? FontWeight.w600
-                              : FontWeight.w400,
-                        ),
+                  if (selected)
+                    Positioned(
+                      left: 0,
+                      top: 6,
+                      bottom: 6,
+                      child: Container(width: 2, color: LockedInColors.primary),
+                    ),
+                  Positioned.fill(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: compact ? 0 : 10,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: compact
+                            ? MainAxisAlignment.center
+                            : MainAxisAlignment.start,
+                        children: [
+                          Icon(
+                            icon,
+                            size: 18,
+                            color: selected
+                                ? LockedInColors.primary
+                                : LockedInColors.muted,
+                          ),
+                          if (!compact) ...[
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: selected
+                                      ? LockedInColors.foreground
+                                      : LockedInColors.muted,
+                                  fontWeight: selected
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                ),
+                              ),
+                            ),
+                            // The size sits in a fixed, right-aligned column. The
+                            // chord is not drawn here on purpose: beside a count it read
+                            // as a second count ("Sessions 3 2"). It stays in the
+                            // tooltip, the palette and the footer summary, which is
+                            // where a keyboard user looks for a binding.
+                            if (count.isNotEmpty)
+                              SizedBox(
+                                width: 30,
+                                child: Text(
+                                  count,
+                                  key: ValueKey(
+                                    'sidebar-count-${label.toLowerCase()}',
+                                  ),
+                                  textAlign: TextAlign.right,
+                                  maxLines: 1,
+                                  style: TextStyle(
+                                    color: LockedInColors.muted,
+                                    fontSize: 11,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ],
                       ),
                     ),
-                    // The size sits in a fixed, right-aligned column. The
-                    // chord is not drawn here on purpose: beside a count it read
-                    // as a second count ("Sessions 3 2"). It stays in the
-                    // tooltip, the palette and the footer summary, which is
-                    // where a keyboard user looks for a binding.
-                    if (count.isNotEmpty)
-                      SizedBox(
-                        width: 30,
-                        child: Text(
-                          count,
-                          key: ValueKey('sidebar-count-${label.toLowerCase()}'),
-                          textAlign: TextAlign.right,
-                          maxLines: 1,
-                          style: TextStyle(
-                            color: LockedInColors.muted,
-                            fontSize: 11,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                        ),
-                      ),
-                  ],
+                  ),
                 ],
               ),
             ),
@@ -2643,14 +2875,15 @@ class _SidebarRow extends StatelessWidget {
 
 class _StatusBar extends StatelessWidget {
   const _StatusBar({
-    required this.store,
+    required this.chat,
     required this.insert,
     required this.label,
     required this.hint,
     required this.helpKey,
   });
 
-  final CoreStore store;
+  /// The transcript the bar reports usage for: the one on screen.
+  final ChatSnapshot? chat;
   final bool insert;
 
   /// The scope name: the surface label, or `SESSION` / `SESSION CHAT` inside a
@@ -2664,7 +2897,7 @@ class _StatusBar extends StatelessWidget {
   final String helpKey;
 
   String _usageLabel() {
-    final chat = store.chat;
+    final chat = this.chat;
     if (chat == null) return '0 tok · cost unknown · $helpKey help';
     final tokens = chat.usage.tokens;
     final compact = tokens >= 1000000

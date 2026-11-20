@@ -453,6 +453,72 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Enter on the chat model row opens the connect dialog', (
+    tester,
+  ) async {
+    await pumpPage(
+      tester,
+      SettingsPage(
+        settings: emptySettings(),
+        loading: false,
+        providers: _providers,
+        onLoadProviders: () async => _providers,
+        onLinkProvider: (providerId, key, baseUrl) async => ProviderLink(
+          providerId: providerId,
+          models: const ['gpt-4.1-mini'],
+          secretRef: 'lockedin/openai',
+        ),
+        onSaveSettings: (patch) async {},
+      ),
+      size: const Size(1280, 900),
+    );
+
+    // chat model is the third row: the dialog must not need a pointer.
+    await tester.sendKeyEvent(LogicalKeyboardKey.home);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(markedRow('chat-model'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('settings-provider-key')), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    // The providers row has the same pointer path as every other control.
+    await tester.tap(find.byKey(const ValueKey('settings-activate-providers')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('settings-provider-key')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('every value starts in the same column', (tester) async {
+    await pumpPage(
+      tester,
+      SettingsPage(
+        settings: emptySettings(),
+        loading: false,
+        onSaveSettings: (patch) async {},
+      ),
+    );
+
+    // `chat model` has no editor and `base URL` has one; both read `not set`.
+    // A row without a control used to reserve a narrower trailing column, so
+    // its value sat 11 px to the right of its neighbour's.
+    final values = find.text('not set');
+    expect(values, findsWidgets);
+    final rights = {
+      for (final element in values.evaluate())
+        tester.getTopRight(find.byWidget(element.widget)).dx.round(),
+    };
+    expect(rights, hasLength(1), reason: 'values share one right edge');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('use this model saves the provider/model pair', (tester) async {
     Map<String, dynamic>? saved;
     await pumpPage(

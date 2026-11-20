@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../theme/palette.dart';
 import '../chat/document_search.dart';
@@ -250,6 +251,9 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    // Modified chords belong to the shell's registry (`Ctrl+K` palette,
+    // `Ctrl+R` reconnect). A bare-letter page key must never read them.
+    if (modifierHeld) return KeyEventResult.ignored;
     final key = event.logicalKey;
     // `/` opens the search; while its field is focused bare keys are text, so
     // the reader's own bindings resume after Enter hands the keyboard back.

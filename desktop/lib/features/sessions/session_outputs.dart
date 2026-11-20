@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../keys.dart';
 import '../../bridge/protocol.dart';
 import '../../effects/effect.dart';
 import '../../theme/palette.dart';
@@ -513,6 +514,9 @@ class _SessionOutputViewState extends State<SessionOutputView> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    // Modified chords belong to the shell's registry (`Ctrl+K` palette,
+    // `Ctrl+R` reconnect). A bare-letter page key must never read them.
+    if (modifierHeld) return KeyEventResult.ignored;
     final key = event.logicalKey;
     // `/` opens the in-document search. While its field is focused bare keys
     // are text, so the deck keys resume only after Enter or Esc.
@@ -753,9 +757,8 @@ class _SessionOutputViewState extends State<SessionOutputView> {
         if (_isDeck) ...[
           const SizedBox(height: 14),
           Text(
-            'Read-only deck. Flipping a card and marking it known or missed is '
-            'a later packet; this view renders the deck exactly as it was '
-            'built.',
+            'Tab flips a card; k marks it known and m missed. The deck is '
+            'written back to the session, so a mark survives a restart.',
             style: TextStyle(
               color: LockedInColors.muted,
               fontSize: 11,

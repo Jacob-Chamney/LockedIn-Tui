@@ -170,6 +170,13 @@ void main() {
       findsOneWidget,
     );
 
+    // The composer holds the keyboard after a send: the first Esc leaves
+    // INSERT, the second leaves the chat.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('work-chat-composer')), findsOneWidget);
+    expect(find.text('NORMAL'), findsOneWidget);
+
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
 
@@ -241,10 +248,22 @@ void main() {
     await tester.pump();
     expect(find.text('INSERT'), findsOneWidget);
 
+    // Esc leaves INSERT and the chat stays; `i` returns to the composer, and
+    // an Esc from NORMAL is the way back to the project.
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     expect(find.text('INSERT'), findsNothing);
     expect(find.text('NORMAL'), findsOneWidget);
+    expect(find.text('PROJECT CHAT'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyI);
+    await tester.pumpAndSettle();
+    expect(find.text('INSERT'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
     expect(find.text('PROJECT'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

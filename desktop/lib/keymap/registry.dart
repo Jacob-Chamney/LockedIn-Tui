@@ -463,16 +463,16 @@ const workChangesAction = ActionSpec(
   defaultBinding: Binding.leader('d'),
 );
 
-/// The sidebar toggle.
+/// The sidebar switch.
 ///
-/// One key cycles expanded → icons → hidden, which is the desktop reading of the
-/// TUI's hidden-by-default explorer (`docs/design.md` §2.4). It is a shell
+/// Two states, not three: expanded or the icon rail. There is no hidden state,
+/// because a desktop window with no navigation is a dead end. It is a shell
 /// action rather than a surface switch, so it lives beside `achievements` and
 /// not in [surfaceActionIds].
 const sidebarAction = ActionSpec(
   id: 'sidebar',
   label: 'sidebar',
-  hint: 'cycle expanded, icons, hidden',
+  hint: 'expand the rail, or shrink it to icons',
   group: ActionGroup.global,
   defaultBinding: Binding.leader('e'),
 );

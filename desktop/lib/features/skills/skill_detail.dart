@@ -4,10 +4,12 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
 import '../../theme/palette.dart';
 import '../chat/markdown.dart';
+import '../chat/transcript_scroll.dart';
 
 /// Returns the files the user chose, or an empty list when they cancelled.
 typedef SkillSourcePicker = Future<List<String>> Function();
@@ -147,6 +149,15 @@ class SkillDetailView extends StatefulWidget {
 }
 
 class _SkillDetailViewState extends State<SkillDetailView> {
+  /// The chapter reader's scroll position.
+  final _chapterScroll = ScrollController();
+
+  @override
+  void dispose() {
+    _chapterScroll.dispose();
+    super.dispose();
+  }
+
   static const _selectedChapterKey = ValueKey('skill-chapter-selected');
   static const _selectedStageKey = ValueKey('skill-stage-selected');
 
@@ -623,15 +634,22 @@ class _SkillDetailViewState extends State<SkillDetailView> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    // Modified chords belong to the shell's registry (`Ctrl+K` palette,
+    // `Ctrl+R` reconnect). A bare-letter page key must never read them.
+    if (modifierHeld) return KeyEventResult.ignored;
     final key = event.logicalKey;
 
-    // The reader is one layer above the goal page: `Esc` closes it first.
+    // The reader is one layer above the goal page: `Esc` closes it, and the
+    // scroll keys move the text. Everything else is left to the shell, so the
+    // leader and `?` keep working while a chapter is open.
     if (widget.chapterOpen) {
       if (key == LogicalKeyboardKey.escape) {
         if (widget.onCloseChapter == null) return KeyEventResult.ignored;
         widget.onCloseChapter!();
         return KeyEventResult.handled;
       }
+      final scrolled = scrollKey(_chapterScroll, event);
+      if (scrolled != null) return scrolled;
       return KeyEventResult.ignored;
     }
 
@@ -1319,8 +1337,8 @@ class _SkillDetailViewState extends State<SkillDetailView> {
               tone: LockedInColors.warning,
               title: 'no chapters yet',
               body:
-                  'This course has no lesson files. A later packet builds the '
-                  'curriculum; nothing is generated here.',
+                  'This course has no lesson files. Rebuild the goal from the '
+                  'Goals list to generate a plan; nothing is generated here.',
             )
           else
             for (var index = 0; index < chapters.length; index++)
@@ -1697,6 +1715,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
       );
     }
     return ListView(
+      controller: _chapterScroll,
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
       children: [
         Center(

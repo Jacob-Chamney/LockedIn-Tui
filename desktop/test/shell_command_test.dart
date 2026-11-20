@@ -252,7 +252,7 @@ void main() {
     );
   });
 
-  testWidgets('colon still opens after a feature page field takes focus', (
+  testWidgets('a colon typed into a page text field is a character', (
     tester,
   ) async {
     await pumpShell(tester);
@@ -269,16 +269,17 @@ void main() {
 
     await pressColon(tester);
 
-    expect(find.byType(CommandLine), findsOneWidget);
-    expect(find.byKey(const ValueKey('command-input')), findsOneWidget);
-    // The field did not swallow the key: the line owns the keyboard now, so a
-    // typed command lands in the line, not in the search box underneath.
-    await tester.enterText(
-      find.byKey(const ValueKey('command-input')),
-      'stats',
-    );
+    // Bare chords are NORMAL-mode keys. Opening the command line from a text
+    // field meant "Task 1: …" could not be typed into the lock-in
+    // instructions; `Ctrl+K` is the chord that works from inside a field.
+    expect(find.byType(CommandLine), findsNothing);
+
+    // Esc leaves the field, and the same key is then a command again.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
-    expect(inSelectedRow('stats'), findsOneWidget);
+    await pressColon(tester);
+    expect(find.byType(CommandLine), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('the palette lists the command line as a real action', (

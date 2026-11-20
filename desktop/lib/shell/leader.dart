@@ -57,18 +57,31 @@ class _LeaderOverlayState extends State<LeaderOverlay> {
     super.dispose();
   }
 
+  /// The rows in the order they are drawn: grouped by [ActionGroup], and the
+  /// catalogue order inside a group.
+  ///
+  /// Selection used to index the catalogue while the list drew groups, so `↓`
+  /// from a row could jump to the bottom of the overlay and back.
+  List<KeymapRow> get _displayRows => [
+    for (final group in ActionGroup.values)
+      for (final row in widget.rows)
+        if (row.group == group) row,
+  ];
+
   int get _index {
-    if (widget.rows.isEmpty) return -1;
-    return _selected.clamp(0, widget.rows.length - 1);
+    final rows = _displayRows;
+    if (rows.isEmpty) return -1;
+    return _selected.clamp(0, rows.length - 1);
   }
 
   void _move(int delta) {
-    if (widget.rows.length < 2) return;
+    final rows = _displayRows;
+    if (rows.length < 2) return;
     final current = _index;
-    final next = (current + delta).clamp(0, widget.rows.length - 1);
+    final next = (current + delta).clamp(0, rows.length - 1);
     if (next == current) return;
     setState(() => _selected = next);
-    _reveal(widget.rows[next].id);
+    _reveal(rows[next].id);
   }
 
   void _reveal(String id) {
@@ -109,17 +122,18 @@ class _LeaderOverlayState extends State<LeaderOverlay> {
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.home) {
-      _move(-widget.rows.length);
+      _move(-_displayRows.length);
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.end) {
-      _move(widget.rows.length);
+      _move(_displayRows.length);
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.enter ||
         key == LogicalKeyboardKey.numpadEnter) {
+      final rows = _displayRows;
       final index = _index;
-      if (index >= 0) _run(widget.rows[index]);
+      if (index >= 0) _run(rows[index]);
       return KeyEventResult.handled;
     }
     return KeyEventResult.handled;
@@ -211,7 +225,7 @@ class _LeaderOverlayState extends State<LeaderOverlay> {
                         child: Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            'j/k move · Enter run · Esc close',
+                            '↑↓ move · Enter run · Esc close',
                             style: TextStyle(
                               color: LockedInColors.muted,
                               fontSize: 11,
@@ -232,6 +246,7 @@ class _LeaderOverlayState extends State<LeaderOverlay> {
 
   List<Widget> _sections(int index) {
     final widgets = <Widget>[];
+    final display = _displayRows;
     for (final group in ActionGroup.values) {
       final rows = [
         for (final row in widget.rows)
@@ -253,7 +268,7 @@ class _LeaderOverlayState extends State<LeaderOverlay> {
         ),
       );
       for (final row in rows) {
-        final position = widget.rows.indexOf(row);
+        final position = display.indexOf(row);
         final selected = position == index;
         widgets.add(
           KeyedSubtree(

@@ -71,7 +71,7 @@ void main() {
     expect(find.text('TOKENS'), findsOneWidget);
     expect(
       tester.widget<Text>(find.byKey(const ValueKey('status-hint'))).data,
-      'r range · s scope · x export',
+      'r range · s scope · a achievements · x export',
     );
 
     await tester.sendKeyEvent(LogicalKeyboardKey.keyX);

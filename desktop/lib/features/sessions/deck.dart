@@ -349,5 +349,9 @@ class DeckViewState {
     } else if (_answerIndex != null && _answerIndex! >= card.choices.length) {
       _answerIndex = null;
     }
+    // A card that left the deck (marked known, or filtered out) hands the deck
+    // to its neighbour: the flip belongs to the card, not the position. Without
+    // this the next card arrived already showing its answer.
+    if (currentId != null && card?.id != currentId) _showAnswer = false;
   }
 }

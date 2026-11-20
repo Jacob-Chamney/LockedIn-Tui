@@ -20,7 +20,12 @@ class PluginPermissionModal extends StatefulWidget {
     required this.request,
     required this.onConfirm,
     this.error,
+    this.queued = 0,
   });
+
+  /// How many more prompts are waiting behind this one. Each is answered on
+  /// its own: there is no bulk approve.
+  final int queued;
 
   /// `y` and the Allow button.
   static const allowKey = ValueKey('plugin-permission-allow');
@@ -187,6 +192,15 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
                                 ),
                               ),
                             ),
+                            if (widget.queued > 0)
+                              Text(
+                                '${widget.queued} more waiting',
+                                key: const ValueKey('plugin-permission-queued'),
+                                style: TextStyle(
+                                  color: LockedInColors.muted,
+                                  fontSize: 11,
+                                ),
+                              ),
                           ],
                         ),
                       ),

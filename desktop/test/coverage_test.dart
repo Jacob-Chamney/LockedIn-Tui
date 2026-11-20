@@ -218,13 +218,13 @@ void main() {
       findsOneWidget,
     );
 
-    // The gap list sits under its own subheading, with the next action. The
-    // gap source appears twice by design: once in the source rows and once in
-    // the `not referenced yet` list.
+    // The gap list sits under its own subheading, with the next action. Each
+    // source is listed once: an unreferenced one only under `not referenced
+    // yet`, never a second time among the counted rows.
     expect(find.text('not referenced yet'), findsOneWidget);
     expect(
       find.descendant(of: card, matching: find.text('complex-numbers.pdf')),
-      findsNWidgets(2),
+      findsOneWidget,
     );
     expect(find.byKey(const ValueKey('coverage-gap-0')), findsOneWidget);
     expect(find.text(_nextAction), findsOneWidget);

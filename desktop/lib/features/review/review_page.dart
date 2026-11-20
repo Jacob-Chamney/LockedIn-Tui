@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
 import '../../theme/palette.dart';
@@ -227,6 +228,9 @@ class _ReviewPageState extends State<ReviewPage> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    // Modified chords belong to the shell's registry (`Ctrl+K` palette,
+    // `Ctrl+R` reconnect). A bare-letter page key must never read them.
+    if (modifierHeld) return KeyEventResult.ignored;
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.keyJ) {
       _move(1);
@@ -559,13 +563,19 @@ class _SideChip extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (selected) ...[
-                const Icon(Icons.check, size: 11, color: Colors.white),
+                Icon(
+                  Icons.check,
+                  size: 11,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
                 const SizedBox(width: 5),
               ],
               Text(
                 label,
                 style: TextStyle(
-                  color: selected ? Colors.white : LockedInColors.muted,
+                  color: selected
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : LockedInColors.muted,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),

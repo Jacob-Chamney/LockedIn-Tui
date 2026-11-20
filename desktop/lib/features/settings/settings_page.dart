@@ -496,6 +496,13 @@ class _SettingsBodyState extends State<_SettingsBody> {
         return KeyEventResult.handled;
       }
     }
+    if (row != null &&
+        _isConnectRow(row) &&
+        widget.onConnect != null &&
+        key == LogicalKeyboardKey.enter) {
+      _activate();
+      return KeyEventResult.handled;
+    }
     if (row?.policy != null && widget.onSetMcpPolicy != null) {
       if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.space) {
         _activate();
@@ -668,6 +675,10 @@ class _SettingsBodyState extends State<_SettingsBody> {
     // value that changes each time Enter is pressed.
     if (row.id == 'theme' && widget.onSaveSettings != null) {
       unawaited(_openThemePicker());
+      return;
+    }
+    if (_isConnectRow(row)) {
+      widget.onConnect?.call();
       return;
     }
     if (row.policy != null && widget.onSetMcpPolicy != null) {
@@ -1111,22 +1122,27 @@ class _SettingsBodyState extends State<_SettingsBody> {
                     Expanded(
                       child: widget.narrow ? _stackedRow(row) : _wideRow(row),
                     ),
-                    if (_rowHasControl(row))
-                      IconButton(
-                        key: ValueKey('settings-activate-${row.id}'),
-                        tooltip: 'Enter',
-                        onPressed: _canRun(row)
-                            ? () {
-                                _select(index);
-                                _activate();
-                              }
-                            : null,
-                        icon: const Icon(Icons.chevron_right, size: 16),
-                        visualDensity: VisualDensity.compact,
-                        color: LockedInColors.muted,
-                      )
-                    else
-                      const SizedBox(width: 12),
+                    // One fixed trailing column for every row: a row without a
+                    // control used to reserve less, which pushed its value
+                    // 11 px out of line with its neighbours.
+                    SizedBox(
+                      width: 40,
+                      child: _rowHasControl(row)
+                          ? IconButton(
+                              key: ValueKey('settings-activate-${row.id}'),
+                              tooltip: 'Enter',
+                              onPressed: _canRun(row)
+                                  ? () {
+                                      _select(index);
+                                      _activate();
+                                    }
+                                  : null,
+                              icon: const Icon(Icons.chevron_right, size: 16),
+                              visualDensity: VisualDensity.compact,
+                              color: LockedInColors.muted,
+                            )
+                          : null,
+                    ),
                   ],
                 ),
               ),
@@ -1216,7 +1232,17 @@ class _SettingsBodyState extends State<_SettingsBody> {
   }
 
   /// True when [row] has something `Enter` can run, so it gets a button.
+  /// The two rows the connect dialog answers: which model, and which providers.
+  ///
+  /// They are projections, not editable values, but they are the rows a user
+  /// lands on when the badge says `no model connected`. `Enter` (and the
+  /// chevron) opens the same dialog the button below them opens, so linking a
+  /// model never needs a pointer.
+  bool _isConnectRow(_SettingRow row) =>
+      row.id == 'chat-model' || row.id == 'providers';
+
   bool _rowHasControl(_SettingRow row) =>
+      _isConnectRow(row) ||
       row.edit != null ||
       row.policy != null ||
       row.decision != null ||
@@ -1227,6 +1253,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
   /// keeps the chevron but disables it, so the pointer never promises more than
   /// the keyboard can do.
   bool _canRun(_SettingRow row) {
+    if (_isConnectRow(row)) return widget.onConnect != null;
     if (row.policy != null) return widget.onSetMcpPolicy != null;
     if (row.decision != null) return widget.onSetDecision != null;
     if (row.work != null) return widget.onSetWorkPermissions != null;
@@ -2607,13 +2634,13 @@ List<_SettingGroup> _buildGroups(
           id: 'chat-model',
           label: 'chat model',
           value: _text(settings.chatModel),
-          hint: 'explicit choice, never auto-selected',
+          hint: 'Enter connect · explicit choice, never auto-selected',
         ),
         _SettingRow(
           id: 'providers',
           label: 'providers',
           value: _providers(settings),
-          hint: 'keys live in the OS keychain',
+          hint: 'Enter link a key · keys live in the OS keychain',
         ),
         _SettingRow(
           id: 'base-url',

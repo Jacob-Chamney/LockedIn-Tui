@@ -526,6 +526,43 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('marking a flipped card known shows the next one closed', (
+      tester,
+    ) async {
+      // Two cards: flipping card 1 and marking it known hands the deck to
+      // card 2, which must arrive face-down with its choices hidden. The flip
+      // used to stay on, so the answer of the next card was already showing.
+      String deck = _choiceDeck();
+      await pumpDeck(
+        tester,
+        StatefulBuilder(
+          builder: (context, setState) => deckView(
+            key: const ValueKey('deck-view'),
+            markdown: deck,
+            cardsMarkdown: deck,
+            onMarkCard: (_, _) async {
+              setState(() => deck = _choiceDeck(card1Known: true));
+            },
+          ),
+        ),
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      // The button names the other face, so its label is the flip state.
+      expect(find.text('show question'), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Which quantity is conserved?'), findsNothing);
+      expect(find.text('What does the learning rate control?'), findsOneWidget);
+      // Face-down again: the next card's answer is not on screen yet.
+      expect(find.text('flip'), findsOneWidget);
+      expect(find.text('show question'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('M filters to missed cards and back', (tester) async {
       await pumpDeck(tester, deckView(onMarkCard: (_, _) async {}));
 
@@ -631,8 +668,9 @@ void main() {
       await pumpDeck(tester, deckView());
 
       expect(find.text('FLASHCARDS'), findsOneWidget);
+      // The deck is flippable and markable; the note names the keys.
       expect(
-        find.textContaining('Read-only deck', findRichText: true),
+        find.textContaining('Tab flips a card', findRichText: true),
         findsOneWidget,
       );
       expect(find.byKey(const ValueKey('session-output-mode')), findsNothing);

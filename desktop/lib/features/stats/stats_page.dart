@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
@@ -6,6 +7,8 @@ import 'package:material_ui/material_ui.dart';
 import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
 import '../../theme/palette.dart';
+import '../keys.dart';
+import '../chat/transcript_scroll.dart';
 import 'export_saver.dart';
 
 /// Requests one Stats export document from the shell (`stats.export`).
@@ -80,9 +83,22 @@ class StatsPage extends StatefulWidget {
 }
 
 class _StatsPageState extends State<StatsPage> {
+  /// The dashboard is taller than 800×600; it has to scroll by keyboard.
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    // Modified chords belong to the shell's registry.
+    if (modifierHeld) return KeyEventResult.ignored;
     final key = event.logicalKey;
+    final scrolled = scrollKey(_scroll, event);
+    if (scrolled != null) return scrolled;
     if (key == LogicalKeyboardKey.keyA && widget.onAchievements != null) {
       widget.onAchievements!();
       return KeyEventResult.handled;
@@ -146,6 +162,7 @@ class _StatsPageState extends State<StatsPage> {
               summary: summary,
               range: widget.range,
               scope: widget.scope,
+              scrollController: _scroll,
               onRange: widget.onRange,
               onScope: widget.onScope,
               onAchievements: widget.onAchievements,
@@ -221,6 +238,7 @@ class _Dashboard extends StatelessWidget {
     required this.summary,
     required this.range,
     required this.scope,
+    this.scrollController,
     this.onRange,
     this.onScope,
     this.onAchievements,
@@ -230,6 +248,9 @@ class _Dashboard extends StatelessWidget {
   final StatsSummary summary;
   final String range;
   final String scope;
+
+  /// The page's scroll position, so the keyboard can move the dashboard.
+  final ScrollController? scrollController;
   final ValueChanged<String>? onRange;
   final ValueChanged<String>? onScope;
 
@@ -257,13 +278,20 @@ class _Dashboard extends StatelessWidget {
         final wide = constraints.maxWidth >= 980;
         final columns = wide ? 4 : 2;
         final gap = 12.0;
-        final cardWidth =
-            (constraints.maxWidth - 40 - gap * (columns - 1)) / columns;
+        // The content column is capped below, so the cards are sized from the
+        // column they sit in, not from the window: sizing them from the window
+        // made four cards wider than the column and wrapped the fourth onto a
+        // row of its own on any window wider than 1220 px. The half pixel keeps
+        // a rounding error from wrapping the last card.
+        const contentMax = 1180.0;
+        final contentWidth = math.min(constraints.maxWidth - 40, contentMax);
+        final cardWidth = (contentWidth - gap * (columns - 1)) / columns - 0.5;
         return SingleChildScrollView(
+          controller: scrollController,
           padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1180),
+              constraints: const BoxConstraints(maxWidth: contentMax),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -714,7 +742,9 @@ class _Chip extends StatelessWidget {
           child: Text(
             text,
             style: TextStyle(
-              color: selected ? Colors.white : LockedInColors.muted,
+              color: selected
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : LockedInColors.muted,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
