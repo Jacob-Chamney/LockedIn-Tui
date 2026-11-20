@@ -161,10 +161,6 @@ class CoreClient implements CoreConnection {
     'mcp.refresh',
   };
 
-  void notify(String method, [Map<String, dynamic>? params]) {
-    _process?.stdin.writeln(jsonEncode(rpcNotification(method, params)));
-  }
-
   void _handleLine(String line) {
     if (line.trim().isEmpty) return;
     Object? decoded;
@@ -421,6 +417,12 @@ class CoreStore extends ChangeNotifier {
   /// True while `decision.get` is in flight.
   bool decisionLoading = false;
 
+  /// Generations for the reads that had none: an older reply must not land on
+  /// a newer one, and must not clear a flag the newer request still owns.
+  int _decisionTicket = 0;
+  int _workPermissionsTicket = 0;
+  int _workTemplatesTicket = 0;
+
   /// The last decision-layer read failure, or null.
   ///
   /// Page-local, like [mcpError]: it never replaces [error] and never clears
@@ -524,18 +526,29 @@ class CoreStore extends ChangeNotifier {
   /// [review], so a broken read still shows the rows the shell last received.
   String? reviewError;
 
-  /// The item whose `review.mark` is in flight, or null.
+  /// The items whose `review.mark` is in flight, oldest first.
   ///
-  /// Page-local, like [reviewError]: a mark never blocks the rest of the shell
-  /// and the Review page uses it to say `marking…` on that one row.
-  String? reviewMarkingId;
+  /// A set, not one slot: two marks can overlap (the page allows a second row
+  /// while the first is answering), and one slot let the first `finally` clear
+  /// the flag while the second was still running. Page-local, like
+  /// [reviewError]: a mark never blocks the rest of the shell.
+  final _markingIds = <String>{};
 
-  /// True while one item is being marked known or missed.
-  bool get reviewMarking => reviewMarkingId != null;
+  /// The item whose `review.mark` is in flight, or null when none is.
+  ///
+  /// The page shows `marking…` on that one row; with two in flight it names the
+  /// newest, which is the one the user just pressed.
+  String? get reviewMarkingId => _markingIds.isEmpty ? null : _markingIds.last;
+
+  /// True while [itemId]'s mark is in flight.
+  bool isMarking(String itemId) => _markingIds.contains(itemId);
 
   /// The side of the wall the queue is projected to: `all`, `school` or
   /// `skills`. The core validates it; the page only cycles the three values.
   String reviewSide = 'all';
+
+  /// The generation of the newest `review.mark`. See [markReview].
+  int _reviewWriteTicket = 0;
 
   /// Bumped on every Review request and every clear, so an answer for an older
   /// side cannot replace the snapshot the user is now looking at.
@@ -1047,8 +1060,6 @@ class CoreStore extends ChangeNotifier {
   /// snapshot so reopening does not flash an empty transcript.
   ChatSnapshot? sessionChatFor(String id) => _sessionChats[id];
 
-  String? sessionChatErrorFor(String id) => _sessionChatErrors[id];
-
   /// Cached project chat transcripts, keyed `<projectId>:<chatId>`. A view: the
   /// store owns the map, so a page cannot mutate it behind the shell's back.
   Map<String, ChatSnapshot> get workChats => UnmodifiableMapView(_workChats);
@@ -1069,9 +1080,6 @@ class CoreStore extends ChangeNotifier {
   /// snapshot so reopening does not flash an empty transcript.
   ChatSnapshot? workChatFor(String projectId, String chatId) =>
       _workChats[_workChatKey(projectId, chatId)];
-
-  String? workChatErrorFor(String projectId, String chatId) =>
-      _workChatErrors[_workChatKey(projectId, chatId)];
 
   String? get _activeWorkChatKey {
     final projectId = activeProjectId;
@@ -1124,9 +1132,6 @@ class CoreStore extends ChangeNotifier {
       skillChapterLoading ||
       activeSkillChapter != null ||
       skillChapterError != null;
-
-  /// The chapter Markdown the reader renders, or null when none is loaded.
-  String? get skillChapterText => activeSkillChapter?.text;
 
   /// The curriculum stage whose lesson reader is open, if any.
   ///
@@ -1217,9 +1222,6 @@ class CoreStore extends ChangeNotifier {
   /// snapshot so reopening does not flash an empty transcript.
   ChatSnapshot? skillChatFor(String goalId, String chatId) =>
       _skillChats[_skillChatKey(goalId, chatId)];
-
-  String? skillChatErrorFor(String goalId, String chatId) =>
-      _skillChatErrors[_skillChatKey(goalId, chatId)];
 
   String? get _activeSkillChatKey {
     final goalId = activeSkillId;
@@ -1600,17 +1602,25 @@ class CoreStore extends ChangeNotifier {
   /// stays, so a broken read shows the core's own message with a retry instead of
   /// a blank or a fabricated view. The method never throws.
   Future<void> refreshDecision() async {
+    // Ticketed like every other read: Settings fires this on each entry, so two
+    // opens could let an older reply land after a newer one and clear the flag
+    // while the newer request was still running.
+    final ticket = ++_decisionTicket;
     decisionLoading = true;
     decisionError = null;
     notifyListeners();
     try {
       final json = await _connection.call('decision.get');
+      if (ticket != _decisionTicket) return;
       decision = DecisionView.fromJson(json);
     } catch (failure) {
+      if (ticket != _decisionTicket) return;
       decisionError = _messageOf(failure);
     } finally {
-      decisionLoading = false;
-      notifyListeners();
+      if (ticket == _decisionTicket) {
+        decisionLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -1646,17 +1656,22 @@ class CoreStore extends ChangeNotifier {
   /// stays, so a broken read shows the core's own message with a retry rather
   /// than a fabricated "allowed". The method never throws.
   Future<void> refreshWorkPermissions() async {
+    final ticket = ++_workPermissionsTicket;
     workPermissionsLoading = true;
     workPermissionsError = null;
     notifyListeners();
     try {
       final json = await _connection.call('work.permissions.get');
+      if (ticket != _workPermissionsTicket) return;
       workPermissions = WorkPermissions.fromJson(json);
     } catch (failure) {
+      if (ticket != _workPermissionsTicket) return;
       workPermissionsError = _messageOf(failure);
     } finally {
-      workPermissionsLoading = false;
-      notifyListeners();
+      if (ticket == _workPermissionsTicket) {
+        workPermissionsLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -1699,8 +1714,10 @@ class CoreStore extends ChangeNotifier {
     final index = _permissionQueue.indexWhere(
       (entry) => entry.$1.requestId == id,
     );
-    if (index >= 0 &&
-        _now().difference(_permissionQueue[index].$2) >= permissionWindow) {
+    // The same window the expiry timer uses: with the two out of step, a prompt
+    // could be marked expired on screen and still send an `mcp.confirm`.
+    final window = permissionTimeout;
+    if (index >= 0 && _now().difference(_permissionQueue[index].$2) >= window) {
       // The core stopped waiting and denied this call. `mcp.confirm` would
       // answer `{ok: true}` for an id it no longer knows, and an Allow would
       // then look as if it had run the tool. Say what actually happened.
@@ -1708,7 +1725,7 @@ class CoreStore extends ChangeNotifier {
       pluginPermissionError = null;
       error =
           'the ${expired.server} · ${expired.tool} prompt expired after '
-          '${permissionWindow.inSeconds} s; the core denied it and nothing ran';
+          '${window.inSeconds} s; the core denied it and nothing ran';
       notifyListeners();
       return;
     }
@@ -1808,13 +1825,18 @@ class CoreStore extends ChangeNotifier {
     if (result != 'known' && result != 'missed') {
       throw ArgumentError.value(result, 'result', 'must be known or missed');
     }
-    reviewMarkingId = id;
+    _markingIds.add(id);
+    final write = ++_reviewWriteTicket;
     notifyListeners();
     try {
       final json = await _connection.call('review.mark', {
         'itemId': id,
         'result': result,
       });
+      // The reply carries this mark's queue. With two marks in flight the older
+      // answer can arrive last and would repaint rows from before the newer
+      // mark, so only the most recently issued write may replace the queue.
+      if (write != _reviewWriteTicket) return;
       // A queue read that started before the mark would repaint the pre-mark
       // rows over this answer; it is abandoned, and its loading flag with it.
       _reviewTicket += 1;
@@ -1828,7 +1850,7 @@ class CoreStore extends ChangeNotifier {
         await refreshReview();
       }
     } finally {
-      reviewMarkingId = null;
+      _markingIds.remove(id);
       notifyListeners();
     }
   }
@@ -1887,12 +1909,16 @@ class CoreStore extends ChangeNotifier {
     final requested = scope?.trim() ?? '';
     final target = requested.isEmpty ? knowledgeScope : requested;
     final ticket = ++_knowledgeTicket;
-    knowledgeQuery = text;
+    // `knowledgeQuery` is what the visible hits answer, so it is assigned with
+    // them below, not here: a failed search used to relabel the previous rows.
     knowledgeScope = target;
     knowledgeError = null;
     if (text.isEmpty) {
       // An empty query is the tree: no request, no loading state, no error. The
-      // result set is gone with it, so the reader has no ordering left to walk.
+      // result set is gone with it, so the reader has no ordering left to walk —
+      // and the query goes too, because `selectKnowledgeScope` reads it to decide
+      // between a search and a tree reload.
+      knowledgeQuery = '';
       knowledgeHits = const [];
       knowledgeHitOrder = const [];
       knowledgeHitIndex = null;
@@ -1910,6 +1936,7 @@ class CoreStore extends ChangeNotifier {
         'scope': target,
       });
       if (ticket != _knowledgeTicket) return;
+      knowledgeQuery = text;
       final raw = json['hits'];
       knowledgeHits = raw is List
           ? raw
@@ -2169,11 +2196,14 @@ class CoreStore extends ChangeNotifier {
     try {
       final json = await _connection.call('chat.snapshot');
       chat = ChatSnapshot.fromJson(json);
+      chatError = null;
       notifyListeners();
-    } catch (_) {
-      // Chat is optional until the core exposes it; the page shows its own
-      // empty state rather than failing the whole shell.
-      chat = null;
+    } catch (failure) {
+      // Every other read keeps the previous value on failure; this one used to
+      // set `chat = null`, so a transient `chat.snapshot` failure after a model
+      // change erased the conversation on screen and reported nothing.
+      chatError = _messageOf(failure);
+      notifyListeners();
     }
   }
 
@@ -2187,6 +2217,10 @@ class CoreStore extends ChangeNotifier {
   /// The last `chat.send` refusal, shown in the Chill banner. Per-surface: a
   /// refused Chill send never appears on another page.
   String? chatSendError;
+
+  /// The last `chat.snapshot` failure, or null. The previous [chat] stays, so a
+  /// failed re-read never blanks a transcript the user is reading.
+  String? chatError;
 
   Future<bool> sendChat(String text, {List<String> images = const []}) async {
     try {
@@ -2492,9 +2526,21 @@ class CoreStore extends ChangeNotifier {
   /// exactly as they were. The method never throws, so the detail page can show
   /// the message inline with a retry (the same contract as [linkProvider]).
   Future<void> generateSteps(String sessionId) async {
-    // One build at a time across the app: it is a paid provider run, and a
-    // second request for the same session must never be sent twice.
-    if (_generatingStepsFor != null) return;
+    // One build at a time: it is a paid provider run, and a second request for
+    // the same session must never be sent twice. The slot used to be global, so
+    // pressing `R` on session B while A was building returned before setting a
+    // pending state or an error — the key looked dead. A different session is
+    // now told why it cannot start instead of being ignored.
+    if (_generatingStepsFor != null) {
+      if (_generatingStepsFor == sessionId) return;
+      if (activeSessionId == sessionId) {
+        stepsError =
+            'another session is building its steps; try again when it '
+            'finishes';
+        notifyListeners();
+      }
+      return;
+    }
     _generatingStepsFor = sessionId;
     stepsError = null;
     notifyListeners();
@@ -3138,12 +3184,16 @@ class CoreStore extends ChangeNotifier {
     // build-adjacent code (the agent dialog's `didChangeDependencies`), where
     // notifying would mark the scope dirty mid-build. The finish below is the
     // one notification, and it carries both the rows and the cleared flag.
+    final ticket = ++_workTemplatesTicket;
     workTemplatesLoading = true;
     workTemplatesError = null;
     try {
       final json = await _connection.call('work.templates.list', {
         if (id.isNotEmpty) 'projectId': id,
       });
+      // The reply names templates for THIS project. Without the ticket a slow
+      // answer for project A could populate project B's picker.
+      if (ticket != _workTemplatesTicket) return workTemplates;
       final raw = json['templates'];
       workTemplates = raw is List
           ? raw
@@ -3156,11 +3206,14 @@ class CoreStore extends ChangeNotifier {
           : const [];
       return workTemplates;
     } catch (failure) {
+      if (ticket != _workTemplatesTicket) return workTemplates;
       workTemplatesError = _messageOf(failure);
       return workTemplates;
     } finally {
-      workTemplatesLoading = false;
-      notifyListeners();
+      if (ticket == _workTemplatesTicket) {
+        workTemplatesLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -3391,12 +3444,21 @@ class CoreStore extends ChangeNotifier {
   Future<void> decideCommand(String id, String decision) async {
     final proposalId = id.trim();
     if (proposalId.isEmpty) return;
+    // A command may run for two minutes; the user can switch project meanwhile.
+    // The outcome belongs to the project that proposed it, so a late answer for
+    // a project that is no longer open is dropped rather than painted on the
+    // next project's approvals view.
+    final owner = activeProjectId;
     final json = await _connection.call('work.command.decide', {
       'id': proposalId,
       'decision': decision,
     });
-    lastCommandOutcome = CommandOutcome.fromJson(json);
     _dropCommand(proposalId);
+    if (owner != null && activeProjectId != owner) {
+      notifyListeners();
+      return;
+    }
+    lastCommandOutcome = CommandOutcome.fromJson(json);
     notifyListeners();
     final projectId = activeProjectId;
     if (projectId != null) await refreshWorkChanges(projectId);
@@ -3588,11 +3650,19 @@ class CoreStore extends ChangeNotifier {
       swarmRuns = List.unmodifiable(runs);
       final activeId = activeSwarmId;
       if (activeId != null) {
+        var found = false;
         for (final run in runs) {
           if (run.runId == activeId) {
             activeSwarm = run;
+            found = true;
             break;
           }
+        }
+        // A run the new list does not know (a core that forgot its process
+        // state, or one removed elsewhere) must not keep the board rendering.
+        if (!found) {
+          activeSwarm = null;
+          activeSwarmId = null;
         }
       }
     } catch (failure) {
@@ -3746,21 +3816,6 @@ class CoreStore extends ChangeNotifier {
       notifyListeners();
     }
     return result;
-  }
-
-  /// Leave the swarm board for the project detail. The run list stays while the
-  /// project is open, so `w` reopens the same board.
-  void closeSwarm() {
-    if (activeSwarm == null &&
-        activeSwarmId == null &&
-        swarmError == null &&
-        !swarmLoading) {
-      return;
-    }
-    activeSwarm = null;
-    activeSwarmId = null;
-    swarmError = null;
-    notifyListeners();
   }
 
   /// Replace or append one board in [swarmRuns], keeping the active board live.
@@ -4110,6 +4165,9 @@ class CoreStore extends ChangeNotifier {
     } catch (failure) {
       if (ticket != _skillLessonTicket) return;
       skillLessonError = _messageOf(failure);
+      // A `confirm` refusal is a decision, not a failure: the view asks by name
+      // instead of offering a Retry that would be refused again.
+      skillLessonNeedsConfirm = _isConfirmFailure(failure);
     } finally {
       if (ticket == _skillLessonTicket) {
         skillLessonLoading = false;
@@ -4123,8 +4181,15 @@ class CoreStore extends ChangeNotifier {
     final goalId = activeSkillId;
     final stageId = activeSkillStageId;
     if (goalId == null || stageId == null) return;
+    // A retry is the user repeating a request they have already seen refused.
+    // Without `confirmed` a `ready` lesson refuses identically every time, which
+    // is what made this button dead.
     if (_skillLessonRetryBuild) {
-      await buildSkillLesson(goalId, stageId);
+      await buildSkillLesson(
+        goalId,
+        stageId,
+        confirmed: skillLessonNeedsConfirm,
+      );
     } else {
       await openSkillLesson(goalId, stageId);
     }
@@ -4161,14 +4226,21 @@ class CoreStore extends ChangeNotifier {
   void closeSkill() {
     // An open still in flight is abandoned even when nothing is open yet.
     _skillOpenTicket += 1;
-    if (activeSkill == null && activeSkillId == null) return;
+    // The clears run before this check: an early return used to leave
+    // `skillLessonOpen` set forever once the goal itself was gone (after a
+    // reconnect, say), and no later call could close the layer.
+    final hadGoal = activeSkill != null || activeSkillId != null;
+    _clearSkillLesson();
+    _clearSkillSources();
+    _clearChapter();
+    skillChats = const [];
+    if (!hadGoal) {
+      notifyListeners();
+      return;
+    }
     activeSkill = null;
     activeSkillId = null;
     activeSkillChatId = null;
-    skillChats = const [];
-    _clearSkillSources();
-    _clearChapter();
-    _clearSkillLesson();
     notifyListeners();
   }
 
@@ -4690,24 +4762,53 @@ class CoreStore extends ChangeNotifier {
     }
   }
 
-  Future<void> _reconnect(CoreConnection Function() reconnect) async {
-    await _subscription?.cancel();
-    _subscription = null;
-    await _connection.dispose();
-    _connection = reconnect();
-    _subscription = _connection.events.listen(_handleEvent);
+  /// Forget everything the dead process told us.
+  ///
+  /// A retry builds a new process, which may even boot a different workspace, so
+  /// every projection has to go back to its constructor default. This used to be
+  /// a hand-written list inside `_reconnect`, and it had drifted: `sessions` was
+  /// kept while `skills` and `projects` were cleared, the `*Loaded` flags were
+  /// never cleared so the sidebar printed a fabricated `0` for Skills and Work,
+  /// and `settings`, `stats`, `achievements`, `decision`, `workPermissions`,
+  /// the custom palette, the study document and the staged lesson all survived.
+  ///
+  /// The order matches the field declarations, so a new field has one obvious
+  /// place to go. `_reconnectResetsEveryProjection` in `core_store_test.dart`
+  /// loads every projection and then asserts each default, so leaving one out
+  /// fails a test rather than shipping a stale screen.
+  void _resetForNewProcess() {
     status = CoreStatus.offline;
     error = null;
+    workspace = null;
+    sessions = const [];
+    sessionsLoaded = false;
+    stats = null;
+    statsRange = 'all';
+    statsScope = 'all';
+    // `app.dart` derives the theme id from `settings.theme`, so a stale view
+    // would repaint the dead workspace's palette.
+    settings = null;
+    settingsError = null;
     chat = null;
+    chatSendError = null;
     providers = const [];
     _providersError = null;
     // A new process reads `config.toml` again, so a binding cached from the dead
     // one is a promise the shell cannot keep.
     keybinds = const <String, String>{};
     fixedKeybinds = const <String, String>{};
+    customThemeTokens = ThemeTokens.empty;
     mcpServers = const [];
     mcpPolicy = PluginPolicy.empty;
     mcpError = null;
+    decision = null;
+    decisionLoading = false;
+    decisionError = null;
+    _decisionTicket += 1;
+    workPermissions = null;
+    workPermissionsLoading = false;
+    workPermissionsError = null;
+    _workPermissionsTicket += 1;
     // A prompt belongs to the process that emitted it; a new process issues new
     // request ids and forgets the old ones, so a stale modal must not survive.
     _permissionQueue.clear();
@@ -4721,12 +4822,20 @@ class CoreStore extends ChangeNotifier {
     reviewLoading = false;
     reviewError = null;
     reviewSide = 'all';
-    reviewMarkingId = null;
+    _markingIds.clear();
     _reviewTicket += 1;
+    _reviewWriteTicket += 1;
     archiveRows = const [];
     archiveLoading = false;
     archiveError = null;
     _archiveTicket += 1;
+    achievements = const [];
+    achievementsEarned = 0;
+    achievementsTotal = 0;
+    achievementsWarning = null;
+    achievementsLoading = false;
+    achievementsError = null;
+    _achievementsTicket += 1;
     // The Knowledge tree is a workspace read, not process state, but a new
     // process may see a different workspace; the shell re-reads it on entry.
     knowledgeHits = const [];
@@ -4754,6 +4863,7 @@ class CoreStore extends ChangeNotifier {
     _clearInstructions();
     _clearOutput();
     _clearCoverage();
+    _clearDocument();
     _sessionChats.clear();
     _sessionChatErrors.clear();
     _sessionOpenTicket += 1;
@@ -4761,6 +4871,7 @@ class CoreStore extends ChangeNotifier {
     _skillOpenTicket += 1;
     _projectEpoch += 1;
     projects = const [];
+    projectsLoaded = false;
     activeProject = null;
     activeProjectId = null;
     projectChats = const [];
@@ -4770,9 +4881,16 @@ class CoreStore extends ChangeNotifier {
     workChanges = null;
     workChangesLoading = false;
     workChangesError = null;
+    workTemplates = const [];
+    workTemplatesLoading = false;
+    workTemplatesError = null;
+    _workTemplatesTicket += 1;
+    lastCommandOutcome = null;
     _clearApprovals();
     _clearSwarms();
+    _clearActivity();
     skills = const [];
+    skillsLoaded = false;
     activeSkill = null;
     activeSkillId = null;
     activeSkillChatId = null;
@@ -4781,6 +4899,16 @@ class CoreStore extends ChangeNotifier {
     _skillChatErrors.clear();
     _clearSkillSources();
     _clearChapter();
+    _clearSkillLesson();
+  }
+
+  Future<void> _reconnect(CoreConnection Function() reconnect) async {
+    await _subscription?.cancel();
+    _subscription = null;
+    await _connection.dispose();
+    _connection = reconnect();
+    _subscription = _connection.events.listen(_handleEvent);
+    _resetForNewProcess();
     notifyListeners();
     await start();
   }
@@ -4854,8 +4982,12 @@ class CoreStore extends ChangeNotifier {
         Map<String, dynamic>.from(params),
       );
       if (proposal.id.isEmpty) return;
+      // Scoped to the open project, which means there must BE one: the list is
+      // documented as the open project's, and `closeProject` returns early when
+      // nothing is open, so a proposal accepted into an empty store could never
+      // be cleared.
       final open = activeProjectId;
-      if (open != null && proposal.projectId != open) return;
+      if (open == null || proposal.projectId != open) return;
       pendingWrites = [
         for (final write in pendingWrites)
           if (write.id != proposal.id) write,
@@ -4869,8 +5001,9 @@ class CoreStore extends ChangeNotifier {
         Map<String, dynamic>.from(params),
       );
       if (proposal.id.isEmpty) return;
+      // Same rule as a write proposal: the list is the open project's.
       final open = activeProjectId;
-      if (open != null && proposal.projectId != open) return;
+      if (open == null || proposal.projectId != open) return;
       pendingCommands = [
         for (final command in pendingCommands)
           if (command.id != proposal.id) command,
@@ -5038,8 +5171,23 @@ class CoreStore extends ChangeNotifier {
     return data is Map && data['kind'] == 'confirm';
   }
 
+  /// True once [dispose] ran. Every async read can finish after the widget tree
+  /// is gone, and `ChangeNotifier.notifyListeners` asserts in that case.
+  bool _disposed = false;
+
+  /// Notify only while the store is alive.
+  ///
+  /// Reached from ~170 call sites, most of them after an `await`; guarding them
+  /// one by one would be one forgotten `return` away from the same crash.
+  @override
+  void notifyListeners() {
+    if (_disposed) return;
+    super.notifyListeners();
+  }
+
   @override
   void dispose() {
+    _disposed = true;
     for (final timer in _permissionTimers.values) {
       timer.cancel();
     }

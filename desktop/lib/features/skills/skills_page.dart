@@ -5,8 +5,9 @@ import 'package:material_ui/material_ui.dart';
 
 import '../keys.dart';
 import '../../bridge/models.dart';
-import '../../bridge/protocol.dart';
+import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
+import '../shared/cards.dart';
 
 /// The Skills surface: the goals in the skills store, one row each.
 ///
@@ -180,20 +181,6 @@ class _SkillsPageState extends State<SkillsPage> {
   static String _label(SkillRow row) =>
       row.name.isEmpty ? 'untitled goal' : row.name;
 
-  /// One readable reason. The core puts the actionable sentence in `data`, so
-  /// prefer it over the envelope message.
-  static String _reason(Object failure) {
-    if (failure is RpcException) {
-      final data = failure.data;
-      if (data is Map) {
-        final message = data['message'];
-        if (message is String && message.isNotEmpty) return message;
-      }
-      return failure.message;
-    }
-    return failure.toString();
-  }
-
   /// Confirms, then archives the selected goal.
   ///
   /// An archive moves the goal folder, so it is destructive and needs the named
@@ -222,7 +209,7 @@ class _SkillsPageState extends State<SkillsPage> {
           () => _actionNotice = 'archived “${_label(row)}” to $destination',
         );
       } catch (failure) {
-        if (mounted) setState(() => _actionError = _reason(failure));
+        if (mounted) setState(() => _actionError = userMessage(failure));
       } finally {
         if (mounted) setState(() => _actionId = null);
       }
@@ -254,7 +241,7 @@ class _SkillsPageState extends State<SkillsPage> {
         if (!mounted) return;
         setState(() => _actionNotice = 'deleted “${_label(row)}”');
       } catch (failure) {
-        if (mounted) setState(() => _actionError = _reason(failure));
+        if (mounted) setState(() => _actionError = userMessage(failure));
       } finally {
         if (mounted) setState(() => _actionId = null);
       }
@@ -290,7 +277,7 @@ class _SkillsPageState extends State<SkillsPage> {
               : 'exported to $path',
         );
       } catch (failure) {
-        if (mounted) setState(() => _actionError = _reason(failure));
+        if (mounted) setState(() => _actionError = userMessage(failure));
       } finally {
         if (mounted) setState(() => _actionId = null);
       }
@@ -447,7 +434,7 @@ class _SkillsPageState extends State<SkillsPage> {
           ),
         ),
         const SizedBox(width: 10),
-        _CountChip(
+        ValueChip(
           _query.isEmpty
               ? '${widget.skills.length}'
               : '${_visible.length} of ${widget.skills.length}',
@@ -809,32 +796,6 @@ class _ArchivedBadge extends StatelessWidget {
             style: TextStyle(color: LockedInColors.muted, fontSize: 10),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _CountChip extends StatelessWidget {
-  const _CountChip(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: LockedInColors.line),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: LockedInColors.muted,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-        ),
       ),
     );
   }

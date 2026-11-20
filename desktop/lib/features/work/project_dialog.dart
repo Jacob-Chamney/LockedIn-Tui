@@ -2,7 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../bridge/models.dart';
-import '../../bridge/protocol.dart';
+import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
 
 /// Registers one project through the shell's `work.create`.
@@ -87,23 +87,12 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = _reason(failure);
+        _error = userMessage(failure);
       });
     }
   }
 
   /// The core's own sentence when it sent one, otherwise the exception's.
-  String _reason(Object failure) {
-    if (failure is RpcException) {
-      final data = failure.data;
-      if (data is Map && data['message'] is String) {
-        final message = (data['message'] as String).trim();
-        if (message.isNotEmpty) return message;
-      }
-      return failure.message;
-    }
-    return failure.toString();
-  }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;

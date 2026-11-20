@@ -5,8 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../bridge/models.dart';
-import '../../bridge/protocol.dart';
+import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
+import '../shared/format.dart';
 
 /// Returns one file path, or null when the user cancelled.
 typedef InstructionsPicker = Future<String?> Function();
@@ -190,7 +191,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _failure = _reason(failure);
+        _failure = userMessage(failure);
       });
     }
   }
@@ -207,7 +208,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
       if (!mounted) return;
       setState(() {
         _notice = null;
-        _failure = _reason(failure);
+        _failure = userMessage(failure);
       });
       return;
     }
@@ -250,7 +251,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
       if (!mounted) return;
       setState(() {
         _importing = false;
-        _failure = _reason(failure);
+        _failure = userMessage(failure);
       });
     }
   }
@@ -292,7 +293,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
       if (!mounted) return;
       setState(() {
         _reextracting = false;
-        _failure = _reason(failure);
+        _failure = userMessage(failure);
       });
     }
   }
@@ -308,7 +309,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
       await retry();
     } catch (failure) {
       if (!mounted) return;
-      setState(() => _failure = _reason(failure));
+      setState(() => _failure = userMessage(failure));
     }
   }
 
@@ -439,19 +440,6 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
     controller.dispose();
     final value = text?.trim() ?? '';
     return value.isEmpty ? null : value;
-  }
-
-  /// One readable reason. The core puts the actionable sentence in `data`, so
-  /// prefer it over the envelope message, exactly like the store does.
-  String _reason(Object failure) {
-    if (failure is RpcException) {
-      final data = failure.data;
-      if (data is Map && data['message'] is String) {
-        return data['message'] as String;
-      }
-      return failure.message;
-    }
-    return failure.toString();
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
@@ -624,7 +612,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
           Row(
             children: [
               Icon(
-                _sourceIcon(source.kind),
+                sourceIcon(source.kind),
                 size: 16,
                 color: LockedInColors.muted,
               ),
@@ -645,7 +633,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
               ),
               const SizedBox(width: 8),
               Text(
-                _shortHash(source.hash),
+                shortHash(source.hash),
                 style: TextStyle(
                   color: LockedInColors.muted,
                   fontSize: 10,
@@ -1065,25 +1053,7 @@ String _baseName(String path) {
   return parts.isEmpty ? path : parts.last;
 }
 
-String _shortHash(String hash) {
-  final value = hash.startsWith('sha256:')
-      ? hash.substring('sha256:'.length)
-      : hash;
-  if (value.isEmpty) return 'no hash';
-  return value.length <= 10 ? value : value.substring(0, 10);
-}
-
 String _shortDate(String stamp) {
   final text = stamp.replaceFirst('T', ' ');
   return text.length > 16 ? text.substring(0, 16) : text;
-}
-
-IconData _sourceIcon(String kind) {
-  return switch (kind) {
-    'pdf' => Icons.picture_as_pdf_outlined,
-    'docx' => Icons.description_outlined,
-    'image' => Icons.image_outlined,
-    'markdown' || 'text' || 'code' => Icons.article_outlined,
-    _ => Icons.insert_drive_file_outlined,
-  };
 }

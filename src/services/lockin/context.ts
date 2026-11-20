@@ -27,8 +27,18 @@ export type UnreadableSource = {
 export type ContextReport = {
   /** The system message, or "" when nothing readable exists and web is off. */
   text: string
-  /** How many context chunks were included. */
+  /** How many context chunks were included (session files count). */
   readable: number
+  /**
+   * How many **copied sources** produced text.
+   *
+   * Distinct from [readable], which also counts `prompt.md`, `intake.md`,
+   * `contract.md` and the steps. A caller asking "does this session have a
+   * source to build from?" needs this one: the outputs path compared the whole
+   * context against `""`, so a session whose sources were all scanned PDFs still
+   * "built" a study guide from its own prompt.
+   */
+  readableSources: number
   /** Sources that were copied but could not be turned into text. */
   unreadable: UnreadableSource[]
 }
@@ -62,10 +72,10 @@ export async function sessionContextReport(
   options: ContextOptions = {},
 ): Promise<ContextReport> {
   const checked = assertSessionId(sessionId)
-  if (!checked.ok) return { text: "", readable: 0, unreadable: [] }
+  if (!checked.ok) return { text: "", readable: 0, readableSources: 0, unreadable: [] }
   const box = createToolbox({ workspace, sessionId: checked.value })
   const listed = await box.tools.listSources()
-  if (!listed.ok) return { text: "", readable: 0, unreadable: [] }
+  if (!listed.ok) return { text: "", readable: 0, readableSources: 0, unreadable: [] }
 
   // A file used as the assignment instructions is already lifted into
   // `prompt.md`; including it again as a source would duplicate the same text.
@@ -77,6 +87,7 @@ export async function sessionContextReport(
 
   const chunks: string[] = []
   const unreadable: UnreadableSource[] = []
+  let readableSources = 0
   let bytes = 0
   const add = (title: string, text: string) => {
     const trimmed = text.trim()
@@ -129,6 +140,7 @@ export async function sessionContextReport(
       continue
     }
     add(entry.name, read.value.text)
+    readableSources += 1
   }
 
   const readable = chunks.length
@@ -144,6 +156,7 @@ export async function sessionContextReport(
           ].join("\n")
         : "",
       readable,
+      readableSources,
       unreadable,
     }
   }
@@ -171,6 +184,7 @@ export async function sessionContextReport(
       chunks.join("\n\n"),
     ].join("\n"),
     readable,
+    readableSources,
     unreadable,
   }
 }

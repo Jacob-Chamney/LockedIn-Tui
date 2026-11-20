@@ -16,11 +16,10 @@ import '../keys.dart';
 /// `work.chat.state` for this `projectId` and `chatId`. The page reads no files
 /// and calls no core method.
 ///
-/// The composer and bubble layout follow the session chat
-/// (`features/sessions/session_chat.dart`), which in turn follows Chill. Those
-/// bubble widgets are private to their pages, so this page keeps its own
-/// private copy of the layout rather than forking a public composer that three
-/// owners would then share.
+/// The composer and bubble layout are the same on every chat: this page, the
+/// session, skill and project chats, and Chill. Each carries its own copy of the
+/// private widgets rather than one public composer four owners would share, so a
+/// visual change is four edits; keep them in step (`docs/design.md` §4).
 class WorkChatView extends StatefulWidget {
   const WorkChatView({
     super.key,
@@ -407,7 +406,7 @@ class _WorkChatViewState extends State<WorkChatView> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
                   hint,
-                  key: const ValueKey('session-chat-hint'),
+                  key: const ValueKey('chat-composer-hint'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -457,7 +456,7 @@ class _WorkChatViewState extends State<WorkChatView> {
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    _usageLabel(chat.usage),
+                    chatUsageLabel(chat.usage),
                     style: TextStyle(color: LockedInColors.muted, fontSize: 11),
                   ),
                 ),
@@ -683,22 +682,4 @@ class _StatusChip extends StatelessWidget {
       ),
     );
   }
-}
-
-String _usageLabel(ChatUsageView usage) {
-  final cost = chatCostLabel(usage.costMicroUsd);
-  final duration = usage.durationMs == null
-      ? null
-      : '${(usage.durationMs! / 1000).toStringAsFixed(1)}s';
-  return ['${_compact(usage.tokens)} tok', cost, ?duration].join(' · ');
-}
-
-String _compact(int value) {
-  if (value >= 1000000) {
-    return '${(value / 1000000).toStringAsFixed(1).replaceAll('.0', '')}M';
-  }
-  if (value >= 1000) {
-    return '${(value / 1000).toStringAsFixed(1).replaceAll('.0', '')}K';
-  }
-  return '$value';
 }

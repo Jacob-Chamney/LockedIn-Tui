@@ -5,8 +5,9 @@ import 'package:material_ui/material_ui.dart';
 
 import '../keys.dart';
 import '../../bridge/models.dart';
-import '../../bridge/protocol.dart';
+import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
+import '../shared/format.dart';
 
 /// The Archive surface.
 ///
@@ -197,17 +198,6 @@ class _ArchivePageState extends State<ArchivePage> {
 
   /// The core's own one-line reason for a refusal, read from the error data so
   /// the page shows the sentence the core wrote, not a wrapper.
-  static String _reason(Object failure) {
-    if (failure is RpcException) {
-      final data = failure.data;
-      if (data is Map) {
-        final message = data['message'];
-        if (message is String && message.isNotEmpty) return message;
-      }
-      return failure.message;
-    }
-    return failure.toString();
-  }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
@@ -316,7 +306,7 @@ class _ArchivePageState extends State<ArchivePage> {
       } catch (failure) {
         if (mounted) {
           setState(() {
-            _actionError = _reason(failure);
+            _actionError = userMessage(failure);
             _failedRow = row;
             _failedDelete = false;
           });
@@ -360,7 +350,7 @@ class _ArchivePageState extends State<ArchivePage> {
       } catch (failure) {
         if (mounted) {
           setState(() {
-            _actionError = _reason(failure);
+            _actionError = userMessage(failure);
             _failedRow = row;
             _failedDelete = true;
           });
@@ -634,8 +624,8 @@ class _ArchiveRowTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final detail = _joinDot([
-      _dateLabel(row.date),
+    final detail = joinDot([
+      dateLabel(row.date),
       _sizeLabel(row.sizeBytes),
       row.backend,
     ]);
@@ -1138,13 +1128,6 @@ IconData _sideIcon(String side) => switch (side) {
   _ => Icons.folder_outlined,
 };
 
-/// The date part of an ISO-8601 instant; anything shorter is shown as it is.
-String _dateLabel(String date) {
-  final trimmed = date.trim();
-  if (trimmed.isEmpty) return '';
-  return trimmed.length >= 10 ? trimmed.substring(0, 10) : trimmed;
-}
-
 /// A human readable size. The core reports bytes, so the shell only formats.
 String _sizeLabel(int bytes) {
   final value = bytes < 0 ? 0 : bytes;
@@ -1164,6 +1147,3 @@ String _countLabel(String side, int count) {
   };
   return '$count $noun';
 }
-
-String _joinDot(List<String> parts) =>
-    parts.where((part) => part.trim().isNotEmpty).join(' · ');

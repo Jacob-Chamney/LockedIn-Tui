@@ -135,8 +135,18 @@ export async function readMemory(
   let text: string
   try {
     text = await readFile(memoryPath(folder), "utf8")
-  } catch {
-    return ok(null)
+  } catch (error) {
+    // Only ENOENT is "no memory yet". Reporting EACCES/EIO as absent made
+    // `recordTurn` merge the new points into an empty memory and replace the
+    // whole history with them.
+    if ((error as { code?: string }).code === "ENOENT") return ok(null)
+    return err({
+      kind: "storage",
+      path: memoryPath(folder),
+      message:
+        `the session memory cannot be read (${error instanceof Error ? error.message : String(error)}). ` +
+        `It was left untouched rather than replaced; fix the file's permissions`,
+    })
   }
   return parseMemory(text, sessionId)
 }

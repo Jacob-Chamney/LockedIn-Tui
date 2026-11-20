@@ -257,6 +257,29 @@ describe("boot wiring", () => {
     expect(outcome.kind).toBe("no-model")
   })
 
+  test("a chat-model change re-resolves generation instead of reusing the old one", async () => {
+    const { booted } = await bootWithModel({ model: "custom/first-model", baseUrl });
+    expect(booted.generate).toBeDefined();
+
+    // Settings → Models: the chat model moves, `models.generation` stays empty,
+    // so generation must follow the chat model. It used to be resolved once at
+    // boot, so the old provider kept answering — a silent model fallback.
+    await booted.updateConfig({
+      ...booted.config,
+      models: { ...booted.config.models, chat: "custom/second-model" },
+    });
+    await booted.generate!("hello")
+    expect(log.at(-1)!.model).toBe("second-model")
+
+    // A configured generation model is honoured, and moving it re-resolves too.
+    await booted.updateConfig({
+      ...booted.config,
+      models: { ...booted.config.models, generation: "custom/third-model" },
+    });
+    await booted.generate!("hello")
+    expect(log.at(-1)!.model).toBe("third-model")
+  });
+
   test("a loopback base URL needs no key but still produces a working controller", async () => {
     const { booted, keyCalls } = await bootWithModel({
       model: "openai/gpt-4.1-mini",

@@ -1,6 +1,6 @@
 # Desktop conversion status
 
-Updated: 2026-11-16. Branch: `feat/flutter-desktop`.
+Updated: 2026-11-20. Branch: `feat/flutter-desktop`.
 The Bun core is authoritative; this document tracks the Flutter frontend only.
 
 ## Working today
@@ -27,10 +27,17 @@ The Bun core is authoritative; this document tracks the Flutter frontend only.
 | Plugins | per-call write consent with `mcp.permission` / `mcp.confirm` | `desktop/lib/shell/plugin_permission.dart` |
 | Screenshots | 14 isolated shots across the surfaces + 800x600 (pre-dates Knowledge) | `desktop/docs/screenshots/` |
 | Settings | connect-model flow, scalar editors, MCP servers/policy, theme picker | `desktop/lib/features/settings` |
-| Themes | crimson, high contrast, Claude Code and Codex palettes, live switch | `desktop/lib/theme/palette.dart` |
+| Themes | crimson, high contrast, Claude Code and Codex palettes, live switch, custom palette editor | `desktop/lib/theme/palette.dart`, `desktop/lib/features/settings` |
+| Achievements | `achievements.list`, the star field, unlock dates in the data dir | `desktop/lib/features/achievements/` |
+| Agent templates | `work.templates.list`, the picker that seeds an agent profile | `desktop/lib/features/work/agent_dialog.dart` |
+| Activity log | `activity.list`, kind/project filters, a read-only page | `desktop/lib/features/work/activity_page.dart` |
+| Review marking | `review.mark` for a step, a card and a stage; the row shows `marking…` | `desktop/lib/features/review/` |
+| Keybind editor | `keybinds.get/set`, capture, conflict refusal, reset one/all | `desktop/lib/features/settings/keybinds_section.dart` |
+| Images | Chill attach: picker, four per message, vision-model copy | `desktop/lib/features/chat/chat_page.dart` |
+| Effects | palette-driven confetti and the particle registry | `desktop/lib/effects/` |
 | Packaging | Linux tarball + Windows zip script with core, native keychain addon, licence and notices | `scripts/desktop-package.sh`, `.ps1` |
 | NVIDIA | software-renderer fallback for the Flutter 3.50.0 compositor offset | `desktop/linux/runner/my_application.cc`, T-002 |
-| Tests | 726 Flutter, 3527 Bun, analyze/format clean | `scripts/desktop-check.sh`, `bun run check` |
+| Tests | 945 Flutter widget tests, 3,635 Bun, analyze/format/`tsc` clean | `scripts/desktop-check.sh` — it runs the whole core suite, not four files |
 
 ## In flight (this wave)
 
@@ -40,14 +47,12 @@ The Bun core is authoritative; this document tracks the Flutter frontend only.
 
 ## Next waves
 
-| Packet | Owner | Scope |
-|---|---|---|
-| T-045 | settings | rebindable keymap registry and global write/command opt-ins |
-| T-046 | chat | Chill image attach UI (in flight) |
-| T-047 | work-agents | Project swarms and task board |
-| T-048 | qa | Archive delete and goal restore (in flight) |
-| T-049 | qa | Decision layer and plugin permission gate |
-| T-050 | qa | Real Windows build, signing and install/uninstall |
+None queued. Everything T-045…T-050 that used to be listed here has shipped:
+the keybind registry and write/command opt-ins, Chill image attach, swarms and
+the task board, archive delete and goal restore, the decision layer and plugin
+permission gate, and the Windows build. What remains is not a wave — signing
+(Authenticode certificate) and a clean-machine install — and both are tracked
+in `PLAN.md` § Phase 5.
 
 ## Rules
 

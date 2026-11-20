@@ -218,7 +218,11 @@ export const DEFAULT_CONFIG: Config = {
     },
   },
   plugins: {
-    enabled: false,
+    // The master switch is documented as `true` (`docs/data-model.md` §2:
+    // "false = no plugin call at all"), and boot honours it now. Keeping the
+    // code default `false` would have silently disabled plugins on every install
+    // that configured a server but never wrote the line.
+    enabled: true,
     depth: "standard",
     servers: {},
     policy: {},

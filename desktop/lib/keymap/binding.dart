@@ -46,9 +46,6 @@ class Binding {
   /// `escape`/`space`) only fires in NORMAL mode; a modified one always does.
   bool get hasModifier => control || alt;
 
-  /// True for a named key rather than a single character.
-  bool get isNamedKey => _namedDisplay.containsKey(key);
-
   /// The stored form: `space+e`, `ctrl+q`, `escape`, `?`, `alt+1`.
   String format() {
     if (kind == BindingKind.leader) return 'space+$key';

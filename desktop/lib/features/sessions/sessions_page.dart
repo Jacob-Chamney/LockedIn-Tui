@@ -5,7 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../keys.dart';
 import '../../bridge/models.dart';
-import '../../bridge/protocol.dart';
+import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
 
 /// The manager's sort orders (`docs/product.md` §4.4: date/name/size). `o`
@@ -222,17 +222,6 @@ class _SessionsPageState extends State<SessionsPage> {
 
   /// The core's own one-line reason for a refusal, read from the error data so
   /// the page shows the sentence the core wrote, not a wrapper.
-  static String _reason(Object failure) {
-    if (failure is RpcException) {
-      final data = failure.data;
-      if (data is Map) {
-        final message = data['message'];
-        if (message is String && message.isNotEmpty) return message;
-      }
-      return failure.message;
-    }
-    return failure.toString();
-  }
 
   void _move(int delta) {
     final visible = _visible;
@@ -393,7 +382,7 @@ class _SessionsPageState extends State<SessionsPage> {
             : 'the $backend archive';
         setState(() => _notice = 'archived “${_label(row)}” to $destination');
       } catch (failure) {
-        if (mounted) setState(() => _actionError = _reason(failure));
+        if (mounted) setState(() => _actionError = userMessage(failure));
       } finally {
         if (mounted) setState(() => _actionId = null);
       }
@@ -424,7 +413,7 @@ class _SessionsPageState extends State<SessionsPage> {
         if (!mounted) return;
         setState(() => _notice = 'deleted “${_label(row)}”');
       } catch (failure) {
-        if (mounted) setState(() => _actionError = _reason(failure));
+        if (mounted) setState(() => _actionError = userMessage(failure));
       } finally {
         if (mounted) setState(() => _actionId = null);
       }
@@ -453,7 +442,7 @@ class _SessionsPageState extends State<SessionsPage> {
             : 'exported to $path',
       );
     } catch (failure) {
-      if (mounted) setState(() => _actionError = _reason(failure));
+      if (mounted) setState(() => _actionError = userMessage(failure));
     } finally {
       if (mounted) setState(() => _actionId = null);
     }

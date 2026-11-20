@@ -6,6 +6,7 @@ import '../../bridge/models.dart';
 import '../../theme/palette.dart';
 import '../chat/document_search.dart';
 import '../chat/markdown.dart';
+import '../shared/format.dart';
 
 /// One Knowledge item, read through the core's `knowledge.read`.
 ///
@@ -478,11 +479,11 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
     if (hit == null) {
       return widget.loading ? 'reading…' : 'reference material';
     }
-    return _joinDot([
+    return joinDot([
       'kind ${hit.kind.isEmpty ? 'unknown' : hit.kind}',
       'side ${hit.side.isEmpty ? 'unknown' : hit.side}',
       hit.path,
-      _dateLabel(hit.updated),
+      dateLabel(hit.updated),
     ]);
   }
 
@@ -529,7 +530,7 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
       child: Text(
         label,
         style: TextStyle(
-          color: _sideColor(label),
+          color: sideColor(label),
           fontSize: 9,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.4,
@@ -804,15 +805,6 @@ String _idLabel(String id) {
   return colon == -1 ? trimmed : trimmed.substring(colon + 1);
 }
 
-String _dateLabel(String date) {
-  final trimmed = date.trim();
-  if (trimmed.isEmpty) return '';
-  return trimmed.length >= 10 ? trimmed.substring(0, 10) : trimmed;
-}
-
-String _joinDot(List<String> parts) =>
-    parts.where((part) => part.trim().isNotEmpty).join(' · ');
-
 /// The same kind→semantic-token pairing the list uses, so one item reads the
 /// same on both layers.
 Color _kindColor(String kind) => switch (kind) {
@@ -835,11 +827,4 @@ IconData _kindIcon(String kind) => switch (kind) {
   'project' => Icons.work_outline,
   'archive' => Icons.archive_outlined,
   _ => Icons.circle_outlined,
-};
-
-Color _sideColor(String side) => switch (side) {
-  'school' => LockedInColors.primary,
-  'skills' => LockedInColors.secondary,
-  'work' => LockedInColors.accent,
-  _ => LockedInColors.muted,
 };

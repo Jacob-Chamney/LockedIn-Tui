@@ -214,6 +214,11 @@ test(":regenerate-steps in chat rebuilds without sending a model message", async
     // Close the split reader, focus the composer, then run the local command.
     await ui.press("escape")
     await ui.press("i")
+    // Wait for the mode and for the typed line to reach the frame. Without
+    // these the command raced the input queue: on a loaded runner `return`
+    // could land before the text did, and the command never ran (observed once
+    // on Linux and once on the Windows runner, failing in ~185 ms).
+    await ui.waitUntil(() => ui.frame().includes("INSERT"))
     await ui.type(":regenerate-steps")
     await ui.press("return")
     await ui.waitUntil(async () => {

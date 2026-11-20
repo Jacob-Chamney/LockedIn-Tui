@@ -403,6 +403,55 @@ describe("work approvals — permission gates", () => {
     expect(existsSync(join(project.root, "notes.md"))).toBe(false);
   });
 
+  test("a project with no profile still rejects a write, and consumes it", async () => {
+    const project = await registeredProject("Empty crew", { noAgent: true });
+    const { server } = fakeCore();
+
+    const proposed = await resultOf(server, "work.write.propose", {
+      projectId: project.id,
+      path: "notes.md",
+      newContent: "# Notes\n",
+    });
+    // Rejecting applies nothing, so it needs no profile: `server-work-approvals`
+    // used to resolve one first, so Reject failed with "no agent profile", the
+    // proposal was never consumed, and the shell kept a row it could not close.
+    const rejected = await resultOf(server, "work.write.decide", {
+      id: proposed.id,
+      decision: "reject",
+    });
+    expect(rejected).toMatchObject({ decision: "reject", applied: false, hunks: [], bytes: 0 });
+    expect(existsSync(join(project.root, "notes.md"))).toBe(false);
+
+    // Consumed: a second decision is the documented "no pending proposal".
+    const again = await errorOf(server, "work.write.decide", {
+      id: proposed.id,
+      decision: "reject",
+    });
+    expect(again.message).toContain("no pending write proposal");
+    expect(await resultOf(server, "work.approvals.list", { projectId: project.id })).toMatchObject({
+      writes: [],
+    });
+  });
+
+  test("a project with no profile still denies a command, and consumes it", async () => {
+    const project = await registeredProject("Empty crew", { noAgent: true });
+    const { server } = fakeCore();
+
+    const proposed = await resultOf(server, "work.command.propose", {
+      projectId: project.id,
+      argv: ["printf", "ok"],
+    });
+    const denied = await resultOf(server, "work.command.decide", {
+      id: proposed.id,
+      decision: "deny",
+      reason: "not now",
+    });
+    expect(denied).toMatchObject({ decision: "deny", exitCode: null, stdout: "", stderr: "" });
+    expect(await resultOf(server, "work.approvals.list", { projectId: project.id })).toMatchObject({
+      commands: [],
+    });
+  });
+
   test("the profile's allowWrite gates an approval", async () => {
     const project = await registeredProject("Read only", { permissions: "read-only" });
     const { server } = fakeCore();

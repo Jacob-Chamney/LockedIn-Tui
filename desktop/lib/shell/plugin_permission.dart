@@ -4,8 +4,9 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../bridge/errors.dart';
+
 import '../bridge/models.dart';
-import '../bridge/protocol.dart';
 import '../theme/palette.dart';
 
 /// The blocking prompt for one write-capable plugin tool call (`mcp.permission`).
@@ -96,21 +97,10 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
       await widget.onConfirm(allow);
     } catch (failure) {
       if (!mounted) return;
-      setState(() => _failure = _messageOf(failure));
+      setState(() => _failure = userMessage(failure));
     } finally {
       if (mounted) setState(() => _answering = false);
     }
-  }
-
-  static String _messageOf(Object failure) {
-    if (failure is RpcException) {
-      final data = failure.data;
-      if (data is Map && data['message'] is String) {
-        return data['message'] as String;
-      }
-      return failure.message;
-    }
-    return failure.toString();
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {

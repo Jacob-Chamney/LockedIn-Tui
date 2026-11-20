@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../bridge/models.dart';
-import '../../bridge/protocol.dart';
+import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
 import 'attachments.dart';
 import 'chat_failure.dart';
@@ -255,7 +255,7 @@ class _ChatPageState extends State<ChatPage> {
       if (!mounted) return;
       setState(() {
         _sending = false;
-        _notice = _reason(failure);
+        _notice = userMessage(failure);
       });
     }
   }
@@ -359,7 +359,7 @@ class _ChatPageState extends State<ChatPage> {
         paths = await pick();
       } catch (failure) {
         if (!mounted) return;
-        setState(() => _notice = _reason(failure));
+        setState(() => _notice = userMessage(failure));
         return;
       }
       if (!mounted || paths.isEmpty) return;
@@ -404,19 +404,6 @@ class _ChatPageState extends State<ChatPage> {
       _attachments.clear();
       _notice = null;
     });
-  }
-
-  /// One readable reason. The core puts the actionable sentence in `data`, so
-  /// prefer it over the envelope message, exactly like the store does.
-  String _reason(Object failure) {
-    if (failure is RpcException) {
-      final data = failure.data;
-      if (data is Map && data['message'] is String) {
-        return data['message'] as String;
-      }
-      return failure.message;
-    }
-    return failure.toString();
   }
 
   /// Page-level keys, the same shape every other surface uses: the composer
@@ -713,9 +700,7 @@ class _ChatPageState extends State<ChatPage> {
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    '${_compact(widget.chat!.usage.tokens)} tok · '
-                    '${chatCostLabel(widget.chat!.usage.costMicroUsd)}'
-                    '${widget.chat!.usage.durationMs == null ? '' : ' · ${(widget.chat!.usage.durationMs! / 1000).toStringAsFixed(1)}s'}',
+                    chatUsageLabel(widget.chat!.usage),
                     style: TextStyle(color: LockedInColors.muted, fontSize: 11),
                   ),
                 ),
@@ -953,14 +938,4 @@ class _BridgeChip extends StatelessWidget {
       ),
     );
   }
-}
-
-String _compact(int value) {
-  if (value >= 1000000) {
-    return '${(value / 1000000).toStringAsFixed(1).replaceAll('.0', '')}M';
-  }
-  if (value >= 1000) {
-    return '${(value / 1000).toStringAsFixed(1).replaceAll('.0', '')}K';
-  }
-  return '$value';
 }

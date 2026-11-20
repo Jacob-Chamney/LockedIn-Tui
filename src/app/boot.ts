@@ -81,6 +81,29 @@ export type BootOptions = {
   scope?: RunScope
 }
 
+/**
+ * The MCP servers boot should start, honouring the documented master switch.
+ *
+ * `[plugins] enabled = false` means "no plugin call at all"
+ * (`docs/data-model.md` §2). It was parsed, defaulted and validated, and then
+ * dropped: boot passed every configured server straight through, so turning
+ * plugins off changed nothing. An empty list starts no server and offers no
+ * tool.
+ */
+export function pluginServerConfigs(
+  plugins: Config["plugins"],
+): { id: string; command: string; args: string[]; enabled: boolean; core: boolean }[] {
+  if (!plugins.enabled) return []
+  return Object.entries(plugins.servers).map(([id, server]) => ({
+    id,
+    command: server.command,
+    args: server.args,
+    enabled: server.enabled,
+    // The web-search core server is always available on skill/work sides.
+    core: coreServersFor("skill").includes(id),
+  }))
+}
+
 export type Booted = {
   workspace: Workspace
   config: Config
@@ -337,16 +360,7 @@ export async function boot(options: BootOptions = {}): Promise<Result<Booted, Bo
     diagnostics.push(`${seed.unpriced} recorded run(s) have no price; spend may be underestimated`)
   }
 
-  const pluginRuntime = createPluginRuntime(
-    Object.entries(config.plugins.servers).map(([id, server]) => ({
-      id,
-      command: server.command,
-      args: server.args,
-      enabled: server.enabled,
-      // The web-search core server is always available on skill/work sides.
-      core: coreServersFor("skill").includes(id),
-    })),
-  )
+  const pluginRuntime = createPluginRuntime(pluginServerConfigs(config.plugins))
   // Never block the first frame on a child process.
   void pluginRuntime.start().catch(() => {})
   const budget = createBudgetGate({ config: () => budgetConfigFrom(config), now })
@@ -522,13 +536,20 @@ export async function boot(options: BootOptions = {}): Promise<Result<Booted, Bo
     }
     const { createSystemSecretStore } = await import("../security/keyring")
     const store = await createSystemSecretStore()
-    return linkProviderKey({
+    const outcome = await linkProviderKey({
       providerId: spec.id,
       spec,
       key: input.key,
       ...(input.baseUrl === undefined ? {} : { baseUrl: input.baseUrl }),
       store,
     })
+    // A key that was missing is why `service` is the unavailable stub, and
+    // `applyConfig` returns early when only the key changed. Rebuild for real
+    // providers (a custom endpoint reads no key), so a relink recovers chat
+    // without a restart — otherwise the only workaround was picking a different
+    // model and back.
+    if (outcome.ok && spec.id !== "custom") await rebuildChatService()
+    return outcome
   }
 
   const modelsForProvider = async (providerId: string): Promise<LlmResult<LinkOutcome>> => {
@@ -596,14 +617,15 @@ export async function boot(options: BootOptions = {}): Promise<Result<Booted, Bo
     return linked
   }
 
-  const applyConfig = async (next: Config): Promise<void> => {
-    const previousModel = model
-    const previousBase = config.models.base_url
-    config = next
-    const nextModel = next.models.chat.trim()
-    if (nextModel === previousModel && next.models.base_url === previousBase) return
-    model = nextModel
-    providerId = model.includes("/") ? model.slice(0, model.indexOf("/")) : ""
+  /**
+   * Build the chat service for the current [model].
+   *
+   * Extracted so a successful `provider.link` can rebuild it: booting without a
+   * key left `service` on the unavailable stub, and `applyConfig` returns early
+   * when the model did not change, so a relinked key did nothing until the
+   * process restarted.
+   */
+  const rebuildChatService = async (): Promise<void> => {
     refusals.length = 0
     service = model === "" ? null : await buildService({ providerId, model, baseUrl: config.models.base_url, readKey })
     if (service === null) {
@@ -614,6 +636,29 @@ export async function boot(options: BootOptions = {}): Promise<Result<Booted, Bo
       if (model !== "") diagnostics.push(`chat is unavailable for "${model}": ${refusals[0] ?? "no service could be built"}`)
     }
     serviceReady = model !== "" && service !== null && refusals.length === 0
+  }
+
+  const applyConfig = async (next: Config): Promise<void> => {
+    const previousModel = model
+    const previousBase = config.models.base_url
+    const previousGeneration = config.models.generation.trim()
+    config = next
+    const nextModel = next.models.chat.trim()
+    const chatChanged = nextModel !== previousModel || next.models.base_url !== previousBase
+    if (chatChanged) {
+      model = nextModel
+      providerId = model.includes("/") ? model.slice(0, model.indexOf("/")) : ""
+      await rebuildChatService()
+    }
+    // The generation model is derived from both fields (an empty
+    // `models.generation` means "the chat model"), so it is re-resolved whenever
+    // either moves. It used to be resolved once at boot, so switching the chat
+    // model kept generating with the previous provider — a silent model
+    // fallback, which `AGENTS.md` §2 forbids and which can bill a provider the
+    // user thinks they left.
+    if (chatChanged || next.models.generation.trim() !== previousGeneration) {
+      await resolveGeneration()
+    }
   }
 
   /**

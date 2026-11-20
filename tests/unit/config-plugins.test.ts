@@ -60,6 +60,9 @@ function configText(path: string): string {
 describe("plugin config table", () => {
   test("defaults for an old config file are unchanged and still load", async () => {
     const loaded = await withFixture("old")
+    // The fixture writes `enabled = false` explicitly, and an explicit value
+    // wins. (The *default* for a config with no line is `true`, documented in
+    // `docs/data-model.md` §2 and asserted below.)
     expect(loaded.config.plugins.enabled).toBe(false)
     expect(loaded.config.plugins.depth).toBe("standard")
     // absent tables load as empty, not as a validation error
@@ -68,7 +71,7 @@ describe("plugin config table", () => {
     expect(DEFAULT_CONFIG.plugins.servers).toEqual({})
     expect(DEFAULT_CONFIG.plugins.policy).toEqual({})
     // no other default moved
-    expect(DEFAULT_CONFIG.plugins.enabled).toBe(false)
+    expect(DEFAULT_CONFIG.plugins.enabled).toBe(true)
     expect(DEFAULT_CONFIG.plugins.depth).toBe("standard")
 
     // a real workspace with defaults round-trips too
@@ -242,5 +245,30 @@ describe("plugin config table", () => {
     // only the toggled key appears once per table
     expect(second.match(/\[plugins\.servers\.notes\]/g)).toHaveLength(1)
     expect(PLUGIN_POLICY_VALUES).toEqual(["on", "explicit", "off"])
+  })
+})
+
+describe("the plugins master switch stops the servers", () => {
+  test("enabled = false starts no server, whatever is configured", async () => {
+    const { pluginServerConfigs } = await import("../../src/app/boot")
+    const servers = {
+      notes: { transport: "stdio" as const, command: "mcp-notes", args: ["."], enabled: true },
+    }
+    // `[plugins] enabled = false` is "no plugin call at all". Boot used to pass
+    // every configured server through regardless, so the switch did nothing.
+    expect(pluginServerConfigs({ ...DEFAULT_CONFIG.plugins, enabled: false, servers })).toEqual([])
+    expect(pluginServerConfigs({ ...DEFAULT_CONFIG.plugins, enabled: true, servers })).toHaveLength(1)
+  })
+
+  test("enabled = true keeps the configured list, per-server flags intact", async () => {
+    const { pluginServerConfigs } = await import("../../src/app/boot")
+    const list = pluginServerConfigs({
+      ...DEFAULT_CONFIG.plugins,
+      enabled: true,
+      servers: {
+        notes: { transport: "stdio", command: "mcp-notes", args: ["a"], enabled: false },
+      },
+    })
+    expect(list).toEqual([{ id: "notes", command: "mcp-notes", args: ["a"], enabled: false, core: false }])
   })
 })

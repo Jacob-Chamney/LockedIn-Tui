@@ -44,16 +44,48 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+function codeOf(error: unknown): string | undefined {
+  const code = (error as { code?: unknown }).code
+  return typeof code === "string" ? code : undefined
+}
+
 export function stepsPath(folder: string): string {
   return join(folder, SESSION_FILES.steps)
 }
 
-/** Read the file, or null when it does not exist yet. */
+/**
+ * Read the file, or null when it does not exist yet.
+ *
+ * Only `ENOENT` is "no steps". An unreadable file (`EACCES`, `EIO`) is thrown,
+ * never reported as absent: `generateSteps` and `toggleStep` would otherwise
+ * treat it as a session with no steps and replace it, which is how a permission
+ * error became data loss. `readChatHistory` makes the same distinction for the
+ * same reason.
+ */
 export async function readSteps(folder: string): Promise<string | null> {
   try {
     return await readFile(stepsPath(folder), "utf8")
-  } catch {
-    return null
+  } catch (error) {
+    if (codeOf(error) === "ENOENT") return null
+    throw error
+  }
+}
+
+/** The `readSteps` call a writer makes: an unreadable file is a typed refusal. */
+async function readStepsForWrite(
+  folder: string,
+): Promise<Result<string | null, StepsError>> {
+  try {
+    return ok(await readSteps(folder))
+  } catch (error) {
+    return err({
+      kind: "storage",
+      path: stepsPath(folder),
+      message:
+        `the steps file cannot be read (${messageOf(error)}). It was left ` +
+        `untouched rather than overwritten; fix the file's permissions or ` +
+        `delete it and rebuild the steps`,
+    })
   }
 }
 
@@ -224,11 +256,14 @@ export async function generateSteps(
   const valid = validatePlan(input.plan)
   if (!valid.ok) return valid
 
-  const existing = input.existing === undefined ? await readSteps(input.folder) : input.existing
+  const existing = input.existing === undefined
+    ? await readStepsForWrite(input.folder)
+    : ok(input.existing)
+  if (!existing.ok) return existing
   const fresh = renderSteps(input.plan)
-  const preview = previewMerge(existing, fresh)
+  const preview = previewMerge(existing.value, fresh)
 
-  if (existing !== null && preview.kept + preview.lost > 0 && input.confirmed !== true) {
+  if (existing.value !== null && preview.kept + preview.lost > 0 && input.confirmed !== true) {
     return err({
       kind: "confirm",
       message:
@@ -241,7 +276,7 @@ export async function generateSteps(
   }
 
   // Merging with itself is a no-op, so the first generation takes the same path.
-  const merged = mergeSteps(existing ?? fresh, fresh)
+  const merged = mergeSteps(existing.value ?? fresh, fresh)
   if (!merged.ok) {
     return err({ kind: "storage", path: stepsPath(input.folder), message: merged.error.message })
   }
@@ -267,7 +302,9 @@ export async function toggleStep(input: {
   folder: string
   index: number
 }): Promise<Result<ToggleResult, StepsError>> {
-  const current = await readSteps(input.folder)
+  const read = await readStepsForWrite(input.folder)
+  if (!read.ok) return read
+  const current = read.value
   if (current === null) {
     return err({
       kind: "blocked",

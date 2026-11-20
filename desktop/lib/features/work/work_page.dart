@@ -3,11 +3,12 @@ import 'package:material_ui/material_ui.dart';
 
 import '../keys.dart';
 import '../../bridge/models.dart';
-import '../../bridge/protocol.dart';
+import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
 import 'agent_dialog.dart';
 import 'project_dialog.dart';
 import 'swarm_page.dart';
+import '../shared/cards.dart';
 
 /// The Work surface: registered projects, then one project's detail.
 ///
@@ -230,7 +231,7 @@ class _WorkPageState extends State<WorkPage> {
           ),
         ),
         const SizedBox(width: 10),
-        _CountChip(
+        ValueChip(
           _query.isEmpty
               ? '${widget.projects.length}'
               : '${_visible.length} of ${widget.projects.length}',
@@ -547,17 +548,6 @@ class _WorkDetailViewState extends State<WorkDetailView> {
   }
 
   /// The core's own sentence when it sent one, otherwise the exception's.
-  String _reason(Object failure) {
-    if (failure is RpcException) {
-      final data = failure.data;
-      if (data is Map && data['message'] is String) {
-        final message = (data['message'] as String).trim();
-        if (message.isNotEmpty) return message;
-      }
-      return failure.message;
-    }
-    return failure.toString();
-  }
 
   Future<void> _createAgent() async {
     final save = widget.onSaveAgent;
@@ -619,7 +609,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
       try {
         await delete(agent.id);
       } catch (failure) {
-        if (mounted) setState(() => _agentError = _reason(failure));
+        if (mounted) setState(() => _agentError = userMessage(failure));
       } finally {
         if (mounted) setState(() => _savingAgent = false);
       }
@@ -642,7 +632,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
     try {
       await setDefault(next);
     } catch (failure) {
-      if (mounted) setState(() => _agentError = _reason(failure));
+      if (mounted) setState(() => _agentError = userMessage(failure));
     } finally {
       if (mounted) setState(() => _savingAgent = false);
     }
@@ -842,9 +832,9 @@ class _WorkDetailViewState extends State<WorkDetailView> {
 
   Widget _rootCard() {
     final project = widget.project;
-    return _Card(
+    return SectionCard(
       label: 'ROOT',
-      trailing: _ValueChip(
+      trailing: ValueChip(
         project.rootMissing ? 'missing' : 'registered',
         tone: project.rootMissing
             ? LockedInColors.warning
@@ -902,9 +892,9 @@ class _WorkDetailViewState extends State<WorkDetailView> {
     final loading = widget.changesLoading;
     final error = widget.changesError;
     final refresh = widget.onRefreshChanges;
-    return _Card(
+    return SectionCard(
       label: 'CHANGES',
-      trailing: const _ValueChip('read-only summary'),
+      trailing: const ValueChip('read-only summary'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -984,7 +974,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
             ),
             if (changes.detached) ...[
               const SizedBox(width: 8),
-              _ValueChip('detached', tone: LockedInColors.warning),
+              ValueChip('detached', tone: LockedInColors.warning),
             ],
           ],
         ),
@@ -993,21 +983,21 @@ class _WorkDetailViewState extends State<WorkDetailView> {
           spacing: 6,
           runSpacing: 4,
           children: [
-            _ValueChip(
+            ValueChip(
               changes.dirty ? 'dirty' : 'clean',
               tone: changes.dirty
                   ? LockedInColors.warning
                   : LockedInColors.success,
             ),
-            _ValueChip(
+            ValueChip(
               changes.staged == 1 ? '1 staged' : '${changes.staged} staged',
             ),
-            _ValueChip(
+            ValueChip(
               changes.unstaged == 1
                   ? '1 unstaged'
                   : '${changes.unstaged} unstaged',
             ),
-            _ValueChip(files.length == 1 ? '1 file' : '${files.length} files'),
+            ValueChip(files.length == 1 ? '1 file' : '${files.length} files'),
           ],
         ),
         const SizedBox(height: 10),
@@ -1029,9 +1019,9 @@ class _WorkDetailViewState extends State<WorkDetailView> {
     final total = approvals.total;
     final canOpen = widget.onOpenApprovals != null;
     final error = widget.approvalsError;
-    return _Card(
+    return SectionCard(
       label: 'APPROVALS',
-      trailing: _ValueChip(
+      trailing: ValueChip(
         total == 0 ? 'none pending' : '$total pending',
         tone: total == 0 ? LockedInColors.muted : LockedInColors.warning,
       ),
@@ -1307,7 +1297,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
 
   Widget _instructionsCard() {
     final instructions = widget.project.instructions.trim();
-    return _Card(
+    return SectionCard(
       label: 'INSTRUCTIONS',
       child: instructions.isEmpty
           ? _EmptyNote(
@@ -1332,9 +1322,9 @@ class _WorkDetailViewState extends State<WorkDetailView> {
     final canOpen = widget.onOpenChat != null;
     final count = widget.chatCount;
     final latest = widget.latestChatId;
-    return _Card(
+    return SectionCard(
       label: 'CHAT',
-      trailing: _ValueChip(count == 1 ? '1 chat' : '$count chats'),
+      trailing: ValueChip(count == 1 ? '1 chat' : '$count chats'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1396,9 +1386,9 @@ class _WorkDetailViewState extends State<WorkDetailView> {
     final status = newest == null
         ? null
         : swarmStatusStyle(newest.isRunning ? 'running' : newest.status);
-    return _Card(
+    return SectionCard(
       label: 'SWARM',
-      trailing: _ValueChip(
+      trailing: ValueChip(
         runs.isEmpty
             ? 'no runs'
             : runs.length == 1
@@ -1447,7 +1437,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                _ValueChip(
+                ValueChip(
                   swarmStatusText(newest.isRunning ? 'running' : newest.status),
                   tone: status.tone,
                 ),
@@ -1490,9 +1480,9 @@ class _WorkDetailViewState extends State<WorkDetailView> {
     final count = widget.activityCount;
     final canOpen = widget.onOpenActivity != null;
     final error = widget.activityError;
-    return _Card(
+    return SectionCard(
       label: 'ACTIVITY',
-      trailing: _ValueChip(
+      trailing: ValueChip(
         // The log is read with a filter and a page cap, so this is the number
         // of rows the card can open, not the project's total.
         count == 0 ? 'no records' : '$count shown',
@@ -1546,18 +1536,16 @@ class _WorkDetailViewState extends State<WorkDetailView> {
   Widget _agentsCard() {
     final agents = _agents;
     final editable = _canEditAgents;
-    return _Card(
+    return SectionCard(
       label: 'AGENTS',
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (_savingAgent) ...[
-            _ValueChip('saving…', tone: LockedInColors.warning),
+            ValueChip('saving…', tone: LockedInColors.warning),
             const SizedBox(width: 6),
           ],
-          _ValueChip(
-            agents.length == 1 ? '1 agent' : '${agents.length} agents',
-          ),
+          ValueChip(agents.length == 1 ? '1 agent' : '${agents.length} agents'),
         ],
       ),
       child: Column(
@@ -1682,7 +1670,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
                     ),
                     if (isDefault) ...[
                       const SizedBox(width: 8),
-                      _ValueChip('default', tone: LockedInColors.primary),
+                      ValueChip('default', tone: LockedInColors.primary),
                     ],
                   ],
                 ),
@@ -1691,13 +1679,13 @@ class _WorkDetailViewState extends State<WorkDetailView> {
                   spacing: 6,
                   runSpacing: 4,
                   children: [
-                    _ValueChip(
+                    ValueChip(
                       agent.readOnly ? 'read-only' : 'write',
                       tone: agent.readOnly
                           ? LockedInColors.success
                           : LockedInColors.warning,
                     ),
-                    _ValueChip(
+                    ValueChip(
                       agent.allowCommand ? 'command' : 'no command',
                       tone: agent.allowCommand
                           ? LockedInColors.warning
@@ -1745,7 +1733,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
 
   Widget _summaryCard() {
     final project = widget.project;
-    return _Card(
+    return SectionCard(
       label: 'SUMMARY',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1937,7 +1925,7 @@ class _ProjectRowTile extends StatelessWidget {
               ),
               if (showMode) ...[
                 const SizedBox(width: 10),
-                _ValueChip(project.mode.isEmpty ? 'chat' : project.mode),
+                ValueChip(project.mode.isEmpty ? 'chat' : project.mode),
               ],
               const SizedBox(width: 12),
               SizedBox(
@@ -1951,100 +1939,6 @@ class _ProjectRowTile extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  const _Card({required this.label, required this.child, this.trailing});
-
-  final String label;
-  final Widget child;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      decoration: BoxDecoration(
-        color: LockedInColors.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: LockedInColors.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: LockedInColors.secondary,
-                  letterSpacing: 1.4,
-                ),
-              ),
-              const Spacer(),
-              ?trailing,
-            ],
-          ),
-          const SizedBox(height: 10),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-class _ValueChip extends StatelessWidget {
-  const _ValueChip(this.text, {this.tone});
-
-  final String text;
-  final Color? tone;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: LockedInColors.line),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: tone ?? LockedInColors.muted,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _CountChip extends StatelessWidget {
-  const _CountChip(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: LockedInColors.line),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: LockedInColors.muted,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
         ),
       ),
     );

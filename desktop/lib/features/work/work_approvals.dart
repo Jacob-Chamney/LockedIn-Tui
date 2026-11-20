@@ -3,7 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../keys.dart';
 import '../../bridge/models.dart';
-import '../../bridge/protocol.dart';
+import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
 
 /// The Work pending-approval surface.
@@ -208,17 +208,6 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
   }
 
   /// The core's own sentence when it sent one, otherwise the exception's.
-  String _reason(Object failure) {
-    if (failure is RpcException) {
-      final data = failure.data;
-      if (data is Map && data['message'] is String) {
-        final message = (data['message'] as String).trim();
-        if (message.isNotEmpty) return message;
-      }
-      return failure.message;
-    }
-    return failure.toString();
-  }
 
   /// Put the cursor on the card with [id] before a button decides it.
   ///
@@ -292,7 +281,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
       await run();
     } catch (failure) {
       if (!mounted) return;
-      setState(() => _decideError = _reason(failure));
+      setState(() => _decideError = userMessage(failure));
     } finally {
       if (mounted) setState(() => _decidingId = null);
     }

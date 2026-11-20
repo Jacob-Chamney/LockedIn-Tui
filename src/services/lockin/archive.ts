@@ -207,20 +207,24 @@ export type DeleteOutcome = {
 }
 
 /**
- * Delete a session folder. Nothing else is touched: no note, no work project,
- * no archive entry.
+ * Delete a **live** session folder. Nothing else is touched: no note, no work
+ * project, no archive entry.
+ *
+ * There is deliberately no fallback to an archived copy. `deleteSession` used to
+ * take an `archiveRoot` and delete the archived twin when the live folder was
+ * gone, so a delete racing an archive removed the user's backup while reporting
+ * `{action:"delete"}` — and `desktop/docs/protocol.md` promises that "an
+ * archive of the same id still restores later". An archived copy is removed by
+ * `archive.remove`, with its own confirmation and its own name.
  */
 export async function deleteSession(
-  options: ActionOptions & { archiveRoot?: string },
+  options: ActionOptions,
 ): Promise<Result<DeleteOutcome, ManagerError>> {
   const checked = assertSessionId(options.id)
   if (!checked.ok) return checked
-  const open = sessionFolderFor(options.workspace, options.id)
-  const archived = options.archiveRoot ? await findArchived(options.archiveRoot, options.id) : null
-
-  const folder = (await exists(open)) ? open : archived
-  if (folder === null) {
-    return err({ kind: "storage", path: open, message: `there is no session "${options.id}"` })
+  const folder = sessionFolderFor(options.workspace, options.id)
+  if (!(await exists(folder))) {
+    return err({ kind: "storage", path: folder, message: `there is no session "${options.id}"` })
   }
 
   const links = await inboundLinks({ workspace: options.workspace, id: options.id })

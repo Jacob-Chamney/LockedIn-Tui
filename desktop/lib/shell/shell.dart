@@ -595,6 +595,10 @@ class _ShellState extends State<Shell> {
     });
     final store = CoreScope.of(context);
     if (surface == Surface.settings) {
+      // Re-read the config on entry: a save elsewhere (or a failed read) must
+      // not leave the rows stale, and the page's Retry only works if a read can
+      // clear its own error.
+      unawaited(store.refreshSettings());
       unawaited(store.refreshProviders());
       // MCP rows are read only when Settings opens: `mcp.list` is a core read and
       // `mcp.refresh` (the page's `r`) is the explicit reconnect, never startup.
@@ -1246,17 +1250,20 @@ class _ShellState extends State<Shell> {
   /// each explain their own keys instead, so the bar never advertises a list's
   /// controls while a transcript or form is on screen. The chat hint names the
   /// leader so the generated table is one key away, and the key it names is the
-  /// registry's own binding, not a literal.
+  /// registry's own binding, not a literal: rebinding the leader changes this
+  /// line with it.
   String _statusHint(CoreStore store, KeymapRegistry keymap) {
+    final leader = keymap.rowFor('leader')?.binding.display ?? 'Space';
+    final leaderHint = '$leader leader';
     // Chat's hint depends on whether a turn can be sent: naming "Enter send"
     // over a disabled composer taught a key that did nothing.
     if (_surface == Surface.chat) {
       final chat = store.chat;
       final blocked = chat?.blocked;
-      if (blocked != null) return '${blocked.reason} · Space leader';
-      if (chat?.streaming ?? false) return 'Esc stops · Space leader';
-      if (!store.configured) return 'no model · Space leader';
-      return 'Enter send · Shift+Enter newline · Space leader';
+      if (blocked != null) return '${blocked.reason} · $leaderHint';
+      if (chat?.streaming ?? false) return 'Esc stops · $leaderHint';
+      if (!store.configured) return 'no model · $leaderHint';
+      return 'Enter send · Shift+Enter newline · $leaderHint';
     }
     // Archive's own page names restore/delete; the status bar must not hide
     // them behind a different name for `r`.
@@ -1445,7 +1452,10 @@ class _ShellState extends State<Shell> {
         settings: store.settings,
         loading:
             store.status == CoreStatus.connecting && store.settings == null,
-        error: store.error,
+        // Settings' own read error. The global slot belongs to whichever surface
+        // wrote it, so a Chill failure used to say "Settings could not load" —
+        // and the page's Retry could not clear a field it did not own.
+        error: store.settingsError,
         onRefresh: store.refreshSettings,
         providers: store.providers,
         providersError: store.providersError,
@@ -1532,7 +1542,14 @@ class _ShellState extends State<Shell> {
       // `s` and a chip change the projection: the store re-runs the search or
       // reloads the tree, and a `work` scope reads the tree with `all`.
       onScope: (scope) => unawaited(store.selectKnowledgeScope(scope)),
-      onRefresh: () => unawaited(store.loadKnowledgeTree()),
+      // `r` repeats what is on screen: a search stays a search, and only the
+      // tree is re-read when there is no query. Reloading the tree under a
+      // result list left the key looking dead.
+      onRefresh: () => unawaited(
+        store.knowledgeQuery.trim().isEmpty
+            ? store.loadKnowledgeTree()
+            : store.searchKnowledge(store.knowledgeQuery),
+      ),
       // `Enter` reads the row through the core and shows it in the layer above.
       onOpen: (id) => unawaited(store.readKnowledge(id)),
       // Knowledge is a read-only snapshot over the vaults, not a layer: `Esc`
@@ -3001,12 +3018,9 @@ class _StatusBar extends StatelessWidget {
     final chat = this.chat;
     // No snapshot is "not read", not "zero tokens spent".
     if (chat == null) return '— tok · cost unknown · $helpKey help';
-    final tokens = chat.usage.tokens;
-    final compact = tokens >= 1000000
-        ? '${(tokens / 1000000).toStringAsFixed(1)}M'
-        : tokens >= 1000
-        ? '${(tokens / 1000).toStringAsFixed(1)}K'
-        : '$tokens';
+    // The same formatter the chats use: this copy kept the `.0`, so the status
+    // bar said `2.0K` beside a chat that said `2K`.
+    final compact = compactTokens(chat.usage.tokens);
     final cost = chatCostLabel(chat.usage.costMicroUsd);
     final duration = chat.usage.durationMs == null
         ? ''

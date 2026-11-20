@@ -1,36 +1,12 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lockedin_desktop/app.dart';
-import 'package:lockedin_desktop/bridge/core_client.dart';
 import 'package:lockedin_desktop/shell/command_line.dart';
 import 'package:lockedin_desktop/shell/leader.dart';
 import 'package:lockedin_desktop/shell/palette.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'fake_core.dart';
-
-/// Who holds the keyboard, and what a key means there.
-///
-/// These are the rules the shell must keep whichever layer just closed: one
-/// `Esc` leaves INSERT, a modified chord belongs to the registry, a page keeps
-/// what the user typed into it, and the rail and the overlays hand the keyboard
-/// back to where it came from.
-Future<CoreStore> pumpShell(
-  WidgetTester tester, {
-  FakeCore? core,
-  Size size = const Size(1280, 800),
-}) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
-  final store = CoreStore(connection: core ?? FakeCore());
-  addTearDown(store.dispose);
-  await store.start();
-  await tester.pumpWidget(LockedInApp(store: store));
-  await tester.pumpAndSettle();
-  return store;
-}
+import 'support/shell.dart';
 
 Future<void> press(WidgetTester tester, LogicalKeyboardKey key) async {
   await tester.sendKeyEvent(key);

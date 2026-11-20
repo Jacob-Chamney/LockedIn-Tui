@@ -5,9 +5,10 @@ import 'package:material_ui/material_ui.dart';
 
 import '../keys.dart';
 import '../../bridge/models.dart';
-import '../../bridge/protocol.dart';
+import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
 import 'swarm_dialog.dart';
+import '../shared/cards.dart';
 
 /// The glyph, tone and word for one swarm task or run status.
 ///
@@ -165,17 +166,6 @@ class _SwarmPageState extends State<SwarmPage> {
   }
 
   /// The core's own sentence when it sent one, otherwise the exception's.
-  String _reason(Object failure) {
-    if (failure is RpcException) {
-      final data = failure.data;
-      if (data is Map && data['message'] is String) {
-        final message = (data['message'] as String).trim();
-        if (message.isNotEmpty) return message;
-      }
-      return failure.message;
-    }
-    return failure.toString();
-  }
 
   /// Run one mutation, keeping a refusal inline instead of leaving the page.
   Future<void> _mutate(Future<void> Function() action) async {
@@ -186,7 +176,7 @@ class _SwarmPageState extends State<SwarmPage> {
     try {
       await action();
     } catch (failure) {
-      if (mounted) setState(() => _actionError = _reason(failure));
+      if (mounted) setState(() => _actionError = userMessage(failure));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -516,7 +506,7 @@ class _SwarmPageState extends State<SwarmPage> {
 
   Widget _emptyCard() {
     if (widget.loading) {
-      return _Card(
+      return SectionCard(
         label: 'RUN',
         child: Row(
           children: [
@@ -537,7 +527,7 @@ class _SwarmPageState extends State<SwarmPage> {
         ),
       );
     }
-    return _Card(
+    return SectionCard(
       label: 'RUN',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -578,7 +568,7 @@ class _SwarmPageState extends State<SwarmPage> {
 
   Widget _runCard(SwarmBoardView board) {
     final report = board.reportPath;
-    return _Card(
+    return SectionCard(
       label: 'RUN',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -645,7 +635,7 @@ class _SwarmPageState extends State<SwarmPage> {
   Widget _runsCard() {
     final active = widget.board?.runId;
     final open = widget.onOpenRun;
-    return _Card(
+    return SectionCard(
       label: 'RUNS',
       trailing: _Chip('${widget.runs.length}'),
       child: Wrap(
@@ -699,7 +689,7 @@ class _SwarmPageState extends State<SwarmPage> {
 
   Widget _tasksCard(SwarmBoardView board) {
     final failed = board.tasks.where((task) => task.status == 'failed').length;
-    return _Card(
+    return SectionCard(
       label: 'BOARD',
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -862,47 +852,6 @@ String _timeLabel(String value) {
   if (value.trim().isEmpty) return 'not recorded';
   final stamp = value.replaceFirst('T', ' ');
   return stamp.length > 16 ? stamp.substring(0, 16) : stamp;
-}
-
-class _Card extends StatelessWidget {
-  const _Card({required this.label, required this.child, this.trailing});
-
-  final String label;
-  final Widget child;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      decoration: BoxDecoration(
-        color: LockedInColors.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: LockedInColors.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: LockedInColors.secondary,
-                  letterSpacing: 1.4,
-                ),
-              ),
-              const Spacer(),
-              ?trailing,
-            ],
-          ),
-          const SizedBox(height: 10),
-          child,
-        ],
-      ),
-    );
-  }
 }
 
 class _Chip extends StatelessWidget {

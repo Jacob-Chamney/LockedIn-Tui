@@ -4,12 +4,15 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../bridge/errors.dart';
+
 import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
 import '../../theme/palette.dart';
 import '../chat/markdown.dart';
 import '../chat/transcript_scroll.dart';
+import '../shared/cards.dart';
 
 /// Returns the files the user chose, or an empty list when they cancelled.
 typedef SkillSourcePicker = Future<List<String>> Function();
@@ -343,7 +346,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
       if (!mounted) return;
       setState(() {
         _sourcesNotice = null;
-        _sourcesFailure = _sourceReason(failure);
+        _sourcesFailure = userMessage(failure);
       });
       return;
     }
@@ -365,7 +368,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
       if (!mounted) return;
       setState(() {
         _sourcesBusy = false;
-        _sourcesFailure = _sourceReason(failure);
+        _sourcesFailure = userMessage(failure);
       });
     }
   }
@@ -377,19 +380,6 @@ class _SkillDetailViewState extends State<SkillDetailView> {
     }
     if (result.skipped > 0) return 'already gathered';
     return 'nothing added';
-  }
-
-  /// One readable reason. The core puts the actionable sentence in `data`, so
-  /// prefer it over the envelope message, exactly like the store does.
-  String _sourceReason(Object failure) {
-    if (failure is RpcException) {
-      final data = failure.data;
-      if (data is Map && data['message'] is String) {
-        return data['message'] as String;
-      }
-      return failure.message;
-    }
-    return failure.toString();
   }
 
   GlobalKey _chapterKey(String id) => _chapterKeys.putIfAbsent(
@@ -513,7 +503,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
       if (!mounted) return;
       setState(() {
         _stagesBusy = false;
-        _stagesFailure = _sourceReason(failure);
+        _stagesFailure = userMessage(failure);
       });
     }
   }
@@ -916,9 +906,9 @@ class _SkillDetailViewState extends State<SkillDetailView> {
     final goal = widget.detail.goal.trim();
     final prior = widget.detail.prior.trim();
     final plan = widget.detail.modelPlan ? 'model' : 'template';
-    return _Card(
+    return SectionCard(
       label: 'GOAL',
-      trailing: _ValueChip('plan · $plan'),
+      trailing: ValueChip('plan · $plan'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -968,9 +958,9 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   Widget _sourcesCard() {
     final sources = widget.sources;
     final interactive = widget.onAddSources != null;
-    return _Card(
+    return SectionCard(
       label: 'SOURCES',
-      trailing: _ValueChip(
+      trailing: ValueChip(
         sources.length == 1 ? '1 source' : '${sources.length} sources',
         tone: sources.isEmpty ? LockedInColors.muted : LockedInColors.secondary,
       ),
@@ -1083,7 +1073,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    _ValueChip(source.kind.isEmpty ? 'file' : source.kind),
+                    ValueChip(source.kind.isEmpty ? 'file' : source.kind),
                   ],
                 ),
                 if (excerpt != null) ...[
@@ -1120,9 +1110,9 @@ class _SkillDetailViewState extends State<SkillDetailView> {
     final interactive = widget.onOpenStage != null;
     final editable = widget.onSaveStages != null;
     final selected = _stageIndex;
-    return _Card(
+    return SectionCard(
       label: 'CURRICULUM STAGES',
-      trailing: _ValueChip(
+      trailing: ValueChip(
         _editingStages
             ? 'editing'
             : stages.isEmpty
@@ -1308,7 +1298,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                _ValueChip(
+                ValueChip(
                   stage.status.isEmpty ? 'pending' : stage.status,
                   tone: tone,
                 ),
@@ -1325,9 +1315,9 @@ class _SkillDetailViewState extends State<SkillDetailView> {
     final done = chapters.where((chapter) => chapter.done).length;
     final interactive = widget.onOpenChapter != null;
     final selected = _selected;
-    return _Card(
+    return SectionCard(
       label: 'COURSE',
-      trailing: _ValueChip(
+      trailing: ValueChip(
         chapters.isEmpty ? 'no chapters' : '$done/${chapters.length} chapters',
         tone: chapters.isNotEmpty && done == chapters.length
             ? LockedInColors.success
@@ -1464,11 +1454,11 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                 ),
                 if (chapter.done) ...[
                   const SizedBox(width: 8),
-                  _ValueChip('done', tone: LockedInColors.success),
+                  ValueChip('done', tone: LockedInColors.success),
                 ],
                 if (practical) ...[
                   const SizedBox(width: 8),
-                  const _ValueChip('practical'),
+                  const ValueChip('practical'),
                 ],
               ],
             ),
@@ -1481,9 +1471,9 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   Widget _chatsCard() {
     final chats = widget.chats ?? widget.detail.chats;
     final canOpen = widget.onOpenChat != null;
-    return _Card(
+    return SectionCard(
       label: 'CHATS',
-      trailing: _ValueChip(
+      trailing: ValueChip(
         chats.length == 1 ? '1 chat' : '${chats.length} chats',
       ),
       child: Column(
@@ -2030,74 +2020,6 @@ class _StageConfirmDialog extends StatelessWidget {
             child: Text(confirmLabel),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  const _Card({required this.label, required this.child, this.trailing});
-
-  final String label;
-  final Widget child;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      decoration: BoxDecoration(
-        color: LockedInColors.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: LockedInColors.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: LockedInColors.secondary,
-                  letterSpacing: 1.4,
-                ),
-              ),
-              const Spacer(),
-              ?trailing,
-            ],
-          ),
-          const SizedBox(height: 10),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-class _ValueChip extends StatelessWidget {
-  const _ValueChip(this.text, {this.tone});
-
-  final String text;
-  final Color? tone;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: LockedInColors.line),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: tone ?? LockedInColors.muted,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-        ),
       ),
     );
   }

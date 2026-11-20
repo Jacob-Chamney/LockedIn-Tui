@@ -9,7 +9,12 @@ export type SessionActionInput = {
   workspace: Workspace
   id: string
   action: SessionAction
-  archiveRoot: string
+  /**
+   * The folder archive root. Optional because `delete` never reaches the
+   * archive: it removes the live folder only (`deleteSession`), so an archived
+   * copy of the same id survives.
+   */
+  archiveRoot?: string
   /** Present only when Settings selects GitHub. */
   createGithubArchive?: () => Promise<Result<ArchiveBackend, import("../../archive/types").ArchiveError>>
 }
@@ -54,14 +59,15 @@ export async function runSessionAction(input: SessionActionInput): Promise<Sessi
       : { ok: false, message: result.error.message }
   }
 
-  if (input.archiveRoot === "") {
+  const archiveRoot = input.archiveRoot ?? "";
+  if (archiveRoot === "") {
     return { ok: false, message: "set an archive folder in Settings first" }
   }
   const result = await archiveSession({
     workspace: input.workspace,
     id: input.id,
     confirmed: true,
-    archiveRoot: input.archiveRoot,
+    archiveRoot,
   })
   return result.ok
     ? { ok: true, action: "archive", backend: "folder" }

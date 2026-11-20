@@ -3,8 +3,9 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../bridge/errors.dart';
+
 import '../keys.dart';
-import '../../bridge/protocol.dart';
 import '../../effects/effect.dart';
 import '../../theme/palette.dart';
 import '../chat/document_search.dart';
@@ -382,7 +383,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
       await mark(card.id, result);
     } catch (failure) {
       if (!mounted) return;
-      setState(() => _markError = _markMessage(failure));
+      setState(() => _markError = userMessage(failure));
     } finally {
       if (mounted) setState(() => _marking = false);
     }
@@ -427,19 +428,6 @@ class _SessionOutputViewState extends State<SessionOutputView> {
       if (correct && !deck.showAnswer) deck.flip();
     });
     if (!correct) unawaited(_mark('missed'));
-  }
-
-  /// The core's own sentence when it sent one, otherwise the exception's.
-  String _markMessage(Object failure) {
-    if (failure is RpcException) {
-      final data = failure.data;
-      if (data is Map && data['message'] is String) {
-        final message = (data['message'] as String).trim();
-        if (message.isNotEmpty) return message;
-      }
-      return failure.message;
-    }
-    return failure.toString();
   }
 
   /// The deck's keys. They are scoped to a deck with a live mark callback, so a
