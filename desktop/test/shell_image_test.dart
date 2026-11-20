@@ -7,7 +7,7 @@ import 'package:lockedin_desktop/features/chat/chat_page.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'fake_core.dart';
-import 'smoke_test.dart';
+import 'support/shell.dart';
 
 /// Image attachment wiring is split in two: the page owns chips and the picker,
 /// the shell owns the core. These tests check both halves meet.

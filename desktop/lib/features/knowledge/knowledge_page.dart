@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../theme/palette.dart';
+import '../shared/format.dart';
 
 /// The Knowledge surface: the unified, read-only index over both vaults.
 ///
@@ -833,7 +834,7 @@ class _NoteTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    _joinDot([note.path, _dateLabel(note.updated)]),
+                    joinDot([note.path, dateLabel(note.updated)]),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: LockedInColors.muted, fontSize: 11),
@@ -863,7 +864,7 @@ class _HitTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final meta = _joinDot([hit.path, _dateLabel(hit.updated)]);
+    final meta = joinDot([hit.path, dateLabel(hit.updated)]);
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -1016,7 +1017,7 @@ class _SideBadge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          color: _sideColor(label),
+          color: sideColor(label),
           fontSize: 9,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.4,
@@ -1231,19 +1232,3 @@ IconData _kindIcon(String kind) => switch (kind) {
   'archive' => Icons.archive_outlined,
   _ => Icons.circle_outlined,
 };
-
-Color _sideColor(String side) => switch (side) {
-  'school' => LockedInColors.primary,
-  'skills' => LockedInColors.secondary,
-  'work' => LockedInColors.accent,
-  _ => LockedInColors.muted,
-};
-
-String _dateLabel(String date) {
-  final trimmed = date.trim();
-  if (trimmed.isEmpty) return '';
-  return trimmed.length >= 10 ? trimmed.substring(0, 10) : trimmed;
-}
-
-String _joinDot(List<String> parts) =>
-    parts.where((part) => part.trim().isNotEmpty).join(' · ');

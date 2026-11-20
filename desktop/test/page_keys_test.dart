@@ -1,30 +1,11 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lockedin_desktop/app.dart';
-import 'package:lockedin_desktop/bridge/core_client.dart';
 import 'package:lockedin_desktop/shell/leader.dart';
 import 'package:lockedin_desktop/shell/palette.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'fake_core.dart';
-
-/// Page keys that used to fight the keyboard they were drawn on.
-Future<CoreStore> pumpShell(
-  WidgetTester tester, {
-  FakeCore? core,
-  Size size = const Size(1280, 800),
-}) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
-  final store = CoreStore(connection: core ?? FakeCore());
-  addTearDown(store.dispose);
-  await store.start();
-  await tester.pumpWidget(LockedInApp(store: store));
-  await tester.pumpAndSettle();
-  return store;
-}
+import 'support/shell.dart';
 
 Future<void> press(WidgetTester tester, LogicalKeyboardKey key) async {
   await tester.sendKeyEvent(key);

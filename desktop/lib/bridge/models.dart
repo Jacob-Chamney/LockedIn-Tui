@@ -649,8 +649,6 @@ class SessionInstructions {
   final String prompt;
   final InstructionsSource? instructionsSource;
 
-  bool get hasSource => instructionsSource != null;
-
   factory SessionInstructions.fromJson(Map<String, dynamic> json) {
     final source = json['instructionsSource'];
     return SessionInstructions(
@@ -1055,9 +1053,6 @@ class DecisionView {
   /// The core's one-sentence reason the local model is unavailable.
   final String localModelReason;
 
-  /// True when the local model is not shipped and the shell must say so.
-  bool get localModelMissing => !localModelSupported;
-
   factory DecisionView.fromJson(Object? value) {
     final json = value is Map
         ? Map<String, dynamic>.from(value)
@@ -1093,8 +1088,6 @@ class ChatMessageView {
   final String role;
   final String text;
   final String? outcome;
-
-  bool get isUser => role == 'user';
 
   factory ChatMessageView.fromJson(Map<String, dynamic> json) {
     final outcome = json['outcome'];
@@ -1708,9 +1701,6 @@ class WorkWriteProposal {
 
   /// `sha256:<hex>` of the base bytes, or null for a create.
   final String? baseHash;
-
-  /// True when the proposal replaces a file that already exists.
-  bool get updatesFile => kind == 'update';
 
   factory WorkWriteProposal.fromJson(
     Map<String, dynamic> json, {
@@ -2424,7 +2414,6 @@ class SkillRow {
   /// The core's own reason when the goal folder cannot be read.
   final String? broken;
 
-  bool get hasChapters => chaptersTotal != null;
   bool get complete => stageTotal > 0 && stageDone >= stageTotal;
 
   factory SkillRow.fromJson(Map<String, dynamic> json) {
@@ -2539,8 +2528,6 @@ class SkillSourceRow {
   final String hash;
   final String? excerpt;
   final String? excerptLocation;
-
-  bool get hasExcerpt => excerpt != null;
 
   factory SkillSourceRow.fromJson(Map<String, dynamic> json) {
     final excerpt = _string(json['excerpt']).trim();

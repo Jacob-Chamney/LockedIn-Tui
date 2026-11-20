@@ -568,6 +568,10 @@ export async function generateSessionDocument(input: {
     includeSteps: input.kind !== "contract",
     includeOutputs: false,
   })
+  // `:contract` extracts the done-when checklist from the assignment
+  // instructions, which is `prompt.md` — so instructions alone are enough here.
+  // (Study guides and decks are source-only; `session.output.build` refuses a
+  // session with no readable source, and this path deliberately does not.)
   if (context.trim() === "") {
     return { ok: false, error: { message: "this session has no readable sources" } }
   }

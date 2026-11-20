@@ -281,3 +281,32 @@ describe("labelling", () => {
     expect(report.total).toBe(0)
   })
 })
+
+describe("an unreadable memory file is never treated as empty", () => {
+  let folder: string
+  beforeEach(async () => {
+    folder = await mkdtemp(join(tmpdir(), "lockedin-memory-unreadable-"))
+  })
+  afterEach(async () => {
+    await rm(folder, { recursive: true, force: true })
+  })
+
+  test("recordTurn refuses instead of replacing the history", async () => {
+    // A directory where memory.md should be: reading it fails with EISDIR.
+    await (await import("node:fs/promises")).mkdir(join(folder, "memory.md"))
+
+    const result = await recordTurn({
+      folder,
+      sessionId: "2026-11-01-0900-physics",
+      outcome: "done",
+      points: ["a new point"],
+      now: "2026-11-01T10:00:00Z",
+    })
+    // Reading EACCES/EIO as "no memory yet" made `recordTurn` merge the new
+    // points into an empty memory and replace the whole history with them.
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.error.kind).toBe("storage")
+    expect(result.error.message).toContain("cannot be read")
+  })
+})

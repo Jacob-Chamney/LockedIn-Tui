@@ -1,6 +1,5 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lockedin_desktop/app.dart';
 import 'package:lockedin_desktop/bridge/core_client.dart';
 import 'package:lockedin_desktop/bridge/models.dart';
 import 'package:lockedin_desktop/bridge/protocol.dart';
@@ -9,6 +8,7 @@ import 'package:lockedin_desktop/theme/palette.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'fake_core.dart';
+import 'support/shell.dart';
 
 /// The two archived items the fixture uses: one school session that this build
 /// can restore and one skills goal that it refuses by name.
@@ -75,61 +75,6 @@ Future<void> confirmRestore(WidgetTester tester) async {
   await tester.tap(find.byKey(const ValueKey('archive-restore-confirm')));
   await tester.pumpAndSettle();
 }
-
-Future<void> pumpShell(
-  WidgetTester tester, {
-  FakeCore? core,
-  Size size = const Size(1280, 800),
-}) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
-  final store = CoreStore(connection: core ?? FakeCore());
-  addTearDown(store.dispose);
-  await store.start();
-  await tester.pumpWidget(LockedInApp(store: store));
-  await tester.pumpAndSettle();
-}
-
-/// The leader key per surface ordinal (1 = Chat … 0 = Settings), matching the
-/// terminal app's grammar: `Space c`, `Space h`, `Space g`, `Space s`, `Space t`,
-/// `Space p`, `Space v`, `Space f`, `Space n`, `Space ,`.
-const _surfaceLeaderKeys = <LogicalKeyboardKey>[
-  LogicalKeyboardKey.keyC,
-  LogicalKeyboardKey.keyH,
-  LogicalKeyboardKey.keyG,
-  LogicalKeyboardKey.keyS,
-  LogicalKeyboardKey.keyT,
-  LogicalKeyboardKey.keyP,
-  LogicalKeyboardKey.keyV,
-  LogicalKeyboardKey.keyF,
-  LogicalKeyboardKey.keyN,
-  LogicalKeyboardKey.comma,
-];
-
-/// Open a surface the way the terminal app does: `Space`, then the leader key.
-Future<void> openSurface(WidgetTester tester, int surface) async {
-  // Leave INSERT first: the leader is a NORMAL-mode chord, exactly as in the
-  // terminal app, and the chat composer holds the keyboard on first paint. The
-  // status bar is the shell's own answer for the mode, so this never presses
-  // Esc on a page that would treat it as "back".
-  if (find.text('INSERT').evaluate().isNotEmpty) {
-    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-    await tester.pumpAndSettle();
-  }
-  // The alternate leader: `Space` is a local action on the deck, the steps
-  // reader and the approvals view, and navigation must work from all of them.
-  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
-  await tester.pumpAndSettle();
-  // `0` is the tenth surface (Settings), as in the terminal app.
-  final index = surface == 0 ? _surfaceLeaderKeys.length - 1 : surface - 1;
-  await tester.sendKeyEvent(_surfaceLeaderKeys[index]);
-  await tester.pumpAndSettle();
-}
-
-int _calls(FakeCore core, String method) =>
-    core.calls.where((call) => call == method).length;
 
 void main() {
   testWidgets('Enter opens the named restore confirmation and confirms once', (
@@ -277,8 +222,8 @@ void main() {
       await store.refreshArchive();
       expect(store.archiveRows.length, 2);
       final sessionsBefore = store.sessions.length;
-      final archiveReads = _calls(core, 'archive.list');
-      final sessionReads = _calls(core, 'session.list');
+      final archiveReads = callsTo(core, 'archive.list');
+      final sessionReads = callsTo(core, 'session.list');
 
       await store.restoreArchive(id: schoolArchiveId, side: 'school');
 
@@ -286,8 +231,8 @@ void main() {
       expect(core.archiveRestores.single['id'], schoolArchiveId);
       expect(core.archiveRestores.single['side'], 'school');
       // One successful restore re-reads both lists exactly once.
-      expect(_calls(core, 'archive.list'), archiveReads + 1);
-      expect(_calls(core, 'session.list'), sessionReads + 1);
+      expect(callsTo(core, 'archive.list'), archiveReads + 1);
+      expect(callsTo(core, 'session.list'), sessionReads + 1);
       expect(store.archiveRows.length, 1);
       expect(store.archiveRows.single.side, 'skills');
       expect(store.sessions.length, sessionsBefore + 1);
@@ -334,9 +279,9 @@ void main() {
     await store.start();
     await store.refreshArchive();
     expect(store.archiveRows.length, 2);
-    final archiveReads = _calls(core, 'archive.list');
-    final skillReads = _calls(core, 'skill.list');
-    final sessionReads = _calls(core, 'session.list');
+    final archiveReads = callsTo(core, 'archive.list');
+    final skillReads = callsTo(core, 'skill.list');
+    final sessionReads = callsTo(core, 'session.list');
 
     await store.restoreArchive(id: skillsArchiveId, side: 'skills');
 
@@ -345,9 +290,9 @@ void main() {
     expect(core.archiveRestores.single['side'], 'skills');
     // The archive is re-read and the goals list is refreshed; a goal is never a
     // live session, so `session.list` is only the boot read.
-    expect(_calls(core, 'archive.list'), archiveReads + 1);
-    expect(_calls(core, 'skill.list'), skillReads + 1);
-    expect(_calls(core, 'session.list'), sessionReads);
+    expect(callsTo(core, 'archive.list'), archiveReads + 1);
+    expect(callsTo(core, 'skill.list'), skillReads + 1);
+    expect(callsTo(core, 'session.list'), sessionReads);
     expect(store.archiveRows.any((row) => row.id == skillsArchiveId), isFalse);
     expect(
       core.sessionRows.any((row) => row['id'] == skillsArchiveId),
@@ -368,7 +313,7 @@ void main() {
     await confirmRestore(tester);
 
     expect(core.archiveRestores.length, 1);
-    expect(_calls(core, 'archive.restore'), 1);
+    expect(callsTo(core, 'archive.restore'), 1);
     // The row leaves the archive list after the refresh.
     expect(find.text('Chemistry — Bonding'), findsNothing);
     expect(find.text('Read disassembly output'), findsOneWidget);

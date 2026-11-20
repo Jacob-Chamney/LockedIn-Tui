@@ -13,4 +13,8 @@ flutter test
 
 cd "$ROOT"
 bun run typecheck
-bun test tests/unit/server-protocol.test.ts tests/unit/server-chat.test.ts tests/unit/server-settings.test.ts tests/integration/server-data.test.ts
+# The whole core suite, not four contract files: the desktop shell is a
+# projection of `src/`, so a regression anywhere in the core is a desktop
+# regression. `bun run test` is the gate's own command (it skips `spikes/`) and
+# runs 3.6k tests in ~13 s beside the 49 s of widget tests.
+bun run test

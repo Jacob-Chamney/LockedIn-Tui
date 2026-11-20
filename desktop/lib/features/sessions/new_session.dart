@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
+import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
 
 /// What the wizard gathered on its way to the Review step.
@@ -38,9 +39,6 @@ class NewSessionInput {
 
   /// Ask the core to generate `assignment-steps.md`.
   final bool steps;
-
-  bool get hasInstructionsFile =>
-      instructionsFile != null && instructionsFile!.trim().isNotEmpty;
 }
 
 /// The three wizard steps, in order.
@@ -246,21 +244,8 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
     } catch (failure) {
       if (!mounted) return;
       setState(() => _busy = false);
-      _fail(_reason(failure), core: true);
+      _fail(userMessage(failure), core: true);
     }
-  }
-
-  /// One readable reason. The core puts the actionable sentence in `data`, so
-  /// prefer it over the envelope message, exactly like the store does.
-  String _reason(Object failure) {
-    if (failure is RpcException) {
-      final data = failure.data;
-      if (data is Map && data['message'] is String) {
-        return data['message'] as String;
-      }
-      return failure.message;
-    }
-    return failure.toString();
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
@@ -376,7 +361,7 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
       return await pick();
     } catch (failure) {
       if (!mounted) return const [];
-      _fail(_reason(failure), core: true);
+      _fail(userMessage(failure), core: true);
       return const [];
     }
   }

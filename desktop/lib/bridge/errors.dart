@@ -24,5 +24,16 @@ String userMessage(Object failure) {
   if (failure is StateError) {
     return 'the core is not running — reconnect from the top bar';
   }
+  // A page callback's own message is often the most useful sentence available
+  // ("deck write failed"), so a short single line survives. A stack trace or a
+  // multi-line provider blob does not: `docs/design.md` §8 forbids that, and it
+  // is what this branch is here to stop.
+  final text = failure
+      .toString()
+      .replaceFirst(RegExp(r'^Exception: '), '')
+      .trim();
+  if (text.isNotEmpty && !text.contains('\n') && text.length <= 200) {
+    return text;
+  }
   return 'something went wrong — try again';
 }

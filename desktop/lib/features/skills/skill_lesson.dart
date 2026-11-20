@@ -6,6 +6,7 @@ import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../theme/palette.dart';
 import '../chat/markdown.dart';
+import '../shared/cards.dart';
 
 /// One curriculum stage's lesson, read or built.
 ///
@@ -196,7 +197,7 @@ class _SkillLessonViewState extends State<SkillLessonView> {
             ),
           ),
           const SizedBox(width: 10),
-          if (status.isNotEmpty) _ValueChip('lesson · $status'),
+          if (status.isNotEmpty) ValueChip('lesson · $status'),
           if (widget.loading) ...[
             const SizedBox(width: 10),
             SizedBox(
@@ -357,9 +358,9 @@ class _SkillLessonViewState extends State<SkillLessonView> {
   /// The lesson's own citations, kept apart from the body and labelled so a
   /// source fact is never confused with the model's prose.
   Widget _citationsCard(List<SkillCitation> citations) {
-    return _Card(
+    return SectionCard(
       label: 'SOURCE CITATIONS',
-      trailing: _ValueChip(
+      trailing: ValueChip(
         citations.length == 1 ? '1 source' : '${citations.length} sources',
         tone: LockedInColors.secondary,
       ),
@@ -501,74 +502,6 @@ class _SkillLessonViewState extends State<SkillLessonView> {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  const _Card({required this.label, required this.child, this.trailing});
-
-  final String label;
-  final Widget child;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      decoration: BoxDecoration(
-        color: LockedInColors.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: LockedInColors.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: LockedInColors.secondary,
-                  letterSpacing: 1.4,
-                ),
-              ),
-              const Spacer(),
-              ?trailing,
-            ],
-          ),
-          const SizedBox(height: 10),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-class _ValueChip extends StatelessWidget {
-  const _ValueChip(this.text, {this.tone});
-
-  final String text;
-  final Color? tone;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: LockedInColors.line),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: tone ?? LockedInColors.muted,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
         ),
       ),
     );

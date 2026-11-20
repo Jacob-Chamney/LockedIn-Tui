@@ -166,7 +166,7 @@ import {
 } from "../services/skills/progress";
 import { restoreSession } from "../services/lockin/archive";
 import { createLockInSession } from "../services/lockin/create";
-import { sessionContext } from "../services/lockin/context";
+import { sessionContextReport } from "../services/lockin/context";
 import { normalisePoint, readMemory, recordTurn, type Memory, type TurnOutcome } from "../services/lockin/memory";
 import { extract } from "../services/extract/index";
 import {
@@ -887,12 +887,40 @@ type DeckCard = {
   correct: number;
 };
 
-/** The first complete `{...}` object the model returned, or null. */
+/**
+ * The first complete `{...}` object the model returned, or null.
+ *
+ * Brace-counting, string- and escape-aware. Slicing from the first `{` to the
+ * last `}` (the old rule) broke on a reply that quotes the format in prose or
+ * ends with a stray `}`: it produced a fragment that does not parse, and the
+ * user was told "the model returned invalid JSON" for a reply that contained a
+ * perfectly good object. `src/app/actions/lockin.ts` already had this version.
+ */
 function extractJsonObject(raw: string): string | null {
   const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start === -1 || end <= start) return null;
-  return raw.slice(start, end + 1);
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < raw.length; index++) {
+    const char = raw[index]!;
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === "{") depth++;
+    else if (char === "}") {
+      depth--;
+      if (depth === 0) return raw.slice(start, index + 1);
+    }
+  }
+  return null;
 }
 
 function parseJsonObject(raw: string): { ok: true; value: Record<string, unknown> } | { ok: false; message: string } {
@@ -3999,13 +4027,22 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     // Sources plus `prompt.md`, and `assignment-steps.md` when the session has
     // one. The existing outputs are excluded: a rebuild derives a fresh
     // document rather than paraphrasing the previous one.
-    const context = await sessionContext(current.value.workspace, sessionId, {
+    const report = await sessionContextReport(current.value.workspace, sessionId, {
       includeOutputs: false,
     });
-    if (context.trim() === "") {
-      const message = "this session has no readable sources";
+    // The session's own files are always in the context, so testing the whole
+    // context against `""` only caught a completely empty session: a session
+    // whose sources were all images or PDFs without a text layer still "built" a
+    // guide from its prompt. `readableSources` counts the copied sources.
+    if (report.readableSources === 0) {
+      const message =
+        report.unreadable.length === 0
+          ? "this session has no readable sources"
+          : "this session has no readable sources: " +
+            report.unreadable.map((entry) => `${entry.name} (${entry.kind}): ${entry.message}`).join("; ");
       return failure(id, BOOT_FAILED, message, { kind: "generation", id: sessionId, message }, false);
     }
+    const context = report.text;
 
     const prompt = rawKind === "study-guide" ? STUDY_GUIDE_PROMPT : FLASHCARDS_PROMPT;
     let raw: string;
@@ -4125,9 +4162,18 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     try {
       const markdown = await readFile(path, "utf8");
       return success(id, { markdown, exists: true });
-    } catch {
-      // A missing output is the documented empty state, not a failure.
-      return success(id, { markdown: "", exists: false });
+    } catch (error) {
+      // A **missing** output is the documented empty state, not a failure. An
+      // unreadable one is a failure: reporting it as `exists:false` showed the
+      // reader's "build it" action over a guide that exists, and the build then
+      // replaced it.
+      if ((error as { code?: string }).code === "ENOENT") {
+        return success(id, { markdown: "", exists: false });
+      }
+      const message =
+        `the ${SESSION_OUTPUT_FILES[part]} file cannot be read ` +
+        `(${error instanceof Error ? error.message : String(error)}); fix its permissions`;
+      return failure(id, BOOT_FAILED, message, { kind: "output", id: sessionId, message }, false);
     }
   };
 
@@ -4485,11 +4531,13 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     if ("error" in resolved) return resolved.error;
     const sessionId = resolved.opened.session.id;
 
+    // No `archiveRoot`: a delete removes the live folder, and an archived copy
+    // of the same id survives (`archive.remove` is the only verb that deletes
+    // one).
     const outcome = await runSessionAction({
       workspace: current.value.workspace,
       id: sessionId,
       action: "delete",
-      archiveRoot: (settingsOverride ?? current.value.settings).archiveFolder,
     });
     if (!outcome.ok) {
       return sessionActionFailure(id, sessionId, "delete", oneLine(outcome.message));
@@ -5959,20 +6007,27 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       return writeFailure(id, projectId, stored.proposal.path, WORK_WRITE_OPT_IN_OFF);
     }
 
-    const selected = await approvalAgent(current.value.workspace, projectId, meta);
-    if ("error" in selected) {
-      return writeFailure(id, projectId, stored.proposal.path, selected.error);
-    }
-    const agent = selected.agent;
-
-    // Gate 2: the profile's own permission. Both gates must be on.
-    if (decision === "approve" && agent.allowWrite !== true) {
-      return writeFailure(
-        id,
-        projectId,
-        stored.proposal.path,
-        `the agent “${agent.name}” is not allowed to write; give it permission in its profile first`,
-      );
+    // Gate 2 needs a profile, so it is resolved only for an approval. A
+    // rejection applies nothing, and `desktop/docs/protocol.md` says it "needs
+    // no permission at all": resolving a profile first meant Reject failed with
+    // "this project has no agent profile" in a project with none, the proposal
+    // was never consumed, and the shell kept showing a row it could not
+    // dismiss.
+    let agent: AgentProfile | null = null;
+    if (decision === "approve") {
+      const selected = await approvalAgent(current.value.workspace, projectId, meta);
+      if ("error" in selected) {
+        return writeFailure(id, projectId, stored.proposal.path, selected.error);
+      }
+      agent = selected.agent;
+      if (agent.allowWrite !== true) {
+        return writeFailure(
+          id,
+          projectId,
+          stored.proposal.path,
+          `the agent “${agent.name}” is not allowed to write; give it permission in its profile first`,
+        );
+      }
     }
 
     const approval: WriteApproval =
@@ -5980,12 +6035,19 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         ? { decision: "reject" }
         : { decision: "approve", ...(hunks === undefined ? {} : { hunks }) };
 
+    // `applyWrite` only ever runs on an approval, and the block above either
+    // set `agent` or returned.
+    if (decision === "approve" && agent === null) {
+      return writeFailure(id, projectId, stored.proposal.path, "no agent profile to approve this write");
+    }
     const sink = activitySink(current.value);
     const outcome = await applyWrite({
       workspace: current.value.workspace,
       projectId,
       proposal: stored.proposal,
-      agent,
+      // A rejection applies nothing and the service returns before it reads the
+      // profile, so the name it reports is the only field it can touch.
+      agent: agent ?? ({ name: "" } as AgentProfile),
       // Both gates above passed, so the service is told writes are allowed for
       // this one application. The service re-checks nothing global: the
       // transport already read the stored opt-in.
@@ -6115,17 +6177,21 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       return commandFailure(id, projectId, WORK_COMMAND_OPT_IN_OFF);
     }
 
-    const selected = await approvalAgent(current.value.workspace, projectId, meta);
-    if ("error" in selected) return commandFailure(id, projectId, selected.error);
-    const agent = selected.agent;
-
-    // A denial starts nothing, so it needs no permission. Gate 2 does.
-    if (decision === "approve" && agent.allowCommand !== true) {
-      return commandFailure(
-        id,
-        projectId,
-        `the agent “${agent.name}” is not allowed to run commands; give it permission in its profile first`,
-      );
+    // A denial starts nothing, so it needs no permission — and therefore no
+    // profile. Resolving one first meant Deny failed with "this project has no
+    // agent profile" in a project with none, and the row could not be dismissed.
+    let agent: AgentProfile | null = null;
+    if (decision === "approve") {
+      const selected = await approvalAgent(current.value.workspace, projectId, meta);
+      if ("error" in selected) return commandFailure(id, projectId, selected.error);
+      agent = selected.agent;
+      if (agent.allowCommand !== true) {
+        return commandFailure(
+          id,
+          projectId,
+          `the agent “${agent.name}” is not allowed to run commands; give it permission in its profile first`,
+        );
+      }
     }
 
     const reason = rawReason === undefined ? "" : rawReason.trim();
@@ -6134,12 +6200,15 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         ? { decision: "deny", ...(reason === "" ? {} : { reason }) }
         : { decision: "approve" };
 
+    if (decision === "approve" && agent === null) {
+      return commandFailure(id, projectId, "no agent profile to approve this command");
+    }
     const sink = activitySink(current.value);
     const outcome = await runCommand({
       workspace: current.value.workspace,
       projectId,
       command: stored.command,
-      agent,
+      agent: agent ?? ({ name: "" } as AgentProfile),
       // Both gates above passed, so the service is told commands are allowed for
       // this one run.
       settings: { allowCommand: true },

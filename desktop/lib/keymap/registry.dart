@@ -195,9 +195,6 @@ class KeymapRegistry {
     return null;
   }
 
-  /// The binding a surface switch currently uses, or null when the id is gone.
-  KeymapRow? surfaceRow(String surfaceName) => rowFor('surface.$surfaceName');
-
   /// The rows the leader overlay lists: every runnable action, grouped.
   ///
   /// The leader prefix itself is not a row (it is how the overlay opens) and
@@ -281,19 +278,6 @@ class KeymapRegistry {
       if (binding.isLeader) continue;
       if (binding.control != control || binding.alt != alt) continue;
       if (Binding.keyToken(logical, character) == binding.key) return row;
-    }
-    return null;
-  }
-
-  /// The row the leader overlay's second key runs, or null.
-  KeymapRow? resolveLeaderKey(KeyEvent event) {
-    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return null;
-    final keyboard = HardwareKeyboard.instance;
-    if (keyboard.isControlPressed || keyboard.isAltPressed) return null;
-    final token = Binding.keyToken(event.logicalKey, event.character);
-    if (token == null) return null;
-    for (final row in leaderRows()) {
-      if (row.binding.isLeader && row.binding.key == token) return row;
     }
     return null;
   }

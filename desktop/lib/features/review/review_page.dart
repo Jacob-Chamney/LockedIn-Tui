@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../bridge/errors.dart';
+
 import '../keys.dart';
 import '../../bridge/models.dart';
-import '../../bridge/protocol.dart';
 import '../../theme/palette.dart';
+import '../shared/format.dart';
 
 /// The Review surface.
 ///
@@ -202,7 +204,7 @@ class _ReviewPageState extends State<ReviewPage> {
       await onMark(item.id, result);
     } catch (failure) {
       if (!mounted) return;
-      setState(() => _markError = _markMessage(failure));
+      setState(() => _markError = userMessage(failure));
     } finally {
       if (mounted) setState(() => _pendingId = null);
     }
@@ -618,7 +620,7 @@ class _ReviewRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final detail = _joinDot([item.context, item.reason]);
+    final detail = joinDot([item.context, item.reason]);
     final trailing = marking
         ? 'marking…'
         : item.kind == 'memory'
@@ -894,7 +896,7 @@ class _DiagnosticsBlock extends StatelessWidget {
                 children: [
                   if (diagnostic.kind.isNotEmpty || diagnostic.path.isNotEmpty)
                     Text(
-                      _joinDot([diagnostic.kind, diagnostic.path]),
+                      joinDot([diagnostic.kind, diagnostic.path]),
                       style: TextStyle(
                         color: LockedInColors.warning,
                         fontSize: 11,
@@ -1112,20 +1114,4 @@ String _countLabel(String kind, int count) {
     _ => count == 1 ? kind : '${kind}s',
   };
   return '$count $noun';
-}
-
-String _joinDot(List<String> parts) =>
-    parts.where((part) => part.trim().isNotEmpty).join(' · ');
-
-/// The core's own one-line reason, so the row's failure reads like the core's
-/// message instead of a Dart exception string.
-String _markMessage(Object failure) {
-  if (failure is RpcException) {
-    final data = failure.data;
-    if (data is Map && data['message'] is String) {
-      return data['message'] as String;
-    }
-    return failure.message;
-  }
-  return failure.toString();
 }

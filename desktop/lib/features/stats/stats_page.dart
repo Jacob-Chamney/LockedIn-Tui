@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../bridge/models.dart';
-import '../../bridge/protocol.dart';
+import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
 import '../keys.dart';
 import '../chat/transcript_scroll.dart';
@@ -1138,7 +1138,7 @@ class _ExportDialogState extends State<_ExportDialog> {
     } catch (failure) {
       if (!mounted || ticket != _request) return;
       setState(() {
-        _error = _reason(failure);
+        _error = userMessage(failure);
         _loading = false;
       });
     }
@@ -1215,17 +1215,6 @@ class _ExportDialogState extends State<_ExportDialog> {
   }
 
   /// The core's own one-line reason for a refusal, never a wrapper.
-  static String _reason(Object failure) {
-    if (failure is RpcException) {
-      final data = failure.data;
-      if (data is Map) {
-        final message = data['message'];
-        if (message is String && message.isNotEmpty) return message;
-      }
-      return failure.message;
-    }
-    return failure.toString();
-  }
 
   @override
   Widget build(BuildContext context) {

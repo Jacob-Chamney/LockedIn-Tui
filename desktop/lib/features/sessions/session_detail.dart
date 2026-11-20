@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../bridge/errors.dart';
+
 import '../keys.dart';
 import '../../bridge/models.dart';
-import '../../bridge/protocol.dart';
 import '../../theme/palette.dart';
 import '../chat/document_search.dart';
 import '../chat/markdown.dart';
+import '../shared/format.dart';
 
 /// One lock-in session, rendered from the shell's `session.open` projection.
 ///
@@ -395,22 +397,9 @@ class _SessionDetailViewState extends State<SessionDetailView> {
       if (!mounted) return;
       setState(() {
         _toggling = false;
-        _toggleError = _toggleMessage(failure);
+        _toggleError = userMessage(failure);
       });
     }
-  }
-
-  /// The core's own sentence when it sent one, otherwise the exception's.
-  String _toggleMessage(Object failure) {
-    if (failure is RpcException) {
-      final data = failure.data;
-      if (data is Map && data['message'] is String) {
-        final message = (data['message'] as String).trim();
-        if (message.isNotEmpty) return message;
-      }
-      return failure.message;
-    }
-    return failure.toString();
   }
 
   /// Ask the shell to build or rebuild the steps.
@@ -435,7 +424,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
       await generate();
     } catch (failure) {
       if (!mounted) return;
-      setState(() => _localStepsError = _toggleMessage(failure));
+      setState(() => _localStepsError = userMessage(failure));
     } finally {
       if (mounted) setState(() => _requestingSteps = false);
     }
@@ -488,7 +477,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
       await generate(kind, attempt: attempt);
     } catch (failure) {
       if (!mounted) return;
-      setState(() => _localDocumentError = _toggleMessage(failure));
+      setState(() => _localDocumentError = userMessage(failure));
     } finally {
       if (mounted) setState(() => _startingDocument = false);
     }
@@ -580,7 +569,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
       await retry();
     } catch (failure) {
       if (!mounted) return;
-      setState(() => _localDocumentError = _toggleMessage(failure));
+      setState(() => _localDocumentError = userMessage(failure));
     }
   }
 
@@ -1017,7 +1006,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         children: [
-          Icon(_sourceIcon(source.kind), size: 15, color: LockedInColors.muted),
+          Icon(sourceIcon(source.kind), size: 15, color: LockedInColors.muted),
           const SizedBox(width: 9),
           Expanded(
             child: Text(
@@ -1031,7 +1020,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
           _countChip(source.kind.isEmpty ? 'file' : source.kind),
           const SizedBox(width: 8),
           Text(
-            _shortHash(source.hash),
+            shortHash(source.hash),
             style: TextStyle(
               color: LockedInColors.muted,
               fontSize: 10,
@@ -2254,24 +2243,6 @@ String _createdLabel(String created) {
 String _shortStamp(String stamp) {
   final value = stamp.replaceFirst('T', ' ');
   return value.length > 16 ? value.substring(0, 16) : value;
-}
-
-String _shortHash(String hash) {
-  final value = hash.startsWith('sha256:')
-      ? hash.substring('sha256:'.length)
-      : hash;
-  if (value.isEmpty) return 'no hash';
-  return value.length <= 10 ? value : value.substring(0, 10);
-}
-
-IconData _sourceIcon(String kind) {
-  return switch (kind) {
-    'pdf' => Icons.picture_as_pdf_outlined,
-    'docx' => Icons.description_outlined,
-    'image' => Icons.image_outlined,
-    'markdown' || 'text' || 'code' => Icons.article_outlined,
-    _ => Icons.insert_drive_file_outlined,
-  };
 }
 
 /// One rendered line of `assignment-steps.md`.

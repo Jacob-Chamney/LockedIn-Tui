@@ -5,7 +5,9 @@ import 'package:material_ui/material_ui.dart';
 import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
+import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
+import '../shared/format.dart';
 
 /// Returns the files the user chose, or an empty list when they cancelled.
 typedef SourcePicker = Future<List<String>> Function();
@@ -163,7 +165,7 @@ class _SourcesPageState extends State<SourcesPage> {
       if (!mounted) return;
       setState(() {
         _notice = null;
-        _failure = _reason(failure);
+        _failure = userMessage(failure);
       });
       return;
     } finally {
@@ -185,7 +187,7 @@ class _SourcesPageState extends State<SourcesPage> {
       });
     } catch (failure) {
       if (!mounted) return;
-      setState(() => _failure = _reason(failure));
+      setState(() => _failure = userMessage(failure));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -219,22 +221,9 @@ class _SourcesPageState extends State<SourcesPage> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _failure = _reason(failure);
+        _failure = userMessage(failure);
       });
     }
-  }
-
-  /// One readable reason. The core puts the actionable sentence in `data`, so
-  /// prefer it over the envelope message, exactly like the store does.
-  String _reason(Object failure) {
-    if (failure is RpcException) {
-      final data = failure.data;
-      if (data is Map && data['message'] is String) {
-        return data['message'] as String;
-      }
-      return failure.message;
-    }
-    return failure.toString();
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
@@ -643,7 +632,7 @@ class _SourceRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         children: [
-          Icon(_sourceIcon(source.kind), size: 15, color: LockedInColors.muted),
+          Icon(sourceIcon(source.kind), size: 15, color: LockedInColors.muted),
           const SizedBox(width: 9),
           Expanded(
             child: Text(
@@ -672,7 +661,7 @@ class _SourceRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            _shortHash(source.hash),
+            shortHash(source.hash),
             style: TextStyle(
               color: LockedInColors.muted,
               fontSize: 10,
@@ -765,22 +754,4 @@ class _EmptyNote extends StatelessWidget {
       ],
     );
   }
-}
-
-String _shortHash(String hash) {
-  final value = hash.startsWith('sha256:')
-      ? hash.substring('sha256:'.length)
-      : hash;
-  if (value.isEmpty) return 'no hash';
-  return value.length <= 10 ? value : value.substring(0, 10);
-}
-
-IconData _sourceIcon(String kind) {
-  return switch (kind) {
-    'pdf' => Icons.picture_as_pdf_outlined,
-    'docx' => Icons.description_outlined,
-    'image' => Icons.image_outlined,
-    'markdown' || 'text' || 'code' => Icons.article_outlined,
-    _ => Icons.insert_drive_file_outlined,
-  };
 }

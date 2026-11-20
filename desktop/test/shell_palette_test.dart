@@ -1,37 +1,10 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lockedin_desktop/app.dart';
-import 'package:lockedin_desktop/bridge/core_client.dart';
 import 'package:lockedin_desktop/shell/palette.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'fake_core.dart';
-
-/// The same shape as `smoke_test.dart`, with a size so the 800×600 case is a
-/// real layout pass rather than a scaled-down 1280×800.
-Future<CoreStore> pumpShell(
-  WidgetTester tester, {
-  FakeCore? core,
-  Size size = const Size(1280, 800),
-}) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
-  final store = CoreStore(connection: core ?? FakeCore());
-  addTearDown(store.dispose);
-  await store.start();
-  await tester.pumpWidget(LockedInApp(store: store));
-  await tester.pumpAndSettle();
-  return store;
-}
-
-Future<void> pressCtrlK(WidgetTester tester) async {
-  await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-  await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
-  await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-  await tester.pumpAndSettle();
-}
+import 'support/shell.dart';
 
 Finder inPalette(String text) =>
     find.descendant(of: find.byType(CommandPalette), matching: find.text(text));

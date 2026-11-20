@@ -11,9 +11,6 @@ import 'package:flutter/services.dart';
 /// cancelled, and nothing is written.
 typedef SavePathPicker = Future<String?> Function(String suggestedName);
 
-/// Writes one export document to a path a picker returned.
-typedef ExportWriter = Future<void> Function(String path, String text);
-
 /// `stats-<scope>-<range>.<md|csv>`: the name the Save dialog suggests.
 ///
 /// The extension follows the format, so a CSV export does not land in a `.md`

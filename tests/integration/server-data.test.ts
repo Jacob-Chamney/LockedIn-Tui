@@ -1312,6 +1312,81 @@ describe("session.output.build and session.output.read", () => {
     return join(workspaceRoot, "school", "outputs", id);
   }
 
+  test("an unreadable guide is a typed failure, not 'not built yet'", async () => {
+    const session = await biologySession();
+    // A directory where the guide should be: reading it fails with EISDIR, not
+    // ENOENT. Reporting that as `exists:false` showed the reader's "build it"
+    // action over a guide that exists, and the build then replaced it.
+    await mkdir(join(outputsFolder(session.id), "study-guide.md"), { recursive: true });
+    const server = generatingCore(async () => GUIDE);
+
+    const response = await ask(server, "session.output.read", {
+      id: session.id,
+      kind: "study-guide",
+    });
+    if (!("error" in response)) throw new Error("an unreadable output must be reported");
+    expect(response.error.code).toBe(BOOT_FAILED);
+    expect(response.error.retryable).toBe(false);
+    expect(response.error.data).toMatchObject({ kind: "output", id: session.id });
+    expect(response.error.message).toContain("cannot be read");
+  });
+
+  test("a reply with prose around the object still parses", async () => {
+    const session = await biologySession();
+    // The model wrapped the object and then mentioned a brace in its closing
+    // sentence. The extractor used to slice from the first `{` to the *last*
+    // `}` — a trailing brace in prose made the slice unparseable, and the user
+    // was told "the model returned invalid JSON" for a perfectly good object.
+    const server = generatingCore(async () => `Here is the guide:\n${GUIDE}\nNote the {curly} braces above. }`);
+
+    const built = (await resultOf(server, "session.output.build", {
+      id: session.id,
+      kind: "study-guide",
+    })) as { markdown: string };
+    expect(built.markdown).toContain("# Study guide — Biology — Mitochondria");
+    expect(built.markdown).toContain("Where is ATP produced?");
+  });
+
+  test("a session with no readable source refuses to build instead of inventing one", async () => {
+    // An image source has no text layer, so the session has instructions but no
+    // readable source. The guard used to compare the whole context with "", and
+    // `prompt.md` is always in it — so a study guide was "built" from the
+    // prompt alone, which `docs/product.md` §5.2 forbids.
+    const inputs = join(base, "input-image");
+    await mkdir(inputs, { recursive: true });
+    const image = join(inputs, "scan.png");
+    await writeFile(image, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    const created = unwrap(
+      await createLockInSession({
+        workspace,
+        created: "2026-11-01T09:00:00Z",
+        name: "Biology — Scan only",
+        prompt: "Study this scan.",
+        files: [image],
+        steps: false,
+      }),
+    );
+
+    let calls = 0;
+    const server = generatingCore(async () => {
+      calls += 1;
+      return GUIDE;
+    });
+    const response = await ask(server, "session.output.build", {
+      id: created.session.id,
+      kind: "study-guide",
+    });
+    if (!("error" in response)) throw new Error("a source-less build must be refused");
+    expect(response.error.code).toBe(BOOT_FAILED);
+    expect(response.error.retryable).toBe(false);
+    expect(response.error.data).toMatchObject({ kind: "generation", id: created.session.id });
+    expect(response.error.message).toContain("no readable sources");
+    expect(response.error.message).toContain("scan.png");
+    // The refusal happens before the model is called, and nothing is written.
+    expect(calls).toBe(0);
+    expect(existsSync(outputsFolder(created.session.id))).toBe(false);
+  });
+
   test("builds a study guide and its answers from the session sources", async () => {
     const session = await biologySession();
     // An old output must not leak into the new prompt: a rebuild derives from
@@ -1727,6 +1802,30 @@ describe("session archive, remove and export", () => {
     expect((await readdir(join(archiveRoot, "school", "session"))).filter((name) =>
       name.startsWith(".tmp-"),
     )).toEqual([]);
+  });
+
+  test("deleting an archived session never removes the archived copy", async () => {
+    const session = await physicsSession();
+    const archiveRoot = join(base, "archive");
+    await mkdir(archiveRoot, { recursive: true });
+    const server = await archiveCore(archiveRoot);
+
+    await resultOf(server, "session.archive", { id: session.id });
+    const folder = join(archiveRoot, "school", "session", session.id);
+    const before = await readFile(join(folder, SESSION_FILES.meta), "utf8");
+
+    // The live folder is gone, so a delete cannot name it. `deleteSession` used
+    // to fall back to the archived twin here, which meant a delete racing an
+    // archive erased the backup while reporting `{action:"delete"}`.
+    const response = await ask(server, "session.remove", { id: session.id });
+    if (!("error" in response)) throw new Error("an archived-only id cannot be deleted");
+    expect(response.error.retryable).toBe(false);
+
+    // The archived copy is byte-identical and still lists.
+    await expect(readFile(join(folder, SESSION_FILES.meta), "utf8")).resolves.toBe(before);
+    expect(await resultOf(server, "archive.list")).toMatchObject({
+      rows: [{ id: session.id, side: "school" }],
+    });
   });
 
   test("an archive that cannot land is one typed action error with no debris", async () => {

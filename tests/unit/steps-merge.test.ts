@@ -296,3 +296,38 @@ describe("writeSteps", () => {
     expect(error.kind).toBe("storage")
   })
 })
+
+describe("an unreadable steps file is never treated as missing", () => {
+  let folder: string
+  beforeEach(async () => {
+    folder = await mkdtemp(join(tmpdir(), "lockedin-steps-unreadable-"))
+  })
+  afterEach(async () => {
+    await rm(folder, { recursive: true, force: true })
+  })
+
+  test("generateSteps refuses instead of replacing the file", async () => {
+    const path = join(folder, "assignment-steps.md")
+    // A directory where the file should be is the cheapest portable stand-in
+    // for "readable path, unreadable content": reading it fails with EISDIR,
+    // not ENOENT.
+    await rm(path, { force: true })
+    await writeFile(join(folder, "keep.txt"), "x")
+    await (await import("node:fs/promises")).mkdir(path)
+
+    const error = errorOf(await generateSteps({ folder, plan: PLAN }))
+    expect(error.kind).toBe("storage")
+    expect(error.message).toContain("cannot be read")
+    // Nothing was written over it: the path is still the directory.
+    expect((await import("node:fs/promises")).stat(path)).resolves.toBeTruthy()
+  })
+
+  test("toggleStep refuses instead of reporting 'no steps yet'", async () => {
+    const path = join(folder, "assignment-steps.md")
+    await (await import("node:fs/promises")).mkdir(path)
+
+    const error = errorOf(await toggleStep({ folder, index: 0 }))
+    expect(error.kind).toBe("storage")
+    expect(error.message).toContain("cannot be read")
+  })
+})
