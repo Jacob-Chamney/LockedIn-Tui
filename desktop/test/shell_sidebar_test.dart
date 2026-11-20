@@ -205,7 +205,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Space inside the rail shrinks it and gives the keys back', (
+  testWidgets('Space in the rail opens the leader, it never resizes it', (
     tester,
   ) async {
     await pumpShell(tester);
@@ -215,6 +215,14 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
     await tester.pumpAndSettle();
 
+    // Space is the leader, not the rail's switch: the rail keeps its size and
+    // only `Space e` (or the button) changes it.
+    expect(find.text('LEADER'), findsOneWidget);
+    expect(find.text('LEARN'), findsOneWidget);
+
+    // The chord still works from inside the rail.
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+    await tester.pumpAndSettle();
     expect(find.text('LEARN'), findsNothing);
     expect(find.byKey(const ValueKey('sidebar-row-cursor')), findsNothing);
     expect(tester.takeException(), isNull);

@@ -443,11 +443,9 @@ class _ShellState extends State<Shell> {
       _leaveSidebar();
       return KeyEventResult.handled;
     }
-    // Space is the leader everywhere else; inside the rail it is the switch.
-    if (key == LogicalKeyboardKey.space) {
-      if (event is KeyDownEvent) _cycleSidebar();
-      return KeyEventResult.handled;
-    }
+    // Space is deliberately not handled here. It is the leader everywhere,
+    // and the rail has its own switch (`Space e`, or the top-bar button), so a
+    // stray Space must not resize the rail under the user's hands.
     return KeyEventResult.ignored;
   }
 
@@ -702,6 +700,10 @@ class _ShellState extends State<Shell> {
     _focusBeforeLeader = null;
     if (previous == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // The rail can be the node the overlay took focus from, and the chord
+      // that follows may have shrunk it. Restoring focus to a closed rail would
+      // leave its keys live without its cursor.
+      if (previous == _sidebarFocus && !_sidebarFocused) return;
       if (previous.context != null) previous.requestFocus();
     });
   }
