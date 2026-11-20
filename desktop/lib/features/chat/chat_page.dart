@@ -9,6 +9,8 @@ import '../../bridge/protocol.dart';
 import '../../theme/palette.dart';
 import 'attachments.dart';
 import 'markdown.dart';
+import 'transcript_scroll.dart';
+import '../keys.dart';
 
 /// Returns the image paths the user chose, or an empty list when they
 /// cancelled. The paths are files the **user picked**, never destinations.
@@ -86,6 +88,10 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   final _composer = TextEditingController();
   final _composerFocus = FocusNode();
+
+  /// The page's own node: where the keyboard rests in NORMAL mode. `Esc` in
+  /// the composer moves here, so leaving INSERT never needs a pointer.
+  final _pageFocus = FocusNode(debugLabel: 'chill');
   final _scroll = ScrollController();
 
   /// Chips above the composer: shell-local UI state, never persisted and never
@@ -137,9 +143,14 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void didUpdateWidget(ChatPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final before = oldWidget.chat?.messages.length ?? 0;
-    final after = widget.chat?.messages.length ?? 0;
-    if (after > before) _scrollToBottom();
+    final before = oldWidget.chat;
+    final after = widget.chat;
+    // A new message always comes into view; a growing reply is only followed
+    // while the reader is already at the bottom (`docs/design.md` §4.3).
+    final added =
+        (after?.messages.length ?? 0) > (before?.messages.length ?? 0);
+    final grew = (after?.streamed.length ?? 0) > (before?.streamed.length ?? 0);
+    if (added || (grew && nearBottom(_scroll))) scrollToEnd(_scroll);
   }
 
   @override
@@ -147,26 +158,29 @@ class _ChatPageState extends State<ChatPage> {
     _composer.removeListener(_reportDraft);
     _composerFocus.removeListener(_reportMode);
     _composerFocus.dispose();
+    _pageFocus.dispose();
     _composer.dispose();
     _scroll.dispose();
     super.dispose();
   }
 
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scroll.hasClients) return;
-      _scroll.animateTo(
-        _scroll.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-      );
-    });
+  /// The one rule for "may a turn be sent now", shared by Enter and the button.
+  bool get _canSend {
+    final chat = widget.chat;
+    return widget.online &&
+        widget.configured &&
+        !(chat?.streaming ?? false) &&
+        chat?.blocked == null;
   }
 
   void _send() {
     if (_sending) return;
     final text = _composer.text.trim();
     final images = [for (final attachment in _attachments) attachment.path];
+    // Enter used to skip the checks the Send button applies: with no model, or
+    // mid-reply, it sent anyway and cleared the draft the core then refused.
+    // The text stays put; the line above the composer already says why.
+    if (!_canSend) return;
 
     if (images.isEmpty) {
       if (text.isEmpty || widget.onSend == null) return;
@@ -185,14 +199,6 @@ class _ChatPageState extends State<ChatPage> {
         () =>
             _notice = 'image attach is not connected to the core in this build',
       );
-      return;
-    }
-    final chat = widget.chat;
-    final streaming = chat?.streaming ?? false;
-    if (!widget.online ||
-        !widget.configured ||
-        streaming ||
-        chat?.blocked != null) {
       return;
     }
     setState(() {
@@ -403,12 +409,23 @@ class _ChatPageState extends State<ChatPage> {
         return KeyEventResult.handled;
       }
     }
-    if (_composerFocus.hasFocus) return KeyEventResult.ignored;
+    if (_composerFocus.hasFocus) {
+      // `Esc` leaves INSERT. The composer keeps its text; the keyboard moves to
+      // the page so the leader, `?`, `:` and the scroll keys work again.
+      if (key == LogicalKeyboardKey.escape) {
+        _pageFocus.requestFocus();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+    if (modifierHeld) return KeyEventResult.ignored;
     // `i` is the terminal app's insert: back into the composer from NORMAL.
     if (key == LogicalKeyboardKey.keyI) {
       _composerFocus.requestFocus();
       return KeyEventResult.handled;
     }
+    final scrolled = scrollKey(_scroll, event);
+    if (scrolled != null) return scrolled;
     if (key == LogicalKeyboardKey.keyP) {
       if (_sending) return KeyEventResult.handled;
       unawaited(_pick());
@@ -422,13 +439,10 @@ class _ChatPageState extends State<ChatPage> {
     final theme = Theme.of(context);
     final chat = widget.chat;
     final streaming = chat?.streaming ?? false;
-    final canSend =
-        widget.online &&
-        widget.configured &&
-        !streaming &&
-        chat?.blocked == null;
+    final canSend = _canSend;
 
     return Focus(
+      focusNode: _pageFocus,
       autofocus: true,
       onKeyEvent: _onKey,
       child: Column(
@@ -562,7 +576,7 @@ class _ChatPageState extends State<ChatPage> {
         ? 'no model connected · link a key in Settings → Providers'
         : streaming
         ? 'streaming · Esc stops the reply'
-        : 'Ask anything… · Enter send · Shift+Enter newline · p attach';
+        : 'Enter send · Shift+Enter newline · p attach · Esc normal';
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 780),
@@ -583,19 +597,23 @@ class _ChatPageState extends State<ChatPage> {
                 ),
                 const SizedBox(height: 8),
               ],
-              if (blocked != null || (!canSend && !streaming))
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    hint,
-                    style: TextStyle(
-                      color: blocked != null
-                          ? LockedInColors.warning
-                          : LockedInColors.muted,
-                      fontSize: 12,
-                    ),
+              // Always one line: the keys that send, or the reason a send is
+              // blocked. It used to appear only when sending was *not* possible,
+              // so the line naming `Enter send` never showed in the one state
+              // where the user wanted it.
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  hint,
+                  key: const ValueKey('chat-composer-hint'),
+                  style: TextStyle(
+                    color: blocked != null
+                        ? LockedInColors.warning
+                        : LockedInColors.muted,
+                    fontSize: 12,
                   ),
                 ),
+              ),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -607,11 +625,11 @@ class _ChatPageState extends State<ChatPage> {
                       minLines: 1,
                       maxLines: 5,
                       decoration: InputDecoration(
-                        hintText: canSend ? 'Ask anything…' : '',
-                        prefixIcon: const Icon(
-                          Icons.keyboard_command_key,
-                          size: 16,
-                        ),
+                        // Always a placeholder: an empty field with no
+                        // prompt reads as broken. The line above says why a
+                        // send is blocked, and a draft is still worth typing.
+                        hintText: streaming ? 'streaming…' : 'Ask anything…',
+                        prefixIcon: const Icon(Icons.chevron_right, size: 16),
                       ),
                     ),
                   ),

@@ -1,6 +1,8 @@
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../chat/transcript_scroll.dart';
+import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../theme/palette.dart';
 import '../chat/markdown.dart';
@@ -84,16 +86,28 @@ class SkillLessonView extends StatefulWidget {
 }
 
 class _SkillLessonViewState extends State<SkillLessonView> {
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    if (modifierHeld) return KeyEventResult.ignored;
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.escape) {
       if (widget.onBack == null) return KeyEventResult.ignored;
       widget.onBack!();
       return KeyEventResult.handled;
     }
+    // A lesson is long: scroll it from the keyboard.
+    final scrolled = scrollKey(_scroll, event);
+    if (scrolled != null) return scrolled;
     if (widget.loading) return KeyEventResult.ignored;
     if (key == LogicalKeyboardKey.keyB) {
       if (widget.onBuild == null) return KeyEventResult.ignored;
@@ -272,6 +286,7 @@ class _SkillLessonViewState extends State<SkillLessonView> {
     }
 
     return ListView(
+      controller: _scroll,
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
       children: [
         Center(

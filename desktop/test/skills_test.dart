@@ -191,14 +191,16 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
     await tester.pump();
     expect(
-      find.textContaining('the goal wizard ships in a later packet'),
+      find.textContaining('this build cannot open the goal wizard'),
       findsOneWidget,
     );
 
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
     expect(
-      find.textContaining('the goal wizard ships in a later packet'),
+      find.textContaining(
+        'this build cannot open the goal wizard a later packet',
+      ),
       findsNothing,
     );
     expect(tester.takeException(), isNull);

@@ -84,6 +84,27 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('the four figures share one row on a wide window', (
+    tester,
+  ) async {
+    // 1400 px is the review size. The cards used to be sized from the window
+    // while the column was capped at 1180, so the fourth wrapped underneath.
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(_app(StatsPage(summary: _summary())));
+    await tester.pumpAndSettle();
+
+    final tops = {
+      for (final label in const ['TOKENS', 'SESSIONS', 'ACTIVE DAYS', 'COST'])
+        tester.getTopLeft(find.text(label)).dy,
+    };
+    expect(tops, hasLength(1), reason: 'every figure label is on one row');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('an empty summary invites work', (tester) async {
     await tester.pumpWidget(_app(const StatsPage()));
     await tester.pumpAndSettle();

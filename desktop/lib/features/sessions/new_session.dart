@@ -169,7 +169,13 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
         case _Step.sources:
           _nameFocus.requestFocus();
         case _Step.instructions:
-          _promptFocus.requestFocus();
+          // The prompt field only exists in text mode; in file mode the step's
+          // controls are buttons, so the form's own node takes the keyboard.
+          if (_mode == _InstructionsMode.text) {
+            _promptFocus.requestFocus();
+          } else {
+            _rootFocus.requestFocus();
+          }
         case _Step.review:
           _rootFocus.requestFocus();
       }
@@ -261,8 +267,14 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
-    if (_busy) return KeyEventResult.ignored;
     final key = event.logicalKey;
+    if (_busy) {
+      // A create is in flight. `Esc` must not fall through to the shell, which
+      // would unmount the wizard and leave the session it created unopened.
+      return key == LogicalKeyboardKey.escape
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored;
+    }
     if (key == LogicalKeyboardKey.escape) {
       _back();
       return KeyEventResult.handled;

@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
 import '../../theme/palette.dart';
@@ -28,7 +29,18 @@ class WorkApprovalsView extends StatefulWidget {
     this.onDecideWrite,
     this.onDecideCommand,
     this.permissions,
+    this.lastCommand,
+    this.onDismissLastCommand,
   });
+
+  /// What the last decided command did, or null when there is none to show.
+  ///
+  /// The decision consumes the proposal row, so without this card a command
+  /// that exited non-zero or timed out looked exactly like one that worked.
+  final CommandOutcome? lastCommand;
+
+  /// `x` and the card's close button drop [lastCommand].
+  final VoidCallback? onDismissLastCommand;
 
   /// The pending writes and commands for the open project.
   final WorkApprovals approvals;
@@ -290,9 +302,18 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    // Modified chords belong to the shell's registry (`Ctrl+K` palette,
+    // `Ctrl+R` reconnect). A bare-letter page key must never read them.
+    if (modifierHeld) return KeyEventResult.ignored;
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.escape && widget.onBack != null) {
       widget.onBack!();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyX &&
+        widget.lastCommand != null &&
+        widget.onDismissLastCommand != null) {
+      if (event is KeyDownEvent) widget.onDismissLastCommand!();
       return KeyEventResult.handled;
     }
     if (_busy) return KeyEventResult.ignored;
@@ -361,8 +382,123 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
               color: LockedInColors.primary,
               backgroundColor: LockedInColors.line,
             ),
+          if (widget.lastCommand != null) _outcomeCard(widget.lastCommand!),
           Expanded(child: _body(context)),
         ],
+      ),
+    );
+  }
+
+  /// The last decided command: what ran, how it ended and what it printed.
+  ///
+  /// The state is a word and an icon as well as a colour: `exit 0`, `exit 2`,
+  /// `timed out` and `denied` must be told apart without relying on hue.
+  Widget _outcomeCard(CommandOutcome outcome) {
+    final (label, tone, icon) = !outcome.approved
+        ? ('denied · nothing ran', LockedInColors.muted, Icons.block)
+        : outcome.timedOut
+        ? ('timed out', LockedInColors.warning, Icons.timer_off_outlined)
+        : outcome.exitCode == null
+        ? ('no exit code', LockedInColors.warning, Icons.help_outline)
+        : outcome.succeeded
+        ? ('exit 0', LockedInColors.success, Icons.check_circle_outline)
+        : (
+            'exit ${outcome.exitCode}',
+            LockedInColors.error,
+            Icons.error_outline,
+          );
+    final output = [
+      if (outcome.stdout.trim().isNotEmpty) outcome.stdout.trimRight(),
+      if (outcome.stderr.trim().isNotEmpty) outcome.stderr.trimRight(),
+    ].join('\n');
+    return Padding(
+      key: const ValueKey('approvals-last-command'),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 8, 6, 10),
+            decoration: BoxDecoration(
+              color: LockedInColors.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: tone.withValues(alpha: 0.6)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Icon(icon, size: 15, color: tone),
+                    const SizedBox(width: 8),
+                    Text(
+                      'LAST COMMAND',
+                      style: TextStyle(
+                        color: LockedInColors.secondary,
+                        fontSize: 11,
+                        letterSpacing: 1.4,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _Chip(label, tone: tone),
+                    const Spacer(),
+                    if (widget.onDismissLastCommand != null)
+                      IconButton(
+                        key: const ValueKey('approvals-last-command-dismiss'),
+                        tooltip: 'dismiss (x)',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: widget.onDismissLastCommand,
+                        icon: const Icon(Icons.close, size: 15),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  outcome.argv.join(' '),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: LockedInColors.foreground,
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                  ),
+                ),
+                if (output.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  // The core caps each stream; the card caps its own height so
+                  // a long log cannot push the pending rows off the screen.
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 132),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: LockedInColors.background,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: LockedInColors.line),
+                    ),
+                    child: SingleChildScrollView(
+                      child: SelectableText(
+                        output,
+                        key: const ValueKey('approvals-last-command-output'),
+                        style: TextStyle(
+                          color: LockedInColors.muted,
+                          fontFamily: 'monospace',
+                          fontSize: 11.5,
+                          height: 1.45,
+                        ),
+                      ),
+                    ),
+                  ),
+                ] else if (outcome.approved) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'no output',
+                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

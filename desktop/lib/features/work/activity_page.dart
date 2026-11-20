@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../theme/palette.dart';
 
@@ -96,6 +97,13 @@ class _ActivityPageState extends State<ActivityPage> {
     if (_selected >= widget.records.length) {
       _selected = widget.records.isEmpty ? 0 : widget.records.length - 1;
     }
+    if (oldWidget.records != widget.records ||
+        oldWidget.kind != widget.kind ||
+        oldWidget.project != widget.project) {
+      // The expansion set is keyed by position, so it cannot survive a
+      // different list.
+      _expanded.clear();
+    }
   }
 
   GlobalKey _rowKey(int index) => _rowKeys.putIfAbsent(
@@ -129,6 +137,13 @@ class _ActivityPageState extends State<ActivityPage> {
     onKind(next);
   }
 
+  void _toggleSelected() {
+    if (widget.records.isEmpty) return;
+    setState(() {
+      if (!_expanded.remove(_selected)) _expanded.add(_selected);
+    });
+  }
+
   void _refresh() {
     final refresh = widget.onRefresh;
     if (refresh == null) return;
@@ -139,6 +154,9 @@ class _ActivityPageState extends State<ActivityPage> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    // Modified chords belong to the shell's registry (`Ctrl+K` palette,
+    // `Ctrl+R` reconnect). A bare-letter page key must never read them.
+    if (modifierHeld) return KeyEventResult.ignored;
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.escape && widget.onBack != null) {
       widget.onBack!();
@@ -150,6 +168,13 @@ class _ActivityPageState extends State<ActivityPage> {
     }
     if (key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.keyK) {
       _move(-1);
+      return KeyEventResult.handled;
+    }
+    // Enter is the pointer's click: the full timestamp, argv and hunks are
+    // otherwise unreachable from the keyboard.
+    if (key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter) {
+      if (event is KeyDownEvent) _toggleSelected();
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.keyS && widget.onKind != null) {

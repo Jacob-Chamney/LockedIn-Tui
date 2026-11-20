@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
 import '../../theme/palette.dart';
@@ -161,7 +162,7 @@ class _SkillsPageState extends State<SkillsPage> {
     // bare page can only name that gap instead of opening a form nobody wired.
     setState(
       () => _notice =
-          'the goal wizard ships in a later packet · Esc dismisses this notice',
+          'this build cannot open the goal wizard · Esc dismisses this notice',
     );
   }
 
@@ -296,7 +297,18 @@ class _SkillsPageState extends State<SkillsPage> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    // Modified chords belong to the shell's registry (`Ctrl+K` palette,
+    // `Ctrl+R` reconnect). A bare-letter page key must never read them.
+    if (modifierHeld) return KeyEventResult.ignored;
     final key = event.logicalKey;
+    // While the search field is focused every bare key is text. A page
+    // handler runs before the field's editing shortcuts, so without this a
+    // query containing `a`, `d`, `x`, `n`, `j` or `k` archived, deleted or
+    // exported the selected goal instead of typing.
+    final typing = _searchFocus.hasFocus;
+    if (typing && key != LogicalKeyboardKey.escape) {
+      return KeyEventResult.ignored;
+    }
     if (key == LogicalKeyboardKey.slash && !_dialogOpen) {
       if (event is KeyDownEvent) _searchFocus.requestFocus();
       return KeyEventResult.handled;
@@ -334,8 +346,7 @@ class _SkillsPageState extends State<SkillsPage> {
         return KeyEventResult.handled;
       }
     }
-    // `n` starts a new goal. A focused text field consumes the keystroke before
-    // this page's Focus sees it, so typing `n` never opens the wizard.
+    // `n` starts a new goal (`typing` already returned above).
     if (key == LogicalKeyboardKey.keyN && !_dialogOpen && _actionId == null) {
       if (event is KeyDownEvent) _newGoal();
       return KeyEventResult.handled;

@@ -4,6 +4,8 @@ import 'package:material_ui/material_ui.dart';
 import '../../bridge/models.dart';
 import '../../theme/palette.dart';
 import '../chat/markdown.dart';
+import '../chat/transcript_scroll.dart';
+import '../keys.dart';
 
 /// One goal-scoped chat surface.
 ///
@@ -73,6 +75,9 @@ class SkillChatView extends StatefulWidget {
 class _SkillChatViewState extends State<SkillChatView> {
   final _composer = TextEditingController();
   final _composerFocus = FocusNode();
+
+  /// The page's own node: where the keyboard rests in NORMAL mode.
+  final _pageFocus = FocusNode(debugLabel: 'skill-chat');
   final _scroll = ScrollController();
 
   @override
@@ -93,10 +98,12 @@ class _SkillChatViewState extends State<SkillChatView> {
     super.didUpdateWidget(oldWidget);
     final before = oldWidget.chat;
     final after = widget.chat;
-    final grew =
-        (after?.messages.length ?? 0) > (before?.messages.length ?? 0) ||
-        (after?.streamed.length ?? 0) > (before?.streamed.length ?? 0);
-    if (grew) _scrollToBottom();
+    // A new message always comes into view; a growing reply is only followed
+    // while the reader is already at the bottom (`docs/design.md` §4.3).
+    final added =
+        (after?.messages.length ?? 0) > (before?.messages.length ?? 0);
+    final grew = (after?.streamed.length ?? 0) > (before?.streamed.length ?? 0);
+    if (added || (grew && nearBottom(_scroll))) scrollToEnd(_scroll);
   }
 
   @override
@@ -104,6 +111,7 @@ class _SkillChatViewState extends State<SkillChatView> {
     _composer.removeListener(_reportDraft);
     _composerFocus.removeListener(_reportMode);
     _composerFocus.dispose();
+    _pageFocus.dispose();
     _composer.dispose();
     _scroll.dispose();
     super.dispose();
@@ -146,16 +154,24 @@ class _SkillChatViewState extends State<SkillChatView> {
       }
     }
     if (key == LogicalKeyboardKey.escape) {
-      _composerFocus.unfocus();
+      // INSERT → NORMAL first; only an `Esc` in NORMAL leaves the chat. One
+      // press used to do both, so there was no NORMAL mode to read from.
+      if (_composerFocus.hasFocus) {
+        _pageFocus.requestFocus();
+        return KeyEventResult.handled;
+      }
       if (widget.onBack == null) return KeyEventResult.ignored;
       widget.onBack!();
       return KeyEventResult.handled;
     }
+    if (_composerFocus.hasFocus) return KeyEventResult.ignored;
+    if (modifierHeld) return KeyEventResult.ignored;
     if (key == LogicalKeyboardKey.tab) {
-      if (_composerFocus.hasFocus) return KeyEventResult.ignored;
       _composerFocus.requestFocus();
       return KeyEventResult.handled;
     }
+    final scrolled = scrollKey(_scroll, event);
+    if (scrolled != null) return scrolled;
     if ((key == LogicalKeyboardKey.keyC || key == LogicalKeyboardKey.keyI) &&
         !_composerFocus.hasFocus) {
       _composerFocus.requestFocus();
@@ -164,22 +180,18 @@ class _SkillChatViewState extends State<SkillChatView> {
     return KeyEventResult.ignored;
   }
 
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scroll.hasClients) return;
-      _scroll.animateTo(
-        _scroll.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-      );
-    });
-  }
-
   void _send() {
     final text = _composer.text.trim();
     if (text.isEmpty || widget.onSend == null) return;
     final chat = widget.chat;
-    if (chat == null || chat.streaming || chat.blocked != null) return;
+    // The same rule as the Send button: with no model the core refuses the
+    // turn, and clearing the composer first lost the text.
+    if (chat == null ||
+        !chat.hasModel ||
+        chat.streaming ||
+        chat.blocked != null) {
+      return;
+    }
     widget.onSend!(text);
     _composer.clear();
   }
@@ -187,6 +199,7 @@ class _SkillChatViewState extends State<SkillChatView> {
   @override
   Widget build(BuildContext context) {
     return Focus(
+      focusNode: _pageFocus,
       autofocus: true,
       onKeyEvent: _onKey,
       child: Column(
@@ -368,10 +381,8 @@ class _SkillChatViewState extends State<SkillChatView> {
         : !chat.hasModel
         ? 'no model connected · link a key in Settings → Providers'
         : streaming
-        ? 'streaming · Stop ends the reply'
-        : canSend
-        ? 'Enter send · Shift+Enter newline · Esc back'
-        : 'send unavailable';
+        ? 'streaming · Esc stops the reply'
+        : 'Enter send · Shift+Enter newline · Esc normal';
 
     return Center(
       child: ConstrainedBox(
@@ -381,19 +392,21 @@ class _SkillChatViewState extends State<SkillChatView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (blocked != null || !canSend)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    hint,
-                    style: TextStyle(
-                      color: blocked != null
-                          ? LockedInColors.warning
-                          : LockedInColors.muted,
-                      fontSize: 12,
-                    ),
+              // Always one line: the keys that send, or the reason a send is
+              // blocked.
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  hint,
+                  key: const ValueKey('session-chat-hint'),
+                  style: TextStyle(
+                    color: blocked != null
+                        ? LockedInColors.warning
+                        : LockedInColors.muted,
+                    fontSize: 12,
                   ),
                 ),
+              ),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -410,10 +423,7 @@ class _SkillChatViewState extends State<SkillChatView> {
                             : chat == null
                             ? 'waiting for the goal chat'
                             : 'Ask about this goal…',
-                        prefixIcon: const Icon(
-                          Icons.keyboard_command_key,
-                          size: 16,
-                        ),
+                        prefixIcon: const Icon(Icons.chevron_right, size: 16),
                       ),
                     ),
                   ),

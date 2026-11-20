@@ -32,11 +32,22 @@ class PaletteAction {
   final String? binding;
 
   /// Filters on the label or the hint, case-insensitively.
-  bool matches(String query) {
-    if (query.isEmpty) return true;
+  bool matches(String query) => rank(query) < 3;
+
+  /// How well this action answers [query]: 0 the name starts with it, 1 the
+  /// name contains it, 2 only the hint mentions it, 3 no match.
+  ///
+  /// A name always outranks a hint. Hints are sentences about a destination
+  /// (`a achievements` on Stats), so ranking them level with names put Stats
+  /// above the `achievements` action for the query `achiev`, and `Enter` ran
+  /// the wrong row.
+  int rank(String query) {
+    if (query.isEmpty) return 0;
     final needle = query.toLowerCase();
-    return label.toLowerCase().contains(needle) ||
-        hint.toLowerCase().contains(needle);
+    final name = label.toLowerCase();
+    if (name.startsWith(needle)) return 0;
+    if (name.contains(needle)) return 1;
+    return hint.toLowerCase().contains(needle) ? 2 : 3;
   }
 }
 
@@ -92,8 +103,20 @@ class _CommandPaletteState extends State<CommandPalette> {
     super.dispose();
   }
 
-  List<PaletteAction> get _filtered =>
-      widget.actions.where((action) => action.matches(_query.text)).toList();
+  /// The matching actions, best match first. The sort is stable on the
+  /// catalogue order, so an empty query lists the actions exactly as given.
+  List<PaletteAction> get _filtered {
+    final query = _query.text;
+    final ranked =
+        [
+          for (final (index, action) in widget.actions.indexed)
+            (action.rank(query), index, action),
+        ].where((entry) => entry.$1 < 3).toList()..sort((a, b) {
+          final byRank = a.$1.compareTo(b.$1);
+          return byRank != 0 ? byRank : a.$2.compareTo(b.$2);
+        });
+    return [for (final entry in ranked) entry.$3];
+  }
 
   int get _index {
     final length = _filtered.length;
@@ -137,18 +160,9 @@ class _CommandPaletteState extends State<CommandPalette> {
       if (index >= 0) _run(_filtered[index]);
       return KeyEventResult.handled;
     }
-    // j/k are movement only while the query is empty; otherwise they are text
-    // like any other letter and must filter the list.
-    if (_query.text.isEmpty) {
-      if (key == LogicalKeyboardKey.keyJ) {
-        _move(1);
-        return KeyEventResult.handled;
-      }
-      if (key == LogicalKeyboardKey.keyK) {
-        _move(-1);
-        return KeyEventResult.handled;
-      }
-    }
+    // j/k are not movement here: the search field owns the keyboard, so both
+    // letters are text. Typing "kn" for Knowledge used to drop the `k` (it
+    // moved the selection), and Enter then ran Chat. The arrows move.
     return KeyEventResult.ignored;
   }
 

@@ -86,7 +86,7 @@ void main() {
     expect(find.text('Space r'), findsNothing);
     expect(find.text('Space h'), findsWidgets);
     expect(find.text('Ctrl+K'), findsOneWidget);
-    expect(find.text('j/k move · Enter run · Esc close'), findsOneWidget);
+    expect(find.text('↑↓ move · Enter run · Esc close'), findsOneWidget);
   });
 
   testWidgets('Esc cancels the leader and leaves the surface alone', (

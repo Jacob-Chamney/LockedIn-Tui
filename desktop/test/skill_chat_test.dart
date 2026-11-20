@@ -213,6 +213,13 @@ void main() {
       findsOneWidget,
     );
 
+    // The composer still holds the keyboard after the send: the first Esc
+    // leaves INSERT and the chat stays, the second leaves the chat.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('skill-chat-composer')), findsOneWidget);
+    expect(find.text('NORMAL'), findsOneWidget);
+
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
 
@@ -283,10 +290,23 @@ void main() {
     await tester.pump();
     expect(find.text('INSERT'), findsOneWidget);
 
+    // Esc leaves INSERT, not the chat: NORMAL is a real mode to read and
+    // scroll from, and `i` returns to the composer.
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     expect(find.text('INSERT'), findsNothing);
     expect(find.text('NORMAL'), findsOneWidget);
+    expect(find.text('SKILL CHAT'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyI);
+    await tester.pumpAndSettle();
+    expect(find.text('INSERT'), findsOneWidget);
+
+    // From NORMAL, Esc is "back": the goal page.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
     expect(find.text('SKILL'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

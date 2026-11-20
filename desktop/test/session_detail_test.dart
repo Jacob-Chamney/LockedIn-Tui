@@ -289,8 +289,9 @@ void main() {
     );
 
     expect(find.text('no instructions yet'), findsOneWidget);
+    // The next action, with the key that does it.
     expect(
-      find.textContaining('session settings — that screen ships in a later'),
+      find.textContaining('press s to set the prompt in session settings'),
       findsOneWidget,
     );
     expect(find.text('no sources yet'), findsOneWidget);
@@ -618,9 +619,47 @@ void main() {
       isTrue,
     );
 
+    // Esc in INSERT leaves the composer and stays in the chat.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(backs, 0);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).focusNode?.hasFocus,
+      isFalse,
+    );
+
+    // Esc in NORMAL is "back".
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     expect(backs, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Enter with no model keeps the text and sends nothing', (
+    tester,
+  ) async {
+    final sent = <String>[];
+    await pumpPage(
+      tester,
+      SessionChatView(
+        detail: _detail,
+        loading: false,
+        chat: _chat(model: null),
+        onSend: sent.add,
+      ),
+    );
+
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'a question worth keeping');
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    // The Send button is disabled without a model; Enter must agree with it.
+    // It used to send anyway and clear the composer the core then refused.
+    expect(sent, isEmpty);
+    expect(find.text('a question worth keeping'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

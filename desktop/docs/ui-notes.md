@@ -94,36 +94,80 @@ lives in `desktop/lib`.
 19. **The deck flips on `Tab`**, as in the terminal app, which is what frees
     `Space` to be the leader everywhere.
 
+## The keyboard's ownership
+
+20. **One `Esc`, one layer — in a text field too.** In a chat composer, `Esc`
+    moves the keyboard to the page (`NORMAL`); the text stays. An `Esc` in
+    `NORMAL` is "back". The shell blurs the focused field for the one chord it
+    owns and every page returns `ignored` for keys it does not use, so an
+    overlay or the leader is never dead because a field was focused.
+21. **A modified chord belongs to the registry.** A page handler runs before the
+    shell's, and pages read bare letters: `Ctrl+K` was `k` to Review (which
+    marks an item known) and to the deck (which marks a card). The shell
+    resolves `Ctrl`/`Alt` chords in an early key handler, ahead of the focus
+    tree, and every page returns `ignored` while a modifier is held. A page may
+    own a chord of its own (`Ctrl+U`/`Ctrl+D` scroll, `Ctrl+S` saves), and then
+    says so in its own handler.
+22. **A bare key in a text field is a character.** Every list with a search box
+    checks `focusNode.hasFocus` before its verbs: typing `a`, `d`, `x`, `n`,
+    `j` or `k` into a query never archives, deletes, exports or moves. The
+    palette does not move on `j`/`k` for the same reason — both are text there.
+23. **No remount to give the keyboard back.** An overlay returns focus to the
+    node that had it before it opened, or to the page's own scope. The page is
+    remounted only when nothing in it holds focus any more. Remounting on every
+    action threw away a half-filled wizard, an unsaved `prompt.md` and every
+    list's search.
+24. **The rail has two owners, not one.** `Space e` expands it *and* takes the
+    keyboard; the top-bar button only resizes, because a pointer user is about
+    to click and a page cannot accept focus while the rail is excluded from it.
+    A click anywhere in the page releases the rail; an overlay opened from the
+    rail hands the keyboard back to the rail when it closes.
+25. **A scrolling surface scrolls from the keyboard.** `j`/`k` by a line, `d`/`u`
+    by half a page, PgUp/PgDn, `g`/`G` for the ends, one implementation
+    (`transcript_scroll.dart`) for the four chats, the Stats dashboard, a
+    chapter and a lesson. A streaming reply is followed only while the reader is
+    at the bottom.
+26. **A command's result is shown.** `work.command.decide` consumes the proposal
+    row, so the approvals view keeps the last command's exit code, timeout and
+    output beside the remaining rows (`x` dismisses it). A button that runs a
+    process takes the same path as its key: the named confirmation, the busy
+    flag and the inline error.
+27. **A network or model call has no client deadline.** The shell's 30 s
+    timeout is for reads; `session.generateSteps`, `skill.create`,
+    `session.output.build`, `work.command.decide` and the archive's transfers
+    wait for the core, which is the only side that knows when they end. A crash
+    still fails them, because the exit handler completes every pending call.
+
 ## Mouse
 
-20. **The pointer is an accelerator, never the only path.** Every click target
+28. **The pointer is an accelerator, never the only path.** Every click target
     has a chord and every chord that changes or destroys something has a button:
     sidebar rows (click = select, `Enter` opens), the rail toggle (click =
     `<leader>e`), stars (hover = move, click = select, `Enter` = detail), deck
     choices (click = `1`–`4`), deck flip (click = `Tab`), approvals (buttons =
     `y`/`n`), settings rows (chevron = `Enter`), stats header (buttons = `a`/`x`).
-21. **A queue row opens what it is about.** A review item carries the step it
+29. **A queue row opens what it is about.** A review item carries the step it
     names, so opening it lands the session reader on that step — a deep link,
     not just the session. Activity rows expand independently, because the log is
     a list to compare.
-22. **Hover only tints; it never steals the selection.** A row highlights under
+30. **Hover only tints; it never steals the selection.** A row highlights under
     the pointer with the theme's hover wash, and nothing moves until the click.
-23. **A destructive decision is never keyboard-only.** Approve/reject and
+31. **A destructive decision is never keyboard-only.** Approve/reject and
     approve-and-run/deny are buttons on the card *and* keys, and a card's own
     button selects that card first so it can only act on what it shows.
-24. **`Esc` stops a reply before it means "back".** With a turn streaming, Esc
+32. **`Esc` stops a reply before it means "back".** With a turn streaming, Esc
     cancels from any mode, in Chill and in every session/project/goal chat.
-25. **A reader keeps its document's grammar.** The study guide reveals with
+33. **A reader keeps its document's grammar.** The study guide reveals with
     `Enter`, builds with `b`, and marks a section with `[`/`]` + `x` or by
     clicking its chip (`session.output.mark` writes the file). `a`/`R` remain as
     aliases. The deck flips with `Tab`, answers with `1`–`4`,
     moves with `h`/`l`.
-26. **A step is toggled by the glyph it is drawn with.** The `☐` in the steps
+34. **A step is toggled by the glyph it is drawn with.** The `☐` in the steps
     reader is a button that toggles that step, not the cursor's step.
 
 ## Plugins
 
-27. **Effects are a registry, not a hard-coded celebration.** `EffectRegistry`
+35. **Effects are a registry, not a hard-coded celebration.** `EffectRegistry`
     maps a name to an `Effect` factory; a plugin can register one and the shell
     can play it without knowing what it is. Effects paint only: they cannot read
     files, reach the core or hold a key.

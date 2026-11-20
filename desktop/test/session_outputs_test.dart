@@ -317,10 +317,10 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining('Read-only deck', findRichText: true),
+      find.textContaining('Tab flips a card', findRichText: true),
       findsOneWidget,
     );
-    // Flip and marking are a later packet: no answers toggle on a deck.
+    // A deck has no separate answers file: the answer is on the card's back.
     expect(find.byKey(const ValueKey('session-output-answers')), findsNothing);
     expect(tester.takeException(), isNull);
   });

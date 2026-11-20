@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
 import '../../theme/palette.dart';
@@ -620,6 +621,14 @@ class _SessionDetailViewState extends State<SessionDetailView> {
       return KeyEventResult.ignored;
     }
     final key = event.logicalKey;
+    // Modified chords belong to the shell's registry (`Ctrl+K` palette,
+    // `Ctrl+R` reconnect). A bare-letter page key must never read them. This
+    // page's own pair is `Ctrl+U` / `Ctrl+D` for a page of scroll.
+    final control = HardwareKeyboard.instance.isControlPressed;
+    final ownChord =
+        control &&
+        (key == LogicalKeyboardKey.keyU || key == LogicalKeyboardKey.keyD);
+    if (modifierHeld && !ownChord) return KeyEventResult.ignored;
     if (_readerVisible) {
       // `/` opens the in-document search; while its field is focused bare keys
       // are text, so the reader's scrolling and Esc resume after Enter.
@@ -649,9 +658,11 @@ class _SessionDetailViewState extends State<SessionDetailView> {
         _scrollDocument(-320);
         return KeyEventResult.handled;
       }
-      // The reader is a layer: Enter, `c`, Space and the study digits belong to
-      // the detail behind it and must not fire while a document is on screen.
-      return KeyEventResult.handled;
+      // A key the reader does not use is left to the shell: the leader, `?`,
+      // `:` and `Esc` must keep working while a document is on screen. Only the
+      // detail's own layer keys (`Enter`, `c`, the study digits) must not fire
+      // behind it, and they are not shell actions, so ignoring them is enough.
+      return KeyEventResult.ignored;
     }
     if (key == LogicalKeyboardKey.escape) {
       if (widget.onBack == null) return KeyEventResult.ignored;
@@ -660,7 +671,6 @@ class _SessionDetailViewState extends State<SessionDetailView> {
     }
     // Page scrolling. A long prompt is the normal case, and the cards below it
     // must stay reachable from the keyboard alone.
-    final control = HardwareKeyboard.instance.isControlPressed;
     if (key == LogicalKeyboardKey.pageDown ||
         (control && key == LogicalKeyboardKey.keyD)) {
       _scrollPage(320);
@@ -951,8 +961,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
               title: 'no instructions yet',
               body:
                   'The chat can still answer from the sources below. Add '
-                  'sources, or set the prompt in session settings — that '
-                  'screen ships in a later packet.',
+                  'sources, or press s to set the prompt in session settings.',
             )
           : Text(
               prompt,
@@ -1191,10 +1200,14 @@ class _SessionDetailViewState extends State<SessionDetailView> {
           ],
           if (report != null && !report.hasNoSources) ...[
             const SizedBox(height: 8),
+            // Each source is listed once: the referenced ones with their
+            // counts here, the rest under `not referenced yet`. Listing every
+            // source in both places printed a session with no mentions twice.
             for (var index = 0; index < report.sources.length; index++)
-              _coverageSourceRow(report.sources[index], index),
+              if (report.sources[index].referenced)
+                _coverageSourceRow(report.sources[index], index),
             if (report.unreferenced.isNotEmpty) ...[
-              const SizedBox(height: 10),
+              if (report.referencedCount > 0) const SizedBox(height: 10),
               Text(
                 'not referenced yet',
                 style: TextStyle(

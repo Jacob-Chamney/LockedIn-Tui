@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
 import '../../theme/palette.dart';
@@ -299,6 +300,9 @@ class _SwarmPageState extends State<SwarmPage> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    // Modified chords belong to the shell's registry (`Ctrl+K` palette,
+    // `Ctrl+R` reconnect). A bare-letter page key must never read them.
+    if (modifierHeld) return KeyEventResult.ignored;
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.escape && widget.onBack != null) {
       widget.onBack!();
@@ -428,13 +432,17 @@ class _SwarmPageState extends State<SwarmPage> {
               visualDensity: VisualDensity.compact,
               color: LockedInColors.muted,
             ),
+          // Both buttons run the same paths as `x` and `d`: the named
+          // confirmation, the busy flag and the inline error. Calling the
+          // callback directly skipped all three, so one click cancelled a live
+          // run and a refusal surfaced as an unhandled error.
           if (board != null && widget.onCancel != null)
             IconButton(
               key: const ValueKey('swarm-cancel'),
               tooltip: 'cancel the run (x)',
               onPressed: _busy || !board.isRunning
                   ? null
-                  : () => unawaited(widget.onCancel!(board.runId)),
+                  : () => unawaited(_cancelRun()),
               icon: const Icon(Icons.stop_circle_outlined, size: 17),
               visualDensity: VisualDensity.compact,
               color: LockedInColors.warning,
@@ -445,7 +453,7 @@ class _SwarmPageState extends State<SwarmPage> {
               tooltip: 'remove the record (d)',
               onPressed: _busy || board.isRunning
                   ? null
-                  : () => unawaited(widget.onRemove!(board.runId)),
+                  : () => unawaited(_removeRun()),
               icon: const Icon(Icons.delete_outline, size: 17),
               visualDensity: VisualDensity.compact,
               color: LockedInColors.muted,
