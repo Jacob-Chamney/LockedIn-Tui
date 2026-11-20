@@ -118,8 +118,10 @@ leaves the frame at `$TMPDIR/lockedin-smoke/smoke.png` for inspection.
   write or command still needs its own approval.
 - **Sidebar** — grouped destinations with a live count each (sessions, goals,
   projects), `RECENT` for the three newest sessions, and Achievements as its own
-  row over Stats. `Space e` cycles expanded → icons → hidden; the top-bar button
-  and the 26 px rail chip do the same with a mouse.
+  row over Stats. It starts shrunk to icons; `Space e` expands it and gives it
+  the keyboard (`j`/`k` walk, `Enter` opens, `Esc` hands the keys back and leaves
+  it open, `Space` shrinks it again). The top-bar button does the same with a
+  mouse, and a click on a row opens it and returns the keyboard to the page.
 - **Managers** — `Sessions` sorts (`o`) and searches (`/`); `Skills` and `Work`
   search by name (`/`), and a query that matches nothing says so and names `Esc`.
 - **Achievements** — a sky: one constellation per shelf. `hjkl`/arrows move by

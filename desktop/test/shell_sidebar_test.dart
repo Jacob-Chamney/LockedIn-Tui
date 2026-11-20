@@ -78,66 +78,200 @@ Future<void> openSurface(WidgetTester tester, int surface) async {
   await tester.pumpAndSettle();
 }
 
+/// Open the rail (`Space e`): it expands, takes the keyboard, and `Esc` hands
+/// the keyboard back while leaving it open.
+Future<void> expandSidebar(WidgetTester tester) async {
+  await pressSidebarChord(tester);
+  await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+  await tester.pumpAndSettle();
+}
+
 void main() {
-  testWidgets('Space e cycles expanded, icons, hidden', (tester) async {
+  testWidgets('the rail starts shrunk and Space e expands it', (tester) async {
     await pumpShell(tester);
-    expect(find.text('LEARN'), findsOneWidget);
-    expect(find.text('Sessions'), findsWidgets);
 
-    // Expanded → icon rail: labels and counts go, icons stay.
-    await pressSidebarChord(tester);
+    // Default: icons only, so a new window opens on the chat with navigation
+    // still on screen.
     expect(find.text('LEARN'), findsNothing);
-    expect(countFor(tester, 'sessions'), isNull);
     expect(find.byIcon(Icons.history), findsOneWidget);
-    // The window is not covered: the chat is still there.
-    expect(find.text('Chill'), findsWidgets);
+    expect(find.byKey(const ValueKey('sidebar-rail')), findsNothing);
 
-    // Icon rail → hidden: only the re-open chip remains.
-    await pressSidebarChord(tester);
-    expect(find.byIcon(Icons.history), findsNothing);
-    expect(find.byKey(const ValueKey('sidebar-rail')), findsOneWidget);
-    expect(find.text('Chill'), findsWidgets);
-
-    // Hidden → expanded again.
     await pressSidebarChord(tester);
     expect(find.text('LEARN'), findsOneWidget);
     expect(countFor(tester, 'sessions'), '2');
+
+    // There is no third state: the toggle is a switch.
+    await pressSidebarChord(tester);
+    expect(find.text('LEARN'), findsNothing);
+    expect(find.byIcon(Icons.history), findsOneWidget);
+    expect(find.byKey(const ValueKey('sidebar-rail')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('the top-bar button runs the same cycle with a mouse', (
+  testWidgets('opening the rail gives it the keyboard', (tester) async {
+    await pumpShell(tester);
+    await pressSidebarChord(tester);
+
+    // The rail owns the keyboard: its cursor sits on the first drawn row.
+    expect(
+      find.ancestor(
+        of: find.text('Chat'),
+        matching: find.byKey(const ValueKey('sidebar-row-cursor')),
+      ),
+      findsOneWidget,
+    );
+    // The rail owns the keyboard: j moves its cursor. Two rows down from Chat is
+    // Skills, and Enter opens it.
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    // The breadcrumb and the status bar name the surface that Enter opened.
+    expect(find.text('SKILLS'), findsWidgets);
+    // Still expanded: activating a row does not shrink the rail.
+    expect(find.text('LEARN'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the cursor walks the rows that are drawn', (tester) async {
+    await pumpShell(tester);
+    await pressSidebarChord(tester);
+
+    // The drawn order (`_sidebarGroups`, then the pinned Settings row), which
+    // is not `Surface.values`: Sources has no row and Review sits under Skills.
+    const order = [
+      'Chat',
+      'Sessions',
+      'Skills',
+      'Review',
+      'Work',
+      'Stats',
+      'Achievements',
+      'Archive',
+      'Knowledge',
+      'Settings',
+    ];
+    for (final label in order) {
+      expect(
+        find.ancestor(
+          of: find.text(label),
+          matching: find.byKey(const ValueKey('sidebar-row-cursor')),
+        ),
+        findsOneWidget,
+        reason: 'the cursor should sit on $label',
+      );
+      if (label == order.last) break;
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
+      await tester.pumpAndSettle();
+    }
+
+    // The ends are one key away each, and `k` walks back up.
+    await tester.sendKeyEvent(LogicalKeyboardKey.home);
+    await tester.pumpAndSettle();
+    expect(
+      find.ancestor(
+        of: find.text('Chat'),
+        matching: find.byKey(const ValueKey('sidebar-row-cursor')),
+      ),
+      findsOneWidget,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.end);
+    await tester.pumpAndSettle();
+    expect(
+      find.ancestor(
+        of: find.text('Settings'),
+        matching: find.byKey(const ValueKey('sidebar-row-cursor')),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a row click opens it and leaves the rail open', (tester) async {
+    await pumpShell(tester);
+    await expandSidebar(tester);
+
+    await tester.tap(find.text('Skills').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('SKILLS'), findsWidgets);
+    // Clicking is the pointer's Enter: the destination opens, the rail keeps
+    // its size, and the page holds the keyboard again.
+    expect(find.text('LEARN'), findsOneWidget);
+    expect(find.byKey(const ValueKey('sidebar-row-cursor')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Space inside the rail shrinks it and gives the keys back', (
     tester,
   ) async {
     await pumpShell(tester);
+    await pressSidebarChord(tester);
+    expect(find.text('LEARN'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+
+    expect(find.text('LEARN'), findsNothing);
+    expect(find.byKey(const ValueKey('sidebar-row-cursor')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Esc gives the keyboard back and leaves the rail open', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    await pressSidebarChord(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    expect(find.text('LEARN'), findsOneWidget);
+    // Space is the leader again, so the page has the keyboard. If the rail still
+    // held it, Space would shrink the rail instead.
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+    expect(find.text('CONTEXT'), findsOneWidget);
+    expect(find.text('LEARN'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the top-bar button expands and shrinks with a mouse', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    expect(find.text('LEARN'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('sidebar-toggle')));
+    await tester.pumpAndSettle();
     expect(find.text('LEARN'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('sidebar-toggle')));
     await tester.pumpAndSettle();
     expect(find.text('LEARN'), findsNothing);
-
-    await tester.tap(find.byKey(const ValueKey('sidebar-toggle')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('sidebar-rail')), findsOneWidget);
-
-    // The rail chip is the second pointer path back.
-    await tester.tap(find.byKey(const ValueKey('sidebar-rail')));
-    await tester.pumpAndSettle();
-    expect(find.text('LEARN'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('the mode survives switching surfaces', (tester) async {
     await pumpShell(tester);
-    await pressSidebarChord(tester); // icons
+    await expandSidebar(tester);
+    expect(find.text('LEARN'), findsOneWidget);
     await openSurface(tester, 2);
 
-    expect(find.text('LEARN'), findsNothing);
+    // The mode is the window's, not the page's: navigating keeps the rail open
+    // because the user opened it deliberately.
+    expect(find.text('LEARN'), findsOneWidget);
     expect(find.text('LOCK-IN SESSIONS'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('the sidebar groups its destinations', (tester) async {
     await pumpShell(tester);
+    await expandSidebar(tester);
 
     // Headings, not one flat list (`docs/design.md` §2.4).
     expect(find.text('LEARN'), findsOneWidget);
@@ -161,6 +295,7 @@ void main() {
 
   testWidgets('each row shows its size, not just its shortcut', (tester) async {
     await pumpShell(tester);
+    await expandSidebar(tester);
 
     // The fake serves two sessions, one skill and one project.
     expect(countFor(tester, 'sessions'), '2');
@@ -194,6 +329,7 @@ void main() {
           },
       ]);
     await pumpShell(tester, core: core);
+    await expandSidebar(tester);
 
     expect(countFor(tester, 'sessions'), '12');
     // The row's tooltip is the chord, so `12` cannot be read as one.
@@ -203,6 +339,7 @@ void main() {
   testWidgets('Achievements is a destination of its own', (tester) async {
     final core = FakeCore();
     final store = await pumpShell(tester, core: core);
+    await expandSidebar(tester);
 
     expect(find.text('Achievements'), findsOneWidget);
     await tester.tap(find.text('Achievements'));
@@ -220,6 +357,7 @@ void main() {
     tester,
   ) async {
     await pumpShell(tester);
+    await expandSidebar(tester);
     // Before the layer is opened nothing has been read, so no count is drawn.
     expect(countFor(tester, 'achievements'), isNull);
 

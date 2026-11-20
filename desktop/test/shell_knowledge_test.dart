@@ -78,6 +78,16 @@ Future<void> search(WidgetTester tester, String text) async {
   await tester.pumpAndSettle();
 }
 
+/// Expand the rail: it starts as icons, and `Space e` opens *and* focuses it.
+Future<void> expandSidebar(WidgetTester tester) async {
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+  await tester.pumpAndSettle();
+  await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('Space n opens Knowledge and reads the tree once on entry', (
     tester,
@@ -103,6 +113,7 @@ void main() {
   ) async {
     final core = FakeCore();
     await pumpShell(tester, core: core);
+    await expandSidebar(tester);
 
     expect(find.text('Knowledge'), findsWidgets);
     // The sidebar keeps the chord in the row's tooltip rather than beside the

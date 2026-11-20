@@ -38,10 +38,8 @@ const ALLOW: readonly string[] = [
   "LICENSE",
   "NOTICE",
   "THIRD-PARTY-NOTICES.md",
-  "README.md",
   "CHANGELOG.md",
   "SECURITY.md",
-  "CONTRIBUTING.md",
   "CODE_OF_CONDUCT.md",
   "TRADEMARK.md",
   ".gitattributes",
@@ -67,6 +65,11 @@ const DENY: readonly string[] = [
   ".dart_tool",
   // Internal specifications and reviews.
   "docs",
+  // Public-owned front matter. This overlay's README describes the overlay and
+  // its CONTRIBUTING is behind the public one; rendering either would overwrite
+  // the public repository's own copy on the next sync.
+  "README.md",
+  "CONTRIBUTING.md",
   // Desktop work-in-progress material.
   "desktop/AGENTS.md",
   "desktop/PLAN.md",

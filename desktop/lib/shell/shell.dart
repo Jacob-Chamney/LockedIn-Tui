@@ -67,27 +67,17 @@ enum Surface {
 
 /// How the navigation rail is showing.
 ///
-/// The terminal UI hid its explorer by default; a desktop window that starts
-/// with no navigation is hostile, so the default is [expanded] and `Ctrl+B`
-/// cycles through the three states the research notes ask for: full labels,
-/// an icon rail, and nothing but a re-open chip (`docs/design.md` §2.2).
+/// Two states only: full labels, or the icon rail. There is no "hidden" state —
+/// a desktop window with no navigation is a dead end, and the shrink is what
+/// gives the chat its width back. The rail starts **shrunk**, so a new window
+/// opens on the chat with the icons down the side (`docs/design.md` §2.2).
 enum SidebarMode {
-  expanded('expanded'),
-  icons('icons'),
-  hidden('hidden');
-
-  const SidebarMode(this.label);
-
-  final String label;
-
-  /// The next state in the cycle.
-  SidebarMode get next =>
-      SidebarMode.values[(index + 1) % SidebarMode.values.length];
+  expanded,
+  icons;
 
   IconData get icon => switch (this) {
     SidebarMode.expanded => Icons.menu_open,
     SidebarMode.icons => Icons.menu,
-    SidebarMode.hidden => Icons.menu,
   };
 }
 
@@ -211,9 +201,22 @@ class _ShellState extends State<Shell> {
   /// reopens the same conversation.
   bool _skillChatOpen = false;
 
-  /// How the navigation rail is showing. A cycle, not a boolean: the icon rail
-  /// is the useful middle state on a laptop, and `hidden` is the TUI's default.
-  SidebarMode _sidebarMode = SidebarMode.expanded;
+  /// How the navigation rail is showing: full labels, or the icon rail.
+  ///
+  /// It starts shrunk so a new window opens on the chat without giving up its
+  /// navigation, and the toggle is a switch — there is no hidden state.
+  SidebarMode _sidebarMode = SidebarMode.icons;
+
+  /// True while the rail owns the keyboard. `Space e` expands *and* focuses it;
+  /// `Esc` gives the keyboard back and leaves it expanded, and activating a row
+  /// returns to the page.
+  bool _sidebarFocused = false;
+
+  /// The rail row under the keyboard cursor, in `_sidebarTargets` order.
+  int _sidebarCursor = 0;
+
+  /// The focus the rail takes when it is opened from the keyboard.
+  final FocusNode _sidebarFocus = FocusNode(debugLabel: 'sidebar');
 
   /// The Chill composer's unsent text. It lives in the shell because switching
   /// surfaces disposes the page, and a chat-first app must never lose a draft
@@ -315,8 +318,137 @@ class _ShellState extends State<Shell> {
     if (_insert) setState(() => _insert = false);
   }
 
+  /// `Space e`: expand the rail and give it the keyboard, or shrink it and hand
+  /// the keyboard back. Two states, one switch.
   void _cycleSidebar() {
-    setState(() => _sidebarMode = _sidebarMode.next);
+    if (_sidebarMode == SidebarMode.icons) {
+      setState(() => _sidebarMode = SidebarMode.expanded);
+      _focusSidebar();
+      return;
+    }
+    setState(() => _sidebarMode = SidebarMode.icons);
+    _leaveSidebar();
+  }
+
+  /// Give the rail the keyboard so `j`/`k`/`Enter` work the moment it opens.
+  ///
+  /// The request is repeated once a frame has painted (the `Focus` widget has
+  /// to be in the tree first); the page subtree is excluded from focus while
+  /// the flag is set, so a composer cannot take it back mid-request.
+  void _focusSidebar() {
+    setState(() => _sidebarFocused = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_sidebarFocused) return;
+      if (_sidebarFocus.context == null) return;
+      _sidebarFocus.requestFocus();
+    });
+  }
+
+  /// Hand the keyboard back to the page, keeping the rail exactly as it is.
+  ///
+  /// The page is remounted (the epoch key) because a page takes focus with
+  /// `autofocus` on mount; that is the same rule that gives it focus after an
+  /// overlay action.
+  void _leaveSidebar() {
+    if (!_sidebarFocused) return;
+    setState(() {
+      _sidebarFocused = false;
+      _pageEpoch += 1;
+    });
+    _sidebarFocus.unfocus();
+  }
+
+  /// Keep the flag honest when the keyboard leaves the rail another way — a
+  /// click into the page, or a layer that takes focus. The next frame re-checks,
+  /// because a transient loss (an epoch remount) must not drop the cursor.
+  void _onSidebarFocusChange(bool hasFocus) {
+    if (hasFocus || !_sidebarFocused) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_sidebarFocused) return;
+      if (FocusManager.instance.primaryFocus == _sidebarFocus) return;
+      setState(() => _sidebarFocused = false);
+    });
+  }
+
+  /// The rail's keyboard rows, in the order the sidebar draws them: every
+  /// grouped destination, then the pinned Settings row.
+  ///
+  /// One list, two readers (the drawn cursor index and this one), so a row can
+  /// never be drawn in one place and picked in another.
+  List<_SidebarEntry> get _sidebarTargets => [
+    for (final group in _sidebarGroups) ...group.$2,
+    const _SurfaceEntry(Surface.settings),
+  ];
+
+  void _moveSidebar(int delta) {
+    final last = _sidebarTargets.length - 1;
+    setState(() {
+      _sidebarCursor = (_sidebarCursor + delta).clamp(0, last);
+    });
+  }
+
+  void _activateSidebarRow() {
+    final targets = _sidebarTargets;
+    final index = _sidebarCursor.clamp(0, targets.length - 1);
+    switch (targets[index]) {
+      case _SurfaceEntry(:final surface):
+        _select(surface);
+      case _AchievementsEntry():
+        _openAchievements();
+    }
+    _leaveSidebar();
+  }
+
+  /// A rail row picked with the pointer: the same destination as Enter, and the
+  /// same release of the keyboard.
+  void _pickSidebarSurface(Surface surface) {
+    _select(surface);
+    _leaveSidebar();
+  }
+
+  void _pickSidebarAchievements() {
+    _openAchievements();
+    _leaveSidebar();
+  }
+
+  KeyEventResult _sidebarKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.keyJ) {
+      _moveSidebar(1);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.keyK) {
+      _moveSidebar(-1);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.home) {
+      setState(() => _sidebarCursor = 0);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.end) {
+      setState(() => _sidebarCursor = _sidebarTargets.length - 1);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter) {
+      if (event is KeyDownEvent) _activateSidebarRow();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.escape ||
+        key == LogicalKeyboardKey.arrowRight ||
+        key == LogicalKeyboardKey.keyL) {
+      _leaveSidebar();
+      return KeyEventResult.handled;
+    }
+    // Space is the leader everywhere else; inside the rail it is the switch.
+    if (key == LogicalKeyboardKey.space) {
+      if (event is KeyDownEvent) _cycleSidebar();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
   }
 
   void _select(Surface surface) {
@@ -458,7 +590,9 @@ class _ShellState extends State<Shell> {
       PaletteAction(
         id: 'sidebar',
         label: 'sidebar',
-        hint: 'cycle expanded, icons, hidden (${_sidebarMode.label} now)',
+        hint: _sidebarMode == SidebarMode.icons
+            ? 'expand the rail and take its keys'
+            : 'shrink the rail to icons',
         icon: Icons.vertical_split_outlined,
         binding: chord('sidebar'),
         run: () => _dispatchAction('sidebar'),
@@ -507,7 +641,7 @@ class _ShellState extends State<Shell> {
   void _runAction(PaletteAction action) {
     _closePalette();
     action.run();
-    setState(() => _pageEpoch += 1);
+    if (!_sidebarFocused) setState(() => _pageEpoch += 1);
   }
 
   void _openCommandLine() {
@@ -575,9 +709,11 @@ class _ShellState extends State<Shell> {
   void _runLeaderRow(KeymapRow row) {
     _closeLeader();
     _dispatchAction(row.id);
-    // A row that did not change surface (refresh, retry, sidebar) still has to
-    // hand the keyboard back to the page.
-    setState(() => _pageEpoch += 1);
+    // A row that did not change surface (refresh, retry) still has to hand the
+    // keyboard back to the page. The sidebar row is the exception: it just
+    // asked the rail to take the keyboard, and remounting the page here would
+    // autofocus it straight back.
+    if (!_sidebarFocused) setState(() => _pageEpoch += 1);
   }
 
   /// Open the Achievements layer over Stats.
@@ -755,9 +891,8 @@ class _ShellState extends State<Shell> {
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     // Below 900 px the rail is icons whatever the mode says: the labels do not
-    // fit, and hiding the only navigation would strand a narrow window.
+    // fit, and a narrow window still needs its navigation.
     final compact = width < 900 || _sidebarMode == SidebarMode.icons;
-    final railHidden = width >= 900 && _sidebarMode == SidebarMode.hidden;
     final store = CoreScope.of(context);
     final keymap = _keymap(store);
     final pending = store.pendingPermission;
@@ -766,10 +901,11 @@ class _ShellState extends State<Shell> {
         keymap.rowFor('surface.${surface.name}'),
     ].whereType<KeymapRow>().toList();
     final paletteKey = keymap.rowFor('palette')?.binding.display ?? 'Ctrl+K';
+    // One line that fits the rail: the count of destinations and the chord that
+    // lists every action. Individual chords live in each row's tooltip.
     final sidebarFooter = surfaceRows.isEmpty
         ? '$paletteKey palette'
-        : '${surfaceRows.first.binding.display}…${surfaceRows.length} '
-              'surfaces · $paletteKey palette';
+        : '${surfaceRows.length} surfaces · $paletteKey';
     return Focus(
       autofocus: true,
       onKeyEvent: _rootKey,
@@ -784,41 +920,47 @@ class _ShellState extends State<Shell> {
                   sidebar: _sidebarMode,
                   toggleHint: _sidebarToggleLabel(keymap),
                   onToggleSidebar: _cycleSidebar,
-                  railHidden: railHidden,
                   onOpenSettings: _openSettings,
                 ),
                 Expanded(
                   child: Row(
                     children: [
-                      if (railHidden)
-                        _SidebarRail(
-                          onShow: _cycleSidebar,
-                          hint: _sidebarToggleLabel(keymap),
-                        )
-                      else
-                        _Sidebar(
-                          compact: compact,
-                          active: _surface,
-                          footer: sidebarFooter,
-                          shortcuts: {
-                            for (final surface in Surface.values)
-                              surface: _shortcutLabel(
-                                keymap.rowFor('surface.${surface.name}'),
-                              ),
-                          },
-                          onSelect: _select,
-                          counts: _sidebarCounts(store),
-                          achievements: _achievementsCount(store),
-                          onAchievements: _openAchievements,
-                          recent: _recentSessions(store),
-                          onRecent: (id) =>
-                              unawaited(_openRecentSession(store, id)),
-                        ),
+                      _Sidebar(
+                        focusNode: _sidebarFocus,
+                        onKey: _sidebarKey,
+                        onFocusChange: _onSidebarFocusChange,
+                        focused: _sidebarFocused,
+                        cursor: _sidebarFocused ? _sidebarCursor : -1,
+                        compact: compact,
+                        active: _surface,
+                        footer: sidebarFooter,
+                        shortcuts: {
+                          for (final surface in Surface.values)
+                            surface: _shortcutLabel(
+                              keymap.rowFor('surface.${surface.name}'),
+                            ),
+                        },
+                        onSelect: _pickSidebarSurface,
+                        counts: _sidebarCounts(store),
+                        achievements: _achievementsCount(store),
+                        onAchievements: _pickSidebarAchievements,
+                        recent: _recentSessions(store),
+                        onRecent: (id) =>
+                            unawaited(_openRecentSession(store, id)),
+                      ),
                       VerticalDivider(width: 1, color: LockedInColors.line),
                       Expanded(
-                        child: KeyedSubtree(
-                          key: ValueKey('page-$_pageEpoch'),
-                          child: _body(store, keymap),
+                        // While the rail owns the keyboard the page may not
+                        // take it back: the composer's `autofocus` and the
+                        // leader's focus restore both run in the same frame,
+                        // and a request that lands second would steal the rail
+                        // mid-chord.
+                        child: ExcludeFocus(
+                          excluding: _sidebarFocused,
+                          child: KeyedSubtree(
+                            key: ValueKey('page-$_pageEpoch'),
+                            child: _body(store, keymap),
+                          ),
                         ),
                       ),
                     ],
@@ -1907,7 +2049,6 @@ class _TopBar extends StatelessWidget {
     required this.sidebar,
     required this.toggleHint,
     required this.onToggleSidebar,
-    required this.railHidden,
     required this.onOpenSettings,
   });
 
@@ -1922,10 +2063,6 @@ class _TopBar extends StatelessWidget {
   final String toggleHint;
 
   final VoidCallback onToggleSidebar;
-
-  /// True when the rail is fully hidden: the top-bar button is then the second
-  /// way back, beside the rail chip itself.
-  final bool railHidden;
 
   /// Settings, from the model badge.
   final VoidCallback onOpenSettings;
@@ -1945,7 +2082,9 @@ class _TopBar extends StatelessWidget {
           // A pointer path for the same registry action the chord runs, so the
           // sidebar is reachable with a mouse without being mouse-only.
           Tooltip(
-            message: '${railHidden ? 'Show' : 'Cycle'} sidebar ($toggleHint)',
+            message:
+                '${sidebar == SidebarMode.icons ? 'Expand' : 'Shrink'} sidebar '
+                '($toggleHint)',
             waitDuration: const Duration(milliseconds: 400),
             child: InkWell(
               key: const ValueKey('sidebar-toggle'),
@@ -1956,7 +2095,7 @@ class _TopBar extends StatelessWidget {
                 child: Icon(
                   sidebar.icon,
                   size: 18,
-                  color: railHidden
+                  color: sidebar == SidebarMode.expanded
                       ? LockedInColors.primary
                       : LockedInColors.muted,
                 ),
@@ -2112,7 +2251,26 @@ class _Sidebar extends StatelessWidget {
     this.onAchievements,
     this.recent = const [],
     this.onRecent,
+    this.focusNode,
+    this.onKey,
+    this.onFocusChange,
+    this.focused = false,
+    this.cursor = -1,
   });
+
+  /// The node the rail takes when it is opened from the keyboard, and the
+  /// handler for `j`/`k`/`Enter`/`Esc` while it owns the keyboard.
+  final FocusNode? focusNode;
+  final KeyEventResult Function(FocusNode, KeyEvent)? onKey;
+
+  /// Told when the keyboard arrives or leaves, so the shell's `focused` flag
+  /// describes the rail rather than guessing.
+  final ValueChanged<bool>? onFocusChange;
+
+  /// True while the rail owns the keyboard; [cursor] is then the row under it
+  /// (-1 when the rail is not focused).
+  final bool focused;
+  final int cursor;
 
   final bool compact;
   final Surface active;
@@ -2164,7 +2322,10 @@ class _Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    // The cursor counts the surface rows, then the Achievements row.
+    var row = -1;
+    int nextRow() => ++row;
+    final body = Container(
       width: compact ? 64 : 208,
       color: LockedInColors.surface,
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
@@ -2200,6 +2361,7 @@ class _Sidebar extends StatelessWidget {
                     if (group.$1 == null && !compact) const SizedBox(height: 4),
                     for (final entry in group.$2)
                       _SidebarRow(
+                        cursor: focused && nextRow() == cursor,
                         label: switch (entry) {
                           _SurfaceEntry(:final surface) => surface.label,
                           _AchievementsEntry() => 'Achievements',
@@ -2250,6 +2412,7 @@ class _Sidebar extends StatelessWidget {
               child: Container(height: 1, color: LockedInColors.line),
             ),
           _SidebarRow(
+            cursor: focused && nextRow() == cursor,
             label: Surface.settings.label,
             icon: Surface.settings.icon,
             count: '',
@@ -2273,14 +2436,15 @@ class _Sidebar extends StatelessWidget {
         ],
       ),
     );
+    return Focus(
+      focusNode: focusNode,
+      onKeyEvent: onKey,
+      onFocusChange: onFocusChange,
+      child: body,
+    );
   }
 }
 
-/// One `RECENT` row: a session name and its date, opening on click.
-///
-/// It is deliberately not a `_SidebarRow`: a recent entry is a *destination*
-/// inside Sessions, not a surface, so it carries no shortcut label and no
-/// selected state — the surface row already shows that Sessions is open.
 /// One `RECENT` row: a session name and its date, opening on click.
 ///
 /// It is deliberately not a `_SidebarRow`: a recent entry is a *destination*
@@ -2349,45 +2513,6 @@ class _RecentItem extends StatelessWidget {
 /// label reads as a count, which is exactly what the old sidebar did: `Sessions
 /// 2` looked like two sessions whether the user had two or twenty. The count
 /// now sits next to the label and the digit sits in a bordered keycap.
-/// The 24 px rail left behind by a hidden sidebar.
-///
-/// It is deliberately not a 64 px icon rail: hiding is about giving the chat the
-/// width, so what remains is one affordance that says the navigation is there
-/// (`docs/design.md` §2.2: the explorer never covers the chat).
-class _SidebarRail extends StatelessWidget {
-  const _SidebarRail({required this.onShow, required this.hint});
-
-  final VoidCallback onShow;
-  final String hint;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 26,
-      color: LockedInColors.surface,
-      alignment: Alignment.topCenter,
-      padding: const EdgeInsets.only(top: 8),
-      child: Tooltip(
-        message: 'Show sidebar ($hint)',
-        waitDuration: const Duration(milliseconds: 400),
-        child: InkWell(
-          key: const ValueKey('sidebar-rail'),
-          borderRadius: BorderRadius.circular(4),
-          onTap: onShow,
-          child: Padding(
-            padding: const EdgeInsets.all(4),
-            child: Icon(
-              Icons.chevron_right,
-              size: 16,
-              color: LockedInColors.muted,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _SidebarRow extends StatelessWidget {
   const _SidebarRow({
     required this.label,
@@ -2397,6 +2522,7 @@ class _SidebarRow extends StatelessWidget {
     required this.selected,
     required this.compact,
     required this.onTap,
+    this.cursor = false,
   });
 
   final String label;
@@ -2407,6 +2533,10 @@ class _SidebarRow extends StatelessWidget {
   final bool compact;
   final VoidCallback? onTap;
 
+  /// True for the row under the rail's keyboard cursor: an accent border, so
+  /// the keyboard's place is visible without relying on colour alone.
+  final bool cursor;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -2416,6 +2546,9 @@ class _SidebarRow extends StatelessWidget {
       message: shortcut.isEmpty ? label : '$shortcut · $label',
       waitDuration: const Duration(milliseconds: 500),
       child: Padding(
+        // The keyboard cursor is a widget of its own so a test can assert
+        // *which* row it is on, not merely that some row has it.
+        key: cursor ? const ValueKey('sidebar-row-cursor') : null,
         padding: const EdgeInsets.only(bottom: 2),
         child: Material(
           color: selected ? LockedInColors.panel : Colors.transparent,
@@ -2425,15 +2558,16 @@ class _SidebarRow extends StatelessWidget {
             onTap: onTap,
             child: Container(
               height: 40,
-              padding: EdgeInsets.symmetric(horizontal: compact ? 0 : 10),
               decoration: BoxDecoration(
-                border: Border(
-                  left: BorderSide(
-                    color: selected
-                        ? LockedInColors.primary
-                        : Colors.transparent,
-                    width: 2,
-                  ),
+                borderRadius: BorderRadius.circular(6),
+                // The keyboard cursor is a fill *and* an outline: a colour on
+                // its own would vanish for a colour-blind user, and the active
+                // row keeps its own accent bar (`docs/design.md` §2.3).
+                color: cursor ? LockedInColors.panel : null,
+                // Always one pixel wide, transparent when the row is not under
+                // the cursor: the label must not jump as `j` walks the rail.
+                border: Border.all(
+                  color: cursor ? LockedInColors.accent : Colors.transparent,
                 ),
               ),
               child: Row(
@@ -2441,6 +2575,15 @@ class _SidebarRow extends StatelessWidget {
                     ? MainAxisAlignment.center
                     : MainAxisAlignment.start,
                 children: [
+                  // The active destination keeps its accent bar; the keyboard
+                  // cursor is the outline above, so the two never collide.
+                  Container(
+                    width: 2,
+                    height: 40,
+                    color: selected
+                        ? LockedInColors.primary
+                        : Colors.transparent,
+                  ),
                   Icon(
                     icon,
                     size: 18,
@@ -2449,7 +2592,7 @@ class _SidebarRow extends StatelessWidget {
                         : LockedInColors.muted,
                   ),
                   if (!compact) ...[
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         label,
