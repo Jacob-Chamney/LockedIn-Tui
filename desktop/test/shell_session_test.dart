@@ -90,6 +90,17 @@ Future<void> sendSessionTurn(WidgetTester tester, String text) async {
   await tester.pumpAndSettle();
 }
 
+/// Expand the rail: `Space e` opens it *and* focuses it, which is also how the
+/// keyboard gets in. `Esc` then leaves it open for the pointer.
+Future<void> expandSidebar(WidgetTester tester) async {
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+  await tester.pumpAndSettle();
+  await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('a session chat draft survives leaving the session', (
     tester,
@@ -184,6 +195,7 @@ void main() {
         },
       ]);
     await pumpShell(tester, core: core);
+    await expandSidebar(tester);
 
     expect(find.text('RECENT'), findsOneWidget);
     // Newest first, and an archived row is not a destination.
@@ -228,6 +240,7 @@ void main() {
       ]);
     // Wide and short: the sidebar is not compact, so every `RECENT` row shows.
     await pumpShell(tester, core: core, size: const Size(1280, 560));
+    await expandSidebar(tester);
 
     expect(find.text('RECENT'), findsOneWidget);
     // A RenderFlex overflow would surface as a framework exception here.
@@ -253,6 +266,7 @@ void main() {
         'archived': false,
       });
     final store = await pumpShell(tester, core: core);
+    await expandSidebar(tester);
 
     await tester.tap(
       find.byKey(const ValueKey('recent-session-${FakeCore.sessionId}')),

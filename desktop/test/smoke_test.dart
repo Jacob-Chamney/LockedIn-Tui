@@ -55,6 +55,17 @@ Future<void> openSurface(WidgetTester tester, int surface) async {
   await tester.pumpAndSettle();
 }
 
+/// Expand the rail (`Space e`): it starts shrunk, so its labels only exist once
+/// it is open. `Esc` then leaves it open for the pointer.
+Future<void> expandSidebar(WidgetTester tester) async {
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+  await tester.pumpAndSettle();
+  await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('the shell opens on chat with the core connected', (
     tester,
@@ -72,6 +83,7 @@ void main() {
 
   testWidgets('a sidebar tap opens real Stats data', (tester) async {
     await pumpShell(tester);
+    await expandSidebar(tester);
 
     await tester.tap(find.text('Stats'));
     await tester.pumpAndSettle();
@@ -97,6 +109,7 @@ void main() {
   ) async {
     final core = FakeCore();
     await pumpShell(tester, core: core);
+    await expandSidebar(tester);
     final before = core.calls.where((call) => call == 'stats.summary').length;
 
     await tester.tap(find.text('Stats'));
@@ -116,6 +129,7 @@ void main() {
     final store = await pumpShell(tester, core: FakeCore(configured: false));
     expect(store.configured, isFalse);
 
+    await expandSidebar(tester);
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('settings-connect-model')));
@@ -138,6 +152,7 @@ void main() {
 
   testWidgets('Settings shows the core projection', (tester) async {
     await pumpShell(tester);
+    await expandSidebar(tester);
 
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();

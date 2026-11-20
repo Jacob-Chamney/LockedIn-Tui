@@ -56,12 +56,24 @@ Future<CoreStore> _pumpApp(
 }
 
 /// Open the Settings surface (the sidebar is text at ≥900 px, Alt+0 below it).
+/// Expand the rail: it starts shrunk, so its labels exist only once it is open.
+/// `Esc` then leaves it open for the pointer.
+Future<void> _expandSidebar(WidgetTester tester) async {
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+  await tester.pumpAndSettle();
+  await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+  await tester.pumpAndSettle();
+}
+
 Future<void> _openSettings(
   WidgetTester tester, {
   bool sidebar = true,
   bool narrow = false,
 }) async {
   if (sidebar) {
+    await _expandSidebar(tester);
     await tester.tap(find.text('Settings'));
   } else {
     expect(narrow, isTrue);

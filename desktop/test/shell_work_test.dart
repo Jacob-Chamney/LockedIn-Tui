@@ -69,11 +69,23 @@ Future<void> pressCtrlK(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// Expand the rail (`Space e`): it starts shrunk, so its labels only exist once
+/// it is open. `Esc` then leaves it open for the pointer.
+Future<void> expandSidebar(WidgetTester tester) async {
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+  await tester.pumpAndSettle();
+  await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('the sidebar opens Work with the registered projects', (
     tester,
   ) async {
     await pumpShell(tester);
+    await expandSidebar(tester);
 
     await tester.tap(find.text('Work'));
     await tester.pumpAndSettle();

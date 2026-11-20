@@ -116,6 +116,17 @@ Future<void> _selectRow(WidgetTester tester, String id) async {
   }
 }
 
+/// Expand the rail: it starts shrunk, so its labels exist only once it is open.
+/// `Esc` then leaves it open for the pointer.
+Future<void> _expandSidebar(WidgetTester tester) async {
+  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+  await tester.pumpAndSettle();
+  await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+  await tester.pumpAndSettle();
+  await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+  await tester.pumpAndSettle();
+}
+
 Future<CoreStore> _pumpApp(
   WidgetTester tester, {
   required FakeCore core,
@@ -438,6 +449,7 @@ void main() {
       final store = await _pumpApp(tester, core: _ThemeCore(theme: 'lockedin'));
       expect(activeThemeId, 'lockedin');
 
+      await _expandSidebar(tester);
       await tester.tap(find.text('Settings'));
       await tester.pumpAndSettle();
       expect(find.text('SETTINGS'), findsWidgets);

@@ -27,6 +27,10 @@ const FORBIDDEN = [
   "docs",
   "desktop/tasks",
   "desktop/docs/screenshots",
+  // The public repository owns its front page and contribution guide; this
+  // overlay's README describes the overlay, so a sync must never carry it.
+  "README.md",
+  "CONTRIBUTING.md",
   "node_modules",
   "dist",
   "desktop/build",
