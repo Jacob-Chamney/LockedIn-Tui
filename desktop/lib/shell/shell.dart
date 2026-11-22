@@ -119,6 +119,15 @@ class _ShellState extends State<Shell> {
   /// chord never reaches the surface underneath.
   bool _leaderOpen = false;
 
+  /// Characters caught in the frame before the palette's or the command line's
+  /// field held focus.
+  ///
+  /// Both fields request focus in a post-frame callback, so a fast hand's first
+  /// character landed where nothing was listening. The shell keeps those
+  /// keystrokes and the overlay seeds its field with them. Cleared whenever the
+  /// overlay closes, so a later open never inherits them.
+  String _overlayPending = '';
+
   /// The node that held the keyboard before the first overlay opened.
   ///
   /// One slot for the palette, the command line and the leader: an overlay
@@ -751,7 +760,10 @@ class _ShellState extends State<Shell> {
 
   void _closePalette() {
     if (!_paletteOpen) return;
-    setState(() => _paletteOpen = false);
+    setState(() {
+      _paletteOpen = false;
+      _overlayPending = '';
+    });
     _returnToPage();
   }
 
@@ -768,7 +780,10 @@ class _ShellState extends State<Shell> {
 
   void _closeCommandLine() {
     if (!_commandOpen) return;
-    setState(() => _commandOpen = false);
+    setState(() {
+      _commandOpen = false;
+      _overlayPending = '';
+    });
     _returnToPage();
   }
 
@@ -1003,10 +1018,43 @@ class _ShellState extends State<Shell> {
     // closed Achievements and then left Stats as well, and a held `Ctrl+R`
     // restarted the core over and over.
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    // An overlay owns the keyboard: its own handler runs first, and the surface
-    // underneath must not also act on the same press. A pending plugin write
-    // prompt is the strictest case: the core is waiting on that answer.
-    if (_overlayOpen || CoreScope.of(context).pendingPermission != null) {
+    // A pending plugin write prompt is the strictest case: the core is waiting
+    // on that answer, so nothing else may answer for it.
+    if (CoreScope.of(context).pendingPermission != null) {
+      return KeyEventResult.ignored;
+    }
+    // The leader's second key is resolved here, synchronously with the key that
+    // opened it. The overlay's own `Focus` asks for focus in a post-frame
+    // callback, so a chord typed within one frame — a fast hand on a 120 Hz
+    // display, or a held `Space` — arrived while nothing had focus yet, and the
+    // press was dropped. `_leaderOpen` is set in the same turn as the opening
+    // key, so this path cannot miss it.
+    if (_leaderOpen) {
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        _closeLeader();
+        return KeyEventResult.handled;
+      }
+      final leaderRow = leaderRowForKey(
+        _keymap(CoreScope.of(context)).leaderRows(),
+        event,
+      );
+      if (leaderRow != null) {
+        _runLeaderRow(leaderRow);
+        return KeyEventResult.handled;
+      }
+      // Navigation and `Enter` belong to the overlay once it holds focus; a key
+      // nothing claims stays swallowed, so the surface underneath never sees it.
+      return KeyEventResult.handled;
+    }
+    // Any other overlay owns the keyboard: its own handler runs first, and the
+    // surface underneath must not also act on the same press. The exception is
+    // the one frame before a text overlay's field holds focus: a printable
+    // character typed there is buffered for the field rather than dropped.
+    if (_overlayOpen) {
+      if ((_paletteOpen || _commandOpen) && _isPrintable(event)) {
+        setState(() => _overlayPending += event.character!);
+        return KeyEventResult.handled;
+      }
       return KeyEventResult.ignored;
     }
     final row = _keymap(CoreScope.of(context)).resolve(event);
@@ -1027,6 +1075,19 @@ class _ShellState extends State<Shell> {
     if (!row.binding.hasModifier && typing) return KeyEventResult.ignored;
     _dispatchAction(row.id);
     return KeyEventResult.handled;
+  }
+
+  /// A character a text field would accept: no chord modifier, no control key.
+  ///
+  /// `event.character` is set for the keys a field inserts and null for Enter,
+  /// Tab, the arrows and the function keys, so this never swallows a navigation
+  /// press meant for the overlay's own handler.
+  bool _isPrintable(KeyEvent event) {
+    final character = event.character;
+    if (character == null || character.isEmpty) return false;
+    if (character.codeUnitAt(0) < 0x20) return false;
+    final keyboard = HardwareKeyboard.instance;
+    return !keyboard.isControlPressed && !keyboard.isAltPressed;
   }
 
   /// Modified chords (`Ctrl+K`, `Ctrl+R`) resolve before any page sees them.
@@ -1164,6 +1225,7 @@ class _ShellState extends State<Shell> {
             if (_paletteOpen)
               Positioned.fill(
                 child: CommandPalette(
+                  pendingInput: _overlayPending,
                   actions: _paletteActions(),
                   onRun: _runAction,
                   onClose: _closePalette,
@@ -1174,6 +1236,7 @@ class _ShellState extends State<Shell> {
             if (_commandOpen)
               Positioned.fill(
                 child: CommandLine(
+                  pendingInput: _overlayPending,
                   entries: commandEntries(keymap),
                   onRun: _runCommand,
                   onClose: _closeCommandLine,
