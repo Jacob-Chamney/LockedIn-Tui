@@ -217,4 +217,58 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(CommandPalette), findsOneWidget);
   });
+
+  /// The same one-frame window as a leader chord: `Ctrl+K` opens the palette, and
+  /// its search field takes focus in a post-frame callback, so a character typed
+  /// in the same frame landed where nothing was listening.
+  testWidgets('a fast first character reaches the palette search field', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    // No pump: the field has not been built, let alone focused.
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+    await tester.pumpAndSettle();
+
+    final field = find.byKey(const ValueKey('palette-search'));
+    expect(field, findsOneWidget);
+    expect(tester.widget<TextField>(field).controller?.text, 's');
+  });
+  testWidgets('a fast first character reaches the command line too', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+
+    // `:` opens the command line; `s` follows with no frame between them.
+    await tester.sendKeyEvent(LogicalKeyboardKey.semicolon, character: ':');
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+    await tester.pumpAndSettle();
+
+    final field = find.byKey(const ValueKey('command-input'));
+    expect(field, findsOneWidget);
+    expect(tester.widget<TextField>(field).controller?.text, 's');
+  });
+
+  testWidgets('a character typed after the palette has focus is not doubled', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    await pressCtrlK(tester);
+
+    await tester.enterText(find.byKey(const ValueKey('palette-search')), 'st');
+    await tester.pumpAndSettle();
+
+    // The buffer only seeds an unfocused field: typing into a focused one is the
+    // field's own business, and must not be re-appended by the shell.
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('palette-search')))
+          .controller
+          ?.text,
+      'st',
+    );
+  });
 }

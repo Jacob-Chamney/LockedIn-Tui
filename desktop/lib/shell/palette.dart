@@ -61,7 +61,15 @@ class CommandPalette extends StatefulWidget {
     required this.actions,
     required this.onRun,
     required this.onClose,
+    this.pendingInput = '',
   });
+
+  /// Characters the shell caught in the frame before this field had focus.
+  ///
+  /// The search field takes focus in a post-frame callback, so a fast hand's
+  /// first character arrived while nothing was listening and was dropped. The
+  /// shell buffers those keystrokes and hands them over here.
+  final String pendingInput;
 
   /// The single action registry: one entry per surface plus the core commands.
   final List<PaletteAction> actions;
@@ -88,11 +96,29 @@ class _CommandPaletteState extends State<CommandPalette> {
     // A node-level handler runs before the field's own editing shortcuts, so
     // arrows and Enter cannot move the text cursor instead of the selection.
     _searchFocus.onKeyEvent = _onKey;
+    if (widget.pendingInput.isNotEmpty) {
+      _query.text = widget.pendingInput;
+      _query.selection = TextSelection.collapsed(offset: _query.text.length);
+    }
     // The chat composer usually has focus when the palette opens; autofocus
     // alone is ignored while the scope already has a focused child.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _searchFocus.requestFocus();
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant CommandPalette oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A second character can arrive in the same frame, after this field was
+    // built but before it held focus. The shell appends to the buffer, so take
+    // the whole value: nothing here can have been typed yet.
+    if (widget.pendingInput != oldWidget.pendingInput &&
+        widget.pendingInput.length > _query.text.length &&
+        widget.pendingInput.startsWith(_query.text)) {
+      _query.text = widget.pendingInput;
+      _query.selection = TextSelection.collapsed(offset: _query.text.length);
+    }
   }
 
   @override

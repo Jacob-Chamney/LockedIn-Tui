@@ -5,6 +5,25 @@ import '../keymap/binding.dart';
 import '../keymap/registry.dart';
 import '../theme/palette.dart';
 
+/// The row a leader chord's second key names, or null when it names none.
+///
+/// One function, because the shell and the overlay must agree: the shell
+/// resolves the second key when the overlay cannot yet (see `_rootKey`), and the
+/// overlay resolves it for every press after it has focus. Two copies of this
+/// loop is how a rebind would work in one path and not the other.
+KeymapRow? leaderRowForKey(List<KeymapRow> rows, KeyEvent event) {
+  final keyboard = HardwareKeyboard.instance;
+  // A modified chord is not a leader chord: `Ctrl+E` reaches the registry, not
+  // the row that holds bare `e`.
+  if (keyboard.isControlPressed || keyboard.isAltPressed) return null;
+  final token = Binding.keyToken(event.logicalKey, event.character);
+  if (token == null) return null;
+  for (final row in rows) {
+    if (row.binding.isLeader && row.binding.key == token) return row;
+  }
+  return null;
+}
+
 /// The which-key overlay: every runnable binding, grouped and selectable.
 ///
 /// The rows come from [KeymapRegistry.leaderRows], so the overlay can never show
@@ -103,15 +122,10 @@ class _LeaderOverlayState extends State<LeaderOverlay> {
     }
     // Which-key first: a chord's own key runs its row. This has to come before
     // j/k movement, because the terminal app binds `Space j` and `Space k`.
-    final keyboard = HardwareKeyboard.instance;
-    final token = Binding.keyToken(event.logicalKey, event.character);
-    if (token != null && !keyboard.isControlPressed && !keyboard.isAltPressed) {
-      for (final row in widget.rows) {
-        if (row.binding.isLeader && row.binding.key == token) {
-          _run(row);
-          return KeyEventResult.handled;
-        }
-      }
+    final chord = leaderRowForKey(widget.rows, event);
+    if (chord != null) {
+      _run(chord);
+      return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.keyJ) {
       _move(1);

@@ -118,7 +118,12 @@ class CommandLine extends StatefulWidget {
     required this.entries,
     required this.onRun,
     required this.onClose,
+    this.pendingInput = '',
   });
+
+  /// Characters typed in the frame before the input held focus; see
+  /// [CommandPalette.pendingInput].
+  final String pendingInput;
 
   /// Every command, built from the registry by [commandEntries].
   final List<CommandEntry> entries;
@@ -145,11 +150,29 @@ class _CommandLineState extends State<CommandLine> {
     // A node-level handler runs before the field's own editing shortcuts, so
     // arrows and Enter cannot move the text cursor instead of the selection.
     _inputFocus.onKeyEvent = _onKey;
+    if (widget.pendingInput.isNotEmpty) {
+      _query.text = widget.pendingInput;
+      _query.selection = TextSelection.collapsed(offset: _query.text.length);
+    }
     // Another surface's field may hold focus when the line opens; autofocus
     // alone is ignored while the enclosing scope already has a focused child.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _inputFocus.requestFocus();
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant CommandLine oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A second character can arrive in the same frame, after this field was
+    // built but before it held focus. The shell appends to the buffer, so take
+    // the whole value: nothing here can have been typed yet.
+    if (widget.pendingInput != oldWidget.pendingInput &&
+        widget.pendingInput.length > _query.text.length &&
+        widget.pendingInput.startsWith(_query.text)) {
+      _query.text = widget.pendingInput;
+      _query.selection = TextSelection.collapsed(offset: _query.text.length);
+    }
   }
 
   @override

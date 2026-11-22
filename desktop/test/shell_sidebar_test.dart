@@ -355,4 +355,49 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  /// A chord typed faster than a frame.
+  ///
+  /// The second key used to be handled only by the overlay's own `Focus`, which
+  /// asks for focus in a post-frame callback. Two key events in one frame — a
+  /// normal typing speed on a 120 Hz display, or a held `Space` — arrived before
+  /// that callback ran, so the shell saw `\\` (opening the leader) and then a key
+  /// nothing was listening for: the chord was dropped.
+  ///
+  /// These send both keys with no `pump` between them, which is exactly that
+  /// window.
+  testWidgets('a leader chord typed with no frame between keys still runs', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    // The rail starts shrunk: icons only, no labels.
+    expect(find.text('LEARN'), findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+    await tester.pumpAndSettle();
+
+    // The rail expanded and the overlay closed.
+    expect(find.text('LEARN'), findsOneWidget);
+    expect(find.byKey(const ValueKey('leader-list')), findsNothing);
+  });
+
+  testWidgets('two fast chords in a row both run', (tester) async {
+    await pumpShell(tester);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+    await tester.pumpAndSettle();
+    expect(find.text('LEARN'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+    await tester.pumpAndSettle();
+
+    // Back to icons: the second chord was not swallowed.
+    expect(find.text('LEARN'), findsNothing);
+  });
 }
