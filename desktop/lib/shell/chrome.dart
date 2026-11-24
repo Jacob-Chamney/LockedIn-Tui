@@ -11,6 +11,18 @@ import '../../theme/tokens.dart';
 /// The previous shell had a private `_Card` in four files and a `Container`
 /// with its own radius in a dozen more, which is why no two surfaces lined up.
 
+/// True when the platform asks for reduced motion.
+///
+/// One rule for the whole shell (`docs/design.md` §9): if this is true, no
+/// transition plays. A caller replaces the animation with its end state — never
+/// with a slower animation.
+bool reducedMotionOf(BuildContext context) =>
+    MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+
+/// [duration] unless the platform asks for reduced motion, in which case zero.
+Duration motionFor(BuildContext context, Duration duration) =>
+    reducedMotionOf(context) ? Duration.zero : duration;
+
 /// A surface section: a label row, a hairline, then the content.
 ///
 /// The hairline sits *above* the label so the eye reads a continuous rule down

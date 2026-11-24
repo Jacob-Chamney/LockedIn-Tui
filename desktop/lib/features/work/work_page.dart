@@ -1214,13 +1214,22 @@ class _WorkDetailViewState extends State<WorkDetailView> {
       if (file.staged) 'staged',
       if (file.unstaged) 'unstaged',
     ];
+    // A list row, not a card: one hairline under it, no fill.
     return Container(
-      margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.fromLTRB(8, 7, 8, 7),
+      margin: const EdgeInsets.only(bottom: Space.hair),
+      padding: const EdgeInsets.fromLTRB(
+        Space.xs,
+        Space.xs - 1,
+        Space.xs,
+        Space.xs - 1,
+      ),
       decoration: BoxDecoration(
-        color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(Radii.control),
-        border: Border.all(color: LockedInColors.line),
+        border: Border(
+          bottom: BorderSide(
+            color: LockedInColors.line,
+            width: Stroke.hairline,
+          ),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1636,13 +1645,20 @@ class _WorkDetailViewState extends State<WorkDetailView> {
               : null,
           child: Container(
             key: isSelected ? _selectedAgentKey : null,
-            padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+            padding: const EdgeInsets.fromLTRB(
+              Space.xs,
+              Space.xs,
+              Space.xs,
+              Space.xs,
+            ),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(Radii.control),
-              border: Border.all(
-                color: isSelected
-                    ? LockedInColors.primary.withValues(alpha: 0.5)
-                    : LockedInColors.line,
+              border: Border(
+                left: BorderSide(
+                  color: isSelected
+                      ? LockedInColors.primary
+                      : LockedInColors.line,
+                  width: isSelected ? Stroke.focus : Stroke.hairline,
+                ),
               ),
             ),
             child: Column(

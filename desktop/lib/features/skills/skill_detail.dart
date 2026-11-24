@@ -1365,9 +1365,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
       Scrollable.ensureVisible(
         target,
         alignment: 0.08,
-        duration: MediaQuery.of(context).disableAnimations
-            ? Duration.zero
-            : Motion.settle,
+        duration: motionFor(context, Motion.settle),
         curve: Motion.settleCurve,
       );
     }

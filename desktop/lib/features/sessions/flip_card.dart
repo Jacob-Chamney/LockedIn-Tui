@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:material_ui/material_ui.dart';
 
+import '../../shell/chrome.dart';
+
 /// A two-faced card that turns over when [showingBack] changes.
 ///
 /// The faces are swapped exactly at the halfway point, when the card is edge-on
@@ -50,7 +52,7 @@ class _FlipCardState extends State<FlipCard>
   void didUpdateWidget(covariant FlipCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.showingBack == widget.showingBack) return;
-    if (MediaQuery.disableAnimationsOf(context)) {
+    if (reducedMotionOf(context)) {
       _controller.value = widget.showingBack ? 1 : 0;
       return;
     }
