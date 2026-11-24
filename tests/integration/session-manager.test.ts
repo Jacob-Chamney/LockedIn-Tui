@@ -561,32 +561,55 @@ describe("events", () => {
 })
 
 describe("deleteSession never reaches into the archive", () => {
+  /**
+   * A session of this test's own.
+   *
+   * The shared `seedThree()` fixture writes into the `beforeEach` temp folder;
+   * on the Windows runner a delete in one case could leave the next case's
+   * copy source missing (`ENOENT ... input/notes.txt`). A session with its own
+   * file and a unique creation instant cannot collide.
+   */
+  async function ownSession(): Promise<{ id: string; folder: string }> {
+    const own = join(base, `own-${crypto.randomUUID()}`)
+    await mkdir(own, { recursive: true })
+    await writeFile(join(own, "readme.md"), "# Notes\n\nEnergy balance.\n")
+    const created = unwrap(
+      await createLockInSession({
+        workspace,
+        created: new Date().toISOString(),
+        name: `Own ${crypto.randomUUID().slice(0, 8)}`,
+        files: [join(own, "readme.md")],
+      }),
+    )
+    return { id: created.session.id, folder: created.folder }
+  }
+
   test("the archived copy of the same id survives a live delete", async () => {
-    const ids = await seedThree()
-    const archiveRoot = join(tmpdir(), `lockedin-delete-archive-${crypto.randomUUID()}`)
-    const archived = join(archiveRoot, "school", "session", ids.steps)
+    const session = await ownSession()
+    const archiveRoot = join(base, `archive-${crypto.randomUUID()}`)
+    const archived = join(archiveRoot, "school", "session", session.id)
     await mkdir(archived, { recursive: true })
     await writeFile(join(archived, "meta.json"), '{"schema":1,"archived":true}')
     const before = await snapshot(archiveRoot)
 
-    unwrap(await deleteSession({ workspace, id: ids.steps, confirmed: true }))
+    unwrap(await deleteSession({ workspace, id: session.id, confirmed: true }))
 
-    // The live folder is gone, the archive twin is byte-identical. `deleteSession`
-    // used to fall back to the archived folder when the live one was missing, so
-    // a delete racing an archive erased the backup and said `deleted: true`.
-    await expect(stat(join(workspace.paths.schoolSessions, ids.steps))).rejects.toThrow()
+    // The live folder is gone, the archive twin is byte-identical.
+    // `deleteSession` used to fall back to the archived folder when the live one
+    // was missing, so a delete racing an archive erased the backup.
+    await expect(stat(session.folder)).rejects.toThrow()
     expect(await snapshot(archiveRoot)).toEqual(before)
   })
 
   test("a live folder that is already gone is a typed error, not a silent archive delete", async () => {
-    const ids = await seedThree()
-    const archiveRoot = join(tmpdir(), `lockedin-delete-archive2-${crypto.randomUUID()}`)
-    const archived = join(archiveRoot, "school", "session", ids.steps)
+    const session = await ownSession()
+    const archiveRoot = join(base, `archive2-${crypto.randomUUID()}`)
+    const archived = join(archiveRoot, "school", "session", session.id)
     await mkdir(archived, { recursive: true })
     await writeFile(join(archived, "meta.json"), '{"schema":1,"archived":true}')
-    await rm(join(workspace.paths.schoolSessions, ids.steps), { recursive: true, force: true })
+    await rm(session.folder, { recursive: true, force: true })
 
-    const error = errorOf(await deleteSession({ workspace, id: ids.steps, confirmed: true }))
+    const error = errorOf(await deleteSession({ workspace, id: session.id, confirmed: true }))
     expect(error.kind).toBe("storage")
     expect((await stat(join(archived, "meta.json"))).isFile()).toBe(true)
   })
