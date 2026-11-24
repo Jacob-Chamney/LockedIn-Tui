@@ -1318,6 +1318,57 @@ class CoreStore extends ChangeNotifier {
     }
   }
 
+  /// Build a practice set from what the lesson has established.
+  ///
+  /// One model call, no retry. Refused until a step has passed its check: a
+  /// session cannot practise what it never landed.
+  Future<bool> practiseTeaching(String goalId) async {
+    return _teachingCall(goalId, 'teach.practice', {});
+  }
+
+  /// Record one practice verdict (`solved` or `missed`).
+  Future<bool> answerPractice(
+    String goalId,
+    String problemId,
+    String verdict,
+  ) async {
+    return _teachingCall(goalId, 'teach.practice.result', {
+      'problemId': problemId,
+      'verdict': verdict,
+    });
+  }
+
+  /// The shared body of every `teach.*` write: busy flag, ticket, one refusal.
+  Future<bool> _teachingCall(
+    String goalId,
+    String method,
+    Map<String, dynamic> extra,
+  ) async {
+    final id = goalId.trim();
+    if (id.isEmpty) return false;
+    final ticket = ++_teachingTicket;
+    teachingLoading = true;
+    teachingError = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call(method, {'goalId': id, ...extra});
+      if (ticket != _teachingTicket) return false;
+      teaching = TeachingState.fromJson(
+        Map<String, dynamic>.from(json['record'] as Map),
+      );
+      return true;
+    } catch (failure) {
+      if (ticket != _teachingTicket) return false;
+      teachingError = _messageOf(failure);
+      return false;
+    } finally {
+      if (ticket == _teachingTicket) {
+        teachingLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
   /// Answer the open step's check (`teach.check`).
   ///
   /// A `correct` verdict passes the step and clears it in the core's record, so

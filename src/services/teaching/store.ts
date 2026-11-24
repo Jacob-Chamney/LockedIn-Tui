@@ -15,7 +15,12 @@ import { rename, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { Result } from "../../domain/markdown";
-import type { TeachingCheck, TeachingState, TeachingStepBody } from "../../domain/teaching";
+import type {
+  TeachingCheck,
+  TeachingProblem,
+  TeachingState,
+  TeachingStepBody,
+} from "../../domain/teaching";
 
 export const TEACHING_FILE = "teaching.json";
 
@@ -27,12 +32,27 @@ export type TeachingCheckRecord = {
   at: string
 }
 
+/** One attempt at a practice problem. */
+export type PracticeAttempt = {
+  problemId: string
+  verdict: "solved" | "missed"
+  at: string
+}
+
+export type PracticeState = {
+  problems: TeachingProblem[]
+  attempts: PracticeAttempt[]
+  generatedAt: string
+}
+
 export type TeachingRecord = {
   schema: 1
   state: TeachingState
   /** The step on screen, if one was opened and not yet passed. */
   current?: TeachingStepBody
   checks: TeachingCheckRecord[]
+  /** The practice set, once asked for. Absent means "not generated yet". */
+  practice?: PracticeState
 }
 
 export type TeachingStoreError = { kind: "storage"; path: string; message: string }

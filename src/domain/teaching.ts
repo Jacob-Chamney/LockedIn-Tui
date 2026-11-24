@@ -32,6 +32,11 @@ export const TEACHING_LIMITS = {
   questionChars: 220,
   /** A correction. */
   correctionChars: 320,
+  /** Problems in one set: few enough to finish, many enough to be practice. */
+  problems: 5,
+  problemChars: 260,
+  /** A problem's answer, kept short so it is a criterion, not a lecture. */
+  answerChars: 320,
 } as const
 
 export type TeachingStep = {
@@ -57,6 +62,14 @@ export type TeachingStepBody = {
   stepId: string
   prose: string
   question: string
+}
+
+export type TeachingProblem = {
+  id: string
+  /** The problem itself: a task that needs the idea without naming it. */
+  prompt: string
+  /** A brief answer, so the learner can judge themselves honestly. */
+  answer: string
 }
 
 export type TeachingCheck = {
@@ -356,6 +369,75 @@ export function checkPrompt(input: {
     "verdict: correct when the answer shows the idea; partial when part of it is there; incorrect otherwise.",
     `correction: at most ${TEACHING_LIMITS.correctionChars} characters. If correct, say the one thing to keep. ` +
       "If not, name the smallest thing that is wrong and how to fix it. Do not re-teach the whole step.",
+  ]
+    .filter((line) => line !== "")
+    .join("\n")
+}
+
+/**
+ * A practice set: problems that need the idea without naming it.
+ *
+ * Practice is not a quiz on the step titles (`docs/product.md` §6.1, and the
+ * method's "retrieve without naming"): a problem states a situation and asks
+ * for an outcome, so the learner has to bring the idea to mind themselves.
+ * Each answer is one or two sentences, a criterion to judge against.
+ */
+export function parsePractice(
+  raw: string,
+): { ok: true; problems: TeachingProblem[] } | { ok: false; error: TeachingError } {
+  const object = extractJsonObject(raw)
+  if (object === null) {
+    return { ok: false, error: { kind: "malformed", message: "the model did not return a JSON object" } }
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(object)
+  } catch {
+    return { ok: false, error: { kind: "malformed", message: "the model returned invalid JSON" } }
+  }
+  if (!isRecord(parsed) || !Array.isArray(parsed.problems)) {
+    return { ok: false, error: { kind: "malformed", message: "the practice reply has no problems" } }
+  }
+  const problems: TeachingProblem[] = []
+  for (const entry of parsed.problems) {
+    if (problems.length === TEACHING_LIMITS.problems) break
+    if (!isRecord(entry)) continue
+    const prompt = oneLine(entry.prompt, TEACHING_LIMITS.problemChars)
+    const answer = oneLine(entry.answer, TEACHING_LIMITS.answerChars)
+    if (prompt === "" || answer === "") continue
+    problems.push({ id: `practice-${problems.length + 1}`, prompt, answer })
+  }
+  if (problems.length === 0) {
+    return {
+      ok: false,
+      error: { kind: "malformed", message: "the practice reply has no usable problem" },
+    }
+  }
+  return { ok: true, problems }
+}
+
+/** Prompt: build problems from what the session has taught. */
+export function practicePrompt(input: {
+  goal: string
+  held: string[]
+  taught: string[]
+}): string {
+  return [
+    "Write a short practice set for a learner. Reply with JSON only.",
+    VOICE,
+    "",
+    `The learner is working towards: ${input.goal}`,
+    `Ideas the lesson has established: ${input.taught.join("; ")}`,
+    input.held.length === 0 ? "" : `Already held before the lesson: ${input.held.join("; ")}`,
+    "",
+    "Reply with exactly this shape:",
+    '{"problems":[{"prompt":"...","answer":"..."}]}',
+    "",
+    `problems: 1-${TEACHING_LIMITS.problems} tasks. Each prompt states a situation and asks for an ` +
+      "outcome, so the learner must bring the idea to mind. Do not name the idea, the lesson, or " +
+      `the step it came from. Keep each prompt <= ${TEACHING_LIMITS.problemChars} characters.`,
+    `answer: <= ${TEACHING_LIMITS.answerChars} characters. What a correct answer contains, as a ` +
+      "criterion the learner can check themselves against. No worked solution.",
   ]
     .filter((line) => line !== "")
     .join("\n")

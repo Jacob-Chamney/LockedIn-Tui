@@ -58,6 +58,8 @@ class SkillDetailView extends StatefulWidget {
     this.onMeasure,
     this.onNextStep,
     this.onCheck,
+    this.onPractise,
+    this.onPracticeResult,
     this.onSaveStages,
   });
 
@@ -160,6 +162,12 @@ class SkillDetailView extends StatefulWidget {
 
   /// Answer the open step (`teach.check`).
   final ValueChanged<String>? onCheck;
+
+  /// Build a practice set (`teach.practice`).
+  final VoidCallback? onPractise;
+
+  /// Record one practice verdict: `(problemId, 'solved' | 'missed')`.
+  final void Function(String problemId, String verdict)? onPracticeResult;
 
   /// Save the whole curriculum in order (`skill.stages.save`).
   ///
@@ -1310,45 +1318,120 @@ class _SkillDetailViewState extends State<SkillDetailView> {
     );
   }
 
-  /// Practice: what is ready, in one line, pointing at the plan.
+  /// Practice: problems that need the idea without naming it.
   ///
-  /// Repeating the stage list here made the same titles appear twice on one
-  /// scroll; the map is the plan's job. This says how much is ready and hands
-  /// the reader back to it.
+  /// The fourth phase (`desktop/docs/redesign.md` §2.1). Practice is refused
+  /// until a step has passed its check — a session cannot practise what it never
+  /// landed — so this card has three states: nothing held yet, no set generated,
+  /// and a set with a verdict per problem.
   Widget _practiceCard() {
     final stages = _stages;
     final held = stages.where((stage) => stage.done).length;
+    final record = widget.teaching;
+    final practice = record?.practice;
+    final loading = widget.teachingLoading;
+    final chip = ValueChip(
+      stages.isEmpty ? 'nothing yet' : '$held/${stages.length} held',
+    );
     return SectionCard(
       label: 'PRACTICE',
-      trailing: ValueChip(
-        stages.isEmpty ? 'nothing yet' : '$held/${stages.length} held',
-      ),
+      trailing: chip,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Practice is a problem that needs the idea before it names it. A '
-            'stage is ready to practise once it is held.',
+            'A problem that needs the idea before it names it. Answer, then judge '
+            'yourself: the key shows what a correct answer contains.',
             style: LockedInType.proseSmall.copyWith(
               color: LockedInColors.muted,
             ),
           ),
-          const SizedBox(height: Space.xs),
-          Text(
-            _chapters.isNotEmpty
-                ? 'a course is practised by working its chapters'
-                : stages.isEmpty
-                ? 'plan the stages first'
-                : held == 0
-                ? 'nothing is held yet: teach a stage, then practise it'
-                : '$held of ${stages.length} stages are ready to practise',
-            key: const ValueKey('practice-summary'),
-            style: LockedInType.body.copyWith(color: LockedInColors.foreground),
-          ),
+          if (widget.teachingError != null) ...[
+            const SizedBox(height: Space.xs),
+            Text(
+              widget.teachingError!,
+              key: const ValueKey('practice-error'),
+              style: LockedInType.label.copyWith(color: LockedInColors.error),
+            ),
+          ],
+          const SizedBox(height: Space.sm),
+          if (record == null)
+            _practiceLine(
+              'measure the session first: practice draws on what the lesson '
+              'established',
+            )
+          else if (practice == null || practice.empty)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _practiceLine(
+                  record.passedCount == 0
+                      ? 'teach a step and pass its check first'
+                      : 'ready: ${record.passedCount} step(s) held',
+                ),
+                const SizedBox(height: Space.xs),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton(
+                    key: const ValueKey('practice-generate'),
+                    onPressed:
+                        loading ||
+                            record.passedCount == 0 ||
+                            widget.onPractise == null
+                        ? null
+                        : widget.onPractise,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: LockedInColors.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                    child: Text(
+                      loading ? 'writing problems…' : 'generate practice',
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else ...[
+            for (final problem in practice.problems) ...[
+              _PracticeRow(
+                key: ValueKey('practice-${problem.id}'),
+                problem: problem,
+                solved: practice.solved.contains(problem.id),
+                missed: practice.missed.contains(problem.id),
+                onVerdict: widget.onPracticeResult == null || loading
+                    ? null
+                    : (verdict) =>
+                          widget.onPracticeResult!(problem.id, verdict),
+              ),
+              const SizedBox(height: Space.xs),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: _practiceLine(
+                    '${practice.solved.length} solved · '
+                    '${practice.missed.length} to revisit',
+                  ),
+                ),
+                TextButton(
+                  key: const ValueKey('practice-regenerate'),
+                  onPressed: loading || widget.onPractise == null
+                      ? null
+                      : widget.onPractise,
+                  child: Text(loading ? 'writing…' : 'new set'),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
+
+  Widget _practiceLine(String text) => Text(
+    text,
+    style: LockedInType.proseSmall.copyWith(color: LockedInColors.muted),
+  );
 
   GlobalKey _sectionKey(_Phase phase) => switch (phase) {
     _Phase.measure => _measureKey,
@@ -2445,6 +2528,119 @@ class _PlanRow extends StatelessWidget {
                 letterSpacing: 0,
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One practice problem: the task, the verdict keys, and the key on demand.
+///
+/// The answer is collapsed until asked for, because reading it first turns
+/// practice into recognition — the thing the method is trying to avoid.
+class _PracticeRow extends StatefulWidget {
+  const _PracticeRow({
+    super.key,
+    required this.problem,
+    required this.solved,
+    required this.missed,
+    required this.onVerdict,
+  });
+
+  final TeachingProblem problem;
+  final bool solved;
+  final bool missed;
+  final ValueChanged<String>? onVerdict;
+
+  @override
+  State<_PracticeRow> createState() => _PracticeRowState();
+}
+
+class _PracticeRowState extends State<_PracticeRow> {
+  var _revealed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = widget.solved
+        ? LockedInColors.success
+        : widget.missed
+        ? LockedInColors.warning
+        : LockedInColors.muted;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        Space.sm,
+        Space.xs,
+        Space.sm,
+        Space.xs,
+      ),
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(color: tone, width: Stroke.focus),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            widget.problem.prompt,
+            style: LockedInType.proseSmall.copyWith(
+              color: LockedInColors.foreground,
+            ),
+          ),
+          const SizedBox(height: Space.xs),
+          Row(
+            children: [
+              TextButton(
+                key: ValueKey('practice-reveal-${widget.problem.id}'),
+                onPressed: () => setState(() => _revealed = !_revealed),
+                child: Text(_revealed ? 'hide key' : 'show key'),
+              ),
+              const Spacer(),
+              if (widget.solved)
+                StatusTag(
+                  glyph: '✓',
+                  label: 'solved',
+                  tone: LockedInColors.success,
+                )
+              else if (widget.missed)
+                StatusTag(
+                  glyph: '!',
+                  label: 'revisit',
+                  tone: LockedInColors.warning,
+                )
+              else ...[
+                TextButton(
+                  key: ValueKey('practice-missed-${widget.problem.id}'),
+                  onPressed: widget.onVerdict == null
+                      ? null
+                      : () => widget.onVerdict!('missed'),
+                  child: const Text('missed'),
+                ),
+                const SizedBox(width: Space.xxs),
+                FilledButton(
+                  key: ValueKey('practice-solved-${widget.problem.id}'),
+                  onPressed: widget.onVerdict == null
+                      ? null
+                      : () => widget.onVerdict!('solved'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: LockedInColors.success,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  ),
+                  child: const Text('solved'),
+                ),
+              ],
+            ],
+          ),
+          if (_revealed) ...[
+            const SizedBox(height: Space.xxs),
+            Text(
+              widget.problem.answer,
+              key: ValueKey('practice-answer-${widget.problem.id}'),
+              style: LockedInType.proseSmall.copyWith(
+                color: LockedInColors.secondary,
+              ),
+            ),
+          ],
         ],
       ),
     );

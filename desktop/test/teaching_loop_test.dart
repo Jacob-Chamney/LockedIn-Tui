@@ -39,6 +39,24 @@ const _openStep = TeachingStepBody(
   question: 'Where does a call keep the address it must come back to?',
 );
 
+/// The measured fixture with checks and (optionally) a practice set.
+TeachingState stated({
+  List<TeachingCheckRecord> checks = const [],
+  TeachingPractice practice = const TeachingPractice(
+    problems: [],
+    solved: {},
+    missed: {},
+  ),
+}) => TeachingState(
+  goal: _measured.goal,
+  prior: _measured.prior,
+  held: _measured.held,
+  gaps: _measured.gaps,
+  plan: _measured.plan,
+  checks: checks,
+  practice: practice,
+);
+
 Future<void> pump(
   WidgetTester tester,
   SkillDetailView view, {
@@ -222,7 +240,8 @@ void main() {
     );
 
     expect(find.byKey(const ValueKey('teach-error')), findsOneWidget);
-    expect(find.textContaining('link a model'), findsOneWidget);
+    // The loop card and the practice card both carry the refusal.
+    expect(find.textContaining('link a model'), findsWidgets);
     // The action is still there, so the user can retry after linking.
     expect(find.byKey(const ValueKey('teach-next-step')), findsOneWidget);
   });
@@ -237,5 +256,131 @@ void main() {
     expect(find.text('TEACHING LOOP'), findsOneWidget);
     // The rail compacts to a numbered strip and stays usable.
     expect(find.byKey(const ValueKey('teach-phase-teach')), findsOneWidget);
+  });
+
+  testWidgets('practice offers one action once a step is held', (tester) async {
+    var generated = 0;
+    await pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        teaching: stated(
+          checks: const [
+            TeachingCheckRecord(
+              stepId: 'step-1',
+              verdict: 'correct',
+              correction: 'yes',
+            ),
+          ],
+        ),
+        onPractise: () => generated += 1,
+      ),
+    );
+
+    final button = find.byKey(const ValueKey('practice-generate'));
+    expect(button, findsOneWidget);
+    await tester.ensureVisible(button);
+    await tester.pumpAndSettle();
+    await tester.tap(button);
+    await tester.pump();
+    expect(generated, 1);
+  });
+
+  testWidgets('practice cannot start before a step is held', (tester) async {
+    await pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        teaching: _measured,
+        onPractise: () {},
+        onPracticeResult: (_, _) {},
+      ),
+    );
+
+    final button = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('practice-generate')),
+    );
+    expect(button.onPressed, isNull);
+    expect(find.textContaining('teach a step'), findsOneWidget);
+  });
+
+  testWidgets('a practice set shows the verdict keys and hides the answer', (
+    tester,
+  ) async {
+    String? marked;
+    await pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        teaching: stated(
+          checks: const [
+            TeachingCheckRecord(
+              stepId: 'step-1',
+              verdict: 'correct',
+              correction: 'yes',
+            ),
+          ],
+          practice: const TeachingPractice(
+            problems: [
+              TeachingProblem(
+                id: 'practice-1',
+                prompt: 'A call writes an address. Where must it be read back?',
+                answer: 'From the stack, where the call wrote it.',
+              ),
+            ],
+            solved: {},
+            missed: {},
+          ),
+        ),
+        onPractise: () {},
+        onPracticeResult: (id, verdict) => marked = '$id:$verdict',
+      ),
+    );
+
+    // The answer is a criterion, hidden until asked for.
+    expect(
+      find.byKey(const ValueKey('practice-answer-practice-1')),
+      findsNothing,
+    );
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('practice-reveal-practice-1')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('practice-reveal-practice-1')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('From the stack'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('practice-solved-practice-1')));
+    await tester.pump();
+    expect(marked, 'practice-1:solved');
+  });
+
+  testWidgets('a missed problem is marked for revisiting', (tester) async {
+    await pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        teaching: stated(
+          checks: const [
+            TeachingCheckRecord(
+              stepId: 'step-1',
+              verdict: 'correct',
+              correction: 'yes',
+            ),
+          ],
+          practice: const TeachingPractice(
+            problems: [
+              TeachingProblem(id: 'practice-1', prompt: 'p', answer: 'a'),
+            ],
+            solved: {},
+            missed: {'practice-1'},
+          ),
+        ),
+        onPractise: () {},
+        onPracticeResult: (_, _) {},
+      ),
+    );
+    expect(find.text('! revisit'), findsOneWidget);
+    expect(find.textContaining('0 solved · 1 to revisit'), findsOneWidget);
   });
 }

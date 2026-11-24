@@ -2042,6 +2042,13 @@ class _ShellState extends State<Shell> {
       onCheck: skillId == null
           ? null
           : (answer) => unawaited(store.checkTeaching(skillId, answer)),
+      onPractise: skillId == null
+          ? null
+          : () => unawaited(store.practiseTeaching(skillId)),
+      onPracticeResult: skillId == null
+          ? null
+          : (problemId, verdict) =>
+                unawaited(store.answerPractice(skillId, problemId, verdict)),
       chapterOpen: store.skillChapterOpen,
       chapter: store.activeSkillChapter,
       chapterLoading: store.skillChapterLoading,

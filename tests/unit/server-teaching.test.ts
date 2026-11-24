@@ -335,3 +335,120 @@ describe("teach", () => {
     expect(error.data).toMatchObject({ kind: "skill" });
   });
 });
+
+const PRACTICE = JSON.stringify({
+  problems: [
+    {
+      prompt: "A tool prints a value and then another value changes it. Which one did the call leave behind?",
+      answer: "The return address: the call wrote it before the other value moved.",
+    },
+    {
+      prompt: "Two functions read the same slot in different orders. What decides which one sees the older value?",
+      answer: "The order of the writes.",
+    },
+  ],
+});
+
+describe("teach.practice", () => {
+  const core = () =>
+    fakeCore(async (prompt) => {
+      if (prompt.includes("practice set")) return PRACTICE;
+      if (prompt.includes("marking one answer")) return CORRECT;
+      if (prompt.includes("teaching one step")) return STEP;
+      return MEASURE;
+    });
+
+  test("requires a plan and at least one held step", async () => {
+    const { server } = core();
+    const unmeasured = await errorOf(server, "teach.practice", { goalId: GOAL_ID });
+    expect(unmeasured.message).toContain("not been measured");
+
+    await resultOf(server, "teach.measure", { goalId: GOAL_ID });
+    const nothingHeld = await errorOf(server, "teach.practice", { goalId: GOAL_ID });
+    expect(nothingHeld.message).toContain("nothing is held yet");
+    expect(nothingHeld.retryable).toBe(false);
+  });
+
+  test("builds a set from the taught steps and persists it", async () => {
+    const prompts: string[] = [];
+    const { server } = fakeCore(async (prompt) => {
+      prompts.push(prompt);
+      if (prompt.includes("practice set")) return PRACTICE;
+      if (prompt.includes("marking one answer")) return CORRECT;
+      if (prompt.includes("teaching one step")) return STEP;
+      return MEASURE;
+    });
+    await resultOf(server, "teach.measure", { goalId: GOAL_ID });
+    await resultOf(server, "teach.step", { goalId: GOAL_ID });
+    await resultOf(server, "teach.check", { goalId: GOAL_ID, answer: "on the stack" });
+
+    const result = await resultOf(server, "teach.practice", { goalId: GOAL_ID });
+    const problems = result.problems as { id: string; prompt: string }[];
+    expect(problems).toHaveLength(2);
+    expect(problems[0]!.id).toBe("practice-1");
+    // The prompt carries the established step and forbids naming the idea.
+    expect(prompts.at(-1)).toContain("A register is a named slot");
+    expect(prompts.at(-1)).toContain("Do not name the idea");
+
+    const state = await resultOf(server, "teach.state", { goalId: GOAL_ID });
+    const record = state.record as Record<string, unknown>;
+    expect((record.practice as Record<string, unknown>).problems).toHaveLength(2);
+  });
+
+  test("marks solved and missed, and keeps one attempt per problem", async () => {
+    const { server } = core();
+    await resultOf(server, "teach.measure", { goalId: GOAL_ID });
+    await resultOf(server, "teach.step", { goalId: GOAL_ID });
+    await resultOf(server, "teach.check", { goalId: GOAL_ID, answer: "on the stack" });
+    await resultOf(server, "teach.practice", { goalId: GOAL_ID });
+
+    const missed = await resultOf(server, "teach.practice.result", {
+      goalId: GOAL_ID,
+      problemId: "practice-1",
+      verdict: "missed",
+    });
+    expect(missed).toMatchObject({ missed: 1, solved: 0, total: 2 });
+
+    const solved = await resultOf(server, "teach.practice.result", {
+      goalId: GOAL_ID,
+      problemId: "practice-2",
+      verdict: "solved",
+    });
+    expect(solved).toMatchObject({ solved: 1, missed: 1 });
+
+    // The same problem answered again replaces its attempt rather than adding one.
+    const replaced = await resultOf(server, "teach.practice.result", {
+      goalId: GOAL_ID,
+      problemId: "practice-1",
+      verdict: "solved",
+    });
+    expect(replaced).toMatchObject({ solved: 2, missed: 0 });
+  });
+
+  test("refusals name the fix", async () => {
+    const { server } = core();
+    await resultOf(server, "teach.measure", { goalId: GOAL_ID });
+    const noSet = await errorOf(server, "teach.practice.result", {
+      goalId: GOAL_ID,
+      problemId: "practice-1",
+      verdict: "solved",
+    });
+    expect(noSet.message).toContain("no practice set yet");
+
+    await resultOf(server, "teach.step", { goalId: GOAL_ID });
+    await resultOf(server, "teach.check", { goalId: GOAL_ID, answer: "on the stack" });
+    await resultOf(server, "teach.practice", { goalId: GOAL_ID });
+    const unknown = await errorOf(server, "teach.practice.result", {
+      goalId: GOAL_ID,
+      problemId: "practice-9",
+      verdict: "solved",
+    });
+    expect(unknown.message).toContain("practice-9");
+    const bad = await errorOf(server, "teach.practice.result", {
+      goalId: GOAL_ID,
+      problemId: "practice-1",
+      verdict: "great",
+    });
+    expect(bad.code).toBe(-32602);
+  });
+});
