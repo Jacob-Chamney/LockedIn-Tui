@@ -1,4 +1,7 @@
 import 'package:flutter/services.dart';
+
+import 'dart:ui' show ImageFilter;
+
 import 'package:material_ui/material_ui.dart';
 
 import 'chrome.dart';
@@ -209,8 +212,16 @@ class _CommandPaletteState extends State<CommandPalette> {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: widget.onClose,
-            child: Container(
-              color: LockedInColors.background.withValues(alpha: 0.78),
+            // The one place advanced rendering earns its place: a real
+            // backdrop blur behind the layer, so "above" is a depth cue and
+            // not only a dim. Static, so reduced motion does not apply.
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: Container(
+                  color: LockedInColors.background.withValues(alpha: 0.72),
+                ),
+              ),
             ),
           ),
         ),
