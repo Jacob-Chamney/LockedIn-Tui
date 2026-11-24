@@ -447,6 +447,20 @@ ThemeData lockedInTheme() {
         color: LockedInColors.secondary,
       ),
     ),
+    // Icon buttons on the spacing scale: 8 px padding, square, 32 px hit box.
+    // Material's 48 px minimum is a touch target sized for phones; it made a
+    // row of them read as a floating toolbar instead of part of the chrome.
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        padding: const EdgeInsets.all(Space.xs),
+        minimumSize: const Size(32, 32),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(Radii.control)),
+        ),
+        foregroundColor: LockedInColors.secondary,
+      ),
+    ),
     iconTheme: IconThemeData(color: LockedInColors.secondary, size: 16),
   );
 }
