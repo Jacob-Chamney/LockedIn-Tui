@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -168,8 +170,15 @@ class _LeaderOverlayState extends State<LeaderOverlay> {
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: widget.onClose,
-              child: Container(
-                color: LockedInColors.background.withValues(alpha: 0.78),
+              // A real backdrop blur behind the layer: the same depth cue the
+              // palette uses. Static, so reduced motion does not apply.
+              child: ClipRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    color: LockedInColors.background.withValues(alpha: 0.72),
+                  ),
+                ),
               ),
             ),
           ),
