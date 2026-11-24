@@ -33,6 +33,7 @@ import '../features/work/work_chat.dart';
 import '../features/work/work_page.dart';
 import '../keymap/registry.dart';
 import '../theme/palette.dart';
+import '../theme/tokens.dart';
 import 'command_line.dart';
 import 'leader.dart';
 import 'palette.dart';
@@ -41,33 +42,62 @@ import '../features/chat/usage_text.dart';
 import 'plugin_permission.dart';
 
 enum Surface {
-  chat('Chat', Icons.forum_outlined, 'Enter send · Shift+Enter newline'),
-  sessions('Sessions', Icons.history, '↑↓ move · / search · Esc clear'),
-  skills('Skills', Icons.school_outlined, 'Enter open · n new goal · Esc back'),
-  sources('Sources', Icons.folder_open_outlined, 'a add · r reload'),
+  chat('Chat', '◇', Icons.forum_outlined, 'Enter send · Shift+Enter newline'),
+  sessions('Sessions', '▤', Icons.history, '↑↓ move · / search · Esc clear'),
+  // Teaching is the harness: measure → plan → teach → practice. The enum id is
+  // `teaching` while the protocol keeps its `skill.*` methods and `skills`
+  // storage — renaming those is a wire change, and the wall is a path rule, not
+  // a label (`desktop/docs/redesign.md` §4a).
+  skills(
+    // The product name. The enum id and the `skill.*` methods keep the old
+    // word: renaming those is a wire change, and the label is what a person
+    // reads.
+    'Teaching',
+    '◈',
+    Icons.school_outlined,
+    'Enter open · n new goal · Esc back',
+  ),
+  sources('Sources', '▢', Icons.folder_open_outlined, 'a add · r reload'),
   stats(
     'Stats',
+    '▦',
     Icons.insights_outlined,
     'r range · s scope · a achievements · x export',
   ),
-  work('Work', Icons.work_outline, 'n new project · Enter open · Esc back'),
+  work(
+    'Work',
+    '⌗',
+    Icons.work_outline,
+    'n new project · Enter open · Esc back',
+  ),
   review(
     'Review',
+    '↻',
     Icons.checklist,
     'j/k move · Enter open · k known · m missed · r refresh · s side · Esc back',
   ),
-  archive('Archive', Icons.archive_outlined, 'r refresh · Esc back'),
+  archive('Archive', '▣', Icons.archive_outlined, 'r refresh · Esc back'),
   knowledge(
     'Knowledge',
+    '◍',
     Icons.hub_outlined,
     '/ search · j/k move · Enter open · Esc back',
   ),
-  settings('Settings', Icons.tune, '↑↓ move · Enter edit · Esc back');
+  settings('Settings', '◆', Icons.tune, '↑↓ move · Enter edit · Esc back');
 
-  const Surface(this.label, this.icon, this.hint);
+  const Surface(this.label, this.glyph, this.icon, this.hint);
 
   final String label;
+
+  /// The mono glyph the expanded rail and the breadcrumb draw. A Material icon
+  /// in a text column is what made the rail read as a phone app; the glyph is
+  /// one terminal cell wide and sits on the same baseline as the label.
+  final String glyph;
+
+  /// The Material icon the **compact** rail draws. The narrow rail is 40 px and
+  /// a glyph alone is hard to hit, so it keeps the icon (and its tests).
   final IconData icon;
+
   final String hint;
 }
 
@@ -823,6 +853,15 @@ class _ShellState extends State<Shell> {
     _returnToPage();
   }
 
+  /// Open a goal and read its teaching record beside it.
+  ///
+  /// The record is a read, so it costs nothing at open; a failure keeps the
+  /// previous record and the teaching card says why.
+  Future<void> _openSkill(CoreStore store, String id) async {
+    await store.openSkill(id);
+    if (store.activeSkillId == id) unawaited(store.readTeaching(id));
+  }
+
   void _runLeaderRow(KeymapRow row) {
     // `?` and the two leader rows *are* this overlay: running one from inside
     // it would close and reopen the same table for nothing.
@@ -1297,11 +1336,11 @@ class _ShellState extends State<Shell> {
       return _workChatOpen ? 'PROJECT CHAT' : 'PROJECT';
     }
     if (_surface == Surface.skills) {
-      if (_goalWizardOpen) return 'NEW SKILL';
+      if (_goalWizardOpen) return 'NEW SESSION';
       if (store.activeSkill != null) {
-        if (_skillChatOpen) return 'SKILL CHAT';
-        if (store.skillLessonOpen) return 'SKILL LESSON';
-        return store.skillChapterOpen ? 'SKILL CHAPTER' : 'SKILL';
+        if (_skillChatOpen) return 'TEACHING CHAT';
+        if (store.skillLessonOpen) return 'LESSON';
+        return store.skillChapterOpen ? 'CHAPTER' : 'TEACHING';
       }
     }
     return _surface.label.toUpperCase();
@@ -1909,7 +1948,7 @@ class _ShellState extends State<Shell> {
         onOpen: (row) {
           // A new goal always lands on its page, never a stale chat layer.
           setState(() => _skillChatOpen = false);
-          unawaited(store.openSkill(row.id));
+          unawaited(_openSkill(store, row.id));
         },
         onArchive: store.archiveSkill,
         onDelete: store.removeSkill,
@@ -1990,6 +2029,19 @@ class _ShellState extends State<Shell> {
       detail: skill,
       loading: store.status == CoreStatus.connecting,
       error: store.error,
+      teaching: store.teaching,
+      teachingLoading: store.teachingLoading,
+      teachingError: store.teachingError,
+      teachingVerdict: store.teachingVerdict,
+      onMeasure: skillId == null
+          ? null
+          : () => unawaited(store.measureTeaching(skillId)),
+      onNextStep: skillId == null
+          ? null
+          : () => unawaited(store.teachNextStep(skillId)),
+      onCheck: skillId == null
+          ? null
+          : (answer) => unawaited(store.checkTeaching(skillId, answer)),
       chapterOpen: store.skillChapterOpen,
       chapter: store.activeSkillChapter,
       chapterLoading: store.skillChapterLoading,
@@ -2424,8 +2476,7 @@ class _TopBar extends StatelessWidget {
   final Surface surface;
   final CoreStore store;
 
-  /// The rail's current state, so the button's icon and tooltip can say what
-  /// the next press will do.
+  /// The rail's current state, so the toggle can say what the next press does.
   final SidebarMode sidebar;
 
   /// The registry's chord for that action (`Space e` by default).
@@ -2438,54 +2489,46 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
-      height: 46,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 38,
       decoration: BoxDecoration(
         color: LockedInColors.surface,
-        border: Border(bottom: BorderSide(color: LockedInColors.line)),
+        border: Border(
+          bottom: BorderSide(
+            color: LockedInColors.line,
+            width: Stroke.hairline,
+          ),
+        ),
       ),
       child: Row(
         children: [
           // A pointer path for the same registry action the chord runs, so the
           // sidebar is reachable with a mouse without being mouse-only.
-          Tooltip(
-            message:
-                '${sidebar == SidebarMode.icons ? 'Expand' : 'Shrink'} sidebar '
-                '($toggleHint)',
-            waitDuration: const Duration(milliseconds: 400),
-            child: InkWell(
-              key: const ValueKey('sidebar-toggle'),
-              borderRadius: BorderRadius.circular(4),
-              onTap: onToggleSidebar,
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Icon(
-                  sidebar.icon,
-                  size: 18,
-                  color: sidebar == SidebarMode.expanded
-                      ? LockedInColors.primary
-                      : LockedInColors.muted,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
+          _RailToggle(mode: sidebar, hint: toggleHint, onTap: onToggleSidebar),
+          const SizedBox(width: Space.sm),
           Text(
             'LOCKEDIN',
-            style: theme.textTheme.labelLarge?.copyWith(
+            style: LockedInType.micro.copyWith(
               color: LockedInColors.primary,
-              letterSpacing: 1.6,
+              letterSpacing: 2.2,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(width: 12),
-          Text('›', style: TextStyle(color: LockedInColors.muted)),
-          const SizedBox(width: 12),
+          const SizedBox(width: Space.xs),
           Text(
-            surface.label,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: LockedInColors.foreground,
+            '›',
+            style: LockedInType.micro.copyWith(color: LockedInColors.line),
+          ),
+          const SizedBox(width: Space.xs),
+          Flexible(
+            child: Text(
+              surface.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: LockedInType.label.copyWith(
+                color: LockedInColors.foreground,
+                fontSize: 12.5,
+              ),
             ),
           ),
           const Spacer(),
@@ -2496,7 +2539,54 @@ class _TopBar extends StatelessWidget {
               child: _CoreChip(store: store, onOpenSettings: onOpenSettings),
             ),
           ),
+          const SizedBox(width: Space.sm),
         ],
+      ),
+    );
+  }
+}
+
+/// The rail's pointer toggle: a glyph, a hairline, and the chord in its tooltip.
+class _RailToggle extends StatelessWidget {
+  const _RailToggle({
+    required this.mode,
+    required this.hint,
+    required this.onTap,
+  });
+
+  final SidebarMode mode;
+  final String hint;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = mode == SidebarMode.expanded;
+    return Tooltip(
+      message: '${active ? 'Shrink' : 'Expand'} sidebar ($hint)',
+      waitDuration: const Duration(milliseconds: 400),
+      child: InkWell(
+        key: const ValueKey('sidebar-toggle'),
+        onTap: onTap,
+        child: Container(
+          width: 38,
+          height: 37,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            border: Border(
+              right: BorderSide(
+                color: LockedInColors.line,
+                width: Stroke.hairline,
+              ),
+            ),
+          ),
+          child: Text(
+            '≡',
+            style: LockedInType.key.copyWith(
+              color: active ? LockedInColors.primary : LockedInColors.muted,
+              fontSize: 15,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -2515,59 +2605,43 @@ class _CoreChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final configured = store.configured;
     final model = store.workspace?.model ?? '';
-    final (label, color, icon) = switch (store.status) {
-      CoreStatus.connecting => (
-        'connecting…',
-        LockedInColors.warning,
-        Icons.sync,
-      ),
-      CoreStatus.failed => (
-        'core offline',
-        LockedInColors.error,
-        Icons.error_outline,
-      ),
-      CoreStatus.offline => (
-        'core offline',
-        LockedInColors.muted,
-        Icons.circle_outlined,
-      ),
+    // Glyph + word, so the state never depends on colour alone.
+    final (glyph, label, tone) = switch (store.status) {
+      CoreStatus.connecting => ('◌', 'connecting…', LockedInColors.warning),
+      CoreStatus.failed => ('×', 'core offline', LockedInColors.error),
+      CoreStatus.offline => ('○', 'core offline', LockedInColors.muted),
       CoreStatus.online when !configured => (
-        'no model connected',
+        '!',
+        'no model',
         LockedInColors.warning,
-        Icons.warning_amber_rounded,
       ),
-      CoreStatus.online => (
-        model,
-        LockedInColors.success,
-        Icons.check_circle_outline,
-      ),
+      CoreStatus.online => ('●', model, LockedInColors.success),
     };
     return Tooltip(
       message: configured ? label : 'open Settings → Providers',
       waitDuration: const Duration(milliseconds: 500),
       child: InkWell(
         key: const ValueKey('model-badge'),
-        borderRadius: BorderRadius.circular(6),
         onTap: onOpenSettings,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: LockedInColors.panel,
-            borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Space.xs,
+            vertical: Space.xxs,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 14, color: color),
-              const SizedBox(width: 6),
-              // A long model id must give way, not overflow the top bar: the
-              // badge is the last thing before the window edge.
+              Text(glyph, style: LockedInType.micro.copyWith(color: tone)),
+              const SizedBox(width: Space.xxs + 2),
               Flexible(
                 child: Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+                  style: LockedInType.label.copyWith(
+                    color: configured ? LockedInColors.foreground : tone,
+                    fontSize: 11.5,
+                  ),
                 ),
               ),
             ],
@@ -2756,6 +2830,14 @@ class _Sidebar extends StatelessWidget {
                             ? cursorKey
                             : null,
                         cursor: focused && _indexOf(entry) == cursor,
+                        glyph: switch (entry) {
+                          _SurfaceEntry(:final surface) => surface.glyph,
+                          _AchievementsEntry() => '★',
+                        },
+                        countKey: switch (entry) {
+                          _SurfaceEntry(:final surface) => surface.name,
+                          _AchievementsEntry() => 'achievements',
+                        },
                         label: switch (entry) {
                           _SurfaceEntry(:final surface) => surface.label,
                           _AchievementsEntry() => 'Achievements',
@@ -2810,6 +2892,7 @@ class _Sidebar extends StatelessWidget {
           _SidebarRow(
             key: focused && cursor == _entries.length ? cursorKey : null,
             cursor: focused && cursor == _entries.length,
+            glyph: Surface.settings.glyph,
             label: Surface.settings.label,
             icon: Surface.settings.icon,
             count: '',
@@ -2914,8 +2997,10 @@ class _SidebarRow extends StatelessWidget {
   const _SidebarRow({
     super.key,
     required this.label,
+    required this.glyph,
     required this.icon,
     required this.count,
+    this.countKey,
     required this.shortcut,
     required this.selected,
     required this.compact,
@@ -2924,6 +3009,16 @@ class _SidebarRow extends StatelessWidget {
   });
 
   final String label;
+
+  /// The stable id the count key uses (`sessions`, `skills`, `work`). It is the
+  /// surface name, not the label: renaming the product name must not move a
+  /// test key.
+  final String? countKey;
+
+  /// The mono glyph the expanded rail draws.
+  final String glyph;
+
+  /// The Material icon the compact rail draws.
   final IconData icon;
   final String count;
   final String shortcut;
@@ -2937,7 +3032,6 @@ class _SidebarRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Tooltip(
       // `shortcut` is the registry's display form (`Space e`, `Ctrl+K`), so the
       // tooltip can never disagree with the binding.
@@ -2947,17 +3041,17 @@ class _SidebarRow extends StatelessWidget {
         // The keyboard cursor is a widget of its own so a test can assert
         // *which* row it is on, not merely that some row has it.
         key: cursor ? const ValueKey('sidebar-row-cursor') : null,
-        padding: const EdgeInsets.only(bottom: 2),
+        padding: const EdgeInsets.only(bottom: 1),
         child: Material(
           color: selected ? LockedInColors.panel : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(Radii.control),
           child: InkWell(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(Radii.control),
             onTap: onTap,
             child: Container(
-              height: 40,
+              height: 30,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(Radii.control),
                 // The keyboard cursor is a fill *and* an outline: a colour on
                 // its own would vanish for a colour-blind user, and the active
                 // row keeps its own accent bar (`docs/design.md` §2.3).
@@ -2991,21 +3085,39 @@ class _SidebarRow extends StatelessWidget {
                             ? MainAxisAlignment.center
                             : MainAxisAlignment.start,
                         children: [
-                          Icon(
-                            icon,
-                            size: 18,
-                            color: selected
-                                ? LockedInColors.primary
-                                : LockedInColors.muted,
-                          ),
+                          if (compact)
+                            Icon(
+                              icon,
+                              size: 17,
+                              color: selected
+                                  ? LockedInColors.primary
+                                  : LockedInColors.muted,
+                            )
+                          else
+                            // One cell wide, so every label starts on the same
+                            // column whatever the glyph is.
+                            SizedBox(
+                              width: 18,
+                              child: Text(
+                                glyph,
+                                maxLines: 1,
+                                style: LockedInType.body.copyWith(
+                                  fontSize: 12,
+                                  color: selected
+                                      ? LockedInColors.primary
+                                      : LockedInColors.muted,
+                                ),
+                              ),
+                            ),
                           if (!compact) ...[
-                            const SizedBox(width: 10),
+                            const SizedBox(width: Space.xs),
                             Expanded(
                               child: Text(
                                 label,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodyMedium?.copyWith(
+                                style: LockedInType.body.copyWith(
+                                  fontSize: 12.5,
                                   color: selected
                                       ? LockedInColors.foreground
                                       : LockedInColors.muted,
@@ -3025,12 +3137,10 @@ class _SidebarRow extends StatelessWidget {
                                 width: 30,
                                 child: Text(
                                   count,
-                                  key: ValueKey(
-                                    'sidebar-count-${label.toLowerCase()}',
-                                  ),
+                                  key: ValueKey('sidebar-count-$countKey'),
                                   textAlign: TextAlign.right,
                                   maxLines: 1,
-                                  style: TextStyle(
+                                  style: LockedInType.label.copyWith(
                                     color: LockedInColors.muted,
                                     fontSize: 11,
                                     fontFeatures: const [
@@ -3080,7 +3190,7 @@ class _StatusBar extends StatelessWidget {
   String _usageLabel() {
     final chat = this.chat;
     // No snapshot is "not read", not "zero tokens spent".
-    if (chat == null) return '— tok · cost unknown · $helpKey help';
+    if (chat == null) return '— tok · cost unknown';
     // The same formatter the chats use: this copy kept the `.0`, so the status
     // bar said `2.0K` beside a chat that said `2K`.
     final compact = compactTokens(chat.usage.tokens);
@@ -3088,59 +3198,101 @@ class _StatusBar extends StatelessWidget {
     final duration = chat.usage.durationMs == null
         ? ''
         : ' · ${(chat.usage.durationMs! / 1000).toStringAsFixed(1)}s';
-    return '$compact tok · $cost$duration · $helpKey help';
+    return '$compact tok · $cost$duration';
   }
 
   @override
   Widget build(BuildContext context) {
+    final micro = LockedInType.micro;
     return Container(
-      height: 30,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      height: 26,
       decoration: BoxDecoration(
         color: LockedInColors.surface,
-        border: Border(top: BorderSide(color: LockedInColors.line)),
+        border: Border(
+          top: BorderSide(color: LockedInColors.line, width: Stroke.hairline),
+        ),
       ),
       child: Row(
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              // The measured on-colour, not the page background: the two only
-              // meet by luck on a dark palette.
-              color: Theme.of(context).colorScheme.onPrimary,
-              backgroundColor: LockedInColors.primary,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
+          // The scope, as a filled tab: the one place the accent is a surface.
+          Container(
+            height: 26,
+            padding: const EdgeInsets.symmetric(horizontal: Space.xs),
+            alignment: Alignment.center,
+            color: LockedInColors.primary,
+            child: Text(
+              label,
+              style: micro.copyWith(
+                color: Theme.of(context).colorScheme.onPrimary,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.9,
+              ),
             ),
           ),
-          const SizedBox(width: 8),
-          Text(
-            insert ? 'INSERT' : 'NORMAL',
-            style: TextStyle(
-              color: insert
-                  ? LockedInColors.primary
-                  : LockedInColors.foreground,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.8,
+          const _BarDivider(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Space.xs),
+            child: Text(
+              insert ? 'INSERT' : 'NORMAL',
+              style: micro.copyWith(
+                color: insert
+                    ? LockedInColors.primary
+                    : LockedInColors.foreground,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.9,
+              ),
             ),
           ),
-          const SizedBox(width: 20),
+          const _BarDivider(),
+          const SizedBox(width: Space.xs),
           Expanded(
             child: Text(
               key: const ValueKey('status-hint'),
               hint,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: micro.copyWith(
+                color: LockedInColors.muted,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0,
+              ),
             ),
           ),
+          const SizedBox(width: Space.xs),
           Text(
             _usageLabel(),
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            style: micro.copyWith(
+              color: LockedInColors.muted,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0,
+            ),
           ),
+          const _BarDivider(),
+          const SizedBox(width: Space.xs),
+          Text(
+            '$helpKey help',
+            style: micro.copyWith(
+              color: LockedInColors.secondary,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0,
+            ),
+          ),
+          const SizedBox(width: Space.sm),
         ],
       ),
+    );
+  }
+}
+
+/// A hairline cell separator in the status bar.
+class _BarDivider extends StatelessWidget {
+  const _BarDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: Stroke.hairline,
+      height: 26,
+      color: LockedInColors.line,
     );
   }
 }

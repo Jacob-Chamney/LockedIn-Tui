@@ -11,7 +11,9 @@ import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
 import '../../keymap/binding.dart';
 import '../../keymap/registry.dart';
+import '../../shell/chrome.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 import 'theme_picker.dart';
 import 'keybinds_section.dart';
 
@@ -146,26 +148,36 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         final narrow = constraints.maxWidth < 520;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Chrome, not a title: a section label, the scope on the right and
+            // a hairline, the same shape as every other surface's header.
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
+              padding: const EdgeInsets.fromLTRB(
+                Space.lg,
+                Space.md,
+                Space.lg,
+                Space.xs,
+              ),
               child: Row(
                 children: [
-                  Text('SETTINGS', style: theme.textTheme.titleLarge),
-                  const Spacer(),
+                  const Expanded(child: SectionLabel('settings')),
                   Text(
                     'workspace',
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+                    style: LockedInType.micro.copyWith(
+                      color: LockedInColors.muted,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0,
+                    ),
                   ),
                 ],
               ),
             ),
+            const Rule(),
             Expanded(child: _body(context, narrow)),
           ],
         );
@@ -1557,6 +1569,18 @@ class _ConnectModelAction extends StatelessWidget {
           onPressed: onPressed,
           icon: const Icon(Icons.link, size: 16),
           label: const Text('connect a model'),
+          style: FilledButton.styleFrom(
+            backgroundColor: LockedInColors.primary,
+            foregroundColor: Theme.of(context).colorScheme.onPrimary,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(Radii.control)),
+            ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Space.md,
+              vertical: Space.xs + 2,
+            ),
+            textStyle: LockedInType.label,
+          ),
         ),
       ),
     );
@@ -1998,7 +2022,7 @@ class _SettingEditorDialogState extends State<_SettingEditorDialog> {
                       ),
                       decoration: BoxDecoration(
                         border: Border.all(color: LockedInColors.error),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(Radii.control),
                       ),
                       child: Text(
                         _failure!,
@@ -2302,7 +2326,7 @@ class _ConnectModelDialogState extends State<_ConnectModelDialog> {
                   ),
                   decoration: BoxDecoration(
                     border: Border.all(color: LockedInColors.error),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(Radii.control),
                   ),
                   child: Text(
                     _error!,
@@ -2413,7 +2437,7 @@ class _ConnectModelDialogState extends State<_ConnectModelDialog> {
     return InkWell(
       key: ValueKey('settings-provider-${provider.id}'),
       onTap: () => _chooseProvider(provider.id),
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(Radii.control),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
         child: Row(
@@ -2458,7 +2482,7 @@ class _ConnectModelDialogState extends State<_ConnectModelDialog> {
                       ? LockedInColors.success
                       : LockedInColors.line,
                 ),
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(Radii.control),
               ),
               child: Text(
                 provider.linked ? 'linked' : 'not linked',
@@ -2483,7 +2507,7 @@ class _ConnectModelDialogState extends State<_ConnectModelDialog> {
     return InkWell(
       key: ValueKey('settings-model-$model'),
       onTap: () => setState(() => _model = model),
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(Radii.control),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
         child: Row(
@@ -3535,7 +3559,7 @@ class _CustomPaletteDialogState extends State<_CustomPaletteDialog> {
               decoration: BoxDecoration(
                 color: swatch,
                 border: Border.all(color: LockedInColors.line),
-                borderRadius: BorderRadius.circular(3),
+                borderRadius: BorderRadius.circular(Radii.control),
               ),
             ),
             const SizedBox(width: 10),
@@ -3600,7 +3624,7 @@ class _PalettePreview extends StatelessWidget {
       decoration: BoxDecoration(
         color: background,
         border: Border.all(color: token('line')),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.control),
       ),
       child: Row(
         children: [

@@ -6,7 +6,10 @@ import 'package:material_ui/material_ui.dart';
 import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
+import '../../shell/chrome.dart';
+import '../shared/cards.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 
 /// The manager's sort orders (`docs/product.md` §4.4: date/name/size). `o`
 /// cycles them in this order and wraps back to the newest-first default.
@@ -512,63 +515,33 @@ class _SessionsPageState extends State<SessionsPage> {
   }
 
   Widget _header({required bool compact}) {
-    final theme = Theme.of(context);
     final visible = _visible.length;
     final total = widget.sessions.length;
     final count = visible == total ? '$visible' : '$visible of $total';
+    // The header is chrome, not content: a label, two values and the keys.
+    // The 3 px accent bar and the hand-rolled chips were the last of the old
+    // look on this surface.
     return Row(
       children: [
-        Container(width: 3, height: 14, color: LockedInColors.primary),
-        const SizedBox(width: 8),
-        Text(
-          'LOCK-IN SESSIONS',
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: LockedInColors.secondary,
-            fontSize: 11,
-            letterSpacing: 1.4,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-          decoration: BoxDecoration(
-            color: LockedInColors.panel,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: LockedInColors.line),
-          ),
-          child: Text(
-            count,
-            style: TextStyle(
-              color: LockedInColors.muted,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Container(
-          key: const ValueKey('sessions-sort'),
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-          decoration: BoxDecoration(
-            color: LockedInColors.panel,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: LockedInColors.line),
-          ),
-          child: Text(
+        // `SectionLabel` is a Row: as a bare Row child it would get
+        // unbounded width.
+        const Expanded(child: SectionLabel('lock-in sessions')),
+        const SizedBox(width: Space.xs),
+        ValueChip(count),
+        const SizedBox(width: Space.xxs),
+        Tooltip(
+          message: 'cycle the order (o)',
+          waitDuration: const Duration(milliseconds: 400),
+          child: ValueChip(
             'sort · ${_sort.label}',
-            style: TextStyle(
-              color: LockedInColors.muted,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ),
+            key: const ValueKey('sessions-sort'),
           ),
         ),
         if (compact)
           const Spacer()
-        else
-          // The hint owns the remaining space and truncates instead of pushing
-          // the row past its width on a narrow window. `o` appears only when
-          // there is more than one row for it to order.
+        else ...[
+          // One ellipsised line: four key caps in a Row overflowed by 2 px at
+          // 800 px, and a truncated sentence still names every key.
           Expanded(
             child: Text(
               widget.sessions.length > 1
@@ -577,9 +550,14 @@ class _SessionsPageState extends State<SessionsPage> {
               textAlign: TextAlign.right,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: LockedInType.micro.copyWith(
+                color: LockedInColors.muted,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0,
+              ),
             ),
           ),
+        ],
       ],
     );
   }
@@ -705,9 +683,9 @@ class _SessionRowTile extends StatelessWidget {
     final complete = row.stepsTotal > 0 && row.stepsDone >= row.stepsTotal;
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(Radii.control),
       child: InkWell(
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.control),
         onTap: onTap,
         child: _body(context, theme, complete),
       ),
@@ -719,7 +697,7 @@ class _SessionRowTile extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(0, 10, 12, 10),
       decoration: BoxDecoration(
         color: selected ? LockedInColors.panel : LockedInColors.surface,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(
           color: selected
               ? LockedInColors.primary.withValues(alpha: 0.5)
@@ -865,7 +843,7 @@ class _ActionBanner extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: color.withValues(alpha: 0.55)),
       ),
       child: Row(
@@ -1040,7 +1018,7 @@ class _ArchivedBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Row(
@@ -1163,7 +1141,7 @@ class _ErrorState extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Column(

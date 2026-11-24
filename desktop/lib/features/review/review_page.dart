@@ -7,7 +7,9 @@ import '../../bridge/errors.dart';
 
 import '../keys.dart';
 import '../../bridge/models.dart';
+import '../shared/cards.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 import '../shared/format.dart';
 
 /// The Review surface.
@@ -328,7 +330,7 @@ class _ReviewPageState extends State<ReviewPage> {
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
           decoration: BoxDecoration(
             color: LockedInColors.panel,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(Radii.control),
             border: Border.all(color: LockedInColors.line),
           ),
           child: Text(
@@ -553,42 +555,19 @@ class _SideChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // One chip for the whole app; the tick marks the selection, so the state
+    // never rests on the accent fill alone.
     return Material(
-      color: selected ? LockedInColors.primary : LockedInColors.panel,
-      borderRadius: BorderRadius.circular(5),
+      color: selected ? LockedInColors.primary : Colors.transparent,
+      borderRadius: BorderRadius.circular(Radii.control),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(5),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(5),
-            border: Border.all(
-              color: selected ? LockedInColors.primary : LockedInColors.line,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (selected) ...[
-                Icon(
-                  Icons.check,
-                  size: 11,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                ),
-                const SizedBox(width: 5),
-              ],
-              Text(
-                label,
-                style: TextStyle(
-                  color: selected
-                      ? Theme.of(context).colorScheme.onPrimary
-                      : LockedInColors.muted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+        borderRadius: BorderRadius.circular(Radii.control),
+        child: Padding(
+          padding: const EdgeInsets.all(Radii.control),
+          child: ValueChip(
+            selected ? '✓ $label' : label,
+            tone: selected ? Theme.of(context).colorScheme.onPrimary : null,
           ),
         ),
       ),
@@ -630,14 +609,14 @@ class _ReviewRow extends StatelessWidget {
         : item.origin;
     return Material(
       color: selected ? LockedInColors.panel : LockedInColors.surface,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(Radii.control),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.control),
         child: Container(
           padding: const EdgeInsets.fromLTRB(0, 10, 12, 10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(Radii.control),
             border: Border.all(
               color: selected
                   ? LockedInColors.primary.withValues(alpha: 0.5)
@@ -744,7 +723,7 @@ class _KindTag extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Row(
@@ -780,7 +759,7 @@ class _NudgeStrip extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
         color: LockedInColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Column(
@@ -856,7 +835,7 @@ class _DiagnosticsBlock extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
       decoration: BoxDecoration(
         color: LockedInColors.warning.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(
           color: LockedInColors.warning.withValues(alpha: 0.4),
         ),
@@ -949,7 +928,7 @@ class _ErrorBlock extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Column(
@@ -1003,7 +982,7 @@ class _NoticeBlock extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       decoration: BoxDecoration(
         color: LockedInColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Row(

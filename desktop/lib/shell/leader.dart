@@ -185,7 +185,7 @@ class _LeaderOverlayState extends State<LeaderOverlay> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: LockedInColors.surface,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.zero,
                     border: Border.all(color: LockedInColors.line),
                   ),
                   child: Column(
@@ -325,7 +325,7 @@ class _LeaderRow extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 2),
         decoration: BoxDecoration(
           color: selected ? LockedInColors.panel : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.zero,
         ),
         child: Row(
           children: [

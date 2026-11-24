@@ -6,7 +6,9 @@ import 'package:material_ui/material_ui.dart';
 import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
+import '../shared/cards.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 import '../shared/format.dart';
 
 /// The Archive surface.
@@ -424,22 +426,9 @@ class _ArchivePageState extends State<ArchivePage> {
           ),
         ),
         const SizedBox(width: 10),
-        Container(
+        ValueChip(
+          '${widget.rows.length}',
           key: const ValueKey('archive-total'),
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-          decoration: BoxDecoration(
-            color: LockedInColors.panel,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: LockedInColors.line),
-          ),
-          child: Text(
-            '${widget.rows.length}',
-            style: TextStyle(
-              color: LockedInColors.muted,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -572,7 +561,7 @@ class _GroupHeader extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
           decoration: BoxDecoration(
             color: LockedInColors.panel,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(Radii.control),
             border: Border.all(color: LockedInColors.line),
           ),
           child: Text(
@@ -636,7 +625,7 @@ class _ArchiveRowTile extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(8, 10, 12, 10),
         decoration: BoxDecoration(
           color: selected ? LockedInColors.panel : LockedInColors.surface,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(Radii.control),
           border: Border.all(
             color: selected ? LockedInColors.primary : LockedInColors.line,
           ),
@@ -737,7 +726,7 @@ class _KindTag extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Row(
@@ -773,7 +762,7 @@ class _ErrorBlock extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Column(
@@ -837,7 +826,7 @@ class _ActionBanner extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: color.withValues(alpha: 0.55)),
       ),
       child: Row(

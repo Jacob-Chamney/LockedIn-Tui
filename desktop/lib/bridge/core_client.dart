@@ -1218,6 +1218,141 @@ class CoreStore extends ChangeNotifier {
     return key == null ? null : _skillChatErrors[key];
   }
 
+  /// The teaching record for the open goal (`teach.state`), or null.
+  ///
+  /// Measure, plan, the open step and its checks are one record from the core,
+  /// so the surface renders fields instead of parsing prose
+  /// (`desktop/docs/redesign.md` §2.1). A failed read keeps the previous record.
+  TeachingState? teaching;
+
+  /// True while a `teach.*` call is in flight.
+  bool teachingLoading = false;
+
+  /// The last teaching failure, or null.
+  String? teachingError;
+
+  /// The verdict of the last `teach.check`.
+  TeachingCheckResult? teachingVerdict;
+
+  int _teachingTicket = 0;
+
+  /// Read the teaching record for [goalId].
+  Future<void> readTeaching(String goalId) async {
+    final id = goalId.trim();
+    if (id.isEmpty) return;
+    final ticket = ++_teachingTicket;
+    try {
+      final json = await _connection.call('teach.state', {'goalId': id});
+      if (ticket != _teachingTicket) return;
+      final record = json['record'];
+      teaching = record is Map
+          ? TeachingState.fromJson(Map<String, dynamic>.from(record))
+          : null;
+      teachingError = null;
+    } catch (failure) {
+      if (ticket != _teachingTicket) return;
+      teachingError = _messageOf(failure);
+    }
+    notifyListeners();
+  }
+
+  /// Measure the learner and plan the route (`teach.measure`).
+  ///
+  /// One model call, no retry: a refusal is the core's own sentence and leaves
+  /// any previous record exactly as it was.
+  Future<bool> measureTeaching(String goalId) async {
+    final id = goalId.trim();
+    if (id.isEmpty) return false;
+    final ticket = ++_teachingTicket;
+    teachingLoading = true;
+    teachingError = null;
+    teachingVerdict = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call('teach.measure', {'goalId': id});
+      if (ticket != _teachingTicket) return false;
+      teaching = TeachingState.fromJson(
+        Map<String, dynamic>.from(json['record'] as Map),
+      );
+      return true;
+    } catch (failure) {
+      if (ticket != _teachingTicket) return false;
+      teachingError = _messageOf(failure);
+      return false;
+    } finally {
+      if (ticket == _teachingTicket) {
+        teachingLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Open the next step, or a new wording of the open one (`teach.step`).
+  Future<bool> teachNextStep(String goalId, {bool again = false}) async {
+    final id = goalId.trim();
+    if (id.isEmpty) return false;
+    final ticket = ++_teachingTicket;
+    teachingLoading = true;
+    teachingError = null;
+    teachingVerdict = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call('teach.step', {
+        'goalId': id,
+        if (again) 'again': true,
+      });
+      if (ticket != _teachingTicket) return false;
+      teaching = TeachingState.fromJson(
+        Map<String, dynamic>.from(json['record'] as Map),
+      );
+      return true;
+    } catch (failure) {
+      if (ticket != _teachingTicket) return false;
+      teachingError = _messageOf(failure);
+      return false;
+    } finally {
+      if (ticket == _teachingTicket) {
+        teachingLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Answer the open step's check (`teach.check`).
+  ///
+  /// A `correct` verdict passes the step and clears it in the core's record, so
+  /// the next [teachNextStep] moves on; anything else keeps the step open for a
+  /// repair.
+  Future<bool> checkTeaching(String goalId, String answer) async {
+    final id = goalId.trim();
+    if (id.isEmpty || answer.trim().isEmpty) return false;
+    final ticket = ++_teachingTicket;
+    teachingLoading = true;
+    teachingError = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call('teach.check', {
+        'goalId': id,
+        'answer': answer,
+      });
+      if (ticket != _teachingTicket) return false;
+      teaching = TeachingState.fromJson(
+        Map<String, dynamic>.from(json['record'] as Map),
+      );
+      teachingVerdict = TeachingCheckResult.fromJson(json);
+      return true;
+    } catch (failure) {
+      if (ticket != _teachingTicket) return false;
+      teachingError = _messageOf(failure);
+      return false;
+    } finally {
+      if (ticket == _teachingTicket) {
+        teachingLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
   /// Transcript for one goal chat, cached or not: a collapsed chat keeps its
   /// snapshot so reopening does not flash an empty transcript.
   ChatSnapshot? skillChatFor(String goalId, String chatId) =>
@@ -4233,6 +4368,11 @@ class CoreStore extends ChangeNotifier {
     _clearSkillLesson();
     _clearSkillSources();
     _clearChapter();
+    teaching = null;
+    teachingError = null;
+    teachingLoading = false;
+    teachingVerdict = null;
+    _teachingTicket += 1;
     skillChats = const [];
     if (!hadGoal) {
       notifyListeners();

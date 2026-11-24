@@ -1,7 +1,9 @@
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'chrome.dart';
 import '../theme/palette.dart';
+import '../theme/tokens.dart';
 
 /// One runnable row in the command palette.
 ///
@@ -218,10 +220,15 @@ class _CommandPaletteState extends State<CommandPalette> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560, maxHeight: 420),
               child: Container(
+                // A floating layer: square, one hairline, no elevation. The
+                // 10 px radius and Material field were the last of the old look
+                // in the app's most-seen overlay.
                 decoration: BoxDecoration(
                   color: LockedInColors.surface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: LockedInColors.line),
+                  border: Border.all(
+                    color: LockedInColors.line,
+                    width: Stroke.hairline,
+                  ),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -230,16 +237,28 @@ class _CommandPaletteState extends State<CommandPalette> {
                       padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
                       child: TextField(
                         key: searchKey,
+                        cursorColor: LockedInColors.primary,
+                        cursorWidth: Stroke.focus,
                         controller: _query,
                         focusNode: _searchFocus,
                         onChanged: _onQueryChanged,
+                        style: LockedInType.body.copyWith(
+                          color: LockedInColors.foreground,
+                        ),
                         decoration: const InputDecoration(
                           hintText: 'run a command…',
                           isDense: true,
-                          prefixIcon: Icon(Icons.search, size: 16),
+                          prefixIcon: Padding(
+                            padding: EdgeInsets.only(right: Space.xs),
+                            child: Text('>'),
+                          ),
+                          prefixIconConstraints: BoxConstraints(
+                            minWidth: 0,
+                            minHeight: 0,
+                          ),
                           contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
+                            horizontal: Space.sm,
+                            vertical: Space.xs,
                           ),
                         ),
                       ),
@@ -321,16 +340,13 @@ class _PaletteRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
-        height: 46,
-        margin: const EdgeInsets.only(bottom: 2),
+        height: 36,
         decoration: BoxDecoration(
           color: selected ? LockedInColors.panel : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
         ),
         child: Row(
           children: [
@@ -342,10 +358,10 @@ class _PaletteRow extends StatelessWidget {
             const SizedBox(width: 10),
             Icon(
               action.icon,
-              size: 16,
+              size: 15,
               color: selected ? LockedInColors.primary : LockedInColors.muted,
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: Space.xs),
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -355,38 +371,29 @@ class _PaletteRow extends StatelessWidget {
                     action.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(
+                    style: LockedInType.body.copyWith(
+                      fontSize: 12.5,
                       color: LockedInColors.foreground,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                     ),
                   ),
-                  const SizedBox(height: 1),
                   Text(
                     action.hint,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                    style: LockedInType.micro.copyWith(
+                      color: LockedInColors.muted,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: 0,
+                    ),
                   ),
                 ],
               ),
             ),
             if (action.binding != null && action.binding!.isNotEmpty) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: LockedInColors.background,
-                  borderRadius: BorderRadius.circular(3),
-                  border: Border.all(color: LockedInColors.line),
-                ),
-                child: Text(
-                  action.binding!,
-                  key: ValueKey('palette-binding-${action.id}'),
-                  style: TextStyle(
-                    color: LockedInColors.muted,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+              KeyCap(
+                action.binding!,
+                key: ValueKey('palette-binding-${action.id}'),
               ),
               const SizedBox(width: 10),
             ] else

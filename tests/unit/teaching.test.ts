@@ -1,0 +1,191 @@
+/**
+ * Teaching domain: the shapes, the limits, the prompts.
+ *
+ * `desktop/docs/redesign.md` §2.2 — a reply is structured data we render, its
+ * length is bounded, and the prompt forbids meta-narration. These tests pin the
+ * three things that make that true without a provider.
+ */
+import { describe, expect, test } from "bun:test";
+
+import {
+  TEACHING_LIMITS,
+  checkPrompt,
+  measurePrompt,
+  parseCheck,
+  parseMeasure,
+  parseStep,
+  stepPrompt,
+  wordCount,
+} from "../../src/domain/teaching";
+
+const NOW = "2026-11-23T10:00:00.000Z";
+
+function measure(overrides: Record<string, unknown> = {}): string {
+  return JSON.stringify({
+    goal: "Read x86 disassembly well enough to follow a function",
+    held: ["registers hold working state", "the stack grows down"],
+    gaps: ["calling conventions"],
+    plan: [
+      { title: "A register is a named slot" },
+      { title: "A call pushes a return address" },
+      { title: "Arguments arrive in registers" },
+      { title: "The epilogue restores the frame" },
+    ],
+    ...overrides,
+  });
+}
+
+describe("parseMeasure", () => {
+  test("accepts a well-formed reply and numbers the steps", () => {
+    const result = parseMeasure(measure(), "I know C", NOW);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.goal).toContain("Read x86 disassembly");
+    expect(result.state.held).toHaveLength(2);
+    expect(result.state.gaps).toEqual(["calling conventions"]);
+    expect(result.state.plan.map((step) => step.id)).toEqual([
+      "step-1",
+      "step-2",
+      "step-3",
+      "step-4",
+    ]);
+    expect(result.state.measuredAt).toBe(NOW);
+    expect(result.state.schema).toBe(1);
+  });
+
+  test("finds the object inside prose and trailing braces", () => {
+    const raw = `Here is the plan:\n${measure()}\nNote the {curly} braces. }`;
+    const result = parseMeasure(raw, "", NOW);
+    expect(result.ok).toBe(true);
+  });
+
+  test("refuses a reply with no held propositions", () => {
+    const result = parseMeasure(measure({ held: [] }), "", NOW);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toContain("held");
+  });
+
+  test("refuses a route shorter than three steps, naming the count", () => {
+    const result = parseMeasure(measure({ plan: [{ title: "one" }, { title: "two" }] }), "", NOW);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toContain("2");
+    expect(result.error.message).toContain(String(TEACHING_LIMITS.minPlanSteps));
+  });
+
+  test("caps long lists and long items rather than failing the plan", () => {
+    const held = Array.from({ length: 20 }, (_, index) => `held ${index} `.repeat(20));
+    const result = parseMeasure(measure({ held }), "", NOW);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.held).toHaveLength(TEACHING_LIMITS.heldItems);
+    for (const item of result.state.held) {
+      expect(item.length).toBeLessThanOrEqual(TEACHING_LIMITS.itemChars);
+    }
+  });
+
+  test("a non-JSON reply is one readable sentence", () => {
+    const result = parseMeasure("sorry, I cannot help", "", NOW);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.kind).toBe("malformed");
+    expect(result.error.message).toBe("the model did not return a JSON object");
+  });
+});
+
+describe("parseStep", () => {
+  const ok = JSON.stringify({
+    prose: "A register is a named slot inside the processor. A call writes the return address onto the stack, so a return can find its way back.",
+    question: "Where does a call keep the address it must come back to?",
+  });
+
+  test("accepts a step and keeps its prose", () => {
+    const result = parseStep(ok, "step-2");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.step.stepId).toBe("step-2");
+    expect(result.step.question).toContain("come back to");
+  });
+
+  test("refuses a lecture, naming the word count and the budget", () => {
+    const long = JSON.stringify({
+      prose: "word ".repeat(TEACHING_LIMITS.proseWords + 20),
+      question: "which?",
+    });
+    const result = parseStep(long, "step-1");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toContain(String(TEACHING_LIMITS.proseWords + 20));
+    expect(result.error.message).toContain(String(TEACHING_LIMITS.proseWords));
+  });
+
+  test("refuses a step with no check", () => {
+    const result = parseStep(JSON.stringify({ prose: "Two sentences. That is enough." }), "step-1");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toContain("check");
+  });
+});
+
+describe("parseCheck", () => {
+  test("accepts the three verdicts", () => {
+    for (const verdict of ["correct", "partial", "incorrect"] as const) {
+      const result = parseCheck(JSON.stringify({ verdict, correction: "the stack pointer moves first" }));
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.check.verdict).toBe(verdict);
+    }
+  });
+
+  test("refuses an unknown verdict and names the accepted set", () => {
+    const result = parseCheck(JSON.stringify({ verdict: "great", correction: "x" }));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toContain("correct");
+    expect(result.error.message).toContain("incorrect");
+  });
+});
+
+describe("prompt shaping", () => {
+  test("the measure prompt states every budget and forbids meta-narration", () => {
+    const prompt = measurePrompt({ goal: "read disassembly", prior: "I know C", sources: [] });
+    expect(prompt).toContain('"held"');
+    expect(prompt).toContain('"plan"');
+    expect(prompt).toContain(String(TEACHING_LIMITS.heldItems));
+    expect(prompt).toContain(String(TEACHING_LIMITS.planSteps));
+    expect(prompt).toContain(String(TEACHING_LIMITS.goalChars));
+    expect(prompt).toContain("JSON only");
+    expect(prompt).toContain("in this step");
+  });
+
+  test("the step prompt names the one idea and the word budget", () => {
+    const prompt = stepPrompt({
+      goal: "read disassembly",
+      held: ["registers hold state"],
+      plan: [
+        { id: "step-1", title: "A register is a named slot" },
+        { id: "step-2", title: "A call pushes a return address" },
+      ],
+      stepIndex: 1,
+    });
+    expect(prompt).toContain("A call pushes a return address");
+    expect(prompt).toContain("A register is a named slot"); // already taught
+    expect(prompt).toContain(String(TEACHING_LIMITS.proseWords));
+    expect(prompt).not.toContain("Goal: read disassembly\nGoal:");
+  });
+
+  test("the check prompt carries the answer and the correction budget", () => {
+    const prompt = checkPrompt({
+      step: { stepId: "step-1", prose: "x", question: "which register holds the return value?" },
+      answer: "the stack pointer",
+    });
+    expect(prompt).toContain("the stack pointer");
+    expect(prompt).toContain(String(TEACHING_LIMITS.correctionChars));
+  });
+
+  test("wordCount counts whitespace, not characters", () => {
+    expect(wordCount("  one two   three ")).toBe(3);
+    expect(wordCount("")).toBe(0);
+  });
+});

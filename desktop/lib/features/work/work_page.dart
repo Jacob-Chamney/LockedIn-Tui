@@ -5,6 +5,7 @@ import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 import 'agent_dialog.dart';
 import 'project_dialog.dart';
 import 'swarm_page.dart';
@@ -1106,8 +1107,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
       margin: const EdgeInsets.only(bottom: 4),
       padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
       decoration: BoxDecoration(
-        color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Row(
@@ -1219,7 +1219,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
       padding: const EdgeInsets.fromLTRB(8, 7, 8, 7),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Row(
@@ -1623,10 +1623,10 @@ class _WorkDetailViewState extends State<WorkDetailView> {
       padding: const EdgeInsets.only(bottom: 6),
       child: Material(
         color: isSelected ? LockedInColors.panel : Colors.transparent,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.control),
         child: InkWell(
           key: ValueKey('work-agent-${agent.id}'),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(Radii.control),
           // A click is Enter: select the agent and open its editor.
           onTap: editable
               ? () {
@@ -1638,7 +1638,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
             key: isSelected ? _selectedAgentKey : null,
             padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(Radii.control),
               border: Border.all(
                 color: isSelected
                     ? LockedInColors.primary.withValues(alpha: 0.5)
@@ -1855,14 +1855,14 @@ class _ProjectRowTile extends StatelessWidget {
     final agents = project.agents.length;
     return Material(
       color: selected ? LockedInColors.panel : LockedInColors.surface,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(Radii.control),
       child: InkWell(
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.control),
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.fromLTRB(0, 10, 12, 10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(Radii.control),
             border: Border.all(
               color: selected
                   ? LockedInColors.primary.withValues(alpha: 0.5)
@@ -1954,7 +1954,7 @@ class _ArchivedBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Row(
@@ -2101,7 +2101,7 @@ class _ErrorState extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Column(

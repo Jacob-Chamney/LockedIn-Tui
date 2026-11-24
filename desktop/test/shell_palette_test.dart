@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lockedin_desktop/shell/palette.dart';
+import 'package:lockedin_desktop/shell/chrome.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'fake_core.dart';
@@ -21,24 +22,27 @@ void main() {
 
     // The palette is where a keyboard user learns a binding, so a row that is
     // a registry action carries the chord that runs it.
+    // The chord is a `KeyCap` now: one widget for every key the app prints.
     expect(
       tester
-          .widget<Text>(
+          .widget<KeyCap>(
             find.byKey(const ValueKey('palette-binding-surface.sessions')),
           )
-          .data,
+          .keyLabel,
       'Space h',
     );
     expect(
       tester
-          .widget<Text>(find.byKey(const ValueKey('palette-binding-sidebar')))
-          .data,
+          .widget<KeyCap>(find.byKey(const ValueKey('palette-binding-sidebar')))
+          .keyLabel,
       'Space e',
     );
     expect(
       tester
-          .widget<Text>(find.byKey(const ValueKey('palette-binding-commands')))
-          .data,
+          .widget<KeyCap>(
+            find.byKey(const ValueKey('palette-binding-commands')),
+          )
+          .keyLabel,
       ':',
     );
     expect(tester.takeException(), isNull);
@@ -54,7 +58,7 @@ void main() {
     for (final label in const [
       'Chat',
       'Sessions',
-      'Skills',
+      'Teaching',
       'Sources',
       'Stats',
       'Work',
@@ -140,7 +144,7 @@ void main() {
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pumpAndSettle();
-    expect(rowOfText('Skills'), findsOneWidget);
+    expect(rowOfText('Teaching'), findsOneWidget);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pumpAndSettle();
@@ -148,7 +152,7 @@ void main() {
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
     await tester.pumpAndSettle();
-    expect(rowOfText('Skills'), findsOneWidget);
+    expect(rowOfText('Teaching'), findsOneWidget);
     expect(find.byType(CommandPalette), findsOneWidget);
   });
 

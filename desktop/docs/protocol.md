@@ -2266,6 +2266,44 @@ request.
     escaping id is refused, and a missing or unreadable file is reported once.
     The shell shows the message and offers the list; it never retries.
 
+### Teaching
+
+`teach.state`, `teach.measure`, `teach.step` and `teach.check` are the learning
+harness (`desktop/docs/redesign.md` §2.1). A session moves measure → plan →
+teach → check → repair, and every reply is **structured data the shell renders**:
+it never parses model prose to guess.
+
+The record lives at `skills/goals/<id>/teaching.json` (atomic replace):
+
+```json
+{"schema":1,"state":{"schema":1,"goal":"…","prior":"…","measuredAt":"…","held":["…"],"gaps":["…"],"plan":[{"id":"step-1","title":"…"}]},"current":{"stepId":"step-1","prose":"…","question":"…"},"checks":[{"stepId":"step-1","verdict":"correct","correction":"…","at":"…"}]}
+```
+
+- `teach.state` `{goalId}` → `{record}` — the record, or `null` before a measure.
+  Read-only.
+- `teach.measure` `{goalId, prior?}` → `{record}` — one model call. The reply is
+  validated: no held propositions, or fewer than three plan steps, is a refusal
+  naming the count. `prior` defaults to the goal's `statement` + `level`.
+- `teach.step` `{goalId, again?}` → `{record, step, index, total}` — teaches the
+  first step with no passing check. While a step is open the same record is
+  returned (no model call) unless `again: true`. `step: null` when every step is
+  passed.
+- `teach.check` `{goalId, answer}` → `{record, verdict, correction, passed,
+  nextIndex, total}` — one verdict (`correct` | `partial` | `incorrect`) and one
+  correction. `correct` passes the step and clears the open one, so the next
+  `teach.step` moves on; anything else keeps it open for a repair.
+
+Limits are enforced by refusal, not truncation, in `src/domain/teaching.ts`:
+goal ≤ 140 chars, held/gap items ≤ 120 (≤ 8 held, ≤ 4 gaps), 3–8 plan steps,
+step titles ≤ 80, one step's prose ≤ 130 words, a check question ≤ 220, a
+correction ≤ 320. Every prompt forbids preambles, headings, bullet lists and
+method narration ("in this step", "we will").
+
+Failures are `-32000`, `retryable: false`, never retried: `{kind:"teaching",
+goalId, message}` for a refusal or a malformed reply, `{kind:"skill"}` for an
+unknown goal, and `link a model in Settings → Providers` when no model is
+configured. A malformed reply writes nothing.
+
 ### Keybinds
 
 `keybinds.get` / `keybinds.set` are the **storage half** of the rebindable

@@ -46,7 +46,7 @@ void main() {
 
     expect(store.activeSkillId, FakeCore.skillId);
     expect(store.skillChats.map((chat) => chat.id), ['chat-1', 'chat-2']);
-    expect(find.text('SKILL'), findsOneWidget);
+    expect(find.text('TEACHING'), findsOneWidget);
     expect(find.text('2 chats'), findsOneWidget);
     expect(find.text('Open chat'), findsOneWidget);
 
@@ -56,7 +56,7 @@ void main() {
     expect(store.activeSkillChatId, 'chat-2');
     expect(store.skillChat, isNotNull);
     expect(find.byKey(const ValueKey('skill-chat-composer')), findsOneWidget);
-    expect(find.text('SKILL CHAT'), findsOneWidget);
+    expect(find.text('TEACHING CHAT'), findsOneWidget);
     expect(
       find.textContaining('goal chat · chat-2', findRichText: true),
       findsOneWidget,
@@ -80,7 +80,7 @@ void main() {
 
     expect(store.activeSkillChatId, 'chat-2');
     expect(find.byKey(const ValueKey('skill-chat-composer')), findsOneWidget);
-    expect(find.text('SKILL CHAT'), findsOneWidget);
+    expect(find.text('TEACHING CHAT'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -103,7 +103,7 @@ void main() {
     expect(store.activeSkillChatId, 'chat-3');
     expect(store.skillChat?.messages, isEmpty);
     expect(find.byKey(const ValueKey('skill-chat-composer')), findsOneWidget);
-    expect(find.text('SKILL CHAT'), findsOneWidget);
+    expect(find.text('TEACHING CHAT'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -170,7 +170,7 @@ void main() {
 
     expect(find.byKey(const ValueKey('skill-chat-composer')), findsNothing);
     expect(find.text('Read disassembly output confidently'), findsOneWidget);
-    expect(find.text('SKILL'), findsOneWidget);
+    expect(find.text('TEACHING'), findsOneWidget);
     expect(store.activeSkillId, FakeCore.skillId);
     // The chat id and its snapshot survive the collapse.
     expect(store.activeSkillChatId, 'chat-2');
@@ -241,7 +241,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('INSERT'), findsNothing);
     expect(find.text('NORMAL'), findsOneWidget);
-    expect(find.text('SKILL CHAT'), findsOneWidget);
+    expect(find.text('TEACHING CHAT'), findsOneWidget);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.keyI);
     await tester.pumpAndSettle();
@@ -252,7 +252,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
-    expect(find.text('SKILL'), findsOneWidget);
+    expect(find.text('TEACHING'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -262,7 +262,7 @@ void main() {
 
     expect(store.activeSkillChatId, 'chat-2');
     expect(find.byKey(const ValueKey('skill-chat-composer')), findsOneWidget);
-    expect(find.text('SKILL CHAT'), findsOneWidget);
+    expect(find.text('TEACHING CHAT'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

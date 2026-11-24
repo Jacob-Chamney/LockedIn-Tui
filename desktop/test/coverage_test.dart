@@ -293,7 +293,11 @@ void main() {
     expect(find.text('1 of 2 sources referenced'), findsOneWidget);
     expect(find.text('could not read coverage'), findsOneWidget);
     expect(find.text('the session folder could not be read'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('coverage-retry')));
+    // Coverage is context now, below the current step: scroll to it first.
+    final retry = find.byKey(const ValueKey('coverage-retry'));
+    await tester.ensureVisible(retry);
+    await tester.pumpAndSettle();
+    await tester.tap(retry);
     await tester.pump();
     expect(retries, 1);
     expect(tester.takeException(), isNull);

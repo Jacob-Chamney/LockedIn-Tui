@@ -47,8 +47,16 @@ Future<void> _pump(WidgetTester tester, SessionDetail detail) async {
   await tester.pumpAndSettle();
 }
 
-ScrollPosition _position(WidgetTester tester) =>
-    tester.state<ScrollableState>(find.byType(Scrollable).first).position;
+/// The page's own scroll, by key: the step list beside it is a second
+/// Scrollable on a wide window.
+ScrollPosition _position(WidgetTester tester) => tester
+    .state<ScrollableState>(
+      find.descendant(
+        of: find.byKey(SessionDetailView.pageScrollKey),
+        matching: find.byType(Scrollable),
+      ),
+    )
+    .position;
 
 void main() {
   testWidgets('Page Down scrolls a long prompt towards the cards below', (

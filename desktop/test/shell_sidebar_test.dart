@@ -74,7 +74,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // The breadcrumb and the status bar name the surface that Enter opened.
-    expect(find.text('SKILLS'), findsWidgets);
+    expect(find.text('TEACHING'), findsWidgets);
     // Still expanded: activating a row does not shrink the rail.
     expect(find.text('LEARN'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -89,7 +89,7 @@ void main() {
     const order = [
       'Chat',
       'Sessions',
-      'Skills',
+      'Teaching',
       'Review',
       'Work',
       'Stats',
@@ -138,10 +138,10 @@ void main() {
     await pumpShell(tester);
     await expandSidebar(tester);
 
-    await tester.tap(find.text('Skills').first);
+    await tester.tap(find.text('Teaching').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('SKILLS'), findsWidgets);
+    expect(find.text('TEACHING'), findsWidgets);
     // Clicking is the pointer's Enter: the destination opens, the rail keeps
     // its size, and the page holds the keyboard again.
     expect(find.text('LEARN'), findsOneWidget);
@@ -233,7 +233,7 @@ void main() {
     for (final label in [
       'Chat',
       'Sessions',
-      'Skills',
+      'Teaching',
       'Work',
       'Stats',
       'Archive',

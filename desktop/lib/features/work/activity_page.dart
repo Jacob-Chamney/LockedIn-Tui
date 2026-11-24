@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 
 /// The Work activity log (`activity.list`).
 ///
@@ -373,13 +374,13 @@ class _ActivityPageState extends State<ActivityPage> {
           // The filter is a chip: `s` and a click run the same cycle.
           InkWell(
             key: const ValueKey('activity-kind-filter'),
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(Radii.control),
             onTap: _cycleKind,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
                 color: LockedInColors.panel,
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(Radii.control),
                 border: Border.all(color: LockedInColors.line),
               ),
               child: Text(
@@ -535,7 +536,7 @@ class _ActivityPageState extends State<ActivityPage> {
                           padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
                           decoration: BoxDecoration(
                             color: LockedInColors.background,
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(Radii.control),
                             border: Border.all(color: LockedInColors.line),
                           ),
                           child: Column(
@@ -649,7 +650,7 @@ class _ActivityPageState extends State<ActivityPage> {
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Column(
@@ -715,7 +716,7 @@ class _Panel extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
       decoration: BoxDecoration(
         color: LockedInColors.surface,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Column(
@@ -763,7 +764,7 @@ class _Chip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Text(

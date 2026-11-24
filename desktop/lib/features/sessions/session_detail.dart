@@ -7,6 +7,9 @@ import '../../bridge/errors.dart';
 
 import '../keys.dart';
 import '../../bridge/models.dart';
+import '../../shell/chrome.dart';
+import '../shared/cards.dart';
+import '../../theme/tokens.dart';
 import '../../theme/palette.dart';
 import '../chat/document_search.dart';
 import '../chat/markdown.dart';
@@ -19,6 +22,10 @@ import '../shared/format.dart';
 /// method, so a null [detail] is always the shell's answer — and every missing
 /// piece explains its own next step instead of painting a blank screen.
 class SessionDetailView extends StatefulWidget {
+  /// The page's own scroll view. Named so a test can drive it directly: the
+  /// step list beside it is a second Scrollable.
+  static const pageScrollKey = ValueKey('session-detail-scroll');
+
   const SessionDetailView({
     super.key,
     required this.detail,
@@ -913,37 +920,293 @@ class _SessionDetailViewState extends State<SessionDetailView> {
 
     if (_readerVisible) return _documentReader();
 
+    // A lock-in session is a **focus surface**, not a lecture
+    // (`desktop/docs/redesign.md` §4a): the step you are on is the loudest
+    // thing on screen, the ordered list sits beside it, and the files, memory
+    // and coverage are demoted to context underneath. The user can already do
+    // the work; the page's only job is to keep the next action obvious.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 980;
+        final centre = _centrePane(detail, includeSteps: !wide);
+        if (!wide) return centre;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              width: 328,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  Space.md,
+                  Space.md,
+                  Space.sm,
+                  Space.xl,
+                ),
+                child: _stepsPane(detail),
+              ),
+            ),
+            const VRule(),
+            Expanded(child: centre),
+          ],
+        );
+      },
+    );
+  }
+
+  /// The centre: the current step, then everything that is context.
+  ///
+  /// `includeSteps` is true on a narrow window, where the step list has no
+  /// column of its own and follows the current step instead.
+  Widget _centrePane(SessionDetail detail, {required bool includeSteps}) {
     return ListView(
+      key: SessionDetailView.pageScrollKey,
       controller: _pageScroll,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      padding: const EdgeInsets.fromLTRB(
+        Space.lg,
+        Space.md,
+        Space.lg,
+        Space.xxl,
+      ),
       children: [
         Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 900),
+            constraints: const BoxConstraints(maxWidth: 760),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (widget.error != null) ...[
                   _errorBanner(widget.error!),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Space.sm),
                 ],
+                _currentStepHero(detail),
+                if (includeSteps) ...[
+                  const SizedBox(height: Space.md),
+                  _stepsPane(detail),
+                ],
+                const SizedBox(height: Space.lg),
                 _promptCard(detail),
-                const SizedBox(height: 14),
+                const SizedBox(height: Space.md),
                 _sourcesCard(detail),
-                const SizedBox(height: 14),
+                const SizedBox(height: Space.md),
                 _memoryCard(detail),
                 if (_coverageWired) ...[
-                  const SizedBox(height: 14),
+                  const SizedBox(height: Space.md),
                   _coverageCard(),
                 ],
-                const SizedBox(height: 14),
-                _stepsCard(detail),
-                const SizedBox(height: 14),
+                const SizedBox(height: Space.md),
                 _studyToolsCard(),
+                const SizedBox(height: Space.lg),
+                const Rule(),
+                const SizedBox(height: Space.xs),
+                Text(
+                  _stepsHint(
+                    interactive: widget.onToggleStep != null,
+                    canGenerate: widget.onGenerateSteps != null,
+                    canSettings: widget.onOpenSettings != null,
+                    canOutputs: widget.onOpenOutput != null,
+                  ),
+                  key: const ValueKey('session-keys'),
+                  style: LockedInType.micro.copyWith(
+                    color: LockedInColors.muted,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0,
+                  ),
+                ),
               ],
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  /// The one step in front: its text, where it sits, and how far the session is.
+  ///
+  /// Nothing else on the page is this large. That is the whole design of a
+  /// focus surface — the work is the only thing competing for attention.
+  Widget _currentStepHero(SessionDetail detail) {
+    final steps = detail.steps;
+    final ready = steps.exists && steps.markdown.trim().isNotEmpty;
+    final rows = ready ? _parseSteps(steps.markdown) : const <_StepRow>[];
+    final tasks = [
+      for (final row in rows)
+        if (row.index != null) row,
+    ];
+    if (!ready || tasks.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SectionLabel('current step'),
+          const SizedBox(height: Space.xs),
+          Text(
+            ready ? 'this session has no steps yet' : 'steps not built yet',
+            key: const ValueKey('session-hero-empty'),
+            style: LockedInType.title.copyWith(color: LockedInColors.muted),
+          ),
+        ],
+      );
+    }
+
+    final index = _selectedStep.clamp(0, tasks.length - 1);
+    final row = tasks[index];
+    final checked = row.checked ?? false;
+    final done = steps.done;
+    final total = steps.total;
+    final fraction = total == 0 ? 0.0 : done / total;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            // `SectionLabel` is itself a Row: a bare Row child would get
+            // unbounded width.
+            Expanded(
+              child: SectionLabel('step ${index + 1} of ${tasks.length}'),
+            ),
+            ValueChip(
+              checked ? 'done' : 'next',
+              tone: checked ? LockedInColors.success : LockedInColors.primary,
+            ),
+          ],
+        ),
+        const SizedBox(height: Space.xs),
+        // The step itself: display size, mono, wrapped at the reading measure.
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: Space.proseMeasure),
+          child: Text(
+            row.text,
+            key: const ValueKey('session-hero-step'),
+            style: LockedInType.display.copyWith(
+              color: checked ? LockedInColors.muted : LockedInColors.foreground,
+              fontSize: 21,
+              height: 1.35,
+              decoration: checked ? TextDecoration.lineThrough : null,
+            ),
+          ),
+        ),
+        const SizedBox(height: Space.md),
+        Meter(value: fraction),
+        const SizedBox(height: Space.xs),
+        Row(
+          children: [
+            Text(
+              '$done of $total done',
+              style: LockedInType.micro.copyWith(
+                color: LockedInColors.muted,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0,
+              ),
+            ),
+            const Spacer(),
+            // The page's key row at the foot already names every key; this is
+            // the position, so the hero stays one line at 480 px.
+            Text(
+              'step ${index + 1} / ${tasks.length}',
+              style: LockedInType.micro.copyWith(
+                color: LockedInColors.muted,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// The ordered list: the map beside the step, and the session's progress.
+  Widget _stepsPane(SessionDetail detail) {
+    final steps = detail.steps;
+    final ready = steps.exists && steps.markdown.trim().isNotEmpty;
+    final complete = steps.total > 0 && steps.done >= steps.total;
+    final canGenerate = widget.onGenerateSteps != null;
+    final generating = widget.generatingSteps || _requestingSteps;
+    final rows = ready ? _parseSteps(steps.markdown) : const <_StepRow>[];
+    final tasks = [
+      for (final row in rows)
+        if (row.index != null) row.index!,
+    ];
+    final selected = tasks.isEmpty
+        ? null
+        : _selectedStep.clamp(0, tasks.length - 1);
+    final error = _stepsError;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Expanded(child: SectionLabel('steps')),
+            Text(
+              ready ? '${steps.done}/${steps.total} steps' : 'no steps',
+              style: LockedInType.micro.copyWith(
+                color: ready && complete
+                    ? LockedInColors.success
+                    : LockedInColors.muted,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: Space.xs),
+        if (ready)
+          for (final row in rows)
+            _stepRow(row, selected: row.index != null && row.index == selected)
+        else
+          _EmptyNote(
+            tone: LockedInColors.warning,
+            title: 'steps missing',
+            body: canGenerate
+                ? 'This session has no assignment-steps.md yet. Build it from '
+                      'the session sources; the plan is generated once and saved '
+                      'to the session.'
+                : 'This session has no assignment-steps.md yet. Open the chat '
+                      'and press R to build the steps.',
+          ),
+        if (canGenerate && !ready) ...[
+          const SizedBox(height: Space.sm),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton(
+              key: const ValueKey('steps-generate'),
+              onPressed: generating ? null : () => unawaited(_generateSteps()),
+              style: FilledButton.styleFrom(
+                backgroundColor: LockedInColors.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              ),
+              child: Text(generating ? 'building steps…' : 'build steps'),
+            ),
+          ),
+        ],
+        if (ready && canGenerate) ...[
+          const SizedBox(height: Space.sm),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              key: const ValueKey('steps-regenerate'),
+              onPressed: generating ? null : () => unawaited(_generateSteps()),
+              child: Text(generating ? 'rebuilding…' : 'rebuild steps'),
+            ),
+          ),
+        ],
+        if (_toggling) ...[
+          const SizedBox(height: Space.xs),
+          Text(
+            'saving step…',
+            style: LockedInType.micro.copyWith(color: LockedInColors.muted),
+          ),
+        ],
+        if (_toggleError != null) ...[
+          const SizedBox(height: Space.xs),
+          _stepError(_toggleError!),
+        ],
+        if (error != null) ...[
+          const SizedBox(height: Space.xs),
+          _generationError(
+            error,
+            onRetry: generating ? null : () => unawaited(_generateSteps()),
+          ),
+        ],
       ],
     );
   }
@@ -1417,120 +1680,6 @@ class _SessionDetailViewState extends State<SessionDetailView> {
     );
   }
 
-  Widget _stepsCard(SessionDetail detail) {
-    final steps = detail.steps;
-    final ready = steps.exists && steps.markdown.trim().isNotEmpty;
-    final complete = steps.total > 0 && steps.done >= steps.total;
-    final interactive = widget.onToggleStep != null;
-    final canGenerate = widget.onGenerateSteps != null;
-    final generating = widget.generatingSteps || _requestingSteps;
-    final rows = ready ? _parseSteps(steps.markdown) : const <_StepRow>[];
-    final tasks = [
-      for (final row in rows)
-        if (row.index != null) row.index!,
-    ];
-    final selected = tasks.isEmpty
-        ? null
-        : _selectedStep.clamp(0, tasks.length - 1);
-    final error = _stepsError;
-    return _card(
-      label: 'STEPS',
-      trailing: _countChip(
-        ready ? '${steps.done}/${steps.total} steps' : 'no steps',
-        tone: ready && complete ? LockedInColors.success : LockedInColors.muted,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (ready)
-            for (final row in rows)
-              _stepRow(
-                row,
-                selected: row.index != null && row.index == selected,
-              )
-          else
-            _EmptyNote(
-              tone: LockedInColors.warning,
-              title: 'steps missing',
-              body: canGenerate
-                  ? 'This session has no assignment-steps.md yet. Build it '
-                        'from the session sources; the plan is generated once '
-                        'and saved to the session.'
-                  : 'This session has no assignment-steps.md yet. Open the chat '
-                        'and press R to build the steps.',
-            ),
-          if (canGenerate && !ready) ...[
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: FilledButton.icon(
-                key: const ValueKey('steps-generate'),
-                onPressed: generating
-                    ? null
-                    : () => unawaited(_generateSteps()),
-                icon: generating
-                    ? const Icon(Icons.hourglass_top, size: 16)
-                    : const Icon(Icons.auto_awesome_outlined, size: 16),
-                label: Text(generating ? 'building steps…' : 'build steps'),
-              ),
-            ),
-          ],
-          if (_toggleError != null) ...[
-            const SizedBox(height: 10),
-            _stepError(_toggleError!),
-          ],
-          if (error != null) ...[
-            const SizedBox(height: 10),
-            _generationError(
-              error,
-              onRetry: generating ? null : () => unawaited(_generateSteps()),
-            ),
-          ],
-          if (ready) ...[
-            if (_toggling) ...[
-              const SizedBox(height: 8),
-              Text(
-                'saving step…',
-                style: TextStyle(color: LockedInColors.muted, fontSize: 11),
-              ),
-            ],
-            if (generating) ...[
-              const SizedBox(height: 8),
-              Text(
-                'building steps…',
-                style: TextStyle(color: LockedInColors.muted, fontSize: 11),
-              ),
-            ],
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _stepsHint(
-                      interactive: interactive,
-                      canGenerate: canGenerate,
-                      canSettings: widget.onOpenSettings != null,
-                      canOutputs: widget.onOpenOutput != null,
-                    ),
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
-                  ),
-                ),
-                if (canGenerate)
-                  TextButton(
-                    key: const ValueKey('steps-regenerate'),
-                    onPressed: generating
-                        ? null
-                        : () => unawaited(_generateSteps()),
-                    child: const Text('rebuild steps'),
-                  ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
   /// The study tools: the three generated session documents this session can
   /// build. `1` and `2` run immediately; `3` needs one attempt first.
   ///
@@ -1773,8 +1922,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
     );
   }
 
-  /// The action strip. `Space toggle`, `R rebuild`, `g`/`f` readers and
-  /// `s settings` appear only when the shell wired that action, so a read-only
+  /// The page's key row: only the actions the shell wired, so a read-only
   /// detail never advertises a dead key.
   String _stepsHint({
     required bool interactive,

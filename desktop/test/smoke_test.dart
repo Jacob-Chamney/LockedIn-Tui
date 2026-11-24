@@ -14,7 +14,12 @@ void main() {
     expect(find.text('Chill'), findsWidgets);
     expect(find.text('Ask anything…'), findsOneWidget);
     expect(find.text('NORMAL'), findsOneWidget);
-    expect(find.text('42 tok · cost unknown · ? help'), findsOneWidget);
+    // Usage and the help chord are separate status cells now, so the bar's
+    // right side reads as three groups instead of one sentence.
+    // The status bar and the composer's own line both report usage, so this is
+    // deliberately not `findsOneWidget`.
+    expect(find.text('42 tok · cost unknown'), findsWidgets);
+    expect(find.text('? help'), findsOneWidget);
     expect(find.text('openai/gpt-4.1-mini'), findsWidgets);
     expect(find.text('core offline'), findsNothing);
   });
@@ -105,6 +110,8 @@ void main() {
     await pumpShell(tester, core: FakeCore(fail: true));
 
     expect(find.text('core offline'), findsWidgets);
-    expect(find.text('Chill'), findsWidgets);
+    // The chat surface is open. Its name is the breadcrumb now: the in-page
+    // header that repeated `Chill` was removed (the top bar already says it).
+    expect(find.text('Chat'), findsWidgets);
   });
 }

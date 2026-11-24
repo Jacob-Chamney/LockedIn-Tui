@@ -633,7 +633,7 @@ void main() {
       final store = await openCurriculum(tester);
 
       expect(store.activeSkillId, FakeCore.stagedSkillId);
-      expect(find.text('SKILL'), findsOneWidget);
+      expect(find.text('TEACHING'), findsOneWidget);
       expect(find.text('CURRICULUM STAGES'), findsOneWidget);
 
       // Stage 0 has no lesson: the reader opens on its empty state.
@@ -641,7 +641,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(store.activeSkillStageId, FakeCore.missingLessonStageId);
-      expect(find.text('SKILL LESSON'), findsOneWidget);
+      expect(find.text('LESSON'), findsOneWidget);
       expect(find.text('no lesson for this stage yet'), findsOneWidget);
       expect(find.byKey(const ValueKey('skill-lesson-build')), findsOneWidget);
 
@@ -649,7 +649,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(store.skillLessonOpen, isFalse);
-      expect(find.text('SKILL'), findsOneWidget);
+      expect(find.text('TEACHING'), findsOneWidget);
       expect(find.text('CURRICULUM STAGES'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
@@ -665,7 +665,7 @@ void main() {
 
       expect(core.calls, contains('skill.lesson.build'));
       expect(store.skillLessonStatus, 'draft');
-      expect(find.text('SKILL LESSON'), findsOneWidget);
+      expect(find.text('LESSON'), findsOneWidget);
       expect(
         find.textContaining('Built draft', findRichText: true),
         findsOneWidget,
@@ -689,7 +689,7 @@ void main() {
         find.textContaining('Trace the loop', findRichText: true),
         findsOneWidget,
       );
-      expect(find.text('SKILL LESSON'), findsOneWidget);
+      expect(find.text('LESSON'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -735,10 +735,10 @@ void main() {
 
       await openSurface(tester, 1);
       expect(store.skillLessonOpen, isFalse);
-      expect(find.text('SKILL LESSON'), findsNothing);
+      expect(find.text('LESSON'), findsNothing);
 
       await openSurface(tester, 3);
-      expect(find.text('SKILL'), findsOneWidget);
+      expect(find.text('TEACHING'), findsOneWidget);
       expect(find.text('CURRICULUM STAGES'), findsOneWidget);
       expect(store.activeSkillId, FakeCore.stagedSkillId);
       expect(tester.takeException(), isNull);
@@ -752,7 +752,7 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
       expect(store.skillLessonOpen, isTrue);
-      expect(find.text('SKILL LESSON'), findsOneWidget);
+      expect(find.text('LESSON'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

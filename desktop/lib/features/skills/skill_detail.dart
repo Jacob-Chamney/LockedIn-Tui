@@ -9,7 +9,9 @@ import '../../bridge/errors.dart';
 import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
+import '../../shell/chrome.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 import '../chat/markdown.dart';
 import '../chat/transcript_scroll.dart';
 import '../shared/cards.dart';
@@ -49,6 +51,13 @@ class SkillDetailView extends StatefulWidget {
     this.pickFiles,
     this.onOpenStage,
     this.onBuildStage,
+    this.teaching,
+    this.teachingLoading = false,
+    this.teachingError,
+    this.teachingVerdict,
+    this.onMeasure,
+    this.onNextStep,
+    this.onCheck,
     this.onSaveStages,
   });
 
@@ -131,6 +140,27 @@ class SkillDetailView extends StatefulWidget {
   /// Null keeps the stage card read-only and hides the build action.
   final void Function(String stageId)? onBuildStage;
 
+  /// The teaching record from the core (`teach.state`), or null before a read.
+  final TeachingState? teaching;
+
+  /// True while a `teach.*` call is in flight.
+  final bool teachingLoading;
+
+  /// The last teaching failure; shown beside the measure card.
+  final String? teachingError;
+
+  /// The verdict card for the last answer.
+  final TeachingCheckResult? teachingVerdict;
+
+  /// Measure the learner and plan the route (`teach.measure`).
+  final VoidCallback? onMeasure;
+
+  /// Open the next step (`teach.step`).
+  final VoidCallback? onNextStep;
+
+  /// Answer the open step (`teach.check`).
+  final ValueChanged<String>? onCheck;
+
   /// Save the whole curriculum in order (`skill.stages.save`).
   ///
   /// [stages] is the complete list the editor holds, so a reorder, a rename, an
@@ -158,6 +188,8 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   @override
   void dispose() {
     _chapterScroll.dispose();
+    _sectionsScroll.dispose();
+    _answer.dispose();
     super.dispose();
   }
 
@@ -172,6 +204,26 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   /// One inline reason (a chapter without a practical, a failed read that the
   /// shell did not own). It never replaces the goal page.
   String? _notice;
+
+  /// Which phase the rail marks as current (the one last navigated to).
+  _Phase _phase = _Phase.teach;
+
+  /// One key per phase section, so the rail can scroll to it and tests can
+  /// assert where the navigation landed.
+  final _measureKey = GlobalKey(debugLabel: 'phase-measure');
+  final _planKey = GlobalKey(debugLabel: 'phase-plan');
+  final _teachKey = GlobalKey(debugLabel: 'phase-teach');
+  final _practiceKey = GlobalKey(debugLabel: 'phase-practice');
+
+  /// The course chapter list: content, not a phase anchor (a course's `teach`
+  /// phase scrolls to the teaching loop).
+  final _courseKey = GlobalKey(debugLabel: 'course-list');
+
+  /// The scroll the four sections live in.
+  final _sectionsScroll = ScrollController();
+
+  /// The answer to the open step's check.
+  final _answer = TextEditingController();
 
   /// True while a file pick or a `skill.sources.add` is in flight.
   var _sourcesBusy = false;
@@ -823,11 +875,19 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleMedium,
                 ),
+                // The goal, not the counts: in a teaching session the goal is
+                // the north star, so it stays on screen through every phase. The
+                // plan/chapter/chat counts live in the rail and the panes.
                 Text(
-                  _subtitle(detail),
-                  maxLines: 1,
+                  detail.goal.trim().isEmpty ? _subtitle(detail) : detail.goal,
+                  key: const ValueKey('skill-goal-line'),
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: LockedInType.micro.copyWith(
+                    color: LockedInColors.secondary,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0,
+                  ),
                 ),
               ],
             ),
@@ -856,8 +916,40 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   }
 
   Widget _body() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The rail needs 176 px and the page at least 420: below that it
+        // becomes a numbered strip, still complete as a control.
+        final compactRail = constraints.maxWidth < 720;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _phaseRail(compact: compactRail),
+            const VRule(),
+            Expanded(child: _sections()),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Every section of the session, in one scroll.
+  ///
+  /// The phases are a *navigator*, not a filter: measure, plan, teach and
+  /// practice are the four things a session has, and hiding three of them to
+  /// show one took the stage list, the sources and the chats off screen — and
+  /// with them every key that acts on them (`a`, `e`, `Enter`, `j`/`k`). One
+  /// scroll with four anchored sections keeps every control mounted and makes
+  /// the rail a jump-to-section map.
+  Widget _sections() {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      controller: _sectionsScroll,
+      padding: const EdgeInsets.fromLTRB(
+        Space.lg,
+        Space.md,
+        Space.lg,
+        Space.xxl,
+      ),
       children: [
         Center(
           child: ConstrainedBox(
@@ -867,32 +959,52 @@ class _SkillDetailViewState extends State<SkillDetailView> {
               children: [
                 if (widget.error != null) ...[
                   _ErrorBanner(message: widget.error!, onRetry: widget.onRetry),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Space.sm),
                 ],
                 if (_notice != null) ...[
                   _Notice(message: _notice!),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Space.sm),
                 ],
                 if (_sourcesFailure != null) ...[
                   _ErrorBanner(message: _sourcesFailure!),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Space.sm),
                 ],
                 if (_sourcesNotice != null) ...[
                   _SourceNotice(message: _sourcesNotice!),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Space.sm),
                 ],
-                _goalCard(),
-                const SizedBox(height: 14),
-                _sourcesCard(),
-                const SizedBox(height: 14),
+                KeyedSubtree(
+                  key: _sectionKey(_Phase.teach),
+                  child: _teachingCard(),
+                ),
+                const SizedBox(height: Space.md),
+                KeyedSubtree(
+                  key: _sectionKey(_Phase.measure),
+                  child: _goalCard(),
+                ),
+                const SizedBox(height: Space.md),
+                // A course has chapters, not stages: the plan section is the
+                // curriculum when there is one.
                 if (_stages.isNotEmpty || _editingStages) ...[
-                  _stagesCard(),
-                  const SizedBox(height: 14),
+                  KeyedSubtree(
+                    key: _sectionKey(_Phase.plan),
+                    child: _stagesCard(),
+                  ),
+                  const SizedBox(height: Space.md),
                 ],
-                if (_chapters.isNotEmpty || _stages.isEmpty) ...[
-                  _courseCard(),
-                  const SizedBox(height: 14),
+                // Sources sit above the lesson: the plan and every stage are
+                // built from them, so they are context for what follows.
+                _sourcesCard(),
+                const SizedBox(height: Space.md),
+                if (_chapters.isNotEmpty) ...[
+                  KeyedSubtree(key: _courseKey, child: _courseCard()),
+                  const SizedBox(height: Space.md),
                 ],
+                KeyedSubtree(
+                  key: _sectionKey(_Phase.practice),
+                  child: _practiceCard(),
+                ),
+                const SizedBox(height: Space.md),
                 _chatsCard(),
               ],
             ),
@@ -902,8 +1014,460 @@ class _SkillDetailViewState extends State<SkillDetailView> {
     );
   }
 
+  /// The teaching loop: measure, the plan as a map, one step with its check.
+  ///
+  /// This is the harness (`desktop/docs/redesign.md` §2.1). The model's reply is
+  /// structured — held, gaps, plan, one step, one verdict — so the card renders
+  /// fields and never parses prose. One action per state: measure when there is
+  /// no plan, open a step when none is open, answer when one is. Every state has
+  /// its next key, so the loop never dead-ends.
+  Widget _teachingCard() {
+    final record = widget.teaching;
+    final verdict = widget.teachingVerdict;
+    if (record == null || !record.measured) {
+      return SectionCard(
+        label: 'TEACHING LOOP',
+        trailing: widget.teachingLoading ? const ValueChip('measuring…') : null,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Measure first. The harness asks what you already hold, then plans '
+              'the shortest route to the goal — one idea per step, each checked.',
+              style: LockedInType.proseSmall.copyWith(
+                color: LockedInColors.muted,
+              ),
+            ),
+            if (widget.teachingError != null) ...[
+              const SizedBox(height: Space.xs),
+              Text(
+                widget.teachingError!,
+                key: const ValueKey('teach-error'),
+                style: LockedInType.label.copyWith(color: LockedInColors.error),
+              ),
+            ],
+            const SizedBox(height: Space.sm),
+            if (widget.onMeasure != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton(
+                  key: const ValueKey('teach-measure'),
+                  onPressed: widget.teachingLoading ? null : widget.onMeasure,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: LockedInColors.primary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  ),
+                  child: Text(
+                    widget.teachingLoading
+                        ? 'measuring…'
+                        : 'measure what I hold',
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    final step = record.current;
+    final index = record.nextIndex;
+    final done = index >= record.plan.length;
+    return SectionCard(
+      label: 'TEACHING LOOP',
+      trailing: ValueChip('${record.passedCount}/${record.plan.length} held'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // What the measure heard. The starting point is the whole reason the
+          // plan can be short, so it is shown, not summarised.
+          SectionLabel('held', trailing: '${record.held.length}'),
+          const SizedBox(height: Space.xxs),
+          for (final item in record.held)
+            _bullet(glyph: '✓', tone: LockedInColors.success, text: item),
+          if (record.gaps.isNotEmpty) ...[
+            const SizedBox(height: Space.xs),
+            SectionLabel('still unclear'),
+            const SizedBox(height: Space.xxs),
+            for (final item in record.gaps)
+              _bullet(glyph: '?', tone: LockedInColors.warning, text: item),
+          ],
+          const SizedBox(height: Space.md),
+          const Rule(),
+          const SizedBox(height: Space.sm),
+          SectionLabel('plan', trailing: '$index of ${record.plan.length}'),
+          const SizedBox(height: Space.xxs),
+          for (final (position, entry) in record.plan.indexed)
+            _PlanRow(
+              key: ValueKey('teach-plan-${entry.id}'),
+              number: position + 1,
+              title: entry.title,
+              passed: record.checks.any(
+                (check) =>
+                    check.stepId == entry.id && check.verdict == 'correct',
+              ),
+              current: position == index && !done,
+            ),
+          const SizedBox(height: Space.md),
+          if (widget.teachingError != null) ...[
+            Text(
+              widget.teachingError!,
+              key: const ValueKey('teach-error'),
+              style: LockedInType.label.copyWith(color: LockedInColors.error),
+            ),
+            const SizedBox(height: Space.sm),
+          ],
+          if (done)
+            Text(
+              'Every step is held. Read the goal back, then practise it.',
+              key: const ValueKey('teach-complete'),
+              style: LockedInType.proseSmall.copyWith(
+                color: LockedInColors.success,
+              ),
+            )
+          else if (step == null)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton(
+                key: const ValueKey('teach-next-step'),
+                onPressed: widget.teachingLoading ? null : widget.onNextStep,
+                style: FilledButton.styleFrom(
+                  backgroundColor: LockedInColors.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                ),
+                child: Text(
+                  widget.teachingLoading
+                      ? 'preparing…'
+                      : 'teach step ${index + 1}',
+                ),
+              ),
+            )
+          else ...[
+            // One idea, then one check. The prose is a paragraph, so it is Plex
+            // at the reading measure, not mono.
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: Space.proseMeasure),
+              child: Text(
+                step.prose,
+                key: const ValueKey('teach-prose'),
+                style: LockedInType.prose.copyWith(
+                  color: LockedInColors.foreground,
+                ),
+              ),
+            ),
+            const SizedBox(height: Space.sm),
+            Container(
+              padding: const EdgeInsets.fromLTRB(
+                Space.sm,
+                Space.xs,
+                Space.sm,
+                Space.sm,
+              ),
+              decoration: BoxDecoration(
+                color: LockedInColors.panel,
+                border: Border(
+                  left: BorderSide(
+                    color: LockedInColors.primary,
+                    width: Stroke.focus,
+                  ),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SectionLabel('check'),
+                  const SizedBox(height: Space.xxs),
+                  Text(
+                    step.question,
+                    key: const ValueKey('teach-question'),
+                    style: LockedInType.proseSmall.copyWith(
+                      color: LockedInColors.foreground,
+                    ),
+                  ),
+                  const SizedBox(height: Space.xs),
+                  TextField(
+                    key: const ValueKey('teach-answer'),
+                    controller: _answer,
+                    minLines: 1,
+                    maxLines: 3,
+                    onSubmitted: (value) {
+                      if (widget.onCheck != null && value.trim().isNotEmpty) {
+                        widget.onCheck!(value);
+                        _answer.clear();
+                      }
+                    },
+                    style: LockedInType.proseSmall.copyWith(
+                      color: LockedInColors.foreground,
+                    ),
+                    decoration: const InputDecoration(
+                      hintText: 'your answer — Enter to check',
+                    ),
+                  ),
+                  const SizedBox(height: Space.xs),
+                  Wrap(
+                    spacing: Space.xs,
+                    runSpacing: Space.xs,
+                    children: [
+                      FilledButton(
+                        key: const ValueKey('teach-check'),
+                        onPressed:
+                            widget.teachingLoading || widget.onCheck == null
+                            ? null
+                            : () {
+                                final answer = _answer.text.trim();
+                                if (answer.isEmpty) return;
+                                widget.onCheck!(answer);
+                                _answer.clear();
+                              },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: LockedInColors.primary,
+                          foregroundColor: Theme.of(context)
+                              .colorScheme
+                              .onPrimary,
+                        ),
+                        child: Text(
+                          widget.teachingLoading ? 'checking…' : 'check',
+                        ),
+                      ),
+                      if (widget.onNextStep != null)
+                        TextButton(
+                          key: const ValueKey('teach-again'),
+                          onPressed: widget.teachingLoading
+                              ? null
+                              : widget.onNextStep,
+                          child: const Text('say it differently'),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (verdict != null) ...[
+              const SizedBox(height: Space.sm),
+              Container(
+                key: const ValueKey('teach-verdict'),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Space.sm,
+                  vertical: Space.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: LockedInColors.panel,
+                  border: Border(
+                    left: BorderSide(
+                      color: switch (verdict.verdict) {
+                        'correct' => LockedInColors.success,
+                        'partial' => LockedInColors.warning,
+                        _ => LockedInColors.error,
+                      },
+                      width: Stroke.focus,
+                    ),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SectionLabel(switch (verdict.verdict) {
+                      'correct' => 'correct',
+                      'partial' => 'partly there',
+                      _ => 'not yet',
+                    }),
+                    const SizedBox(height: Space.xxs),
+                    Text(
+                      verdict.correction,
+                      style: LockedInType.proseSmall.copyWith(
+                        color: LockedInColors.foreground,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// One line of held material or a gap: a glyph and a sentence.
+  Widget _bullet({
+    required String glyph,
+    required Color tone,
+    required String text,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(glyph, style: LockedInType.micro.copyWith(color: tone)),
+        const SizedBox(width: Space.xs),
+        Expanded(
+          child: Text(
+            text,
+            style: LockedInType.proseSmall.copyWith(
+              color: LockedInColors.foreground,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Practice: what is ready, in one line, pointing at the plan.
+  ///
+  /// Repeating the stage list here made the same titles appear twice on one
+  /// scroll; the map is the plan's job. This says how much is ready and hands
+  /// the reader back to it.
+  Widget _practiceCard() {
+    final stages = _stages;
+    final held = stages.where((stage) => stage.done).length;
+    return SectionCard(
+      label: 'PRACTICE',
+      trailing: ValueChip(
+        stages.isEmpty ? 'nothing yet' : '$held/${stages.length} held',
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Practice is a problem that needs the idea before it names it. A '
+            'stage is ready to practise once it is held.',
+            style: LockedInType.proseSmall.copyWith(
+              color: LockedInColors.muted,
+            ),
+          ),
+          const SizedBox(height: Space.xs),
+          Text(
+            _chapters.isNotEmpty
+                ? 'a course is practised by working its chapters'
+                : stages.isEmpty
+                ? 'plan the stages first'
+                : held == 0
+                ? 'nothing is held yet: teach a stage, then practise it'
+                : '$held of ${stages.length} stages are ready to practise',
+            key: const ValueKey('practice-summary'),
+            style: LockedInType.body.copyWith(color: LockedInColors.foreground),
+          ),
+        ],
+      ),
+    );
+  }
+
+  GlobalKey _sectionKey(_Phase phase) => switch (phase) {
+    _Phase.measure => _measureKey,
+    _Phase.plan => _planKey,
+    _Phase.teach => _teachKey,
+    _Phase.practice => _practiceKey,
+  };
+
+  /// Scroll one phase's section into view and mark it current.
+  void _gotoPhase(_Phase phase) {
+    setState(() => _phase = phase);
+    final target = _sectionKey(phase).currentContext;
+    if (target != null) {
+      Scrollable.ensureVisible(
+        target,
+        alignment: 0.08,
+        duration: MediaQuery.of(context).disableAnimations
+            ? Duration.zero
+            : Motion.settle,
+        curve: Motion.settleCurve,
+      );
+    }
+    // `teach` starts at the first stage that is not held: the only useful
+    // default when the user asks to be taught something.
+    if (phase == _Phase.teach) {
+      final next = _stages.indexWhere((stage) => !stage.done);
+      if (next >= 0) setState(() => _selectedStage = next);
+    }
+  }
+
+  /// The four phases of a teaching session, as the map of where you are.
+  ///
+  /// `desktop/docs/redesign.md` §2.1: measure → plan → teach → practice is one
+  /// surface whose centre changes, so the rail is always visible and `Esc`
+  /// never loses the session. Each row carries a state summary, so the rail is
+  /// also the answer to "how far in am I".
+  Widget _phaseRail({required bool compact}) {
+    final stages = _stages;
+    final done = stages.where((stage) => stage.done).length;
+    final stageIndex = _stageIndex;
+    final stage = stageIndex < 0 ? null : stages[stageIndex];
+    final prior = widget.detail.prior.trim();
+    final rows = <(_Phase, String, String)>[
+      (
+        _Phase.measure,
+        'measure',
+        prior.isEmpty ? 'starting point missing' : 'starting point set',
+      ),
+      (
+        _Phase.plan,
+        'plan',
+        _chapters.isNotEmpty
+            ? 'course ${_chapters.where((chapter) => chapter.done).length}/'
+                  '${_chapters.length}'
+            : stages.isEmpty
+            ? 'no stages'
+            : '$done/${stages.length} held',
+      ),
+      (
+        _Phase.teach,
+        'teach',
+        stage == null
+            ? 'pick a stage'
+            : stage.done
+            ? 'held'
+            : 'stage ${stageIndex + 1}',
+      ),
+      (
+        _Phase.practice,
+        'practice',
+        stages.isEmpty ? 'after the plan' : '${stages.length - done} to hold',
+      ),
+    ];
+    return Container(
+      width: compact ? 64 : 176,
+      color: LockedInColors.surface,
+      padding: const EdgeInsets.symmetric(vertical: Space.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (!compact)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                Space.sm,
+                Space.xxs,
+                Space.sm,
+                Space.xs,
+              ),
+              child: SectionLabel('session'),
+            ),
+          for (final (index, row) in rows.indexed) ...[
+            _PhaseRow(
+              key: ValueKey('teach-phase-${row.$1.name}'),
+              number: index + 1,
+              label: row.$2,
+              summary: row.$3,
+              selected: _phase == row.$1,
+              compact: compact,
+              onTap: () => _gotoPhase(row.$1),
+            ),
+          ],
+          const Spacer(),
+          if (!compact)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Space.sm),
+              child: Text(
+                'Enter opens a stage · b builds its lesson',
+                style: LockedInType.micro.copyWith(
+                  color: LockedInColors.muted,
+                  letterSpacing: 0,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _goalCard() {
-    final goal = widget.detail.goal.trim();
     final prior = widget.detail.prior.trim();
     final plan = widget.detail.modelPlan ? 'model' : 'template';
     return SectionCard(
@@ -912,16 +1476,15 @@ class _SkillDetailViewState extends State<SkillDetailView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // The goal itself is in the header, on every phase. Repeating it here
+          // made the session say the same sentence twice within 100 px.
           Text(
-            goal.isEmpty ? 'no goal recorded' : goal,
-            style: TextStyle(
-              color: LockedInColors.foreground,
-              fontSize: 14,
-              height: 1.5,
-              fontWeight: FontWeight.w600,
+            'Where this session starts, and what it was asked for.',
+            style: LockedInType.proseSmall.copyWith(
+              color: LockedInColors.muted,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: Space.xs),
           _labelled('starting point', prior.isEmpty ? 'not recorded' : prior),
           const SizedBox(height: 6),
           _labelled('created', _createdLabel(widget.detail.created)),
@@ -1818,6 +2381,181 @@ String _usedLabel(String lastUsed) {
 ///
 /// It owns its two text controllers, so the dialog's closing animation can
 /// finish before they go away — disposing them in the caller raced that rebuild.
+/// One row of the plan map: number (or a tick), title, and whether it is current.
+///
+/// The plan is a coarse map, not the lesson (`desktop/docs/redesign.md` §2.1):
+/// one line per idea, so the whole route fits on screen beside the step.
+class _PlanRow extends StatelessWidget {
+  const _PlanRow({
+    super.key,
+    required this.number,
+    required this.title,
+    required this.passed,
+    required this.current,
+  });
+
+  final int number;
+  final String title;
+  final bool passed;
+  final bool current;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = current
+        ? LockedInColors.foreground
+        : passed
+        ? LockedInColors.muted
+        : LockedInColors.secondary;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: Space.xs - 3),
+      decoration: BoxDecoration(
+        color: current ? LockedInColors.panel : Colors.transparent,
+        border: Border(
+          left: BorderSide(
+            color: current ? LockedInColors.primary : Colors.transparent,
+            width: Stroke.focus,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 32,
+            child: Text(
+              passed ? '✓' : '$number',
+              textAlign: TextAlign.center,
+              style: LockedInType.micro.copyWith(
+                color: passed ? LockedInColors.success : tone,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: Space.xs),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: LockedInType.body.copyWith(fontSize: 12.5, color: tone),
+            ),
+          ),
+          if (current)
+            Text(
+              'here',
+              style: LockedInType.micro.copyWith(
+                color: LockedInColors.primary,
+                letterSpacing: 0,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The four phases of a teaching session (`desktop/docs/redesign.md` §2.1).
+enum _Phase { measure, plan, teach, practice }
+
+/// One phase in the rail: number, name, and how far into it the session is.
+class _PhaseRow extends StatelessWidget {
+  const _PhaseRow({
+    super.key,
+    required this.number,
+    required this.label,
+    required this.summary,
+    required this.selected,
+    required this.compact,
+    required this.onTap,
+  });
+
+  final int number;
+  final String label;
+  final String summary;
+  final bool selected;
+  final bool compact;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = selected ? LockedInColors.primary : LockedInColors.muted;
+    return Tooltip(
+      message: compact ? '$number $label · $summary' : '',
+      waitDuration: const Duration(milliseconds: 400),
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.symmetric(
+            horizontal: Space.xxs,
+            vertical: 1,
+          ),
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 0 : Space.xs,
+            vertical: Space.xs - 2,
+          ),
+          decoration: BoxDecoration(
+            color: selected ? LockedInColors.panel : Colors.transparent,
+            border: Border(
+              left: BorderSide(
+                color: selected ? LockedInColors.primary : Colors.transparent,
+                width: Stroke.focus,
+              ),
+            ),
+          ),
+          child: compact
+              ? Center(
+                  child: Text(
+                    '$number',
+                    style: LockedInType.key.copyWith(color: tone),
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          '$number',
+                          style: LockedInType.micro.copyWith(
+                            color: tone,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: Space.xs),
+                        Text(
+                          label,
+                          style: LockedInType.body.copyWith(
+                            fontSize: 12.5,
+                            color: selected
+                                ? LockedInColors.foreground
+                                : LockedInColors.muted,
+                            fontWeight: selected
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 14, top: 1),
+                      child: Text(
+                        summary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: LockedInType.micro.copyWith(
+                          color: LockedInColors.muted,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+}
+
 class _StagePromptDialog extends StatefulWidget {
   const _StagePromptDialog({
     required this.dialogTitle,

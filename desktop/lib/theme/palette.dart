@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'tokens.dart';
+
 /// One theme's twelve semantic tokens (`docs/design.md` §3.1).
 ///
 /// Mirrors `src/ui/theme/palettes.ts`: an id names the same identity on both
@@ -345,11 +347,10 @@ ThemeData lockedInTheme() {
         outline: LockedInColors.line,
       );
 
-  final body = TextStyle(
-    color: LockedInColors.foreground,
-    fontSize: 14,
-    height: 1.45,
-  );
+  // The chrome is mono (`desktop/docs/redesign.md` §3.1). A widget that wants
+  // proportional prose asks for `LockedInType.prose` explicitly, so nothing
+  // accidentally reads as a paragraph in a label.
+  final body = LockedInType.body.copyWith(color: LockedInColors.foreground);
 
   return ThemeData(
     useMaterial3: true,
@@ -365,50 +366,40 @@ ThemeData lockedInTheme() {
     textTheme: TextTheme(
       bodyLarge: body,
       bodyMedium: body,
-      bodySmall: TextStyle(
-        color: LockedInColors.muted,
-        fontSize: 12,
-        height: 1.4,
-      ),
-      titleLarge: TextStyle(
+      bodySmall: LockedInType.label.copyWith(color: LockedInColors.muted),
+      titleLarge: LockedInType.title.copyWith(color: LockedInColors.foreground),
+      titleMedium: LockedInType.body.copyWith(
         color: LockedInColors.foreground,
-        fontSize: 20,
         fontWeight: FontWeight.w600,
+        fontSize: 14,
       ),
-      titleMedium: TextStyle(
-        color: LockedInColors.foreground,
-        fontSize: 15,
-        fontWeight: FontWeight.w600,
-      ),
-      labelLarge: TextStyle(
-        color: LockedInColors.foreground,
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.4,
-      ),
-      labelSmall: TextStyle(
-        color: LockedInColors.muted,
-        fontSize: 10,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 1.2,
-      ),
+      labelLarge: LockedInType.label.copyWith(color: LockedInColors.foreground),
+      labelSmall: LockedInType.micro.copyWith(color: LockedInColors.muted),
     ),
+    // Chrome is square with a hairline; only floating layers get a radius
+    // (`desktop/docs/redesign.md` §3.1).
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: LockedInColors.panel,
-      hintStyle: TextStyle(color: LockedInColors.muted, fontSize: 14),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      fillColor: LockedInColors.surface,
+      hintStyle: LockedInType.body.copyWith(color: LockedInColors.muted),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: Space.sm,
+        vertical: Space.xs,
+      ),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.control),
         borderSide: BorderSide(color: LockedInColors.line),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.control),
         borderSide: BorderSide(color: LockedInColors.line),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: LockedInColors.primary),
+        borderRadius: const BorderRadius.all(Radius.circular(Radii.control)),
+        borderSide: BorderSide(
+          color: LockedInColors.primary,
+          width: Stroke.hairline,
+        ),
       ),
     ),
     scrollbarTheme: ScrollbarThemeData(
@@ -419,13 +410,43 @@ ThemeData lockedInTheme() {
       style: FilledButton.styleFrom(
         backgroundColor: LockedInColors.primary,
         foregroundColor: onPrimary,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        textStyle: LockedInType.key,
+        padding: const EdgeInsets.symmetric(
+          horizontal: Space.md,
+          vertical: Space.xs + Space.hair,
+        ),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(Radii.control)),
+        ),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(foregroundColor: LockedInColors.secondary),
+      style: TextButton.styleFrom(
+        foregroundColor: LockedInColors.secondary,
+        textStyle: LockedInType.label,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(Radii.control)),
+        ),
+      ),
     ),
-    iconTheme: IconThemeData(color: LockedInColors.secondary, size: 18),
+    // One dialog shape for every confirm, picker and settings sheet: square,
+    // one hairline, no elevation — the same frame as the palette and the
+    // leader, so a floating layer looks the same wherever it opens.
+    dialogTheme: DialogThemeData(
+      backgroundColor: LockedInColors.surface,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.all(Radius.circular(Radii.control)),
+        side: BorderSide(color: LockedInColors.line, width: Stroke.hairline),
+      ),
+      titleTextStyle: LockedInType.title.copyWith(
+        color: LockedInColors.foreground,
+        fontSize: 15,
+      ),
+      contentTextStyle: LockedInType.proseSmall.copyWith(
+        color: LockedInColors.secondary,
+      ),
+    ),
+    iconTheme: IconThemeData(color: LockedInColors.secondary, size: 16),
   );
 }

@@ -222,7 +222,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('knowledge-scope-school')),
-        matching: find.byIcon(Icons.check),
+        matching: find.textContaining('✓'),
       ),
       findsOneWidget,
     );
@@ -290,7 +290,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('knowledge-scope-school')),
-        matching: find.byIcon(Icons.check),
+        matching: find.textContaining('✓'),
       ),
       findsOneWidget,
     );

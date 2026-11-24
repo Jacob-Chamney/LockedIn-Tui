@@ -5,6 +5,7 @@ import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 
 /// The Work pending-approval surface.
 ///
@@ -410,7 +411,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
             padding: const EdgeInsets.fromLTRB(12, 8, 6, 10),
             decoration: BoxDecoration(
               color: LockedInColors.surface,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(Radii.control),
               border: Border.all(color: tone.withValues(alpha: 0.6)),
             ),
             child: Column(
@@ -461,7 +462,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: LockedInColors.background,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(Radii.control),
                       border: Border.all(color: LockedInColors.line),
                     ),
                     child: SingleChildScrollView(
@@ -621,7 +622,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             decoration: BoxDecoration(
               color: LockedInColors.surface,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(Radii.control),
               border: Border.all(color: LockedInColors.line),
             ),
             child: Column(
@@ -697,7 +698,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
         decoration: BoxDecoration(
           color: selected ? LockedInColors.panel : LockedInColors.surface,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(Radii.control),
           border: Border.all(
             color: selected
                 ? LockedInColors.primary.withValues(alpha: 0.5)
@@ -831,7 +832,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
       padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Scrollbar(
@@ -874,9 +875,9 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
       color: focused && enabled
           ? LockedInColors.primary.withValues(alpha: 0.10)
           : Colors.transparent,
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: BorderRadius.circular(Radii.control),
       child: InkWell(
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         onTap: enabled ? () => _toggleHunkAt(write, hunk.index) : null,
         child: Row(
           children: [
@@ -933,7 +934,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
         decoration: BoxDecoration(
           color: selected ? LockedInColors.panel : LockedInColors.surface,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(Radii.control),
           border: Border.all(
             color: selected
                 ? LockedInColors.primary.withValues(alpha: 0.5)
@@ -979,7 +980,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
               padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
               decoration: BoxDecoration(
                 color: LockedInColors.background,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(Radii.control),
                 border: Border.all(color: LockedInColors.line),
               ),
               child: command.argv.isEmpty
@@ -1101,7 +1102,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.error),
       ),
       child: Row(
@@ -1194,7 +1195,7 @@ class _Chip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: maxWidth == null
