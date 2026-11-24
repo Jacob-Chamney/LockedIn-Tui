@@ -8,7 +8,7 @@ to stderr.
 
 ```json
 → {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol":1,"client":"flutter"}}
-← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","chat.snapshot","chat.send","chat.cancel","session.chat.snapshot","session.chat.send","session.chat.cancel","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","keybinds.get","keybinds.set","work.list","work.open","work.create","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read"]}}
+← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","chat.snapshot","chat.send","chat.cancel","session.chat.snapshot","session.chat.send","session.chat.cancel","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","keybinds.get","keybinds.set","work.list","work.open","work.create","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","teach.state","teach.measure","teach.step","teach.check","teach.practice","teach.practice.result","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read"]}}
 ```
 
 - `protocol` is an integer. A mismatch is a blocking shell error, not a retry.
@@ -2276,7 +2276,7 @@ it never parses model prose to guess.
 The record lives at `skills/goals/<id>/teaching.json` (atomic replace):
 
 ```json
-{"schema":1,"state":{"schema":1,"goal":"…","prior":"…","measuredAt":"…","held":["…"],"gaps":["…"],"plan":[{"id":"step-1","title":"…"}]},"current":{"stepId":"step-1","prose":"…","question":"…"},"checks":[{"stepId":"step-1","verdict":"correct","correction":"…","at":"…"}]}
+{"schema":1,"state":{"schema":1,"goal":"…","prior":"…","measuredAt":"…","held":["…"],"gaps":["…"],"plan":[{"id":"step-1","title":"…"}]},"current":{"stepId":"step-1","prose":"…","question":"…"},"checks":[{"stepId":"step-1","verdict":"correct","correction":"…","at":"…"}],"practice":{"problems":[{"id":"practice-1","prompt":"…","answer":"…"}],"attempts":[{"problemId":"practice-1","verdict":"solved","at":"…"}],"generatedAt":"…"}}
 ```
 
 - `teach.state` `{goalId}` → `{record}` — the record, or `null` before a measure.
@@ -2292,6 +2292,20 @@ The record lives at `skills/goals/<id>/teaching.json` (atomic replace):
   nextIndex, total}` — one verdict (`correct` | `partial` | `incorrect`) and one
   correction. `correct` passes the step and clears the open one, so the next
   `teach.step` moves on; anything else keeps it open for a repair.
+- `teach.practice` `{goalId}` → `{record, problems}` — the fourth phase. One
+  model call, no retry: 1–5 problems that state a situation and ask for an
+  outcome, each with an `answer` that is a **criterion**, never a worked
+  solution. The prompt forbids naming the idea, the lesson or the step, so the
+  learner has to bring it to mind. Only steps that passed a check are practised:
+  with nothing held the reply is one `{kind:"teaching"}` refusal,
+  `teach a step and pass its check before practising`. The set is stored under
+  `teaching.practice`; regenerating keeps attempts whose problem ids survive.
+- `teach.practice.result` `{goalId, problemId, verdict}` → `{record, verdict,
+  solved, missed, total}` — `solved` or `missed`, one attempt per problem (a
+  second answer replaces the first rather than stacking), and the counts for the
+  set. It never touches the step checks: practice is a different claim from "the
+  step landed", and the two must not overwrite each other. An unknown problem id
+  is one `{kind:"teaching"}` refusal naming it.
 
 Limits are enforced by refusal, not truncation, in `src/domain/teaching.ts`:
 goal ≤ 140 chars, held/gap items ≤ 120 (≤ 8 held, ≤ 4 gaps), 3–8 plan steps,
