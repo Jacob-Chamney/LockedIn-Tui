@@ -2578,6 +2578,11 @@ class TeachingState {
     required this.plan,
     required this.checks,
     this.current,
+    this.practice = const TeachingPractice(
+      problems: [],
+      solved: {},
+      missed: {},
+    ),
   });
 
   /// The record a session has before it is measured.
@@ -2607,6 +2612,9 @@ class TeachingState {
 
   /// The step on screen, when one is open.
   final TeachingStepBody? current;
+
+  /// The practice set, once generated.
+  final TeachingPractice practice;
 
   bool get measured => plan.isNotEmpty;
 
@@ -2662,6 +2670,11 @@ class TeachingState {
               Map<String, dynamic>.from(json['current'] as Map),
             )
           : null,
+      practice: TeachingPractice.fromJson(
+        json['practice'] is Map
+            ? Map<String, dynamic>.from(json['practice'] as Map)
+            : null,
+      ),
     );
   }
 }
@@ -2706,6 +2719,77 @@ class TeachingCheckRecord {
             ? json['correction'] as String
             : '',
       );
+}
+
+/// One practice problem: a task and a criterion to judge against.
+class TeachingProblem {
+  const TeachingProblem({
+    required this.id,
+    required this.prompt,
+    required this.answer,
+  });
+
+  final String id;
+  final String prompt;
+  final String answer;
+
+  static TeachingProblem fromJson(Map<String, dynamic> json) => TeachingProblem(
+    id: json['id'] is String ? json['id'] as String : '',
+    prompt: json['prompt'] is String ? json['prompt'] as String : '',
+    answer: json['answer'] is String ? json['answer'] as String : '',
+  );
+}
+
+/// The practice set and what has been answered in it.
+class TeachingPractice {
+  const TeachingPractice({
+    required this.problems,
+    required this.solved,
+    required this.missed,
+  });
+
+  final List<TeachingProblem> problems;
+
+  /// Problem ids answered `solved`.
+  final Set<String> solved;
+
+  /// Problem ids answered `missed`.
+  final Set<String> missed;
+
+  bool get empty => problems.isEmpty;
+
+  static TeachingPractice fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return const TeachingPractice(problems: [], solved: {}, missed: {});
+    }
+    final problems = json['problems'] is List
+        ? (json['problems'] as List)
+              .whereType<Map>()
+              .map(
+                (row) =>
+                    TeachingProblem.fromJson(Map<String, dynamic>.from(row)),
+              )
+              .where((problem) => problem.id.isNotEmpty)
+              .toList(growable: false)
+        : const <TeachingProblem>[];
+    final solved = <String>{};
+    final missed = <String>{};
+    if (json['attempts'] is List) {
+      for (final row in json['attempts'] as List) {
+        if (row is! Map) continue;
+        final id = row['problemId'];
+        if (id is! String) continue;
+        if (row['verdict'] == 'solved') {
+          solved.add(id);
+          missed.remove(id);
+        } else if (row['verdict'] == 'missed') {
+          missed.add(id);
+          solved.remove(id);
+        }
+      }
+    }
+    return TeachingPractice(problems: problems, solved: solved, missed: missed);
+  }
 }
 
 /// The verdict of one answer (`teach.check`).

@@ -12,7 +12,9 @@ import {
   checkPrompt,
   measurePrompt,
   parseCheck,
+  practicePrompt,
   parseMeasure,
+  parsePractice,
   parseStep,
   stepPrompt,
   wordCount,
@@ -187,5 +189,57 @@ describe("prompt shaping", () => {
   test("wordCount counts whitespace, not characters", () => {
     expect(wordCount("  one two   three ")).toBe(3);
     expect(wordCount("")).toBe(0);
+  });
+});
+
+describe("parsePractice", () => {
+  const ok = JSON.stringify({
+    problems: [
+      { prompt: "A value is written then read back. What must the writer have kept?", answer: "Its address." },
+      { prompt: "Two orders of the same writes disagree. Which one is the program relying on?", answer: "The earlier one." },
+    ],
+  });
+
+  test("accepts a set and numbers the problems", () => {
+    const result = parsePractice(ok);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.problems.map((problem) => problem.id)).toEqual(["practice-1", "practice-2"]);
+    expect(result.problems[0]!.answer).toBe("Its address.");
+  });
+
+  test("caps the set and the length of each field", () => {
+    const many = JSON.stringify({
+      problems: Array.from({ length: 12 }, () => ({ prompt: "p ".repeat(200), answer: "a" })),
+    });
+    const result = parsePractice(many);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.problems).toHaveLength(TEACHING_LIMITS.problems);
+    for (const problem of result.problems) {
+      expect(problem.prompt.length).toBeLessThanOrEqual(TEACHING_LIMITS.problemChars);
+      expect(problem.answer.length).toBeLessThanOrEqual(TEACHING_LIMITS.answerChars);
+    }
+  });
+
+  test("an empty or unparseable set is one refusal", () => {
+    for (const raw of ['{"problems":[]}', '{"problems":[{"prompt":"x"}]}', "no json here"]) {
+      const result = parsePractice(raw);
+      expect(result.ok).toBe(false);
+      if (result.ok) continue;
+      expect(result.error.kind).toBe("malformed");
+    }
+  });
+
+  test("the practice prompt forbids naming the idea", () => {
+    const prompt = practicePrompt({
+      goal: "read disassembly",
+      held: ["registers hold state"],
+      taught: ["A call pushes a return address"],
+    });
+    expect(prompt).toContain("A call pushes a return address");
+    expect(prompt).toContain("Do not name the idea");
+    expect(prompt).toContain(String(TEACHING_LIMITS.problems));
+    expect(prompt).toContain("JSON only");
   });
 });

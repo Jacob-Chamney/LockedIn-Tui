@@ -172,7 +172,9 @@ import {
   measurePrompt,
   parseCheck,
   parseMeasure,
+  parsePractice,
   parseStep,
+  practicePrompt,
   stepPrompt,
 } from "../domain/teaching";
 import {
@@ -304,6 +306,8 @@ export const CAPABILITIES = [
   "teach.measure",
   "teach.step",
   "teach.check",
+  "teach.practice",
+  "teach.practice.result",
   "skill.sources.list",
   "skill.sources.add",
   "skill.chat.list",
@@ -8161,6 +8165,125 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     });
   };
 
+  /**
+   * Build a practice set from what the lesson has established
+   * (`desktop/docs/redesign.md` §2.1, the fourth phase).
+   *
+   * One model call, no retry. Only steps with a passing check are *taught*, so
+   * a session cannot practise what it never landed. A prompt that names the
+   * idea is a quiz, not practice; the prompt in `src/domain/teaching.ts` says so
+   * and the reply is validated for shape, not for wording.
+   */
+  const teachPractice = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const goalId = typeof params.goalId === "string" ? params.goalId.trim() : "";
+    if (goalId === "") return invalid(id, "teach.practice requires a goal id");
+
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const generate = current.value.generate;
+    if (!generate) return teachNoModel(id, goalId);
+
+    const folder = goalFolderFor(current.value.workspace, goalId);
+    const loaded = await readTeaching(folder);
+    if (!loaded.ok) return teachFailure(id, goalId, loaded.error.message);
+    const record = loaded.value;
+    if (record === null) {
+      return teachFailure(id, goalId, "this session has not been measured yet; measure it first");
+    }
+    const passed = new Set(
+      record.checks.filter((check) => check.verdict === "correct").map((check) => check.stepId),
+    );
+    const taught = record.state.plan.filter((step) => passed.has(step.id)).map((step) => step.title);
+    if (taught.length === 0) {
+      return teachFailure(
+        id,
+        goalId,
+        "nothing is held yet: teach a step and pass its check before practising",
+      );
+    }
+
+    let raw: string;
+    try {
+      raw = await generate(
+        practicePrompt({ goal: record.state.goal, held: record.state.held, taught }),
+      );
+    } catch (error) {
+      return teachFailure(id, goalId, oneLine(messageOf(error)));
+    }
+    const parsed = parsePractice(raw);
+    if (!parsed.ok) return teachFailure(id, goalId, parsed.error.message);
+
+    // A new set keeps the attempts that still name a problem in it, so a
+    // regenerated set does not silently reset what was already solved.
+    const next: TeachingRecord = {
+      ...record,
+      practice: {
+        problems: parsed.problems,
+        attempts: (record.practice?.attempts ?? []).filter((attempt) =>
+          parsed.problems.some((problem) => problem.id === attempt.problemId),
+        ),
+        generatedAt: new Date().toISOString(),
+      },
+    };
+    const written = await writeTeaching(folder, next);
+    if (!written.ok) return teachFailure(id, goalId, written.error.message);
+    return success(id, { record: next, problems: parsed.problems });
+  };
+
+  /**
+   * Record one practice verdict (`solved` or `missed`).
+   *
+   * A miss is kept on the record and counted in the reply, so the surface can
+   * say how many still need work; it is deliberately not retried and does not
+   * touch the step checks — practice is a different claim from "the step
+   * landed".
+   */
+  const teachPracticeResult = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const goalId = typeof params.goalId === "string" ? params.goalId.trim() : "";
+    if (goalId === "") return invalid(id, "teach.practice.result requires a goal id");
+    const problemId = typeof params.problemId === "string" ? params.problemId.trim() : "";
+    if (problemId === "") return invalid(id, "teach.practice.result requires a problem id");
+    const verdict = params.verdict;
+    if (verdict !== "solved" && verdict !== "missed") {
+      return invalid(id, 'teach.practice.result requires verdict "solved" or "missed"');
+    }
+
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const folder = goalFolderFor(current.value.workspace, goalId);
+    const loaded = await readTeaching(folder);
+    if (!loaded.ok) return teachFailure(id, goalId, loaded.error.message);
+    const record = loaded.value;
+    if (record === null || record.practice === undefined) {
+      return teachFailure(id, goalId, "there is no practice set yet; generate one first");
+    }
+    if (!record.practice.problems.some((problem) => problem.id === problemId)) {
+      return teachFailure(id, goalId, `there is no practice problem "${problemId}" in this set`);
+    }
+
+    const attempt = { problemId, verdict, at: new Date().toISOString() } as const;
+    const attempts = [
+      ...record.practice.attempts.filter((entry) => entry.problemId !== problemId),
+      attempt,
+    ];
+    const next: TeachingRecord = { ...record, practice: { ...record.practice, attempts } };
+    const written = await writeTeaching(folder, next);
+    if (!written.ok) return teachFailure(id, goalId, written.error.message);
+    return success(id, {
+      record: next,
+      verdict,
+      solved: attempts.filter((entry) => entry.verdict === "solved").length,
+      missed: attempts.filter((entry) => entry.verdict === "missed").length,
+      total: record.practice.problems.length,
+    });
+  };
+
   /** One teaching refusal: no retry, the core's own sentence. */
   const teachFailure = (id: RpcId, goalId: string, message: string): JsonRpcResponse =>
     failure(id, BOOT_FAILED, message, { kind: "teaching", goalId, message }, false);
@@ -10302,6 +10425,10 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         return teachStep(id, params);
       case "teach.check":
         return teachCheck(id, params);
+      case "teach.practice":
+        return teachPractice(id, params);
+      case "teach.practice.result":
+        return teachPracticeResult(id, params);
       case "skill.chat.list":
         return skillChatList(id, params);
       case "skill.chat.open":
