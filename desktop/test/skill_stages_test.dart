@@ -121,6 +121,10 @@ void main() {
 
     final button = find.byKey(const ValueKey('skill-build-lesson'));
     expect(button, findsOneWidget);
+    // The teaching loop leads the page now, so the stage card is below the fold
+    // at 900x700; a real user scrolls to it.
+    await tester.ensureVisible(button);
+    await tester.pumpAndSettle();
     await tester.tap(button);
     await tester.pumpAndSettle();
 

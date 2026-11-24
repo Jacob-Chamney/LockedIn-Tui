@@ -2551,6 +2551,191 @@ class SkillSourceRow {
 /// so the stage list is the only place a stage id comes from. [status] is
 /// `pending`, `active` or `done`; [milestone] is absent when the goal stores an
 /// empty one.
+/// One step of a teaching plan (`teach.state` / `teach.measure`).
+class TeachingStep {
+  const TeachingStep({required this.id, required this.title});
+
+  final String id;
+  final String title;
+
+  static TeachingStep fromJson(Map<String, dynamic> json) => TeachingStep(
+    id: json['id'] is String ? json['id'] as String : '',
+    title: json['title'] is String ? json['title'] as String : '',
+  );
+}
+
+/// The teaching record the core stores beside a goal.
+///
+/// `desktop/docs/redesign.md` §2.1: the measure makes both knowledge states
+/// concrete — what is held, and the concrete goal — and the plan is the route
+/// between them. The UI renders these fields; it never parses prose to guess.
+class TeachingState {
+  const TeachingState({
+    required this.goal,
+    required this.prior,
+    required this.held,
+    required this.gaps,
+    required this.plan,
+    required this.checks,
+    this.current,
+  });
+
+  /// The record a session has before it is measured.
+  static const empty = TeachingState(
+    goal: '',
+    prior: '',
+    held: [],
+    gaps: [],
+    plan: [],
+    checks: [],
+  );
+
+  final String goal;
+  final String prior;
+
+  /// What the learner is taken to hold: the plan's starting points.
+  final List<String> held;
+
+  /// Where the measurement could not decide.
+  final List<String> gaps;
+
+  /// The minimal route from held to goal.
+  final List<TeachingStep> plan;
+
+  /// Completed checks, newest last.
+  final List<TeachingCheckRecord> checks;
+
+  /// The step on screen, when one is open.
+  final TeachingStepBody? current;
+
+  bool get measured => plan.isNotEmpty;
+
+  /// The index of the step to teach: the first without a passing check.
+  int get nextIndex {
+    final passed = checks
+        .where((check) => check.verdict == 'correct')
+        .map((check) => check.stepId)
+        .toSet();
+    final index = plan.indexWhere((step) => !passed.contains(step.id));
+    return index == -1 ? plan.length : index;
+  }
+
+  int get passedCount => plan.where((step) => _passed(step.id)).length;
+
+  bool _passed(String id) =>
+      checks.any((check) => check.stepId == id && check.verdict == 'correct');
+
+  static TeachingState fromJson(Map<String, dynamic> json) {
+    final state = json['state'] is Map
+        ? Map<String, dynamic>.from(json['state'] as Map)
+        : const <String, dynamic>{};
+    List<String> strings(Object? value) => value is List
+        ? value.whereType<String>().toList(growable: false)
+        : const <String>[];
+    return TeachingState(
+      goal: state['goal'] is String ? state['goal'] as String : '',
+      prior: state['prior'] is String ? state['prior'] as String : '',
+      held: strings(state['held']),
+      gaps: strings(state['gaps']),
+      plan: state['plan'] is List
+          ? (state['plan'] as List)
+                .whereType<Map>()
+                .map(
+                  (row) =>
+                      TeachingStep.fromJson(Map<String, dynamic>.from(row)),
+                )
+                .where((step) => step.id.isNotEmpty)
+                .toList(growable: false)
+          : const [],
+      checks: json['checks'] is List
+          ? (json['checks'] as List)
+                .whereType<Map>()
+                .map(
+                  (row) => TeachingCheckRecord.fromJson(
+                    Map<String, dynamic>.from(row),
+                  ),
+                )
+                .toList(growable: false)
+          : const [],
+      current: json['current'] is Map
+          ? TeachingStepBody.fromJson(
+              Map<String, dynamic>.from(json['current'] as Map),
+            )
+          : null,
+    );
+  }
+}
+
+/// The open step: its prose and its check.
+class TeachingStepBody {
+  const TeachingStepBody({
+    required this.stepId,
+    required this.prose,
+    required this.question,
+  });
+
+  final String stepId;
+  final String prose;
+  final String question;
+
+  static TeachingStepBody fromJson(Map<String, dynamic> json) =>
+      TeachingStepBody(
+        stepId: json['stepId'] is String ? json['stepId'] as String : '',
+        prose: json['prose'] is String ? json['prose'] as String : '',
+        question: json['question'] is String ? json['question'] as String : '',
+      );
+}
+
+/// One completed check.
+class TeachingCheckRecord {
+  const TeachingCheckRecord({
+    required this.stepId,
+    required this.verdict,
+    required this.correction,
+  });
+
+  final String stepId;
+  final String verdict;
+  final String correction;
+
+  static TeachingCheckRecord fromJson(Map<String, dynamic> json) =>
+      TeachingCheckRecord(
+        stepId: json['stepId'] is String ? json['stepId'] as String : '',
+        verdict: json['verdict'] is String ? json['verdict'] as String : '',
+        correction: json['correction'] is String
+            ? json['correction'] as String
+            : '',
+      );
+}
+
+/// The verdict of one answer (`teach.check`).
+class TeachingCheckResult {
+  const TeachingCheckResult({
+    required this.verdict,
+    required this.correction,
+    required this.passed,
+    required this.nextIndex,
+    required this.total,
+  });
+
+  final String verdict;
+  final String correction;
+  final bool passed;
+  final int nextIndex;
+  final int total;
+
+  static TeachingCheckResult fromJson(Map<String, dynamic> json) =>
+      TeachingCheckResult(
+        verdict: json['verdict'] is String ? json['verdict'] as String : '',
+        correction: json['correction'] is String
+            ? json['correction'] as String
+            : '',
+        passed: json['passed'] == true,
+        nextIndex: json['nextIndex'] is int ? json['nextIndex'] as int : 0,
+        total: json['total'] is int ? json['total'] as int : 0,
+      );
+}
+
 class SkillStage {
   const SkillStage({
     required this.id,

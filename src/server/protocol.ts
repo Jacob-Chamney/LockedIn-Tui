@@ -167,6 +167,20 @@ import {
 import { restoreSession } from "../services/lockin/archive";
 import { createLockInSession } from "../services/lockin/create";
 import { sessionContextReport } from "../services/lockin/context";
+import {
+  checkPrompt,
+  measurePrompt,
+  parseCheck,
+  parseMeasure,
+  parseStep,
+  stepPrompt,
+} from "../domain/teaching";
+import {
+  nextStepIndex,
+  readTeaching,
+  writeTeaching,
+  type TeachingRecord,
+} from "../services/teaching/store";
 import { normalisePoint, readMemory, recordTurn, type Memory, type TurnOutcome } from "../services/lockin/memory";
 import { extract } from "../services/extract/index";
 import {
@@ -286,6 +300,10 @@ export const CAPABILITIES = [
   "skill.export",
   "skill.lesson.build",
   "skill.lesson.read",
+  "teach.state",
+  "teach.measure",
+  "teach.step",
+  "teach.check",
   "skill.sources.list",
   "skill.sources.add",
   "skill.chat.list",
@@ -7925,6 +7943,235 @@ export function createCoreServer(options: CoreOptions): CoreServer {
   };
 
   /* ------------------------------------------------------------------------ */
+  /* Teaching (phase D)                                                       */
+  /* ------------------------------------------------------------------------ */
+
+  /**
+   * The teaching record, or null when the session has not been measured.
+   *
+   * Read-only: it opens `teaching.json` and nothing else, so a reader can ask
+   * on every render without a write behind it.
+   */
+  const teachState = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const goalId = typeof params.goalId === "string" ? params.goalId.trim() : "";
+    if (goalId === "") return invalid(id, "teach.state requires a goal id");
+
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const folder = goalFolderFor(current.value.workspace, goalId);
+    const meta = await readGoalMeta(folder);
+    if (!meta.ok) return teachGoalFailure(id, goalId, meta.error.message);
+
+    const record = await readTeaching(folder);
+    if (!record.ok) return teachFailure(id, goalId, record.error.message);
+    return success(id, { record: record.value });
+  };
+
+  /**
+   * Measure the learner and plan the route (`desktop/docs/redesign.md` §2.1).
+   *
+   * One model call, no retry. The reply is validated against the contract in
+   * `src/domain/teaching.ts` — a reply with no held propositions or fewer than
+   * three steps is refused with the reason, because a plan built on a guess is
+   * worse than no plan. The result is written atomically to the goal folder.
+   */
+  const teachMeasure = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const goalId = typeof params.goalId === "string" ? params.goalId.trim() : "";
+    if (goalId === "") return invalid(id, "teach.measure requires a goal id");
+    if (params.prior !== undefined && typeof params.prior !== "string") {
+      return invalid(id, "teach.measure: prior must be a string");
+    }
+
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const generate = current.value.generate;
+    if (!generate) return teachNoModel(id, goalId);
+
+    const folder = goalFolderFor(current.value.workspace, goalId);
+    const meta = await readGoalMeta(folder);
+    if (!meta.ok) return teachGoalFailure(id, goalId, meta.error.message);
+
+    const { meta: goalMeta, goal: goalRecord } = meta.value;
+    const name =
+      typeof goalMeta.name === "string" && goalMeta.name.trim() !== "" ? goalMeta.name : goalId;
+    const priorParam = typeof params.prior === "string" ? params.prior : "";
+    const prior =
+      priorParam.trim() !== ""
+        ? priorParam.trim()
+        : [goalRecord.statement, goalRecord.level].filter((part) => part.trim() !== "").join(" · ");
+    // Only a source with a saved excerpt is material; anything else would be a
+    // summary the model wrote for itself.
+    const sources = (lessonSourceLines(goalMeta) ?? []).map((source) => ({
+      name: source.name,
+      text: source.excerpt,
+    }));
+    let raw: string;
+    try {
+      raw = await generate(measurePrompt({ goal: name, prior, sources }));
+    } catch (error) {
+      return teachFailure(id, goalId, oneLine(messageOf(error)));
+    }
+
+    const parsed = parseMeasure(raw, prior, new Date().toISOString());
+    if (!parsed.ok) return teachFailure(id, goalId, parsed.error.message);
+
+    const record: TeachingRecord = {
+      schema: 1,
+      state: parsed.state,
+      checks: [],
+    };
+    const written = await writeTeaching(folder, record);
+    if (!written.ok) return teachFailure(id, goalId, written.error.message);
+    return success(id, { record });
+  };
+
+  /**
+   * Teach the next step: one idea, then one check.
+   *
+   * `teach.step` is idempotent while a step is open — the same record is
+   * returned until a check passes it — so a UI that re-asks on every render
+   * does not spend a call per frame. Pass `again: true` to ask for a different
+   * wording of the same step.
+   */
+  const teachStep = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const goalId = typeof params.goalId === "string" ? params.goalId.trim() : "";
+    if (goalId === "") return invalid(id, "teach.step requires a goal id");
+    if (params.again !== undefined && typeof params.again !== "boolean") {
+      return invalid(id, "teach.step: again must be a boolean");
+    }
+
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const generate = current.value.generate;
+    if (!generate) return teachNoModel(id, goalId);
+
+    const folder = goalFolderFor(current.value.workspace, goalId);
+    const loaded = await readTeaching(folder);
+    if (!loaded.ok) return teachFailure(id, goalId, loaded.error.message);
+    const record = loaded.value;
+    if (record === null) {
+      return teachFailure(id, goalId, "this session has not been measured yet; measure it first");
+    }
+
+    const index = nextStepIndex(record);
+    if (index >= record.state.plan.length) {
+      return success(id, { record, step: null, index, total: record.state.plan.length });
+    }
+    const plan = record.state.plan[index]!;
+    const open = record.current;
+    if (open !== undefined && open.stepId === plan.id && params.again !== true) {
+      return success(id, { record, step: open, index, total: record.state.plan.length });
+    }
+
+    let raw: string;
+    try {
+      raw = await generate(
+        stepPrompt({
+          goal: record.state.goal,
+          held: record.state.held,
+          plan: record.state.plan,
+          stepIndex: index,
+        }),
+      );
+    } catch (error) {
+      return teachFailure(id, goalId, oneLine(messageOf(error)));
+    }
+    const parsed = parseStep(raw, plan.id);
+    if (!parsed.ok) return teachFailure(id, goalId, parsed.error.message);
+
+    const next: TeachingRecord = { ...record, current: parsed.step };
+    const written = await writeTeaching(folder, next);
+    if (!written.ok) return teachFailure(id, goalId, written.error.message);
+    return success(id, { record: next, step: parsed.step, index, total: next.state.plan.length });
+  };
+
+  /**
+   * Mark the open step's answer (`desktop/docs/redesign.md` §2.2, §5).
+   *
+   * One verdict, one correction. A `correct` verdict passes the step and clears
+   * the open one, so `teach.step` moves on; anything else keeps the step open
+   * for a repair, which is the loop the method asks for — "a step that did not
+   * land is found the moment it is stepped on".
+   */
+  const teachCheck = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const goalId = typeof params.goalId === "string" ? params.goalId.trim() : "";
+    if (goalId === "") return invalid(id, "teach.check requires a goal id");
+    if (typeof params.answer !== "string") {
+      return invalid(id, "teach.check requires an answer");
+    }
+
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const generate = current.value.generate;
+    if (!generate) return teachNoModel(id, goalId);
+
+    const folder = goalFolderFor(current.value.workspace, goalId);
+    const loaded = await readTeaching(folder);
+    if (!loaded.ok) return teachFailure(id, goalId, loaded.error.message);
+    const record = loaded.value;
+    if (record === null || record.current === undefined) {
+      return teachFailure(id, goalId, "there is no step open to check; ask for the next step first");
+    }
+
+    let raw: string;
+    try {
+      raw = await generate(checkPrompt({ step: record.current, answer: params.answer }));
+    } catch (error) {
+      return teachFailure(id, goalId, oneLine(messageOf(error)));
+    }
+    const parsed = parseCheck(raw);
+    if (!parsed.ok) return teachFailure(id, goalId, parsed.error.message);
+
+    const verdict = parsed.check;
+    const passed = verdict.verdict === "correct";
+    const next: TeachingRecord = {
+      ...record,
+      ...(passed ? { current: undefined } : {}),
+      checks: [
+        ...record.checks,
+        {
+          stepId: record.current.stepId,
+          verdict: verdict.verdict,
+          correction: verdict.correction,
+          at: new Date().toISOString(),
+        },
+      ],
+    };
+    const written = await writeTeaching(folder, next);
+    if (!written.ok) return teachFailure(id, goalId, written.error.message);
+    return success(id, {
+      record: next,
+      verdict: verdict.verdict,
+      correction: verdict.correction,
+      passed,
+      nextIndex: nextStepIndex(next),
+      total: next.state.plan.length,
+    });
+  };
+
+  /** One teaching refusal: no retry, the core's own sentence. */
+  const teachFailure = (id: RpcId, goalId: string, message: string): JsonRpcResponse =>
+    failure(id, BOOT_FAILED, message, { kind: "teaching", goalId, message }, false);
+
+  const teachGoalFailure = (id: RpcId, goalId: string, message: string): JsonRpcResponse =>
+    failure(id, BOOT_FAILED, oneLine(message), { kind: "skill", id: goalId, message: oneLine(message) }, false);
+
+  const teachNoModel = (id: RpcId, goalId: string): JsonRpcResponse =>
+    teachFailure(id, goalId, "link a model in Settings → Providers");
+
+  /* ------------------------------------------------------------------------ */
   /* Skill chat (T-021)                                                       */
   /* ------------------------------------------------------------------------ */
 
@@ -10047,6 +10294,14 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         return skillSourcesList(id, params);
       case "skill.sources.add":
         return skillSourcesAdd(id, params);
+      case "teach.state":
+        return teachState(id, params);
+      case "teach.measure":
+        return teachMeasure(id, params);
+      case "teach.step":
+        return teachStep(id, params);
+      case "teach.check":
+        return teachCheck(id, params);
       case "skill.chat.list":
         return skillChatList(id, params);
       case "skill.chat.open":

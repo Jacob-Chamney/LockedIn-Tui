@@ -7,6 +7,7 @@ import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 import '../shared/cards.dart';
 
 /// The Skills surface: the goals in the skills store, one row each.
@@ -426,7 +427,7 @@ class _SkillsPageState extends State<SkillsPage> {
         Container(width: 3, height: 14, color: LockedInColors.primary),
         const SizedBox(width: 8),
         Text(
-          'SKILLS',
+          'TEACHING',
           style: theme.textTheme.labelSmall?.copyWith(
             color: LockedInColors.secondary,
             fontSize: 11,
@@ -621,14 +622,14 @@ class _SkillRowTile extends StatelessWidget {
     final theme = Theme.of(context);
     return Material(
       color: selected ? LockedInColors.panel : LockedInColors.surface,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(Radii.control),
       child: InkWell(
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.control),
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.fromLTRB(0, 10, 12, 10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(Radii.control),
             border: Border.all(
               color: selected
                   ? LockedInColors.primary.withValues(alpha: 0.5)
@@ -783,7 +784,7 @@ class _ArchivedBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Row(
@@ -874,7 +875,7 @@ class _BlockedState extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(
           color: LockedInColors.warning.withValues(alpha: 0.5),
         ),
@@ -912,7 +913,7 @@ class _ErrorState extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Column(
@@ -1137,7 +1138,7 @@ class _ActionBanner extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: color.withValues(alpha: 0.55)),
       ),
       child: Row(

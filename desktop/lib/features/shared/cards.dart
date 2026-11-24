@@ -1,11 +1,15 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../shell/chrome.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 
-/// A titled surface card: the shape every Work and Skills detail section uses.
+/// A titled section, in the shell's hairline style.
 ///
-/// Four files carried a byte-identical private `_Card` (41 lines), so a change
-/// to the radius or the label tracking had to be made four times.
+/// This was a rounded, filled card — the last Material shape in a shell that is
+/// now hairlines and type (`desktop/docs/redesign.md` §3.1). It delegates to
+/// [Panel], so a section on Teaching, Work or a lesson looks the same as one on
+/// the chat, and a change to the section chrome happens in one place.
 class SectionCard extends StatelessWidget {
   const SectionCard({
     super.key,
@@ -20,34 +24,11 @@ class SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      decoration: BoxDecoration(
-        color: LockedInColors.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: LockedInColors.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: LockedInColors.secondary,
-                  letterSpacing: 1.4,
-                ),
-              ),
-              const Spacer(),
-              ?trailing,
-            ],
-          ),
-          const SizedBox(height: 10),
-          child,
-        ],
-      ),
+    return Panel(
+      label: label,
+      trailing: trailing,
+      padding: const EdgeInsets.fromLTRB(0, Space.xs, 0, Space.sm),
+      child: child,
     );
   }
 }

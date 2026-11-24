@@ -37,7 +37,7 @@ void main() {
     await pumpShell(tester);
     await openSurface(tester, 3);
 
-    expect(find.text('SKILLS'), findsWidgets);
+    expect(find.text('TEACHING'), findsWidgets);
     expect(find.text('Read disassembly output'), findsOneWidget);
     expect(find.text('Rust ownership'), findsOneWidget);
     // The course row reports chapters; its stage count is not drawn.
@@ -54,11 +54,12 @@ void main() {
     await pumpShell(tester);
     await pressCtrlK(tester);
 
-    expect(inPalette('Skills'), findsOneWidget);
+    expect(inPalette('Teaching'), findsOneWidget);
 
-    await tester.enterText(find.byKey(const ValueKey('palette-search')), 'ski');
+    // The surface is `Teaching` now; `tea` is its prefix.
+    await tester.enterText(find.byKey(const ValueKey('palette-search')), 'tea');
     await tester.pumpAndSettle();
-    expect(inPalette('Skills'), findsOneWidget);
+    expect(inPalette('Teaching'), findsOneWidget);
     expect(inPalette('Sessions'), findsNothing);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -108,19 +109,20 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(store.activeSkillId, FakeCore.skillId);
-    expect(find.text('SKILL'), findsOneWidget);
+    expect(find.text('TEACHING'), findsOneWidget);
     expect(find.text('Read disassembly output confidently'), findsOneWidget);
     expect(find.text('I know a little C'), findsOneWidget);
     expect(find.text('COURSE'), findsOneWidget);
     expect(find.text('Where do I start?'), findsOneWidget);
-    expect(find.text('SKILLS'), findsNothing);
+    // The goal page's own status scope, not the list's title.
+    expect(find.text('TEACHING'), findsOneWidget);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
 
     expect(store.activeSkill, isNull);
     expect(find.text('Read disassembly output'), findsOneWidget);
-    expect(find.text('SKILLS'), findsWidgets);
+    expect(find.text('TEACHING'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
@@ -149,7 +151,7 @@ void main() {
 
     expect(store.activeSkillChapterId, 'ch-1');
     expect(store.activeSkillChapter?.practical, isFalse);
-    expect(find.text('SKILL CHAPTER'), findsOneWidget);
+    expect(find.text('CHAPTER'), findsOneWidget);
     expect(find.text('lesson'), findsOneWidget);
     expect(
       find.textContaining('Read the lesson for', findRichText: true),
@@ -160,7 +162,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(store.skillChapterOpen, isFalse);
-    expect(find.text('SKILL'), findsOneWidget);
+    expect(find.text('TEACHING'), findsOneWidget);
     expect(find.text('COURSE'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

@@ -400,7 +400,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('New skill goal'), findsOneWidget);
-      expect(find.text('NEW SKILL'), findsOneWidget);
+      expect(find.text('NEW SESSION'), findsOneWidget);
       expect(find.text('Tab next · Enter continue · Esc back'), findsOneWidget);
       expect(find.text('Read disassembly output'), findsNothing);
       expect(tester.takeException(), isNull);
@@ -420,7 +420,7 @@ void main() {
       expect(store.activeSkill?.goal, 'Bash scripting basics');
       // The shell swapped the wizard for the new goal's course index.
       expect(find.text('New skill goal'), findsNothing);
-      expect(find.text('SKILL'), findsOneWidget);
+      expect(find.text('TEACHING'), findsOneWidget);
       expect(find.text('plan · template'), findsOneWidget);
       expect(find.text('Getting started'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -440,7 +440,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('New skill goal'), findsNothing);
-      expect(find.text('SKILLS'), findsWidgets);
+      expect(find.text('TEACHING'), findsWidgets);
       expect(store.activeSkill, isNull);
       expect(core.skillCreates, isEmpty);
       expect(core.calls.where((call) => call == 'skill.create'), isEmpty);
@@ -461,7 +461,7 @@ void main() {
       await openSurface(tester, 1);
       await openSurface(tester, 3);
       expect(find.text('New skill goal'), findsNothing);
-      expect(find.text('SKILLS'), findsWidgets);
+      expect(find.text('TEACHING'), findsWidgets);
       expect(store.activeSkill, isNull);
 
       // An open goal survives the same round trip.
@@ -472,7 +472,7 @@ void main() {
       await openSurface(tester, 1);
       await openSurface(tester, 3);
       expect(store.activeSkillId, FakeCore.skillId);
-      expect(find.text('SKILL'), findsOneWidget);
+      expect(find.text('TEACHING'), findsOneWidget);
       expect(find.text('COURSE'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });

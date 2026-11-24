@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 import '../chat/document_search.dart';
 import '../chat/markdown.dart';
 import '../shared/format.dart';
@@ -430,7 +431,7 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Text(
@@ -495,7 +496,7 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Row(
@@ -524,7 +525,7 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Text(
@@ -651,7 +652,7 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
               decoration: BoxDecoration(
                 color: LockedInColors.panel,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(Radii.control),
                 border: Border.all(
                   color: LockedInColors.error.withValues(alpha: 0.55),
                 ),
@@ -727,7 +728,7 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
         color: LockedInColors.surface,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: tone.withValues(alpha: 0.45)),
       ),
       child: Row(
@@ -758,7 +759,7 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
       padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
       decoration: BoxDecoration(
         color: LockedInColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Row(

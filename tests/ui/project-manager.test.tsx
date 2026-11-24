@@ -234,7 +234,9 @@ describe("the registry", () => {
     } finally {
       await again.dispose()
     }
-  })
+    // A remount starts a renderer; the Windows CI runner needs more than the
+    // 5 s default before the frame reports the project.
+  }, 20_000)
 
   test("the archive flag is stored, not just painted", async () => {
     const { ui, ws, meta } = await withProject()

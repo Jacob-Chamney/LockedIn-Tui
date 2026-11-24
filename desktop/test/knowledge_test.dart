@@ -573,10 +573,12 @@ void main() {
     for (final scope in const ['all', 'school', 'skills', 'work']) {
       expect(find.byKey(ValueKey('knowledge-scope-$scope')), findsOneWidget);
     }
+    // The selected chip carries a tick glyph beside its label; the tick is the
+    // signal, so the state never rests on the accent fill alone.
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('knowledge-scope-school')),
-        matching: find.byIcon(Icons.check),
+        matching: find.textContaining('✓'),
       ),
       findsOneWidget,
     );

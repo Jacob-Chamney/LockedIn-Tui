@@ -114,7 +114,7 @@ void main() {
       const SkillsPage(skills: _skills, loading: false),
     );
 
-    expect(find.text('SKILLS'), findsOneWidget);
+    expect(find.text('TEACHING'), findsOneWidget);
     expect(find.text('Read disassembly output'), findsOneWidget);
     expect(find.text('Rust ownership'), findsOneWidget);
     // One model per row: the course shows chapters, the curriculum goal shows
@@ -212,10 +212,18 @@ void main() {
   ) async {
     await pumpSkillPage(tester, const SkillDetailView(detail: _detail));
 
+    // The session opens on TEACH. Measure holds the goal, plan holds the
+    // curriculum and the course — so the test walks the rail, which is also the
+    // new navigation worth asserting.
+    await tester.tap(find.byKey(const ValueKey('teach-phase-measure')));
+    await tester.pumpAndSettle();
     expect(find.text('GOAL'), findsOneWidget);
     expect(find.text('Read disassembly output confidently'), findsOneWidget);
     expect(find.text('I know a little C'), findsOneWidget);
     expect(find.text('plan · model'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('teach-phase-plan')));
+    await tester.pumpAndSettle();
     expect(find.text('COURSE'), findsOneWidget);
     expect(find.text('Getting started'), findsOneWidget);
     expect(find.text('Registers and memory'), findsOneWidget);
@@ -336,6 +344,11 @@ void main() {
       const SkillDetailView(detail: _detail),
       size: const Size(800, 600),
     );
+    // At 800x600 the rail compacts to a numbered strip; the goal is still one
+    // press away and nothing overflows.
+    expect(find.byKey(const ValueKey('teach-phase-measure')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('teach-phase-measure')));
+    await tester.pumpAndSettle();
     expect(find.text('Read disassembly output confidently'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

@@ -6,7 +6,9 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
+import '../../shell/chrome.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 import 'attachments.dart';
 import 'chat_failure.dart';
 import 'usage_text.dart';
@@ -460,7 +462,6 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final chat = widget.chat;
     final streaming = chat?.streaming ?? false;
     final canSend = _canSend;
@@ -471,36 +472,39 @@ class _ChatPageState extends State<ChatPage> {
       onKeyEvent: _onKey,
       child: Column(
         children: [
-          Container(
-            height: 46,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: LockedInColors.line)),
-            ),
-            child: Row(
-              children: [
-                Text('Chill', style: theme.textTheme.titleMedium),
-                const SizedBox(width: 10),
-                Flexible(
-                  child: Text(
-                    widget.configured
-                        ? 'read-only · ${chat?.model ?? 'model'}'
-                        : 'read-only · no model',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+          // No in-page header. The top bar already carries the surface name and
+          // the model badge, and the start block names Chill once: a third copy
+          // of `Chill`, a fourth `no model` and a status chip said the same
+          // thing four times in the first 120 px of a brand-new window.
+          //
+          // What a header *is* worth keeping is a state the top bar cannot show
+          // while the core is not answering, because that is the one thing the
+          // user must act on. It is one hairline row, only when it applies.
+          if (!widget.online || widget.connecting)
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: Space.md,
+                vertical: Space.xs,
+              ),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: LockedInColors.line,
+                    width: Stroke.hairline,
                   ),
                 ),
-                const Spacer(),
-                _BridgeChip(
-                  online: widget.online,
-                  configured: widget.configured,
-                  streaming: streaming,
-                  connecting: widget.connecting,
-                ),
-              ],
+              ),
+              child: Row(
+                children: [
+                  _BridgeChip(
+                    online: widget.online,
+                    configured: widget.configured,
+                    streaming: streaming,
+                    connecting: widget.connecting,
+                  ),
+                ],
+              ),
             ),
-          ),
           Expanded(child: _body(chat)),
           if (chat?.error != null)
             ChatFailureBanner(
@@ -516,6 +520,99 @@ class _ChatPageState extends State<ChatPage> {
             ),
           _composerBox(canSend, streaming),
         ],
+      ),
+    );
+  }
+
+  /// The first screen: a start block, not a centred void.
+  ///
+  /// `desktop/docs/redesign.md` §4: the empty state is where a person decides
+  /// what this thing is for. It opens at the top of the reading column with the
+  /// three shapes of question Chill is good at, each one click from the
+  /// composer — a 900 px blank page taught nothing.
+  Widget _emptyState() {
+    const examples = <(String, String)>[
+      ('explain', 'explain how a hash table resizes'),
+      ('compare', 'compare two ways to structure this argument'),
+      ('quiz', 'quiz me on what I read this morning'),
+    ];
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Chill',
+                style: LockedInType.display.copyWith(
+                  color: LockedInColors.foreground,
+                  fontSize: 26,
+                ),
+              ),
+              const SizedBox(height: Space.xs),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: Space.proseMeasure),
+                child: Text(
+                  'Ask anything. This chat is read-only: no vault, no tools, no '
+                  'writes, and it keeps nothing but its own history.',
+                  style: LockedInType.prose.copyWith(
+                    color: LockedInColors.muted,
+                    fontSize: 14.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: Space.lg),
+              const Rule(),
+              const SizedBox(height: Space.sm),
+              Text(
+                'TRY',
+                style: LockedInType.micro.copyWith(
+                  color: LockedInColors.muted,
+                  letterSpacing: 1.4,
+                ),
+              ),
+              const SizedBox(height: Space.xs),
+              for (final (index, example) in examples.indexed)
+                _ExampleRow(
+                  key: ValueKey('chat-example-$index'),
+                  kind: example.$1,
+                  text: example.$2,
+                  enabled: _canSend,
+                  onTap: () {
+                    _composer.text = example.$2;
+                    _composer.selection = TextSelection.collapsed(
+                      offset: example.$2.length,
+                    );
+                    _composerFocus.requestFocus();
+                  },
+                ),
+              if (!widget.configured) ...[
+                const SizedBox(height: Space.md),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    key: const ValueKey('chat-link-model'),
+                    onPressed: widget.onLinkModel,
+                    style: TextButton.styleFrom(
+                      foregroundColor: LockedInColors.warning,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: Space.xs,
+                        vertical: Space.xxs,
+                      ),
+                    ),
+                    child: const Text(
+                      'link a model in Settings → Providers',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -557,23 +654,7 @@ class _ChatPageState extends State<ChatPage> {
 
     final messages = chat.messages;
     if (messages.isEmpty && !chat.streaming) {
-      return _Centered(
-        title: 'Chill',
-        body: 'Ask anything. This chat is read-only and keeps no vault access.',
-        action: widget.configured
-            ? null
-            : TextButton(
-                key: const ValueKey('chat-link-model'),
-                onPressed: widget.onLinkModel,
-                style: TextButton.styleFrom(
-                  foregroundColor: LockedInColors.warning,
-                ),
-                child: const Text(
-                  'link a model in Settings → Providers',
-                  style: TextStyle(fontSize: 12),
-                ),
-              ),
-      );
+      return _emptyState();
     }
 
     return Center(
@@ -612,7 +693,9 @@ class _ChatPageState extends State<ChatPage> {
         : !widget.online
         ? (widget.connecting ? 'connecting…' : 'core offline')
         : !widget.configured
-        ? 'no model connected · link a key in Settings → Providers'
+        // The top bar's badge already says `! no model`; this line is the
+        // action, so it does not repeat the diagnosis.
+        ? 'link a key in Settings → Providers, then ask anything'
         : streaming
         ? 'streaming · Esc stops the reply'
         : 'Enter send · Shift+Enter newline · p attach · Esc normal';
@@ -665,43 +748,136 @@ class _ChatPageState extends State<ChatPage> {
                       focusNode: _composerFocus,
                       minLines: 1,
                       maxLines: 5,
+                      cursorColor: LockedInColors.primary,
+                      cursorWidth: Stroke.focus,
+                      style: LockedInType.prose.copyWith(
+                        color: LockedInColors.foreground,
+                        fontSize: 14.5,
+                      ),
                       decoration: InputDecoration(
                         // Always a placeholder: an empty field with no
                         // prompt reads as broken. The line above says why a
                         // send is blocked, and a draft is still worth typing.
                         hintText: streaming ? 'streaming…' : 'Ask anything…',
-                        prefixIcon: const Icon(Icons.chevron_right, size: 16),
+                        prefixIcon: Padding(
+                          padding: const EdgeInsets.only(
+                            left: Space.sm,
+                            right: Space.xs,
+                          ),
+                          child: Text(
+                            '❯',
+                            style: LockedInType.key.copyWith(
+                              color: _canSend
+                                  ? LockedInColors.primary
+                                  : LockedInColors.muted,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        prefixIconConstraints: const BoxConstraints(
+                          minWidth: 0,
+                          minHeight: 0,
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: Space.xs),
+                  // The attach control keeps `IconButton` (and its key): the
+                  // pointer path and the size are its own, and a glyph reads
+                  // the same at 18 px.
                   IconButton(
                     key: const ValueKey('chat-attach'),
                     tooltip: 'attach image (p)',
                     onPressed: _sending ? null : _pick,
-                    icon: const Icon(Icons.attach_file, size: 18),
+                    icon: Text(
+                      '⊕',
+                      style: LockedInType.key.copyWith(
+                        color: _sending
+                            ? LockedInColors.muted
+                            : LockedInColors.secondary,
+                        fontSize: 16,
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: Space.xxs),
                   if (streaming)
-                    OutlinedButton.icon(
+                    OutlinedButton(
                       onPressed: widget.onCancel,
-                      icon: const Icon(Icons.stop, size: 16),
-                      label: const Text('Stop'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: LockedInColors.warning,
+                        side: BorderSide(
+                          color: LockedInColors.warning.withValues(alpha: 0.5),
+                          width: Stroke.hairline,
+                        ),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.all(
+                            Radius.circular(Radii.control),
+                          ),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: Space.sm,
+                          vertical: Space.xs + 2,
+                        ),
+                        textStyle: LockedInType.label,
+                      ),
+                      // The glyph and the word are separate Texts so the label
+                      // stays exactly `Stop` for a test and a screen reader.
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('■'),
+                          SizedBox(width: Space.xs - 2),
+                          Text('Stop'),
+                        ],
+                      ),
                     )
                   else
-                    FilledButton.icon(
+                    FilledButton(
                       onPressed: canSend && !_sending ? _send : null,
-                      icon: const Icon(Icons.arrow_upward, size: 16),
-                      label: const Text('Send'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: LockedInColors.primary,
+                        foregroundColor: Theme.of(context)
+                            .colorScheme
+                            .onPrimary,
+                        disabledBackgroundColor: LockedInColors.panel,
+                        disabledForegroundColor: LockedInColors.muted,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.all(
+                            Radius.circular(Radii.control),
+                          ),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: Space.sm,
+                          vertical: Space.xs + 2,
+                        ),
+                        textStyle: LockedInType.label.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('↵'),
+                          SizedBox(width: Space.xs - 2),
+                          Text('Send'),
+                        ],
+                      ),
                     ),
                 ],
               ),
               if (widget.chat != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    chatUsageLabel(widget.chat!.usage),
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      chatUsageLabel(widget.chat!.usage),
+                      style: LockedInType.micro.copyWith(
+                        color: LockedInColors.muted,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0,
+                      ),
+                    ),
                   ),
                 ),
             ],
@@ -771,6 +947,63 @@ class _ChatPageState extends State<ChatPage> {
   }
 }
 
+/// One suggested question: a kind in the gutter, the question in prose.
+///
+/// A click fills the composer rather than sending, so the user can edit the
+/// prompt before it costs a call.
+class _ExampleRow extends StatelessWidget {
+  const _ExampleRow({
+    super.key,
+    required this.kind,
+    required this.text,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String kind;
+  final String text;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = enabled ? LockedInColors.foreground : LockedInColors.muted;
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: Space.xs - 2),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 64,
+              child: Text(
+                kind.toUpperCase(),
+                style: LockedInType.micro.copyWith(
+                  color: LockedInColors.secondary,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: LockedInType.prose.copyWith(fontSize: 13.5, color: tone),
+              ),
+            ),
+            const SizedBox(width: Space.xs),
+            Text(
+              '↵',
+              style: LockedInType.micro.copyWith(color: LockedInColors.line),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Centered extends StatelessWidget {
   const _Centered({required this.title, required this.body, this.action});
 
@@ -806,6 +1039,13 @@ class _Centered extends StatelessWidget {
   }
 }
 
+/// One turn, as a gutter block rather than a chat bubble.
+///
+/// `desktop/docs/redesign.md` §3.1: chrome is hairline and square. A bubble is
+/// a phone metaphor; a terminal transcript is a margin — the role in a fixed
+/// gutter, the content in the reading column, one hairline between turns. The
+/// state words (`× failed`, `— stopped`, `streaming…`) are unchanged, so a
+/// result never depends on colour alone.
 class _MessageBubble extends StatelessWidget {
   const _MessageBubble({
     required this.role,
@@ -823,72 +1063,110 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final user = role == 'user';
-    final border = failed
+    final tone = failed
         ? LockedInColors.error
         : cancelled
         ? LockedInColors.warning
         : user
-        ? LockedInColors.primary.withValues(alpha: 0.35)
-        : LockedInColors.line;
-    return Align(
-      alignment: user ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 620),
-        margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.fromLTRB(14, 11, 14, 12),
-        decoration: BoxDecoration(
-          color: user
-              ? LockedInColors.primary.withValues(alpha: 0.16)
-              : LockedInColors.panel,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(10),
-            topRight: const Radius.circular(10),
-            bottomLeft: Radius.circular(user ? 10 : 2),
-            bottomRight: Radius.circular(user ? 2 : 10),
-          ),
-          border: Border.all(color: border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              user ? 'YOU' : 'LOCKEDIN',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: user ? LockedInColors.primary : LockedInColors.secondary,
+        ? LockedInColors.primary
+        : LockedInColors.secondary;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Space.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // The gutter: a role label, hanging in the margin, never wrapping.
+          SizedBox(
+            width: 72,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 3, right: Space.xs),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    user ? 'you' : 'locked in',
+                    textAlign: TextAlign.right,
+                    style: LockedInType.micro.copyWith(
+                      color: tone,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  if (user) const SizedBox(height: 2),
+                  if (user)
+                    Container(
+                      width: 18,
+                      height: Stroke.progress,
+                      color: tone.withValues(alpha: 0.5),
+                    ),
+                ],
               ),
             ),
-            const SizedBox(height: 5),
-            if (text.isEmpty && streaming)
-              Text('…', style: theme.textTheme.bodyMedium)
-            else if (user)
-              Text(text, style: theme.textTheme.bodyMedium)
-            else
-              ChatMarkdown(text: text, style: theme.textTheme.bodyMedium),
-            if (streaming) ...[
-              const SizedBox(height: 6),
-              Text(
-                'streaming…',
-                style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+          ),
+          Container(width: Stroke.hairline, color: LockedInColors.line),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(left: Space.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (text.isEmpty && streaming)
+                    Text(
+                      '…',
+                      style: LockedInType.prose.copyWith(
+                        color: LockedInColors.muted,
+                      ),
+                    )
+                  else if (user)
+                    SelectableText(
+                      text,
+                      style: LockedInType.prose.copyWith(
+                        color: LockedInColors.foreground,
+                        fontSize: 14.5,
+                      ),
+                    )
+                  else
+                    ChatMarkdown(
+                      text: text,
+                      style: LockedInType.prose.copyWith(
+                        color: LockedInColors.foreground,
+                        fontSize: 14.5,
+                        height: 1.65,
+                      ),
+                    ),
+                  if (streaming || failed || cancelled)
+                    Padding(
+                      padding: const EdgeInsets.only(top: Space.xs),
+                      child: Row(
+                        children: [
+                          if (streaming)
+                            StatusTag(
+                              glyph: '▌',
+                              label: 'streaming…',
+                              tone: LockedInColors.primary,
+                            ),
+                          if (streaming && (failed || cancelled))
+                            const SizedBox(width: Space.sm),
+                          if (failed)
+                            StatusTag(
+                              glyph: '×',
+                              label: 'failed',
+                              tone: LockedInColors.error,
+                            ),
+                          if (cancelled)
+                            StatusTag(
+                              glyph: '—',
+                              label: 'stopped',
+                              tone: LockedInColors.warning,
+                            ),
+                        ],
+                      ),
+                    ),
+                ],
               ),
-            ],
-            if (failed) ...[
-              const SizedBox(height: 6),
-              Text(
-                '× failed',
-                style: TextStyle(color: LockedInColors.error, fontSize: 11),
-              ),
-            ],
-            if (cancelled) ...[
-              const SizedBox(height: 6),
-              Text(
-                '— stopped',
-                style: TextStyle(color: LockedInColors.warning, fontSize: 11),
-              ),
-            ],
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }

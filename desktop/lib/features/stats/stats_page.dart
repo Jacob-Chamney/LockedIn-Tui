@@ -6,7 +6,9 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
+import '../shared/cards.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 import '../keys.dart';
 import '../chat/transcript_scroll.dart';
 import 'export_saver.dart';
@@ -701,7 +703,7 @@ class _Panel extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
       decoration: BoxDecoration(
         color: LockedInColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: child,
@@ -724,32 +726,28 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The same chip as every other surface: `ValueChip` with the accent when
+    // selected. A second container here was the last local chip in the app.
     final text = value == null ? label : '$label  $value';
+    final chip = ValueChip(
+      text,
+      tone: selected ? Theme.of(context).colorScheme.onPrimary : null,
+    );
+    if (onTap == null && !selected) return chip;
     return Material(
-      color: selected ? LockedInColors.primary : LockedInColors.panel,
-      borderRadius: BorderRadius.circular(5),
+      color: selected ? LockedInColors.primary : Colors.transparent,
+      borderRadius: BorderRadius.circular(Radii.control),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(5),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(5),
-            border: Border.all(
-              color: selected ? LockedInColors.primary : LockedInColors.line,
-            ),
-          ),
-          child: Text(
-            text,
-            style: TextStyle(
-              color: selected
-                  ? Theme.of(context).colorScheme.onPrimary
-                  : LockedInColors.muted,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
+        borderRadius: BorderRadius.circular(Radii.control),
+        child: selected
+            ? chip
+            : Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(Radii.control),
+                ),
+                child: chip,
+              ),
       ),
     );
   }
@@ -777,7 +775,7 @@ class _KpiCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 13),
       decoration: BoxDecoration(
         color: LockedInColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Column(
@@ -838,7 +836,7 @@ class _ModelRow extends StatelessWidget {
         ),
         Expanded(
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(3),
+            borderRadius: BorderRadius.circular(Radii.control),
             child: LinearProgressIndicator(
               value: share,
               minHeight: 8,
@@ -903,7 +901,7 @@ class _Notice extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: LockedInColors.warning.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(
           color: LockedInColors.warning.withValues(alpha: 0.4),
         ),
@@ -1338,7 +1336,7 @@ class _ExportDialogState extends State<_ExportDialog> {
       constraints: const BoxConstraints(maxHeight: 300),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: SingleChildScrollView(

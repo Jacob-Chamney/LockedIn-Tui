@@ -269,7 +269,9 @@ void main() {
 
       expect(find.text('link a model in Settings → Providers'), findsOneWidget);
       // The previous steps stay on screen beside the message.
-      expect(find.text('Read the sources'), findsOneWidget);
+      // The focus surface draws the current step twice: as the stage
+      // and in the map beside it.
+      expect(find.text('Read the sources'), findsWidgets);
 
       await tester.ensureVisible(find.byKey(const ValueKey('steps-retry')));
       await tester.pumpAndSettle();
@@ -354,7 +356,7 @@ void main() {
       expect(find.text('steps missing'), findsNothing);
       expect(find.text('link a model in Settings → Providers'), findsNothing);
       expect(find.text('0/2 steps'), findsOneWidget);
-      expect(find.text('Read the sources'), findsOneWidget);
+      expect(find.text('Read the sources'), findsWidgets);
       expect(find.text('Summarise the key points'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
@@ -408,7 +410,7 @@ void main() {
       // The detail shows the generated plan and its counts, not the empty state.
       expect(find.text('steps missing'), findsNothing);
       expect(find.text('0/2 steps'), findsOneWidget);
-      expect(find.text('Read the sources'), findsOneWidget);
+      expect(find.text('Read the sources'), findsWidgets);
       expect(find.text('Summarise the key points'), findsOneWidget);
       expect(find.text('building steps…'), findsNothing);
       expect(tester.takeException(), isNull);
@@ -444,7 +446,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(core.calls, contains('session.generateSteps'));
-      expect(find.text('Read the sources'), findsOneWidget);
+      expect(find.text('Read the sources'), findsWidgets);
       expect(tester.takeException(), isNull);
     });
   });
