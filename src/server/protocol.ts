@@ -1791,7 +1791,7 @@ function instructionsRow(source: InstructionsSource): Record<string, unknown> {
 }
 
 /** One project row, shared by `work.list` rows and `work.open` agents. */
-function projectAgentRows(agents: ProjectAgent[]): Record<string, unknown>[] {
+function projectAgentRows(agents: ProjectAgent[]): WorkProjectAgentView[] {
   return agents.map((agent) => ({
     id: agent.id,
     name: agent.name,
@@ -2154,6 +2154,26 @@ export type SessionMemoryView = {
   points: string[];
   folded: string[];
   updated: string;
+};
+
+/** One agent row in the `work.list` project row. */
+export type WorkProjectAgentView = {
+  id: string;
+  name: string;
+  task: string;
+  model: string;
+  permissions: string;
+};
+
+/** One registered Work project as `work.list` returns it. */
+export type WorkProjectRowView = {
+  id: string;
+  name: string;
+  folder: string;
+  mode: string;
+  swarmName: string;
+  archived: boolean;
+  agents: WorkProjectAgentView[];
 };
 
 /** The `work.open` project detail the Flutter shell renders. */
@@ -6096,15 +6116,17 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     if (!current.ok) return bootFailureResponse(id, current.error);
     const rows = await loadProjects(current.value.workspace);
     return success(id, {
-      projects: rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        folder: row.folder,
-        mode: row.mode,
-        swarmName: row.swarmName,
-        archived: row.archived,
-        agents: projectAgentRows(row.agents),
-      })),
+      projects: rows.map(
+        (row): WorkProjectRowView => ({
+          id: row.id,
+          name: row.name,
+          folder: row.folder,
+          mode: row.mode,
+          swarmName: row.swarmName,
+          archived: row.archived,
+          agents: projectAgentRows(row.agents),
+        }),
+      ),
     });
   };
 

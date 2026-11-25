@@ -25,8 +25,8 @@ requests merge.
   Knowledge search/tree models, the full Stats + learning-graph surface, the
   settings view, the session figure, the whole chat cluster including
   `ChatSnapshot`, the work agent profile, the session source, its steps/memory
-  projections, the whole session detail and the work project detail
-  (26 models), with nested models, model arrays, `Record` maps
+  projections, the whole session detail, the work project detail and its list
+  rows (28 models), with nested models, model arrays, `Record` maps
   (of scalars and of models), optional/`null` fields, nullable and recursive
   nested models, flattened object unions and an omit list for the stream
   counter, with the same tolerant parsing as before. Adding a model is a

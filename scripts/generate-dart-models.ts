@@ -100,6 +100,8 @@ export const MODEL_SPECS: readonly ModelSpec[] = [
     dart: "WorkProjectDetail",
     ints: ["tasks"],
   },
+  { name: "WorkProjectAgentView", dart: "ProjectAgent" },
+  { name: "WorkProjectRowView", dart: "ProjectRow" },
 ];
 
 export type DartFieldType =
