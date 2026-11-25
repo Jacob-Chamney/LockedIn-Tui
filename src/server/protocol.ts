@@ -119,6 +119,11 @@ import {
   type AgentProfile,
 } from "../services/work/agents";
 import { listProjects, type ProjectMeta } from "../services/work/register";
+import {
+  listReportRuns,
+  readReport,
+  verifyReportTaskFile,
+} from "../services/work/report";
 import { CHAT_ID, chatPath, listChats } from "../services/work/chat";
 import { changes as readChanges } from "../services/work/changes";
 import {
@@ -11164,7 +11169,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     const out: SwarmTaskEntry[] = [];
     for (const row of rows) {
       if (row.broken) continue;
-      for (const board of service.runs(row.id)) {
+      const boards = new Map(service.runs(row.id).map((board) => [board.runId, board]));
+      for (const board of boards.values()) {
         for (const task of board.tasks) {
           out.push({
             projectId: row.id,
@@ -11174,6 +11180,26 @@ export function createCoreServer(options: CoreOptions): CoreServer {
             title: task.title,
             status: task.status,
             verified: task.verified,
+          });
+        }
+      }
+      // Reports are the durable half: a restart forgets every board, but the
+      // report keeps the task ids and statuses. A run still in memory is read
+      // from the board only, so a task is never listed twice.
+      for (const runId of await listReportRuns(current.workspace, row.id)) {
+        if (boards.has(runId)) continue;
+        const stored = await readReport(current.workspace, row.id, runId);
+        if (stored === null) continue;
+        for (const task of stored.report.tasks) {
+          if (task.state !== "done") continue;
+          out.push({
+            projectId: row.id,
+            projectName: row.name,
+            runId,
+            taskId: task.id,
+            title: task.title === "" ? task.id : task.title,
+            status: "done",
+            verified: false,
           });
         }
       }
@@ -11199,12 +11225,41 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         message: "a completed task has no miss signal; verify it or leave it",
       };
     }
-    const verified = await ensureSwarm(current).verify({
+    const service = ensureSwarm(current);
+    // A run this process still knows: verify through the board, which also
+    // rewrites the report and records the activity entry.
+    if (service.board(target.projectId, target.runId) !== null) {
+      const verified = await service.verify({
+        projectId: target.projectId,
+        runId: target.runId,
+        taskId: target.taskId,
+      });
+      if (!verified.ok) return { ok: false, message: oneLine(verified.error.message) };
+      return { ok: true };
+    }
+
+    // Report-only verification: the run outlived the process. Rewrite the one
+    // line, then record the decision in the activity log exactly as the board
+    // path does. A log failure is best-effort and never fails the verification.
+    const written = await verifyReportTaskFile({
+      workspace: current.workspace,
       projectId: target.projectId,
       runId: target.runId,
       taskId: target.taskId,
     });
-    if (!verified.ok) return { ok: false, message: oneLine(verified.error.message) };
+    if (!written.ok) return { ok: false, message: oneLine(written.error.message) };
+    if (!written.value.already) {
+      const sink = activitySink(current);
+      await sink?.({
+        kind: "swarm",
+        project: target.projectId,
+        run: target.runId,
+        event: "verified",
+        task: target.taskId,
+        status: "verified",
+        at: new Date().toISOString(),
+      });
+    }
     return { ok: true };
   };
 

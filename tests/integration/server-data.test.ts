@@ -4186,7 +4186,7 @@ describe("work swarms", () => {
     expect(report).toContain(`run: ${started.runId}`);
     expect(report).toContain('objective: "Understand the project layout"');
     expect(report).toContain("status: done");
-    expect(report).toContain("- [done] Lead — The entry point is src/main.ts. It exports start.");
+    expect(report).toContain("- [done] task-1 · Lead — The entry point is src/main.ts. It exports start.");
 
     // The profile may write and run commands; the worker still gets three reads.
     expect(captured).toHaveLength(1);
@@ -4223,7 +4223,7 @@ describe("work swarms", () => {
 
     const report = await readFile(join(reportsFolder(project.id), `${started.runId}.md`), "utf8");
     expect(report).toContain("status: failed");
-    expect(report).toContain("[blocked] Lead — no model configured");
+    expect(report).toContain("[blocked] task-1 · Lead — no model configured");
     // Reading the project is all that happened.
     expect(await readdir(project.root)).toEqual(["src"]);
   });
