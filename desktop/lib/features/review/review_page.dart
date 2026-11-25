@@ -80,8 +80,8 @@ class ReviewPage extends StatefulWidget {
 }
 
 class _ReviewPageState extends State<ReviewPage> {
-  static const _sides = ['all', 'school', 'skills'];
-  static const _kinds = ['card', 'step', 'stage', 'memory'];
+  static const _sides = ['all', 'school', 'skills', 'work'];
+  static const _kinds = ['card', 'step', 'stage', 'mistake', 'memory', 'task'];
 
   final _rowKeys = <String, GlobalKey>{};
 
@@ -428,8 +428,9 @@ class _ReviewPageState extends State<ReviewPage> {
       // The one sentence that says what this surface is for. Without it the
       // queue read as a random mix of cards, steps and history.
       Text(
-        'What the workspace already records. Cards are reviewed here; steps '
-        'and stages open where they live; memory is history, not review.',
+        'What the workspace already records. Cards are reviewed here; steps, '
+        'stages and mistakes open where they live; work tasks wait for '
+        'verification; memory is history, not review.',
         key: const ValueKey('review-purpose'),
         style: TextStyle(
           color: LockedInColors.muted,
@@ -525,7 +526,9 @@ class _ReviewPageState extends State<ReviewPage> {
                   'card' => 'TO REVIEW',
                   'step' => 'OPEN STEPS',
                   'stage' => 'OPEN STAGES',
+                  'mistake' => 'MISTAKES · no correction yet',
                   'memory' => 'HISTORY · read-only',
+                  'task' => 'WORK · needs verification',
                   _ => item.kind.toUpperCase(),
                 },
                 count: queue.counts.countFor(item.kind),
@@ -560,7 +563,8 @@ class _ReviewPageState extends State<ReviewPage> {
                 onMissed:
                     widget.onMark == null ||
                         marking == item.id ||
-                        item.kind == 'memory'
+                        item.kind == 'memory' ||
+                        item.kind == 'task'
                     ? null
                     : () {
                         _select(index);

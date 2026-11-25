@@ -87,7 +87,11 @@ import type { ToolSpec } from "../llm/tools";
 import { MAX_IMAGES } from "../llm/chat";
 import { isInsideSources } from "../domain/source";
 import { parseProgress } from "../domain/progress";
-import type { ReviewItemKind, ReviewOrigin } from "../domain/review";
+import type {
+  ReviewItemKind,
+  ReviewOrigin,
+  SwarmTaskEntry,
+} from "../domain/review";
 import {
   MAX_SESSION_NAME,
   SESSION_FILES,
@@ -247,6 +251,7 @@ import {
 import { normalisePoint, readMemory, recordTurn, type Memory, type TurnOutcome } from "../services/lockin/memory";
 import {
   listMistakes,
+  markMistake as markMistakeNote,
   promoteMistake,
   recordMistake,
   type MistakeRow,
@@ -1258,7 +1263,7 @@ async function writeOutputFiles(
 
 
 /** The review screen's side filter (`docs/product.md` §6.1). */
-const REVIEW_SIDES = ["all", "school", "skills"] as const;
+const REVIEW_SIDES = ["all", "school", "skills", "work"] as const;
 
 type ReviewSide = (typeof REVIEW_SIDES)[number];
 
@@ -1274,7 +1279,9 @@ function isReviewSide(value: unknown): value is ReviewSide {
  * so it is the only one that must be named explicitly.
  */
 function reviewSideOfOrigin(origin: ReviewOrigin): Exclude<ReviewSide, "all"> {
-  return origin === "curriculum" ? "skills" : "school";
+  if (origin === "curriculum") return "skills";
+  if (origin === "swarm") return "work";
+  return "school";
 }
 
 function within(root: string, path: string): boolean {
@@ -1299,7 +1306,14 @@ function projectReviewSide(
 ): ReviewQueueResult {
   const items = queue.items.filter((item) => reviewSideOfOrigin(item.origin) === side);
   const kept = new Set(items.map((item) => item.id));
-  const byKind: Record<ReviewItemKind, number> = { step: 0, card: 0, stage: 0, memory: 0 };
+  const byKind: Record<ReviewItemKind, number> = {
+    step: 0,
+    card: 0,
+    stage: 0,
+    mistake: 0,
+    memory: 0,
+    task: 0,
+  };
   for (const item of items) byKind[item.kind] += 1;
 
   return {
@@ -1339,6 +1353,8 @@ type ReviewMarkTarget =
   | { kind: "step"; itemId: string; sessionId: string; index: number }
   | { kind: "card"; itemId: string; sessionId: string; card: number }
   | { kind: "stage"; itemId: string; goalId: string; stageId: string }
+  | { kind: "mistake"; itemId: string; sessionId: string; index: number }
+  | { kind: "task"; itemId: string; projectId: string; runId: string; taskId: string }
   | { kind: "memory"; itemId: string };
 
 type ReviewMarkParse = { ok: true; target: ReviewMarkTarget } | { ok: false; message: string };
@@ -1392,9 +1408,31 @@ function parseReviewItemId(raw: string): ReviewMarkParse {
   if (kind === "stage") {
     return { ok: true, target: { kind: "stage", itemId: raw, goalId: contextId, stageId: local } };
   }
+  if (kind === "mistake") {
+    if (parts.length !== 3 || !/^\d+$/.test(local)) {
+      return { ok: false, message: `mistake id "${raw}" does not end in a mistake index` };
+    }
+    return {
+      ok: true,
+      target: { kind: "mistake", itemId: raw, sessionId: contextId, index: Number(local) },
+    };
+  }
+  if (kind === "task") {
+    const [projectId, runId, taskId] = parts.slice(1);
+    if (parts.length !== 4 || projectId === "" || runId === "" || taskId === "") {
+      return {
+        ok: false,
+        message: `task id "${raw}" must be task:<projectId>:<runId>:<taskId>`,
+      };
+    }
+    return {
+      ok: true,
+      target: { kind: "task", itemId: raw, projectId: projectId!, runId: runId!, taskId: taskId! },
+    };
+  }
   return {
     ok: false,
-    message: `unknown review item kind "${kind}"; expected step, card, stage or memory`,
+    message: `unknown review item kind "${kind}"; expected step, card, stage, mistake, task or memory`,
   };
 }
 
@@ -1536,6 +1574,28 @@ async function markCard(
   } catch (error) {
     return { ok: false, message: `the deck could not be written: ${oneLine(messageOf(error))}` };
   }
+  return { ok: true };
+}
+
+/**
+ * Mark one promoted mistake.
+ *
+ * The note's frontmatter is the durable record: `known` sets `status:
+ * reviewed` and removes it from the queue, `missed` increments `misses`. The
+ * note is never a source, so this writes nothing the learning queue cites.
+ */
+async function markMistakeTarget(
+  workspace: CoreServices["workspace"],
+  target: Extract<ReviewMarkTarget, { kind: "mistake" }>,
+  result: ReviewMarkResult,
+): Promise<MarkOutcome> {
+  const marked = await markMistakeNote({
+    workspace,
+    sessionId: target.sessionId,
+    index: target.index,
+    result,
+  });
+  if (!marked.ok) return { ok: false, message: oneLine(marked.error.message) };
   return { ok: true };
 }
 
@@ -11084,6 +11144,70 @@ export function createCoreServer(options: CoreOptions): CoreServer {
    * failure of the service itself (an unexpected read error) is one `-32000`
    * with `data.kind: "review"` and `retryable: false`.
    */
+  /**
+   * The unverified completed swarm tasks this process knows.
+   *
+   * A board is process state (`desktop/docs/protocol.md`): a restart forgets
+   * every run, so this read returns nothing until a run happens again. The
+   * report on disk keeps its last bytes; this queue deliberately does not invent
+   * a run from a report it cannot verify in memory.
+   */
+  const reviewTasks = async (current: CoreServices): Promise<SwarmTaskEntry[]> => {
+    let rows;
+    try {
+      rows = await listProjects(current.workspace);
+    } catch {
+      return [];
+    }
+    if (rows.length === 0) return [];
+    const service = ensureSwarm(current);
+    const out: SwarmTaskEntry[] = [];
+    for (const row of rows) {
+      if (row.broken) continue;
+      for (const board of service.runs(row.id)) {
+        for (const task of board.tasks) {
+          out.push({
+            projectId: row.id,
+            projectName: row.name,
+            runId: board.runId,
+            taskId: task.id,
+            title: task.title,
+            status: task.status,
+            verified: task.verified,
+          });
+        }
+      }
+    }
+    return out;
+  };
+
+  /**
+   * Mark a Work task verified through the swarm service.
+   *
+   * `known` is verification: the run's report is rewritten and the activity log
+   * records the decision. `missed` is refused — a completed task has no miss
+   * signal, and inventing one would make the nudge state lie.
+   */
+  const markTaskItem = async (
+    current: CoreServices,
+    target: Extract<ReviewMarkTarget, { kind: "task" }>,
+    result: ReviewMarkResult,
+  ): Promise<MarkOutcome> => {
+    if (result !== "known") {
+      return {
+        ok: false,
+        message: "a completed task has no miss signal; verify it or leave it",
+      };
+    }
+    const verified = await ensureSwarm(current).verify({
+      projectId: target.projectId,
+      runId: target.runId,
+      taskId: target.taskId,
+    });
+    if (!verified.ok) return { ok: false, message: oneLine(verified.error.message) };
+    return { ok: true };
+  };
+
   const reviewQueueResponse = async (
     id: RpcId,
     params: Record<string, unknown>,
@@ -11100,9 +11224,13 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     const current = await services();
     if (!current.ok) return bootFailureResponse(id, current.error);
 
+    // Work tasks are only read for the projections that can show them: a
+    // school- or skills-only view must not touch the Work registry.
+    const tasks =
+      side === "all" || side === "work" ? await reviewTasks(current.value) : [];
     let queue: ReviewQueueResult;
     try {
-      queue = await reviewQueue(current.value.workspace);
+      queue = await reviewQueue(current.value.workspace, { tasks });
     } catch (error) {
       const message = oneLine(messageOf(error));
       return failure(id, BOOT_FAILED, message, { kind: "review", message }, false);
@@ -11112,7 +11240,10 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       side === "all" ? queue : projectReviewSide(queue, current.value.workspace, side);
     // Coverage is school-side material (`docs/product.md` §6.1); a skills-only
     // projection has none, and `all`/`school` get one report per session.
-    const coverage = side === "skills" ? [] : await schoolCoverage(current.value.workspace);
+    const coverage =
+      side === "skills" || side === "work"
+        ? []
+        : await schoolCoverage(current.value.workspace);
     return success(id, { queue: { ...projected, coverage } });
   };
 
@@ -11179,7 +11310,11 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         ? await markStep(workspace, target, result)
         : target.kind === "card"
           ? await markCard(workspace, target, result)
-          : await markStage(workspace, target, result);
+          : target.kind === "mistake"
+            ? await markMistakeTarget(workspace, target, result)
+            : target.kind === "task"
+              ? await markTaskItem(current.value, target, result)
+              : await markStage(workspace, target, result);
     if (!outcome.ok) {
       return failure(
         id,
@@ -11193,7 +11328,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     // One call, one snapshot: the shell replaces its queue, never patches it.
     let queue: ReviewQueueResult;
     try {
-      queue = await reviewQueue(workspace);
+      queue = await reviewQueue(workspace, { tasks: await reviewTasks(current.value) });
     } catch (error) {
       const message = oneLine(messageOf(error));
       return failure(id, BOOT_FAILED, message, { kind: "review", itemId, message }, false);

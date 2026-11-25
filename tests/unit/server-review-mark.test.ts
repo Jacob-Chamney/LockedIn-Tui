@@ -134,7 +134,7 @@ describe("review.mark validation", () => {
     const { server } = fakeCore();
     const error = await errorOf(server, { itemId: "chore:2026-11-01-0900-x:nope", result: "known" });
     expect(error.code).toBe(-32602);
-    expect(error.message).toContain("step, card, stage or memory");
+    expect(error.message).toContain("step, card, stage, mistake, task or memory");
   });
 
   test("a step id must end in an index and a card id in card-<n>", async () => {

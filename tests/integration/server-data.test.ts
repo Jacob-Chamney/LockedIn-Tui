@@ -6569,7 +6569,7 @@ describe("session.instructions", () => {
 describe("review.queue", () => {
   type QueueItem = {
     id: string;
-    kind: "step" | "card" | "stage" | "memory";
+    kind: "step" | "card" | "stage" | "mistake" | "memory" | "task";
     label: string;
     context: string;
     contextId: string;
@@ -6664,7 +6664,10 @@ describe("review.queue", () => {
       items: [],
       nudge: { intensity: "balanced", threshold: 3, due: [], suggestions: [] },
       coverage: [],
-      counts: { total: 0, byKind: { step: 0, card: 0, stage: 0, memory: 0 } },
+      counts: {
+        total: 0,
+        byKind: { step: 0, card: 0, stage: 0, mistake: 0, memory: 0, task: 0 },
+      },
       diagnostics: [],
       intensity: "balanced",
     });
@@ -6729,7 +6732,7 @@ describe("review.queue", () => {
     ]);
     expect(queue.counts).toEqual({
       total: 5,
-      byKind: { card: 1, step: 1, stage: 3, memory: 0 },
+      byKind: { card: 1, step: 1, stage: 3, mistake: 0, memory: 0, task: 0 },
     });
     expect(queue.diagnostics).toEqual([]);
     expect(queue.intensity).toBe("balanced");
@@ -6777,7 +6780,7 @@ describe("review.queue", () => {
     expect(school.items.map((item) => item.kind)).toEqual(["card", "step"]);
     expect(school.counts).toEqual({
       total: 2,
-      byKind: { card: 1, step: 1, stage: 0, memory: 0 },
+      byKind: { card: 1, step: 1, stage: 0, mistake: 0, memory: 0, task: 0 },
     });
     expect(school.items.every((item) => item.contextId === sessionId)).toBe(true);
 
@@ -6786,7 +6789,7 @@ describe("review.queue", () => {
     expect(skills.items.map((item) => item.kind)).toEqual(["stage", "stage", "stage"]);
     expect(skills.counts).toEqual({
       total: 3,
-      byKind: { card: 0, step: 0, stage: 3, memory: 0 },
+      byKind: { card: 0, step: 0, stage: 3, mistake: 0, memory: 0, task: 0 },
     });
     expect(skills.items.every((item) => item.contextId === goalId)).toBe(true);
     // The nudge ids describe the projected items, never the hidden ones.

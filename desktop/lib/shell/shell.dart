@@ -1550,6 +1550,13 @@ class _ShellState extends State<Shell> {
             _openReviewCard(store, item.contextId);
             return;
           }
+          if (item.kind == 'task') {
+            // A task belongs on its project, where the swarm board and the
+            // verify action live; opening a session here would be a dead end.
+            _select(Surface.work);
+            unawaited(store.openProject(item.contextId));
+            return;
+          }
           if (item.kind == 'stage') {
             _select(Surface.skills);
             unawaited(store.openSkill(item.contextId));

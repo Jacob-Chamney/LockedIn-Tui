@@ -17,13 +17,26 @@
 
 import { coverageGaps, type CoverageReport, type SourceCoverage } from "./coverage"
 
-export type ReviewItemKind = "step" | "card" | "stage" | "memory"
+export type ReviewItemKind = "step" | "card" | "stage" | "mistake" | "memory" | "task"
 
 /** Why the item is in the queue, in the words of `docs/product.md` §6.1. */
-export type ReviewReason = "unchecked" | "missed" | "due" | "unfinished" | "memory"
+export type ReviewReason =
+  | "unchecked"
+  | "missed"
+  | "due"
+  | "unfinished"
+  | "uncorrected"
+  | "memory"
+  | "unverified"
 
-/** Where the item came from; `session-memory` is never a source. */
-export type ReviewOrigin = "steps" | "flashcards" | "curriculum" | "session-memory"
+/** Where the item came from; none of these is a source. */
+export type ReviewOrigin =
+  | "steps"
+  | "flashcards"
+  | "curriculum"
+  | "session-mistake"
+  | "session-memory"
+  | "swarm"
 
 export type NudgeIntensity = "gentle" | "balanced" | "intensive"
 
@@ -95,10 +108,44 @@ export type MemoryHit = {
   excerpt: string
 }
 
+/**
+ * A promoted mistake note whose correction is still missing.
+ *
+ * `noteId` is the promotion's premise index, so `review.mark` can find the same
+ * note again. A `corrected` or `reviewed` note never enters the queue.
+ */
+export type PromotedMistakeEntry = {
+  sessionId: string
+  sessionName: string
+  noteId: string
+  text: string
+  /** Recorded review misses for this note; absent means zero. */
+  misses?: number
+}
+
+/**
+ * One Work swarm task.
+ *
+ * Done is not verified: a completed task stays in the queue until a person
+ * verifies it. The board is process state, so this entry is supplied by the
+ * caller rather than read from disk.
+ */
+export type SwarmTaskEntry = {
+  projectId: string
+  projectName: string
+  runId: string
+  taskId: string
+  title: string
+  status: "pending" | "running" | "done" | "failed" | "blocked" | "cancelled"
+  verified: boolean
+}
+
 export type ReviewInput = {
   steps?: readonly LockInStepSnapshot[]
   decks?: readonly FlashcardState[]
   goals?: readonly SkillStageState[]
+  mistakes?: readonly PromotedMistakeEntry[]
+  tasks?: readonly SwarmTaskEntry[]
   memory?: readonly MemoryHit[]
   coverage?: CoverageReport | null
   intensity?: NudgeIntensity
@@ -122,12 +169,17 @@ export type ReviewItem = {
   origin: ReviewOrigin
 }
 
-/** Missed cards first, then unchecked steps, unfinished stages, memory. */
+/**
+ * The fixed order: cards, steps, stages, uncorrected mistakes, memory history,
+ * then Work tasks waiting for verification. Learning work stays ahead of Work.
+ */
 export const KIND_PRIORITY: Readonly<Record<ReviewItemKind, number>> = {
   card: 0,
   step: 1,
   stage: 2,
-  memory: 3,
+  mistake: 3,
+  memory: 4,
+  task: 5,
 }
 
 export const MAX_LABEL_CHARS = 120
@@ -246,6 +298,37 @@ export function buildReviewQueue(input: ReviewInput): ReviewQueue {
     }
   }
 
+  for (const mistake of input.mistakes ?? []) {
+    collected.push({
+      id: `mistake:${mistake.sessionId}:${mistake.noteId}`,
+      kind: "mistake",
+      label: clampLabel(mistake.text),
+      context: mistake.sessionName,
+      contextId: mistake.sessionId,
+      reason: "uncorrected",
+      priority: KIND_PRIORITY.mistake,
+      count: missesOf(mistake),
+      origin: "session-mistake",
+    })
+  }
+
+  for (const task of input.tasks ?? []) {
+    // Only a completed, unverified task is actionable: pending or running work
+    // is the swarm's business, and a verified task is a finished decision.
+    if (task.status !== "done" || task.verified) continue;
+    collected.push({
+      id: `task:${task.projectId}:${task.runId}:${task.taskId}`,
+      kind: "task",
+      label: clampLabel(task.title),
+      context: task.projectName,
+      contextId: task.projectId,
+      reason: "unverified",
+      priority: KIND_PRIORITY.task,
+      count: 0,
+      origin: "swarm",
+    })
+  }
+
   for (const hit of input.memory ?? []) {
     collected.push({
       id: `memory:${hit.sessionId}:${hit.noteId}`,
@@ -274,7 +357,14 @@ export function buildReviewQueue(input: ReviewInput): ReviewQueue {
   const threshold = NUDGE_THRESHOLDS[intensity]
   const dueItems = items.filter((item) => item.count >= threshold)
 
-  const byKind: Record<ReviewItemKind, number> = { step: 0, card: 0, stage: 0, memory: 0 }
+  const byKind: Record<ReviewItemKind, number> = {
+    step: 0,
+    card: 0,
+    stage: 0,
+    mistake: 0,
+    memory: 0,
+    task: 0,
+  }
   for (const item of items) byKind[item.kind]++
 
   return {

@@ -14,7 +14,10 @@
 import { readdir, readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { parseProgress } from "../../domain/progress";
-import { DEFAULT_INTENSITY, NUDGE_THRESHOLDS, buildReviewQueue, type CardEntry, type FlashcardState, type LockInStepSnapshot, type MemoryHit, type NudgeIntensity, type ReviewItem, type ReviewQueue, type SkillStageState, type StageEntry } from "../../domain/review";
+import { DEFAULT_INTENSITY, NUDGE_THRESHOLDS, buildReviewQueue, type CardEntry, type FlashcardState, type LockInStepSnapshot, type MemoryHit, type NudgeIntensity, type PromotedMistakeEntry, type ReviewItem, type ReviewQueue, type SkillStageState, type StageEntry, type SwarmTaskEntry } from "../../domain/review";
+import { parseDocument, readString } from "../../domain/markdown";
+import { MISTAKE_ORIGIN } from "../../domain/mistakes";
+import { listNotes } from "../../storage/note-store";
 import type { SourceCoverage } from "../../domain/coverage";
 import { SESSION_FILES } from "../../domain/session";
 import { readConfig } from "../../storage/config";
@@ -42,6 +45,11 @@ export type ReviewQueueResult = ReviewQueue & {
 export type ReviewQueueOptions = {
   /** Overrides config; used by tests and by the Settings preview. */
   intensity?: NudgeIntensity
+  /**
+   * Work swarm tasks, supplied by the caller because a board is process state
+   * (`docs/protocol.md`): the service reads no Work folder and invents no run.
+   */
+  tasks?: readonly SwarmTaskEntry[]
 }
 
 
@@ -98,6 +106,49 @@ export async function configuredIntensity(workspace: Workspace): Promise<NudgeIn
 }
 
 /**
+ * Promoted mistake notes that still need a correction.
+ *
+ * Markdown is the truth: the vault is read directly, never the index. A note
+ * whose `status` is `corrected` or `reviewed` is settled and stays out. One
+ * unreadable note is skipped rather than failing the queue, exactly as a broken
+ * session is. The note is the learner's own record, never a source.
+ */
+async function openMistakes(
+  workspace: Workspace,
+  sessionNames: ReadonlyMap<string, string>,
+): Promise<PromotedMistakeEntry[]> {
+  const out: PromotedMistakeEntry[] = []
+  const vault = workspace.paths.schoolVault
+  for (const rel of await listNotes(vault)) {
+    if (!rel.startsWith("knowledge/")) continue
+    let text: string
+    try {
+      text = await readFile(join(vault, rel), "utf8")
+    } catch {
+      continue
+    }
+    const parsed = parseDocument(text)
+    if (!parsed.ok) continue
+    const data = parsed.value.data
+    if (readString(data, "origin") !== MISTAKE_ORIGIN) continue
+    if (readString(data, "status") !== "open") continue
+    const sessionId = readString(data, "session") ?? ""
+    const index = typeof data.premise_index === "number" ? data.premise_index : null
+    if (sessionId === "" || index === null || !Number.isInteger(index) || index < 0) continue
+    const rawMisses = data.misses
+    const misses = typeof rawMisses === "number" && rawMisses > 0 ? Math.floor(rawMisses) : 0
+    out.push({
+      sessionId,
+      sessionName: sessionNames.get(sessionId) ?? sessionId,
+      noteId: String(index),
+      text: readString(data, "title") ?? basename(rel, ".md"),
+      misses,
+    })
+  }
+  return out
+}
+
+/**
  * Read every session and goal and return the queue the UI renders.
  *
  * Nothing below writes: the tree is byte-identical after the call, which the
@@ -109,6 +160,7 @@ export async function reviewQueue(
 ): Promise<ReviewQueueResult> {
   const intensity = options.intensity ?? (await configuredIntensity(workspace))
   const diagnostics: ReviewDiagnostic[] = []
+  const sessionNames = new Map<string, string>()
 
   const stepSnapshots: LockInStepSnapshot[] = []
   const deckStates: FlashcardState[] = []
@@ -129,6 +181,7 @@ export async function reviewQueue(
     }
 
     const session = opened.value.session
+    sessionNames.set(session.id, session.name)
     const misses = await missedSteps(folder)
 
     const steps = await readSteps(folder)
@@ -241,6 +294,8 @@ export async function reviewQueue(
     steps: stepSnapshots,
     decks: deckStates,
     goals: goalStates,
+    mistakes: await openMistakes(workspace, sessionNames),
+    tasks: options.tasks ?? [],
     memory: memoryHits,
     intensity,
   })

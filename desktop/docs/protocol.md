@@ -2129,19 +2129,22 @@ Error shapes, all `-32000` with `retryable: false`:
 
 `review.queue` is the read-only **Review** surface (`docs/product.md` §6.1). It
 reports what the workspace already records — unchecked lock-in steps, missed
-flashcards, unfinished skill stages and session memory — and nothing else.
+flashcards, unfinished skill stages, promoted mistakes whose correction is still
+missing, session memory, and Work tasks that are done but not verified — and
+nothing else.
 
 - `review.queue` `{side?}` → `{queue: ReviewQueueResult}`. `side` is optional and
-  one of `all`, `school`, `skills` (`all` when absent); any other value is
-  `-32602` naming the accepted set, and the app is never booted for it.
+  one of `all`, `school`, `skills`, `work` (`all` when absent); any other value
+  is `-32602` naming the accepted set, and the app is never booted for it.
 
   ```json
-  {"queue":{"items":[{"id":"step:2026-11-01-0900-physics-unit-4:1","kind":"step","label":"Derive the energy balance","context":"Physics — Unit 4","contextId":"2026-11-01-0900-physics-unit-4","reason":"unchecked","priority":1,"count":0,"origin":"steps"}],"nudge":{"intensity":"balanced","threshold":3,"due":[],"suggestions":[]},"coverage":[{"sessionId":"2026-11-01-0900-physics-unit-4","name":"Physics — Unit 4","report":{"sources":[{"hash":"sha256:…","name":"lecture-4.md","originalPath":"/home/me/input/lecture-4.md","count":2,"documents":["steps"],"firstLine":"Read lecture-4.md and summarise the limits","referenced":true,"fromMemoryOnly":false}],"unreferenced":[],"total":1,"referencedCount":1}}],"counts":{"total":1,"byKind":{"step":1,"card":0,"stage":0,"memory":0}},"diagnostics":[],"intensity":"balanced"}}
+  {"queue":{"items":[{"id":"step:2026-11-01-0900-physics-unit-4:1","kind":"step","label":"Derive the energy balance","context":"Physics — Unit 4","contextId":"2026-11-01-0900-physics-unit-4","reason":"unchecked","priority":1,"count":0,"origin":"steps"}],"nudge":{"intensity":"balanced","threshold":3,"due":[],"suggestions":[]},"coverage":[{"sessionId":"2026-11-01-0900-physics-unit-4","name":"Physics — Unit 4","report":{"sources":[{"hash":"sha256:…","name":"lecture-4.md","originalPath":"/home/me/input/lecture-4.md","count":2,"documents":["steps"],"firstLine":"Read lecture-4.md and summarise the limits","referenced":true,"fromMemoryOnly":false}],"unreferenced":[],"total":1,"referencedCount":1}}],"counts":{"total":1,"byKind":{"step":1,"card":0,"stage":0,"mistake":0,"memory":0,"task":0}},"diagnostics":[],"intensity":"balanced"}}
   ```
 
   `items` keep the domain order (missed cards, then steps, then stages, then
-  memory) and every item carries its `kind`, `reason`, `origin` and `count`
-  (recorded misses). `nudge` is the suggestion state for the configured
+  uncorrected mistakes, then memory history, then unverified Work tasks) and
+  every item carries its `kind`, `reason`, `origin` and `count` (recorded
+  misses). `nudge` is the suggestion state for the configured
   intensity, `counts` is the per-kind total, and `intensity` repeats the setting
   the queue was built with.
 
@@ -2163,17 +2166,36 @@ flashcards, unfinished skill stages and session memory — and nothing else.
     sources has the valid empty report above.
   - A folder the queue reports as a broken diagnostic contributes **no** entry;
     it stays a diagnostic, never a request failure.
-  - `side: "skills"` carries `"coverage":[]` — coverage is school-side material,
-    and a skills projection must not leak across the wall. `all` and `school`
-    carry the reports.
+  - `side: "skills"` and `side: "work"` carry `"coverage":[]` — coverage is
+    school-side material, and neither projection may leak across the wall.
+    `all` and `school` carry the reports.
   - Memory is a document here, never a source: a source mentioned only in
     `memory.md` is still `referenced` but keeps `fromMemoryOnly: true`.
 
-  `side` projects one side of the wall: `school` keeps steps, flashcards and
-  session memory, `skills` keeps curriculum stages, and `counts` and the nudge
-  ids are recomputed from what survives. `side: "all"` (or no `side`) returns the
-  whole queue. The service reads both sides in one pass, so the filter is a
-  projection of that result, not a second read.
+  `side` projects one side of the wall: `school` keeps steps, flashcards,
+  promoted mistakes and session memory; `skills` keeps curriculum stages; `work`
+  keeps the done-but-unverified swarm tasks. `counts` and the nudge ids are
+  recomputed from what survives. `side: "all"` (or no `side`) returns the whole
+  queue, learning items before Work. The service reads the learning sides in one
+  pass, so the filter is a projection of that result, not a second read.
+
+  Two kinds are newer and worth naming:
+
+  | kind | id | enters when |
+  |---|---|---|
+  | `mistake` | `mistake:<sessionId>:<premiseIndex>` | a promoted note (`origin: session-mistake`) still has `status: open` |
+  | `task` | `task:<projectId>:<runId>:<taskId>` | a swarm task is `status: "done"` and `verified: false` |
+
+  - A **mistake** row is the learner's own promoted note, never a source. Its
+    `label` is the note title, `context` the session name, `reason`
+    `"uncorrected"`, `origin` `"session-mistake"`, and `count` the note's stored
+    `misses`. A note with `status: corrected` or `status: reviewed` never enters.
+  - A **task** row is Work process state, supplied by the swarm service rather
+    than read from disk: a core restart forgets every run, so `review.queue`
+    returns no task rows until a run happens again (the report keeps its last
+    bytes; the queue never invents a run from it). `reason` is `"unverified"`,
+    `origin` `"swarm"` and `count` is `0`. Work tasks sort after memory, so the
+    learning queue keeps its shape under `all`.
 
 - `diagnostics` are **not** request failures. A session or goal folder whose
   metadata cannot be read becomes one entry `{kind: "review", path, message,
@@ -2194,6 +2216,8 @@ verdict for one item and returns the rebuilt queue.
   | `step:<sessionId>:<index>` | check the step through the same service the steps reader uses; an already-checked step is a no-op success | append one `{"event":"review","index":N,"result":"missed","at":ISO}` line to the session's `progress.jsonl`; the Markdown is untouched |
   | `card:<sessionId>:<card-N>` | set `K: yes` / `M: no` on that card | set `M: yes` / `K: no` on that card |
   | `stage:<goalId>:<stageId>` | complete the stage through the curriculum transition; the next pending stage is promoted | no-op success: there is no stage miss store yet, so nothing is written and the stage nudge is not persisted |
+  | `mistake:<sessionId>:<index>` | set the promoted note's frontmatter `status: reviewed` (and `reviewed_at`); the note and its body stay, so it leaves the queue without claiming a correction | increment `misses` and set `last_missed`; the note stays `open` and stays in the queue |
+  | `task:<projectId>:<runId>:<taskId>` | verify the task through `work.swarm.verify`: the board flips to `verified`, the report line becomes `[verified]` and the activity log records the decision | refused: a completed task has no miss signal |
   | `memory:<sessionId>:<noteId>` | refused | refused |
 
   Steps and cards live on the school side and are resolved by session folder id
@@ -2204,7 +2228,7 @@ verdict for one item and returns the rebuilt queue.
   resolved by goal folder id and writes that goal's `meta.json`.
 
   ```json
-  {"queue":{"items":[],"nudge":{"intensity":"balanced","threshold":3,"due":[],"suggestions":[]},"coverage":[{"sessionId":"2026-11-01-0900-physics-unit-4","name":"Physics — Unit 4","report":{"sources":[],"unreferenced":[],"total":0,"referencedCount":0}}],"counts":{"total":0,"byKind":{"step":0,"card":0,"stage":0,"memory":0}},"diagnostics":[],"intensity":"balanced"}}
+  {"queue":{"items":[],"nudge":{"intensity":"balanced","threshold":3,"due":[],"suggestions":[]},"coverage":[],"counts":{"total":0,"byKind":{"step":0,"card":0,"stage":0,"mistake":0,"memory":0,"task":0}},"diagnostics":[],"intensity":"balanced"}}
   ```
 
   The reply is the **whole queue after the mark**, coverage included, so the
