@@ -122,10 +122,10 @@ Two generated files keep the Flutter bridge tied to the core:
   `scripts/generate-dart-models.ts` reads the allowlisted exported types with
   the TypeScript compiler API and emits a tolerant `fromJson`. It covers the
   Knowledge search/tree models, the whole Stats + learning-graph surface, the
-  settings view, the session figure, the chat cluster including its snapshot
-  and the work agent profile (21 models): strings, `int`/`double` (the `ints`
-  list), booleans, string arrays, nested models and arrays of them (nullable
-  and recursive too),
+  settings view, the session figure, the chat cluster including its snapshot,
+  the work agent profile and the session source (22 models): strings,
+  `int`/`double` (the `ints` list), booleans, string arrays, nested models and
+  arrays of them (nullable and recursive too),
   `Record<string, string|number|model>` maps, optional/`| null` fields as
   nullable Dart fields, a union of object shapes flattened into one class (a
   field every member shares stays required; a member-only field becomes

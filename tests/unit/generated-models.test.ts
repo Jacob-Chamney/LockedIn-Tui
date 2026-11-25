@@ -50,6 +50,7 @@ describe("generated Dart models", () => {
       "ChatErrorWire",
       "ChatSnapshotView",
       "AgentProfile",
+      "Source",
     ]);
     expect(read(MODELS_PATH)).toBe(renderModels(models));
   });
@@ -281,6 +282,19 @@ describe("generated Dart models", () => {
       ["allowWrite", "bool"],
       ["allowCommand", "bool"],
       ["template", "string"],
+    ]);
+  });
+
+  test("the session source keeps its five string fields", () => {
+    const models = extractModels(ROOT);
+    const source = models.find((model) => model.name === "Source");
+    expect(source?.dartName).toBe("SessionSource");
+    expect(source?.fields.map((field) => [field.name, field.type])).toEqual([
+      ["originalPath", "string"],
+      ["storedPath", "string"],
+      ["name", "string"],
+      ["hash", "string"],
+      ["kind", "string"],
     ]);
   });
 

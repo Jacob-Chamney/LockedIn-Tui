@@ -31,7 +31,8 @@ export 'core_models.g.dart'
         ChatBlocked,
         ChatFailure,
         ChatSnapshot,
-        AgentProfileView;
+        AgentProfileView,
+        SessionSource;
 
 String _string(Object? value) => value is String ? value : '';
 int _int(Object? value) => value is num ? value.toInt() : 0;
@@ -171,32 +172,6 @@ class ArchiveRow {
 }
 
 /// One file copied into a lock-in session's `sources/` folder.
-class SessionSource {
-  const SessionSource({
-    required this.name,
-    required this.originalPath,
-    required this.storedPath,
-    required this.hash,
-    required this.kind,
-  });
-
-  final String name;
-
-  /// Informational only: the core reads through [storedPath].
-  final String originalPath;
-  final String storedPath;
-  final String hash;
-  final String kind;
-
-  factory SessionSource.fromJson(Map<String, dynamic> json) => SessionSource(
-    name: _string(json['name']),
-    originalPath: _string(json['originalPath']),
-    storedPath: _string(json['storedPath']),
-    hash: _string(json['hash']),
-    kind: _string(json['kind']),
-  );
-}
-
 /// `source.add` – what the core copied into the session's `sources/` folder.
 ///
 /// [skipped] counts files whose bytes are already attached: the core stores one

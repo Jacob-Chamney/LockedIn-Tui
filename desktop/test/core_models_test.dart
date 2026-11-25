@@ -264,4 +264,21 @@ void main() {
       expect(fresh.toSaveJson().containsKey('id'), isFalse);
     },
   );
+
+  test('the session source decodes its five fields', () {
+    final source = SessionSource.fromJson({
+      'originalPath': '/home/me/input/lecture-4.md',
+      'storedPath': 'sources/sha256-lecture-4.md',
+      'name': 'lecture-4.md',
+      'hash': 'sha256:abc',
+      'kind': 'markdown',
+    });
+    expect(source.name, 'lecture-4.md');
+    expect(source.storedPath, 'sources/sha256-lecture-4.md');
+    expect(source.kind, 'markdown');
+
+    final empty = SessionSource.fromJson({});
+    expect(empty.name, '');
+    expect(empty.hash, '');
+  });
 }
