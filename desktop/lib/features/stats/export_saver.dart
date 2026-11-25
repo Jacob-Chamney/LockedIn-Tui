@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
 
+import '../../bridge/errors.dart';
+
 /// Chooses the destination for one Stats export.
 ///
 /// The core returns the document text and never a path (`stats.export` in
@@ -69,5 +71,9 @@ String saveFailureReason(Object failure) {
   if (failure is MissingPluginException) {
     return 'no save dialog on this platform';
   }
-  return failure.toString();
+  // Everything else goes through the one mapper the shell uses: a timeout and
+  // a dead core become sentences, a short single-line message survives, and a
+  // stack trace or a multi-line provider blob is replaced. `toString()` here
+  // used to print the exception class and its payload into the export dialog.
+  return userMessage(failure);
 }

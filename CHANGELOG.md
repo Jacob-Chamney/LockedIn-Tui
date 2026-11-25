@@ -21,6 +21,10 @@ requests merge.
 
 ## Unreleased
 
+- Raw exception text no longer reaches the UI: the Stats save error and the
+  agent Templates hint use the shared `userMessage` mapper, so a stack trace or
+  a multi-line payload becomes one readable sentence.
+
 - A promoted mistake can be corrected later: the Mistakes card writes (or
   replaces) the corrected-understanding section, keeps the provenance and
   settles the note, so the graduation path is no longer one-way.
