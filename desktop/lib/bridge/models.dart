@@ -29,7 +29,8 @@ export 'core_models.g.dart'
         ChatMessageView,
         ChatUsageView,
         ChatBlocked,
-        ChatFailure;
+        ChatFailure,
+        ChatSnapshot;
 
 String _string(Object? value) => value is String ? value : '';
 int _int(Object? value) => value is num ? value.toInt() : 0;
@@ -945,50 +946,11 @@ class DecisionView {
   }
 }
 
-class ChatSnapshot {
-  const ChatSnapshot({
-    required this.status,
-    required this.model,
-    required this.streamed,
-    required this.messages,
-    required this.usage,
-    this.blocked,
-    this.error,
-  });
-
-  final String status;
-  final String? model;
-  final String streamed;
-  final List<ChatMessageView> messages;
-  final ChatUsageView usage;
-  final ChatBlocked? blocked;
-  final ChatFailure? error;
-
+/// View helpers for the generated [ChatSnapshot].
+extension ChatSnapshotView on ChatSnapshot {
   bool get streaming => status == 'streaming';
-  bool get hasModel => model != null && model!.isNotEmpty;
 
-  factory ChatSnapshot.fromJson(Map<String, dynamic> json) {
-    final model = json['model'];
-    final blocked = json['blocked'];
-    final error = json['error'];
-    return ChatSnapshot(
-      status: _string(json['status']),
-      model: model is String && model.isNotEmpty ? model : null,
-      streamed: _string(json['streamed']),
-      messages: _maps(json['messages']).map(ChatMessageView.fromJson).toList(),
-      usage: ChatUsageView.fromJson(
-        json['usage'] is Map
-            ? Map<String, dynamic>.from(json['usage'] as Map)
-            : const <String, dynamic>{},
-      ),
-      blocked: blocked is Map
-          ? ChatBlocked.fromJson(Map<String, dynamic>.from(blocked))
-          : null,
-      error: error is Map
-          ? ChatFailure.fromJson(Map<String, dynamic>.from(error))
-          : null,
-    );
-  }
+  bool get hasModel => model != null && model!.isNotEmpty;
 }
 
 /// One agent inside a Work project row (`work.list` / `work.open`).

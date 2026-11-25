@@ -1978,6 +1978,21 @@ export type ChatBlockedWire = { reason: string; fix: string };
 
 export type ChatErrorWire = { failed: string; kept: string; next: string };
 
+/**
+ * One chat projection. `seq` is the stream's frame number; the Flutter shell
+ * tracks it separately and does not store it on its snapshot model.
+ */
+export type ChatSnapshotView = {
+  seq: number;
+  status: string;
+  model: string | null;
+  streamed: string;
+  messages: ChatMessageWire[];
+  blocked: ChatBlockedWire | null;
+  error: ChatErrorWire | null;
+  usage: ChatUsageWire;
+};
+
 function chatSnapshot(
   state: ChatState,
   usage: ChatUsage,
@@ -2006,7 +2021,7 @@ function chatSnapshot(
     blocked,
     error,
     usage: snapshotUsage,
-  };
+  } satisfies ChatSnapshotView;
 }
 
 /**

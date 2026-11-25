@@ -48,6 +48,7 @@ describe("generated Dart models", () => {
       "ChatUsageWire",
       "ChatBlockedWire",
       "ChatErrorWire",
+      "ChatSnapshotView",
     ]);
     expect(read(MODELS_PATH)).toBe(renderModels(models));
   });
@@ -242,6 +243,26 @@ describe("generated Dart models", () => {
       "kept",
       "next",
     ]);
+  });
+
+  test("ChatSnapshot omits the stream counter and keeps the nullable parts", () => {
+    const models = extractModels(ROOT);
+    const snapshot = models.find((model) => model.name === "ChatSnapshotView");
+    expect(snapshot?.dartName).toBe("ChatSnapshot");
+    expect(
+      snapshot?.fields.map((field) => [field.name, field.type, field.nullable, field.model]),
+    ).toEqual([
+      ["status", "string", false, undefined],
+      ["model", "string", true, undefined],
+      ["streamed", "string", false, undefined],
+      ["messages", "models", false, "ChatMessageView"],
+      ["blocked", "model", true, "ChatBlocked"],
+      ["error", "model", true, "ChatFailure"],
+      ["usage", "model", false, "ChatUsageView"],
+    ]);
+    const generated = read(MODELS_PATH);
+    expect(generated).toContain("class ChatSnapshot");
+    expect(generated).not.toContain("final int seq;");
   });
 
   test("the source is the exported protocol type", () => {

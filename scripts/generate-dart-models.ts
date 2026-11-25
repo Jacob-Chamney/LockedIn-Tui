@@ -41,6 +41,8 @@ export type ModelSpec = {
   ints?: readonly string[];
   /** A fallback for a missing string field, rather than `''`. */
   defaults?: Readonly<Record<string, string>>;
+  /** Wire fields the Dart model does not carry (a stream counter, for one). */
+  omit?: readonly string[];
 };
 
 export const MODEL_SPECS: readonly ModelSpec[] = [
@@ -77,6 +79,7 @@ export const MODEL_SPECS: readonly ModelSpec[] = [
   },
   { name: "ChatBlockedWire", dart: "ChatBlocked" },
   { name: "ChatErrorWire", dart: "ChatFailure" },
+  { name: "ChatSnapshotView", dart: "ChatSnapshot", omit: ["seq"] },
 ];
 
 export type DartFieldType =
@@ -365,7 +368,9 @@ export function extractModels(root: string, options: ExtractOptions = {}): DartM
           doc: docOf(checker, property),
         } satisfies DartField;
       });
-    if (fields.length === 0) throw new Error(`${name} has no fields`);
+    const omitted = new Set(spec.omit ?? []);
+    const kept = fields.filter((field) => !omitted.has(field.name));
+    if (kept.length === 0) throw new Error(`${name} has no fields`);
     return {
       name,
       dartName: spec.dart ?? name,
@@ -374,7 +379,7 @@ export function extractModels(root: string, options: ExtractOptions = {}): DartM
         (node as unknown as { symbol?: ts.Symbol }).symbol ??
           checker.getSymbolAtLocation(node),
       ),
-      fields,
+      fields: kept,
       lowercase: spec.lowercase ?? [],
       numericStrings: spec.numericStrings ?? [],
       defaults: spec.defaults ?? {},

@@ -54,6 +54,9 @@ String? _stringOrNull(Object? value) =>
 
 int? _intOrNull(Object? value) => value is num ? value.toInt() : null;
 
+T? _modelOrNull<T>(Object? value, T Function(Map<String, dynamic>) parse) =>
+    value is Map ? parse(Map<String, dynamic>.from(value)) : null;
+
 /// One knowledge search result (`docs/product.md` §6.3).
 ///
 /// `side` is the wall: a school row can never be a skills row. `path` is always
@@ -647,5 +650,43 @@ class ChatFailure {
     failed: _string(json['failed']),
     kept: _string(json['kept']),
     next: _string(json['next']),
+  );
+}
+
+/// One chat projection. `seq` is the stream's frame number; the Flutter shell
+/// tracks it separately and does not store it on its snapshot model.
+class ChatSnapshot {
+  const ChatSnapshot({
+    required this.status,
+    this.model,
+    required this.streamed,
+    required this.messages,
+    this.blocked,
+    this.error,
+    required this.usage,
+  });
+
+  final String status;
+
+  final String? model;
+
+  final String streamed;
+
+  final List<ChatMessageView> messages;
+
+  final ChatBlocked? blocked;
+
+  final ChatFailure? error;
+
+  final ChatUsageView usage;
+
+  factory ChatSnapshot.fromJson(Map<String, dynamic> json) => ChatSnapshot(
+    status: _string(json['status']),
+    model: _stringOrNull(json['model']),
+    streamed: _string(json['streamed']),
+    messages: _models(json['messages'], ChatMessageView.fromJson),
+    blocked: _modelOrNull(json['blocked'], ChatBlocked.fromJson),
+    error: _modelOrNull(json['error'], ChatFailure.fromJson),
+    usage: ChatUsageView.fromJson(_map(json['usage'])),
   );
 }
