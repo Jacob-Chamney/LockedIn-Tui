@@ -1,7 +1,7 @@
 // GENERATED FILE — do not edit by hand.
 // dart format off
 //
-// Generated from the exported types in: src/server/protocol.ts, src/stats/types.ts, src/services/knowledge/learning-graph.ts, src/types/settings.ts, src/services/lockin/figures.ts, src/services/work/agents.ts.
+// Generated from the exported types in: src/server/protocol.ts, src/stats/types.ts, src/services/knowledge/learning-graph.ts, src/types/settings.ts, src/services/lockin/figures.ts, src/services/work/agents.ts, src/domain/source.ts.
 // Regenerate: `bun run scripts/generate-dart-models.ts`.
 //
 // The shell reads these models from the wire; every field is tolerant of a
@@ -741,5 +741,36 @@ class AgentProfileView {
     allowWrite: _bool(json['allowWrite']),
     allowCommand: _bool(json['allowCommand']),
     template: _string(json['template']),
+  );
+}
+
+class SessionSource {
+  const SessionSource({
+    required this.originalPath,
+    required this.storedPath,
+    required this.name,
+    required this.hash,
+    required this.kind,
+  });
+
+  /// Where the user picked it. Informational only; never read back.
+  final String originalPath;
+
+  /// Relative to the session folder, always under `sources/`.
+  final String storedPath;
+
+  final String name;
+
+  /// `sha256:<64 hex>` — the de-duplication key.
+  final String hash;
+
+  final String kind;
+
+  factory SessionSource.fromJson(Map<String, dynamic> json) => SessionSource(
+    originalPath: _string(json['originalPath']),
+    storedPath: _string(json['storedPath']),
+    name: _string(json['name']),
+    hash: _string(json['hash']),
+    kind: _string(json['kind']),
   );
 }

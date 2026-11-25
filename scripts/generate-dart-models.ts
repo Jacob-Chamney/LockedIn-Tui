@@ -27,6 +27,7 @@ export const MODEL_SOURCES = [
   "src/types/settings.ts",
   "src/services/lockin/figures.ts",
   "src/services/work/agents.ts",
+  "src/domain/source.ts",
 ];
 export const MODELS_PATH = "desktop/lib/bridge/core_models.g.dart";
 
@@ -86,6 +87,7 @@ export const MODEL_SPECS: readonly ModelSpec[] = [
     dart: "AgentProfileView",
     ints: ["maxToolCalls"],
   },
+  { name: "Source", dart: "SessionSource" },
 ];
 
 export type DartFieldType =
