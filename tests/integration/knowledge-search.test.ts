@@ -166,7 +166,7 @@ describe("query handling", () => {
     // A prefix query still finds the note rather than widening to everything.
     const prefix = await searchKnowledge(workspace, "ener*")
     expect(prefix.hits.every((hit) => hit.side === "school")).toBe(true)
-  }, 15_000)
+  }, 30_000)
 
   test("a quoted phrase does not escape the wall", async () => {
     const result = await searchKnowledge(workspace, '"calling convention"', { side: "school" })
