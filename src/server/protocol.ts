@@ -3973,6 +3973,48 @@ export function createCoreServer(options: CoreOptions): CoreServer {
    * shell receives `{id, name}` and calls `session.open` for the detail; the
    * response is deliberately not a second copy of it.
    */
+  /**
+   * The result of one `session.create`, cached by the shell's request id.
+   *
+   * The shell gives an attempt an id so a timed-out retry can join the first
+   * create instead of starting a second one (`docs/decisions/0019`). Only
+   * successful results are kept: a validation or copy failure is dropped, so a
+   * corrected retry is a fresh attempt. The map is process state and is empty
+   * after a restart.
+   */
+  type SessionCreateOutcome =
+    | { ok: true; id: string; name: string }
+    | { ok: false; message: string; field?: string };
+
+  const sessionCreates = new Map<
+    string,
+    { promise: Promise<SessionCreateOutcome>; done?: SessionCreateOutcome }
+  >();
+
+  const createReply = (id: RpcId, outcome: SessionCreateOutcome): JsonRpcResponse =>
+    outcome.ok
+      ? success(id, { id: outcome.id, name: outcome.name })
+      : failure(
+          id,
+          BOOT_FAILED,
+          outcome.message,
+          {
+            kind: "session-create",
+            message: outcome.message,
+            ...(outcome.field === undefined ? {} : { field: outcome.field }),
+          },
+          false,
+        );
+
+  /** Keep the last 32 settled creates; older keys are only a retry aid. */
+  const trimCreates = (): void => {
+    while (sessionCreates.size > 32) {
+      const oldest = sessionCreates.keys().next().value;
+      if (oldest === undefined) break;
+      sessionCreates.delete(oldest);
+    }
+  };
+
   const sessionCreate = async (
     id: RpcId,
     params: Record<string, unknown>,
@@ -4011,36 +4053,79 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     if (steps !== undefined && typeof steps !== "boolean") {
       return invalid(id, "session.create: steps must be a boolean");
     }
+    const rawRequestId = params.requestId;
+    if (rawRequestId !== undefined) {
+      if (
+        typeof rawRequestId !== "string" ||
+        rawRequestId.trim() === "" ||
+        rawRequestId.length > 128
+      ) {
+        return invalid(
+          id,
+          "session.create: requestId must be a non-empty string of at most 128 characters",
+        );
+      }
+    }
+    const requestId = typeof rawRequestId === "string" ? rawRequestId : undefined;
 
     const current = await services();
     if (!current.ok) return bootFailureResponse(id, current.error);
     // The service is the single writer: a refusal leaves no session, no temp
     // directory and no half-written `meta.json` (`AGENTS.md` §2.9).
-    const created = await createLockInSession({
-      workspace: current.value.workspace,
-      created: new Date(),
-      name,
-      ...(prompt === undefined ? {} : { prompt }),
-      ...(files === undefined ? {} : { files: files as string[] }),
-      ...(instructionsFile === undefined ? {} : { instructionsFile }),
-      ...(steps === undefined ? {} : { steps }),
-    });
-    if (!created.ok) {
-      const error = created.error;
-      const message = oneLine(error.message);
+    const runCreate = async (): Promise<SessionCreateOutcome> => {
+      const created = await createLockInSession({
+        workspace: current.value.workspace,
+        created: new Date(),
+        name,
+        ...(prompt === undefined ? {} : { prompt }),
+        ...(files === undefined ? {} : { files: files as string[] }),
+        ...(instructionsFile === undefined ? {} : { instructionsFile }),
+        ...(steps === undefined ? {} : { steps }),
+      });
+      if (!created.ok) {
+        const error = created.error;
+        return {
+          ok: false,
+          message: oneLine(error.message),
+          ...(error.kind === "invalid-session" ? { field: error.field } : {}),
+        };
+      }
+      return {
+        ok: true,
+        id: created.value.session.id,
+        name: created.value.session.name,
+      };
+    };
+
+    if (requestId === undefined) return createReply(id, await runCreate());
+
+    const existing = sessionCreates.get(requestId);
+    if (existing?.done !== undefined) return createReply(id, existing.done);
+    if (existing !== undefined) {
+      const message = "still creating — check Sessions";
       return failure(
         id,
         BOOT_FAILED,
         message,
-        {
-          kind: "session-create",
-          message,
-          ...(error.kind === "invalid-session" ? { field: error.field } : {}),
-        },
+        { kind: "session-create", requestId, status: "creating", message },
         false,
       );
     }
-    return success(id, { id: created.value.session.id, name: created.value.session.name });
+
+    const entry: {
+      promise: Promise<SessionCreateOutcome>;
+      done?: SessionCreateOutcome;
+    } = { promise: runCreate() };
+    sessionCreates.set(requestId, entry);
+    const outcome = await entry.promise;
+    entry.done = outcome;
+    if (!outcome.ok) {
+      // A failure is not an idempotent result: a corrected retry must run.
+      sessionCreates.delete(requestId);
+    } else {
+      trimCreates();
+    }
+    return createReply(id, outcome);
   };
 
   /**

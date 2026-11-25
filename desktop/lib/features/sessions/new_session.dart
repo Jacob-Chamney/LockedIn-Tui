@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
@@ -24,6 +25,7 @@ class NewSessionInput {
     this.files = const [],
     this.instructionsFile,
     this.steps = true,
+    this.requestId = '',
   });
 
   final String name;
@@ -40,6 +42,13 @@ class NewSessionInput {
 
   /// Ask the core to generate `assignment-steps.md`.
   final bool steps;
+
+  /// The idempotency key for this attempt (`docs/decisions/0019`).
+  ///
+  /// The wizard sets it once per submission and reuses it on Retry, so a
+  /// create that outlived the client deadline is not duplicated. Empty when a
+  /// caller does not use the key.
+  final String requestId;
 }
 
 /// The three wizard steps, in order.
@@ -111,6 +120,11 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
   String? _instructionsFile;
   var _steps = true;
   var _busy = false;
+
+  /// The idempotency key for the attempt on Review. It is generated on the
+  /// first submit, kept across a Retry, and dropped when the user goes back to
+  /// edit the input (a new attempt).
+  String? _requestId;
   String? _failure;
 
   /// A blocked rule is a warning; a core refusal is an error. Both stay inline
@@ -183,6 +197,7 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
 
   void _back() {
     if (_busy) return;
+    _requestId = null;
     if (_step == _Step.sources) {
       widget.onCancel();
       return;
@@ -192,6 +207,7 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
 
   void _next() {
     if (_busy) return;
+    _requestId = null;
     if (_step == _Step.sources) {
       // The name is the only thing this step owns; the content rule is checked
       // once the Instructions step has had its turn, so a prompt-only or a
@@ -220,6 +236,7 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
       _fail(blocked, core: false);
       return;
     }
+    _requestId ??= _newRequestId();
     setState(() {
       _busy = true;
       _failure = null;
@@ -237,9 +254,11 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
               ? _instructionsFile
               : null,
           steps: _steps,
+          requestId: _requestId!,
         ),
       );
       if (!mounted) return;
+      _requestId = null;
       setState(() => _busy = false);
       widget.onCreated(result.id);
     } catch (failure) {
@@ -248,6 +267,11 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
       _fail(userMessage(failure), core: true);
     }
   }
+
+  /// A fresh attempt key. No uuid package: the instant plus 32 random bits is
+  /// unique for a wizard and short enough for the protocol's 128-char cap.
+  String _newRequestId() =>
+      'create-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 32)}';
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {

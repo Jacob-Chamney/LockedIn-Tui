@@ -581,4 +581,48 @@ void main() {
       expect(store.activeSessionId, FakeCore.sessionId);
     });
   });
+
+  testWidgets('a timed-out create is retried with the same request id', (
+    tester,
+  ) async {
+    final ids = <String>[];
+    var attempts = 0;
+    var created = 0;
+    await pumpWizard(
+      tester,
+      pickFiles: () async => ['/home/me/input/lecture-4.md'],
+      onCreate: (input) async {
+        ids.add(input.requestId);
+        attempts += 1;
+        if (attempts == 1) {
+          throw TimeoutException('core did not answer session.create');
+        }
+        return const SessionCreateResult(id: 'id-1', name: 'Physics');
+      },
+      onCreated: (_) => created += 1,
+    );
+
+    await tapAndSettle(tester, _pickKey);
+    await enterName(tester, 'Physics');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(_promptKey), 'Explain it');
+    await tester.pump();
+    await tapAndSettle(tester, _nextKey);
+    await tapAndSettle(tester, _createKey);
+
+    // The deadline maps to one sentence, and the form stays usable.
+    expect(find.byKey(_errorKey), findsOneWidget);
+    expect(find.textContaining('did not answer in time'), findsOneWidget);
+    expect(ids, hasLength(1));
+    expect(ids.single, isNotEmpty);
+
+    // Retry reuses the attempt key, so the core joins the first create
+    // instead of writing a second session.
+    await tapAndSettle(tester, _createKey);
+    expect(created, 1);
+    expect(ids, hasLength(2));
+    expect(ids[1], ids[0]);
+    expect(tester.takeException(), isNull);
+  });
 }
