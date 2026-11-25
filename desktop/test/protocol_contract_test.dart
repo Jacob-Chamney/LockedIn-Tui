@@ -201,10 +201,21 @@ void main() {
     expect(row.step, 'Derive the energy balance');
     expect(row.promoted, isTrue);
     expect(row.note?.path, 'school/vault/knowledge/energy-is-conserved.md');
+    expect(row.note?.status, 'open');
+    expect(row.note?.corrected, isFalse);
 
     final open = SessionMistake.fromJson({'index': 0, 'text': 'a mistake'});
     expect(open.promoted, isFalse);
     expect(open.step, isNull);
+
+    final corrected = MistakeNote.fromJson({
+      'path': 'school/vault/knowledge/x.md',
+      'title': 'x',
+      'created': '',
+      'status': 'corrected',
+    });
+    expect(corrected.status, 'corrected');
+    expect(corrected.corrected, isTrue);
 
     final promotion = MistakePromotion.fromJson({
       'note': {

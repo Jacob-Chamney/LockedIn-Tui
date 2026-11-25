@@ -1917,6 +1917,10 @@ class _ShellState extends State<Shell> {
                 index,
                 correction: correction,
               ),
+        onCorrectMistake: sessionId == null
+            ? null
+            : (index, correction) =>
+                  store.correctMistake(sessionId, index, correction),
         onBack: store.closeSession,
         onOpenChat: () => setState(() => _sessionChatOpen = true),
         onOpenSettings: () => setState(() {

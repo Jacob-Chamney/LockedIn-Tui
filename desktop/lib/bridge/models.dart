@@ -342,20 +342,29 @@ class MistakeNote {
     required this.path,
     required this.title,
     required this.created,
+    this.status = 'open',
   });
 
   final String path;
   final String title;
   final String created;
 
+  /// `open` until a correction is written, then `corrected`; a reviewed open
+  /// note reads `reviewed`. A missing status is read as `open`.
+  final String status;
+
+  bool get corrected => status == 'corrected';
+
   factory MistakeNote.fromJson(Object? value) {
     final json = value is Map
         ? Map<String, dynamic>.from(value)
         : const <String, dynamic>{};
+    final status = _nonEmpty(json['status']) ?? 'open';
     return MistakeNote(
       path: _string(json['path']),
       title: _string(json['title']),
       created: _string(json['created']),
+      status: status,
     );
   }
 }

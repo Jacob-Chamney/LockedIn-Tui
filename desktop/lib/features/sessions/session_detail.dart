@@ -66,6 +66,7 @@ class SessionDetailView extends StatefulWidget {
     this.onRetryMistakes,
     this.onRecordMistake,
     this.onPromoteMistake,
+    this.onCorrectMistake,
   });
 
   /// The core's `session.open` projection, or null while it is unavailable.
@@ -127,6 +128,11 @@ class SessionDetailView extends StatefulWidget {
   /// Promote one entry into a labelled note. Null keeps the rows read-only.
   final Future<MistakePromotion> Function(int index, {String? correction})?
   onPromoteMistake;
+
+  /// Write or replace a promoted note's corrected understanding. Null keeps a
+  /// promoted row read-only.
+  final Future<MistakeNote> Function(int index, String correction)?
+  onCorrectMistake;
 
   /// True while the shell is opening or refreshing the session.
   final bool loading;
@@ -1757,12 +1763,14 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                   ),
                 if (note != null)
                   Text(
-                    'promoted → ${note.path.split('/').last}',
+                    'promoted → ${note.path.split('/').last} · ${note.status}',
                     key: ValueKey('mistake-promoted-${entry.index}'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: LockedInColors.success,
+                      color: note.corrected
+                          ? LockedInColors.success
+                          : LockedInColors.muted,
                       fontSize: 10.5,
                     ),
                   ),
@@ -1776,6 +1784,14 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                   ? null
                   : () => _promoteMistake(entry.index),
               child: const Text('Promote'),
+            ),
+          if (note != null && widget.onCorrectMistake != null)
+            TextButton(
+              key: ValueKey('mistake-correct-${entry.index}'),
+              onPressed: _mistakeBusy
+                  ? null
+                  : () => _correctMistake(entry.index),
+              child: Text(note.corrected ? 'Edit' : 'Correct'),
             ),
         ],
       ),
@@ -2666,12 +2682,41 @@ class _SessionDetailViewState extends State<SessionDetailView> {
     }
   }
 
-  Future<String?> _askCorrection(int index) async {
+  /// Write the right answer under a promoted note.
+  Future<void> _correctMistake(int index) async {
+    final correct = widget.onCorrectMistake;
+    if (correct == null || _mistakeBusy) return;
+    final correction = await _askCorrection(index, correcting: true);
+    if (correction == null || !mounted) return;
+    final text = correction.trim();
+    if (text.isEmpty) {
+      setState(() => _mistakeNotice = 'write the correction first');
+      return;
+    }
+    setState(() {
+      _mistakeBusy = true;
+      _mistakeNotice = null;
+    });
+    try {
+      await correct(index, text);
+      if (mounted) setState(() => _mistakeNotice = 'corrected');
+    } catch (failure) {
+      if (mounted) setState(() => _mistakeNotice = userMessage(failure));
+    } finally {
+      if (mounted) setState(() => _mistakeBusy = false);
+    }
+  }
+
+  Future<String?> _askCorrection(int index, {bool correcting = false}) async {
     final controller = _correctionController..clear();
     final answer = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('promote mistake ${index + 1}'),
+        title: Text(
+          correcting
+              ? 'correct mistake ${index + 1}'
+              : 'promote mistake ${index + 1}',
+        ),
         content: SizedBox(
           width: 520,
           child: Column(
@@ -2711,7 +2756,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
           FilledButton(
             key: ValueKey('mistake-promote-confirm-$index'),
             onPressed: () => Navigator.of(dialogContext).pop(controller.text),
-            child: const Text('Promote'),
+            child: Text(correcting ? 'Save correction' : 'Promote'),
           ),
         ],
       ),

@@ -255,6 +255,7 @@ import {
 } from "../services/teaching/side";
 import { normalisePoint, readMemory, recordTurn, type Memory, type TurnOutcome } from "../services/lockin/memory";
 import {
+  correctMistake,
   listMistakes,
   markMistake as markMistakeNote,
   promoteMistake,
@@ -327,6 +328,7 @@ export const CAPABILITIES = [
   "session.mistake.list",
   "session.mistake.record",
   "session.mistake.promote",
+  "session.mistake.correct",
   "archive.list",
   "archive.restore",
   "archive.remove",
@@ -9136,6 +9138,50 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     return success(id, { figure: added.value });
   };
 
+  /**
+   * `session.mistake.correct` — write the right answer under a promoted note.
+   *
+   * Promotion is not one-way: this replaces only the `## Corrected understanding`
+   * section, keeps the provenance, and sets `status: corrected`, so the note
+   * settles and leaves the Review queue. The ledger entry itself is untouched.
+   */
+  const sessionMistakeCorrect = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const rawId = params.id;
+    if (typeof rawId !== "string" || rawId.trim() === "") {
+      return invalid(id, "session.mistake.correct requires a session id");
+    }
+    const index = params.index;
+    if (typeof index !== "number" || !Number.isInteger(index) || index < 0) {
+      return invalid(id, "session.mistake.correct requires a whole mistake index");
+    }
+    if (typeof params.correction !== "string") {
+      return invalid(id, "session.mistake.correct requires correction text");
+    }
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const resolved = await resolveSession(id, current.value, rawId);
+    if ("error" in resolved) return resolved.error;
+    const sessionId = resolved.opened.session.id;
+
+    const corrected = await correctMistake({
+      workspace: current.value.workspace,
+      sessionId,
+      index,
+      correction: params.correction,
+    });
+    if (!corrected.ok) {
+      const message =
+        corrected.error.kind === "invalid"
+          ? corrected.error.message
+          : "the correction could not be written";
+      return mistakeFailure(id, sessionId, message);
+    }
+    return success(id, { note: corrected.value.note });
+  };
+
   /** The mistake ledger's failure shape: one session, one message. */
   const mistakeFailure = (id: RpcId, sessionId: string, message: string): JsonRpcResponse =>
     failure(id, BOOT_FAILED, message, { kind: "mistake", id: sessionId, message }, false);
@@ -11961,6 +12007,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         return sessionMistakeRecord(id, params);
       case "session.mistake.promote":
         return sessionMistakePromote(id, params);
+      case "session.mistake.correct":
+        return sessionMistakeCorrect(id, params);
       case "research.start":
         return researchStart(id, params);
       case "research.list":

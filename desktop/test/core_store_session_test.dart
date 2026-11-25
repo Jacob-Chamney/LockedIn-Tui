@@ -330,4 +330,36 @@ void main() {
     expect(store.mistakes, isEmpty);
     expect(store.error, isNull);
   });
+
+  test('correcting a promoted mistake settles the row', () async {
+    final core = FakeCore();
+    final store = CoreStore(connection: core);
+    addTearDown(store.dispose);
+    await store.start();
+    await store.openSession(FakeCore.sessionId);
+    await settle();
+
+    await store.recordMistake(
+      FakeCore.sessionId,
+      'Energy is conserved per object.',
+    );
+    final promoted = await store.promoteMistake(FakeCore.sessionId, 0);
+    expect(store.mistakes.single.note?.status, 'open');
+
+    final corrected = await store.correctMistake(
+      FakeCore.sessionId,
+      0,
+      'Energy is conserved for a closed system.',
+    );
+    expect(corrected.path, promoted.note.path);
+    expect(corrected.status, 'corrected');
+    expect(store.mistakes.single.note?.status, 'corrected');
+    expect(store.mistakesError, isNull);
+
+    await expectLater(
+      store.correctMistake(FakeCore.sessionId, 0, '   '),
+      throwsA(isA<RpcException>()),
+    );
+    expect(store.mistakes.single.note?.status, 'corrected');
+  });
 }

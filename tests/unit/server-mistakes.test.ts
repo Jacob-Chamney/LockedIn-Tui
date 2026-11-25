@@ -290,3 +290,88 @@ describe("session.mistake.promote", () => {
     }
   });
 });
+
+describe("session.mistake.correct", () => {
+  beforeEach(async () => {
+    const server = makeServer();
+    await resultOf(server, "session.mistake.record", {
+      id: sessionId,
+      text: "Energy is conserved per object.",
+      step: "Derive the energy balance",
+    });
+    await resultOf(server, "session.mistake.promote", { id: sessionId, index: 0 });
+  });
+
+  test("writes the correction and settles the note", async () => {
+    const server = makeServer();
+    const reply = await resultOf(server, "session.mistake.correct", {
+      id: sessionId,
+      index: 0,
+      correction: "Energy is conserved for a closed system.",
+    });
+    const note = reply.note as { status: string; path: string };
+    expect(note.status).toBe("corrected");
+
+    const listed = await resultOf(server, "session.mistake.list", { id: sessionId });
+    const entries = listed.entries as Array<Record<string, unknown>>;
+    expect((entries[0]?.note as { status: string }).status).toBe("corrected");
+
+    const read = await resultOf(server, "knowledge.read", {
+      id: `note:school:${note.path}`,
+    });
+    expect(read.body as string).toContain("Energy is conserved for a closed system.");
+    expect(read.body as string).not.toContain("Not written yet.");
+
+    // A corrected note is settled, so it is no longer an actionable review item.
+    const queue = await resultOf(server, "review.queue");
+    const items = (queue.queue as { items: Array<Record<string, unknown>> }).items;
+    expect(items.some((item) => item.kind === "mistake")).toBe(false);
+  });
+
+  test("a later correction replaces the earlier one", async () => {
+    const server = makeServer();
+    await resultOf(server, "session.mistake.correct", {
+      id: sessionId,
+      index: 0,
+      correction: "First answer.",
+    });
+    await resultOf(server, "session.mistake.correct", {
+      id: sessionId,
+      index: 0,
+      correction: "Second answer.",
+    });
+    const listed = await resultOf(server, "session.mistake.list", { id: sessionId });
+    const entries = listed.entries as Array<Record<string, unknown>>;
+    const path = (entries[0]?.note as { path: string }).path;
+    const read = await resultOf(server, "knowledge.read", { id: `note:school:${path}` });
+    expect(read.body as string).toContain("Second answer.");
+    expect(read.body as string).not.toContain("First answer.");
+  });
+
+  test("a blank correction is a typed refusal", async () => {
+    const error = await errorOf(makeServer(), "session.mistake.correct", {
+      id: sessionId,
+      index: 0,
+      correction: "   ",
+    });
+    expect(error.code).toBe(BOOT_FAILED);
+    expect(error.data).toMatchObject({ kind: "mistake" });
+    expect(error.message).toContain("some text");
+  });
+
+  test("a malformed request is invalid params", async () => {
+    for (const params of [
+      { id: sessionId, index: 0 },
+      { id: sessionId, index: -1, correction: "x" },
+      { id: sessionId, index: 0, correction: 7 },
+      { id: "  ", index: 0, correction: "x" },
+    ]) {
+      const error = await errorOf(makeServer(), "session.mistake.correct", params);
+      expect(error.code).toBe(-32602);
+    }
+  });
+
+  test("the handshake advertises the method", () => {
+    expect(CAPABILITIES as readonly string[]).toContain("session.mistake.correct");
+  });
+});
