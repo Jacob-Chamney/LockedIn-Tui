@@ -158,4 +158,44 @@ void main() {
     expect(whole.cropped, isFalse);
     expect(whole.note, '');
   });
+
+  test('the chat leaf models decode their wire views', () {
+    final message = ChatMessageView.fromJson({
+      'id': 'm1',
+      'role': 'assistant',
+      'text': 'Hello',
+      'outcome': 'done',
+    });
+    expect(message.role, 'assistant');
+    expect(message.outcome, 'done');
+
+    final stopped = ChatMessageView.fromJson({'outcome': ''});
+    expect(stopped.text, '');
+    expect(stopped.outcome, isNull);
+
+    final usage = ChatUsageView.fromJson({
+      'tokens': 12,
+      'costMicroUsd': 1000,
+      'durationMs': null,
+    });
+    expect(usage.tokens, 12);
+    expect(usage.costMicroUsd, 1000);
+    expect(usage.durationMs, isNull);
+
+    final blocked = ChatBlocked.fromJson({
+      'reason': 'no model',
+      'fix': 'link one',
+    });
+    expect(blocked.reason, 'no model');
+    expect(blocked.fix, 'link one');
+
+    final failure = ChatFailure.fromJson({
+      'failed': 'provider refused',
+      'kept': 'nothing was sent',
+      'next': 'fix the key',
+    });
+    expect(failure.failed, 'provider refused');
+    expect(failure.kept, 'nothing was sent');
+    expect(failure.next, 'fix the key');
+  });
 }

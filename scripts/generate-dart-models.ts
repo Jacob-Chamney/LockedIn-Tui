@@ -69,6 +69,14 @@ export const MODEL_SPECS: readonly ModelSpec[] = [
     name: "SessionFigure",
     ints: ["page", "x", "y", "width", "height"],
   },
+  { name: "ChatMessageWire", dart: "ChatMessageView" },
+  {
+    name: "ChatUsageWire",
+    dart: "ChatUsageView",
+    ints: ["tokens", "costMicroUsd", "durationMs"],
+  },
+  { name: "ChatBlockedWire", dart: "ChatBlocked" },
+  { name: "ChatErrorWire", dart: "ChatFailure" },
 ];
 
 export type DartFieldType =

@@ -1959,29 +1959,53 @@ function imageMediaType(path: string): string {
  * request) can drop exactly the stale frame instead of overwriting the
  * transcript. A stream starts at 0 and increments once per emitted frame.
  */
+/** One message in a chat snapshot (`chat.state`, `session.chat.state`, …). */
+export type ChatMessageWire = {
+  id: string;
+  role: string;
+  text: string;
+  outcome: string | null;
+};
+
+/** The usage figures a chat snapshot carries. */
+export type ChatUsageWire = {
+  tokens: number;
+  costMicroUsd: number | null;
+  durationMs: number | null;
+};
+
+export type ChatBlockedWire = { reason: string; fix: string };
+
+export type ChatErrorWire = { failed: string; kept: string; next: string };
+
 function chatSnapshot(
   state: ChatState,
   usage: ChatUsage,
   seq: number,
 ): Record<string, unknown> {
+  const blocked: ChatBlockedWire | null = state.blocked ?? null;
+  const error: ChatErrorWire | null = state.error ?? null;
+  const snapshotUsage: ChatUsageWire = {
+    tokens: usage.tokens,
+    costMicroUsd: usage.costMicroUsd,
+    durationMs: usage.durationMs,
+  };
   return {
     seq,
     status: state.status,
     model: state.model,
     streamed: state.streamed,
-    messages: state.messages.map((message) => ({
-      id: message.id,
-      role: message.role,
-      text: message.text,
-      outcome: message.outcome ?? null,
-    })),
-    blocked: state.blocked ?? null,
-    error: state.error ?? null,
-    usage: {
-      tokens: usage.tokens,
-      costMicroUsd: usage.costMicroUsd,
-      durationMs: usage.durationMs,
-    },
+    messages: state.messages.map(
+      (message): ChatMessageWire => ({
+        id: message.id,
+        role: message.role,
+        text: message.text,
+        outcome: message.outcome ?? null,
+      }),
+    ),
+    blocked,
+    error,
+    usage: snapshotUsage,
   };
 }
 

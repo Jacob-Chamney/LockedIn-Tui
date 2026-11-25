@@ -25,7 +25,11 @@ export 'core_models.g.dart'
         LearningEdge,
         LearningGraph,
         SettingsView,
-        SessionFigure;
+        SessionFigure,
+        ChatMessageView,
+        ChatUsageView,
+        ChatBlocked,
+        ChatFailure;
 
 String _string(Object? value) => value is String ? value : '';
 int _int(Object? value) => value is num ? value.toInt() : 0;
@@ -941,95 +945,6 @@ class DecisionView {
   }
 }
 
-class ChatMessageView {
-  const ChatMessageView({
-    required this.id,
-    required this.role,
-    required this.text,
-    this.outcome,
-  });
-
-  final String id;
-  final String role;
-  final String text;
-  final String? outcome;
-
-  factory ChatMessageView.fromJson(Map<String, dynamic> json) {
-    final outcome = json['outcome'];
-    return ChatMessageView(
-      id: _string(json['id']),
-      role: _string(json['role']),
-      text: _string(json['text']),
-      outcome: outcome is String && outcome.isNotEmpty ? outcome : null,
-    );
-  }
-}
-
-class ChatUsageView {
-  const ChatUsageView({
-    required this.tokens,
-    required this.costMicroUsd,
-    required this.durationMs,
-  });
-
-  final int tokens;
-  final int? costMicroUsd;
-  final int? durationMs;
-
-  factory ChatUsageView.fromJson(Object? value) {
-    final json = value is Map
-        ? Map<String, dynamic>.from(value)
-        : const <String, dynamic>{};
-    return ChatUsageView(
-      tokens: _int(json['tokens']),
-      costMicroUsd: json['costMicroUsd'] is num
-          ? _int(json['costMicroUsd'])
-          : null,
-      durationMs: json['durationMs'] is num ? _int(json['durationMs']) : null,
-    );
-  }
-}
-
-class ChatBlocked {
-  const ChatBlocked({required this.reason, required this.fix});
-
-  final String reason;
-  final String fix;
-
-  factory ChatBlocked.fromJson(Object? value) {
-    final json = value is Map
-        ? Map<String, dynamic>.from(value)
-        : const <String, dynamic>{};
-    return ChatBlocked(
-      reason: _string(json['reason']),
-      fix: _string(json['fix']),
-    );
-  }
-}
-
-class ChatFailure {
-  const ChatFailure({
-    required this.failed,
-    required this.kept,
-    required this.next,
-  });
-
-  final String failed;
-  final String kept;
-  final String next;
-
-  factory ChatFailure.fromJson(Object? value) {
-    final json = value is Map
-        ? Map<String, dynamic>.from(value)
-        : const <String, dynamic>{};
-    return ChatFailure(
-      failed: _string(json['failed']),
-      kept: _string(json['kept']),
-      next: _string(json['next']),
-    );
-  }
-}
-
 class ChatSnapshot {
   const ChatSnapshot({
     required this.status,
@@ -1061,9 +976,17 @@ class ChatSnapshot {
       model: model is String && model.isNotEmpty ? model : null,
       streamed: _string(json['streamed']),
       messages: _maps(json['messages']).map(ChatMessageView.fromJson).toList(),
-      usage: ChatUsageView.fromJson(json['usage']),
-      blocked: blocked is Map ? ChatBlocked.fromJson(blocked) : null,
-      error: error is Map ? ChatFailure.fromJson(error) : null,
+      usage: ChatUsageView.fromJson(
+        json['usage'] is Map
+            ? Map<String, dynamic>.from(json['usage'] as Map)
+            : const <String, dynamic>{},
+      ),
+      blocked: blocked is Map
+          ? ChatBlocked.fromJson(Map<String, dynamic>.from(blocked))
+          : null,
+      error: error is Map
+          ? ChatFailure.fromJson(Map<String, dynamic>.from(error))
+          : null,
     );
   }
 }
