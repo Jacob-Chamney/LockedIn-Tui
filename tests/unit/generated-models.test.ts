@@ -27,7 +27,11 @@ function read(relative: string): string {
 describe("generated Dart models", () => {
   test("the checked-in file is exactly what the generator renders", () => {
     const models = extractModels(ROOT);
-    expect(models.map((model) => model.name)).toEqual(["KnowledgeHit"]);
+    expect(models.map((model) => model.name)).toEqual([
+      "KnowledgeHit",
+      "KnowledgeTreeNode",
+      "KnowledgeTopicGroup",
+    ]);
     expect(read(MODELS_PATH)).toBe(renderModels(models));
   });
 
@@ -52,6 +56,30 @@ describe("generated Dart models", () => {
     expect(generated).toContain("score: _numberOrString(json['score'])");
     expect(generated).toContain("class KnowledgeHit");
     expect(generated).toContain("// dart format off");
+  });
+
+  test("the Knowledge tree models keep their Dart names and nesting", () => {
+    const models = extractModels(ROOT);
+    const note = models.find((model) => model.name === "KnowledgeTreeNode");
+    expect(note?.dartName).toBe("KnowledgeNote");
+    expect(note?.fields.map((field) => [field.name, field.type])).toEqual([
+      ["path", "string"],
+      ["title", "string"],
+      ["updated", "string"],
+    ]);
+
+    const group = models.find((model) => model.name === "KnowledgeTopicGroup");
+    expect(group?.dartName).toBe("KnowledgeGroup");
+    expect(group?.fields.map((field) => [field.name, field.type, field.model])).toEqual([
+      ["topic", "string", undefined],
+      ["notes", "models", "KnowledgeNote"],
+    ]);
+
+    const generated = read(MODELS_PATH);
+    expect(generated).toContain("class KnowledgeNote");
+    expect(generated).toContain("class KnowledgeGroup");
+    expect(generated).toContain("final List<KnowledgeNote> notes;");
+    expect(generated).toContain("notes: _models(json['notes'], KnowledgeNote.fromJson)");
   });
 
   test("the source is the exported protocol type", () => {
