@@ -861,3 +861,64 @@ class SessionDetail {
     memory: _modelOrNull(json['memory'], SessionMemory.fromJson),
   );
 }
+
+/// The `work.open` project detail the Flutter shell renders.
+class WorkProjectDetail {
+  const WorkProjectDetail({
+    required this.id,
+    required this.name,
+    required this.root,
+    required this.rootMissing,
+    required this.mode,
+    required this.swarmName,
+    required this.archived,
+    required this.instructions,
+    this.defaultAgent,
+    required this.agents,
+    required this.tasks,
+    required this.hasGit,
+    required this.lastOpened,
+  });
+
+  final String id;
+
+  final String name;
+
+  final String root;
+
+  final bool rootMissing;
+
+  final String mode;
+
+  final String swarmName;
+
+  final bool archived;
+
+  final String instructions;
+
+  final String? defaultAgent;
+
+  final List<AgentProfileView> agents;
+
+  final int tasks;
+
+  final bool hasGit;
+
+  final String lastOpened;
+
+  factory WorkProjectDetail.fromJson(Map<String, dynamic> json) => WorkProjectDetail(
+    id: _string(json['id']),
+    name: _string(json['name']),
+    root: _string(json['root']),
+    rootMissing: _bool(json['rootMissing']),
+    mode: _string(json['mode']),
+    swarmName: _string(json['swarmName']),
+    archived: _bool(json['archived']),
+    instructions: _string(json['instructions']),
+    defaultAgent: _stringOrNull(json['defaultAgent']),
+    agents: _models(json['agents'], AgentProfileView.fromJson),
+    tasks: _int(json['tasks']),
+    hasGit: _bool(json['hasGit']),
+    lastOpened: _string(json['lastOpened']),
+  );
+}

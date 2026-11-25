@@ -35,7 +35,8 @@ export 'core_models.g.dart'
         SessionSource,
         SessionSteps,
         SessionMemory,
-        SessionDetail;
+        SessionDetail,
+        WorkProjectDetail;
 
 String _string(Object? value) => value is String ? value : '';
 int _int(Object? value) => value is num ? value.toInt() : 0;
@@ -1024,66 +1025,6 @@ class WorkPermissions {
 }
 
 /// `work.open` — one project with the metadata the detail page renders.
-class WorkProjectDetail {
-  const WorkProjectDetail({
-    required this.id,
-    required this.name,
-    required this.root,
-    required this.rootMissing,
-    required this.mode,
-    required this.swarmName,
-    required this.archived,
-    required this.instructions,
-    required this.defaultAgent,
-    required this.agents,
-    required this.tasks,
-    required this.hasGit,
-    required this.lastOpened,
-  });
-
-  final String id;
-  final String name;
-  final String root;
-
-  /// True when the registered folder vanished after registration. The metadata
-  /// still opens; the page says the root is missing instead of pretending.
-  final bool rootMissing;
-  final String mode;
-  final String swarmName;
-  final bool archived;
-  final String instructions;
-
-  /// The default agent profile id, or null when none is marked default.
-  final String? defaultAgent;
-  final List<AgentProfileView> agents;
-  final int tasks;
-  final bool hasGit;
-
-  /// ISO-8601, or empty when the project has never been opened.
-  final String lastOpened;
-
-  factory WorkProjectDetail.fromJson(Map<String, dynamic> json) {
-    final defaultAgent = json['defaultAgent'];
-    return WorkProjectDetail(
-      id: _string(json['id']),
-      name: _string(json['name']),
-      root: _string(json['root']),
-      rootMissing: _bool(json['rootMissing']),
-      mode: _string(json['mode']),
-      swarmName: _string(json['swarmName']),
-      archived: _bool(json['archived']),
-      instructions: _string(json['instructions']),
-      defaultAgent: defaultAgent is String && defaultAgent.isNotEmpty
-          ? defaultAgent
-          : null,
-      agents: _maps(json['agents']).map(AgentProfileView.fromJson).toList(),
-      tasks: _int(json['tasks']),
-      hasGit: _bool(json['hasGit']),
-      lastOpened: _string(json['lastOpened']),
-    );
-  }
-}
-
 /// `work.create` — the id and name the core registered.
 ///
 /// Registration writes `work/projects/<id>/meta.json` only: the project folder

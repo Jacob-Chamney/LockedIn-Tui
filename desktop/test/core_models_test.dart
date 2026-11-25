@@ -346,4 +346,36 @@ void main() {
     expect(bare.steps.exists, isFalse);
     expect(bare.memory, isNull);
   });
+
+  test('the work project detail composes its agents and optional default', () {
+    final detail = WorkProjectDetail.fromJson({
+      'id': 'p1',
+      'name': 'Atlas',
+      'root': '/home/me/Projects/atlas',
+      'rootMissing': false,
+      'mode': 'swarm',
+      'swarmName': 'Review crew',
+      'archived': false,
+      'instructions': 'Prefer small diffs.',
+      'defaultAgent': 'reviewer-1',
+      'agents': [
+        {'id': 'reviewer-1', 'name': 'Reviewer', 'maxToolCalls': 8},
+        'not-a-map',
+      ],
+      'tasks': 3,
+      'hasGit': true,
+      'lastOpened': '2026-11-01T09:00:00.000Z',
+    });
+    expect(detail.name, 'Atlas');
+    expect(detail.defaultAgent, 'reviewer-1');
+    expect(detail.agents, hasLength(1));
+    expect(detail.agents.single.maxToolCalls, 8);
+    expect(detail.tasks, 3);
+
+    final bare = WorkProjectDetail.fromJson({'id': 'p2'});
+    expect(bare.defaultAgent, isNull);
+    expect(bare.agents, isEmpty);
+    expect(bare.tasks, 0);
+    expect(bare.hasGit, isFalse);
+  });
 }
