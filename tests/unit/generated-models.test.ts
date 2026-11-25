@@ -51,6 +51,8 @@ describe("generated Dart models", () => {
       "ChatSnapshotView",
       "AgentProfile",
       "Source",
+      "SessionStepsView",
+      "SessionMemoryView",
     ]);
     expect(read(MODELS_PATH)).toBe(renderModels(models));
   });
@@ -295,6 +297,26 @@ describe("generated Dart models", () => {
       ["name", "string"],
       ["hash", "string"],
       ["kind", "string"],
+    ]);
+  });
+
+  test("the session steps and memory keep their counts and lists", () => {
+    const models = extractModels(ROOT);
+    const byName = new Map(models.map((model) => [model.name, model]));
+    const steps = byName.get("SessionStepsView");
+    expect(steps?.dartName).toBe("SessionSteps");
+    expect(steps?.fields.map((field) => [field.name, field.type])).toEqual([
+      ["done", "int"],
+      ["total", "int"],
+      ["exists", "bool"],
+      ["markdown", "string"],
+    ]);
+    const memory = byName.get("SessionMemoryView");
+    expect(memory?.dartName).toBe("SessionMemory");
+    expect(memory?.fields.map((field) => [field.name, field.type])).toEqual([
+      ["points", "strings"],
+      ["folded", "strings"],
+      ["updated", "string"],
     ]);
   });
 

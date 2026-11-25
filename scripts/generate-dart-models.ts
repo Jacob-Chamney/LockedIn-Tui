@@ -88,6 +88,12 @@ export const MODEL_SPECS: readonly ModelSpec[] = [
     ints: ["maxToolCalls"],
   },
   { name: "Source", dart: "SessionSource" },
+  {
+    name: "SessionStepsView",
+    dart: "SessionSteps",
+    ints: ["done", "total"],
+  },
+  { name: "SessionMemoryView", dart: "SessionMemory" },
 ];
 
 export type DartFieldType =

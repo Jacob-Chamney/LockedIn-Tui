@@ -2141,7 +2141,22 @@ function finalAnswerText(state: ChatState): string {
 type StoredMemory = { points: string[]; folded: string[]; updated: string };
 
 /** The session memory shape `session.open` returns; `null` when none is stored. */
-function memoryRow(memory: StoredMemory | null): Record<string, unknown> | null {
+/** The steps half of a `session.open` projection. */
+export type SessionStepsView = {
+  done: number;
+  total: number;
+  exists: boolean;
+  markdown: string;
+};
+
+/** The memory half of a `session.open` projection (history, never a source). */
+export type SessionMemoryView = {
+  points: string[];
+  folded: string[];
+  updated: string;
+};
+
+function memoryRow(memory: StoredMemory | null): SessionMemoryView | null {
   if (memory === null) return null;
   return { points: [...memory.points], folded: [...memory.folded], updated: memory.updated };
 }
@@ -3961,7 +3976,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
           total: counts.ok ? counts.value.total : 0,
           exists: markdown.trim() !== "",
           markdown,
-        },
+        } satisfies SessionStepsView,
         ...(memoryView === null ? {} : { memory: memoryView }),
       },
     });
