@@ -62,4 +62,55 @@ void main() {
     expect(group.notes.first.displayTitle, 'A');
     expect(group.notes.last.displayTitle, 'school/vault/b.md');
   });
+
+  test('the stats summary tolerates absent nullable and nested values', () {
+    final summary = StatsSummary.fromJson({
+      'range': '30d',
+      'scope': 'all',
+      'overview': {'runs': 2, 'input': 10, 'output': 5},
+      'costMicroUsd': null,
+      'models': [
+        {'model': 'local/llama', 'runs': 2, 'input': 10, 'output': 5},
+        'not-a-map',
+      ],
+      'learning': {'steps': 1},
+      'activity': [],
+      'bestStreak': 1,
+      'activeDays': 2,
+      'period': {'from': '2026-11-01', 'to': '2026-11-02'},
+      'diagnostic': '',
+    });
+    expect(summary.overview.runs, 2);
+    expect(summary.overview.failed, 0);
+    expect(summary.tokens, 15);
+    expect(summary.costMicroUsd, isNull);
+    expect(summary.models, hasLength(1));
+    expect(summary.models.single.tokens, 15);
+    expect(summary.models.single.costMicroUsd, isNull);
+    expect(summary.learning.steps, 1);
+    expect(summary.learning.lessons, 0);
+    expect(summary.period.to, '2026-11-02');
+    expect(summary.diagnostic, isNull);
+  });
+
+  test('the learning graph parses counts, nodes and their relations', () {
+    final graph = LearningGraph.fromJson({
+      'nodes': [
+        {'id': 'goal:g', 'kind': 'goal', 'label': 'Read', 'grounded': 'agent'},
+        'not-a-map',
+      ],
+      'edges': [
+        {'from': 'goal:g', 'to': 'step:g:1', 'kind': 'contains'},
+      ],
+      'counts': {'goal': 1, 'step': 2, 'ignored': 'x'},
+      'diagnostics': ['one'],
+      'truncated': false,
+    });
+    expect(graph.nodes, hasLength(1));
+    expect(graph.nodes.single.isAgent, isTrue);
+    expect(graph.edges.single.kind, 'contains');
+    expect(graph.counts, {'goal': 1, 'step': 2});
+    expect(graph.node('goal:g')?.label, 'Read');
+    expect(graph.node('missing'), isNull);
+  });
 }

@@ -39,7 +39,7 @@ class KnowledgePage extends StatefulWidget {
     this.onRefresh,
     this.onBack,
     this.onOpen,
-    this.graph = LearningGraph.empty,
+    this.graph = learningGraphEmpty,
     this.graphLoading = false,
     this.graphError,
     this.onLoadGraph,

@@ -3596,7 +3596,7 @@ class CoreStore extends ChangeNotifier {
       final graph = json['graph'];
       learningGraph = graph is Map
           ? LearningGraph.fromJson(Map<String, dynamic>.from(graph))
-          : LearningGraph.empty;
+          : learningGraphEmpty;
     } catch (failure) {
       learningGraphError = _messageOf(failure);
     } finally {

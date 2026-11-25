@@ -1,13 +1,33 @@
 // GENERATED FILE — do not edit by hand.
 // dart format off
 //
-// Generated from the exported types in `src/server/protocol.ts`.
+// Generated from the exported types in: src/server/protocol.ts, src/stats/types.ts, src/services/knowledge/learning-graph.ts.
 // Regenerate: `bun run scripts/generate-dart-models.ts`.
 //
 // The shell reads these models from the wire; every field is tolerant of a
 // missing or mistyped value so one odd reply cannot blank a surface.
 
 String _string(Object? value) => value is String ? value : '';
+
+String _stringOrDefault(Object? value, String fallback) =>
+    value is String ? value : fallback;
+
+int _int(Object? value) => value is num ? value.toInt() : 0;
+
+bool _bool(Object? value) => value is bool ? value : false;
+
+List<String> _strings(Object? value) =>
+    value is List ? value.whereType<String>().toList(growable: false) : const [];
+
+/// A number from a number or a numeric string; anything else is zero.
+double _numberOrString(Object? value) {
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value.trim()) ?? 0;
+  return 0;
+}
+
+Map<String, dynamic> _map(Object? value) =>
+    value is Map ? Map<String, dynamic>.from(value) : const <String, dynamic>{};
 
 /// Parse a list of objects, skipping entries that are not maps.
 List<T> _models<T>(Object? value, T Function(Map<String, dynamic>) parse) {
@@ -18,12 +38,19 @@ List<T> _models<T>(Object? value, T Function(Map<String, dynamic>) parse) {
       .toList(growable: false);
 }
 
-/// A number from a number or a numeric string; anything else is zero.
-double _numberOrString(Object? value) {
-  if (value is num) return value.toDouble();
-  if (value is String) return double.tryParse(value.trim()) ?? 0;
-  return 0;
+Map<String, int> _intMap(Object? value) {
+  if (value is! Map) return const <String, int>{};
+  final out = <String, int>{};
+  value.forEach((key, entry) {
+    if (key is String && entry is num) out[key] = entry.toInt();
+  });
+  return out;
 }
+
+String? _stringOrNull(Object? value) =>
+    value is String && value.isNotEmpty ? value : null;
+
+int? _intOrNull(Object? value) => value is num ? value.toInt() : null;
 
 /// One knowledge search result (`docs/product.md` §6.3).
 ///
@@ -107,5 +134,285 @@ class KnowledgeGroup {
   factory KnowledgeGroup.fromJson(Map<String, dynamic> json) => KnowledgeGroup(
     topic: _string(json['topic']),
     notes: _models(json['notes'], KnowledgeNote.fromJson),
+  );
+}
+
+class StatsOverview {
+  const StatsOverview({
+    required this.runs,
+    required this.failed,
+    required this.input,
+    required this.output,
+  });
+
+  final int runs;
+
+  final int failed;
+
+  final int input;
+
+  final int output;
+
+  factory StatsOverview.fromJson(Map<String, dynamic> json) => StatsOverview(
+    runs: _int(json['runs']),
+    failed: _int(json['failed']),
+    input: _int(json['input']),
+    output: _int(json['output']),
+  );
+}
+
+class StatsModelRow {
+  const StatsModelRow({
+    required this.model,
+    required this.runs,
+    required this.input,
+    required this.output,
+    this.costMicroUsd,
+  });
+
+  final String model;
+
+  final int runs;
+
+  final int input;
+
+  final int output;
+
+  final int? costMicroUsd;
+
+  factory StatsModelRow.fromJson(Map<String, dynamic> json) => StatsModelRow(
+    model: _string(json['model']),
+    runs: _int(json['runs']),
+    input: _int(json['input']),
+    output: _int(json['output']),
+    costMicroUsd: _intOrNull(json['costMicroUsd']),
+  );
+}
+
+class StatsToolRow {
+  const StatsToolRow({
+    required this.name,
+    required this.calls,
+  });
+
+  final String name;
+
+  final int calls;
+
+  factory StatsToolRow.fromJson(Map<String, dynamic> json) => StatsToolRow(
+    name: _string(json['name']),
+    calls: _int(json['calls']),
+  );
+}
+
+class LearningStats {
+  const LearningStats({
+    required this.steps,
+    required this.cardsKnown,
+    required this.cardsMissed,
+    required this.lessons,
+  });
+
+  final int steps;
+
+  final int cardsKnown;
+
+  final int cardsMissed;
+
+  final int lessons;
+
+  factory LearningStats.fromJson(Map<String, dynamic> json) => LearningStats(
+    steps: _int(json['steps']),
+    cardsKnown: _int(json['cardsKnown']),
+    cardsMissed: _int(json['cardsMissed']),
+    lessons: _int(json['lessons']),
+  );
+}
+
+/// One local day with activity, for the contribution calendar.
+class ActivityDay {
+  const ActivityDay({
+    required this.date,
+    required this.runs,
+    required this.tokens,
+  });
+
+  final String date;
+
+  final int runs;
+
+  final int tokens;
+
+  factory ActivityDay.fromJson(Map<String, dynamic> json) => ActivityDay(
+    date: _string(json['date']),
+    runs: _int(json['runs']),
+    tokens: _int(json['tokens']),
+  );
+}
+
+/// Inclusive local-date period the summary covers, as `YYYY-MM-DD`.
+class StatsPeriod {
+  const StatsPeriod({
+    required this.from,
+    required this.to,
+  });
+
+  final String from;
+
+  final String to;
+
+  factory StatsPeriod.fromJson(Map<String, dynamic> json) => StatsPeriod(
+    from: _string(json['from']),
+    to: _string(json['to']),
+  );
+}
+
+class StatsSummary {
+  const StatsSummary({
+    required this.range,
+    required this.scope,
+    required this.overview,
+    this.costMicroUsd,
+    required this.costLabel,
+    required this.models,
+    required this.tools,
+    required this.learning,
+    required this.activity,
+    required this.bestStreak,
+    required this.activeDays,
+    required this.period,
+    this.diagnostic,
+  });
+
+  final String range;
+
+  final String scope;
+
+  final StatsOverview overview;
+
+  /// `null` means "cost unknown" — never rendered as $0.0000.
+  final int? costMicroUsd;
+
+  final String costLabel;
+
+  final List<StatsModelRow> models;
+
+  final List<StatsToolRow> tools;
+
+  final LearningStats learning;
+
+  /// Days with at least one run, in local-date order.
+  final List<ActivityDay> activity;
+
+  final int bestStreak;
+
+  final int activeDays;
+
+  final StatsPeriod period;
+
+  /// Present when a counter file was corrupt or unreadable.
+  final String? diagnostic;
+
+  factory StatsSummary.fromJson(Map<String, dynamic> json) => StatsSummary(
+    range: _string(json['range']),
+    scope: _string(json['scope']),
+    overview: StatsOverview.fromJson(_map(json['overview'])),
+    costMicroUsd: _intOrNull(json['costMicroUsd']),
+    costLabel: _string(json['costLabel']),
+    models: _models(json['models'], StatsModelRow.fromJson),
+    tools: _models(json['tools'], StatsToolRow.fromJson),
+    learning: LearningStats.fromJson(_map(json['learning'])),
+    activity: _models(json['activity'], ActivityDay.fromJson),
+    bestStreak: _int(json['bestStreak']),
+    activeDays: _int(json['activeDays']),
+    period: StatsPeriod.fromJson(_map(json['period'])),
+    diagnostic: _stringOrNull(json['diagnostic']),
+  );
+}
+
+class LearningNode {
+  const LearningNode({
+    required this.id,
+    required this.kind,
+    required this.label,
+    required this.detail,
+    required this.side,
+    required this.context,
+    required this.grounded,
+  });
+
+  final String id;
+
+  final String kind;
+
+  final String label;
+
+  /// One short line of state; never a body.
+  final String detail;
+
+  final String side;
+
+  /// The goal or session name this node belongs to.
+  final String context;
+
+  final String grounded;
+
+  factory LearningNode.fromJson(Map<String, dynamic> json) => LearningNode(
+    id: _string(json['id']),
+    kind: _string(json['kind']),
+    label: _string(json['label']),
+    detail: _string(json['detail']),
+    side: _string(json['side']),
+    context: _string(json['context']),
+    grounded: _stringOrDefault(json['grounded'], 'record'),
+  );
+}
+
+class LearningEdge {
+  const LearningEdge({
+    required this.from,
+    required this.to,
+    required this.kind,
+  });
+
+  final String from;
+
+  final String to;
+
+  final String kind;
+
+  factory LearningEdge.fromJson(Map<String, dynamic> json) => LearningEdge(
+    from: _string(json['from']),
+    to: _string(json['to']),
+    kind: _string(json['kind']),
+  );
+}
+
+class LearningGraph {
+  const LearningGraph({
+    required this.nodes,
+    required this.edges,
+    required this.counts,
+    required this.diagnostics,
+    required this.truncated,
+  });
+
+  final List<LearningNode> nodes;
+
+  final List<LearningEdge> edges;
+
+  final Map<String, int> counts;
+
+  final List<String> diagnostics;
+
+  /// True when the node cap was reached; the list is still usable.
+  final bool truncated;
+
+  factory LearningGraph.fromJson(Map<String, dynamic> json) => LearningGraph(
+    nodes: _models(json['nodes'], LearningNode.fromJson),
+    edges: _models(json['edges'], LearningEdge.fromJson),
+    counts: _intMap(json['counts']),
+    diagnostics: _strings(json['diagnostics']),
+    truncated: _bool(json['truncated']),
   );
 }

@@ -101,7 +101,7 @@ Future<void> pumpKnowledge(
   VoidCallback? onRefresh,
   VoidCallback? onBack,
   ValueChanged<String>? onOpen,
-  LearningGraph graph = LearningGraph.empty,
+  LearningGraph graph = learningGraphEmpty,
   VoidCallback? onLoadGraph,
   Size size = const Size(1280, 800),
   bool settle = true,

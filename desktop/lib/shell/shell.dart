@@ -1719,7 +1719,7 @@ class _ShellState extends State<Shell> {
       ),
       // `Enter` reads the row through the core and shows it in the layer above.
       onOpen: (id) => unawaited(store.readKnowledge(id)),
-      graph: store.learningGraph ?? LearningGraph.empty,
+      graph: store.learningGraph ?? learningGraphEmpty,
       graphLoading: store.learningGraphLoading,
       graphError: store.learningGraphError,
       onLoadGraph: () => unawaited(store.readLearningGraph()),
