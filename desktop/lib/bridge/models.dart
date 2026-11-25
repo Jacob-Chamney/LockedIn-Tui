@@ -2,6 +2,15 @@
 ///
 /// The types mirror `src/server/` and are intentionally read-only: the shell
 /// never computes domain totals, it only formats these values.
+library;
+
+// The wire models generated from the core's exported types. The library owns
+// their `fromJson`; the hand-written classes below are the ones not yet on the
+// generator. `export` keeps every existing `models.dart` import working.
+import 'core_models.g.dart';
+
+export 'core_models.g.dart' show KnowledgeHit;
+
 String _string(Object? value) => value is String ? value : '';
 int _int(Object? value) => value is num ? value.toInt() : 0;
 double _double(Object? value) => value is num ? value.toDouble() : 0;
@@ -3913,39 +3922,11 @@ class ReviewQueue {
   }
 }
 
-/// One Knowledge search result (`knowledge.search`).
+/// View helpers for [KnowledgeHit] that are not wire fields.
 ///
-/// The Knowledge surface is read-only and unified: a hit is a projection of what
-/// the workspace already stores, never a new fact. [kind] is one of `note`,
-/// `memory`, `source`, `session`, `goal`, `project` or `archive` — an unknown
-/// kind is kept verbatim so a newer core still renders — and [side] is the wall
-/// the row belongs to (`school`, `skills`, `work`). [path] is workspace-relative
-/// and never a filesystem path the shell may open.
-class KnowledgeHit {
-  const KnowledgeHit({
-    required this.id,
-    required this.kind,
-    required this.title,
-    required this.excerpt,
-    required this.side,
-    required this.path,
-    required this.updated,
-    required this.score,
-  });
-
-  final String id;
-  final String kind;
-  final String title;
-  final String excerpt;
-  final String side;
-  final String path;
-
-  /// ISO-8601 instant, rendered as its date part.
-  final String updated;
-
-  /// The core's own ranking score; `0` when it sent none.
-  final double score;
-
+/// The model itself is generated (`core_models.g.dart`); these getters are the
+/// client's presentation rules and stay hand-written.
+extension KnowledgeHitView on KnowledgeHit {
   /// True for material the product labels **history**, not a fact: session
   /// memory and the source excerpts gathered with it. The page marks these so a
   /// remembered line is never mistaken for a new source claim.
@@ -3955,24 +3936,6 @@ class KnowledgeHit {
   String get displayTitle {
     final text = title.trim();
     return text.isEmpty ? path : text;
-  }
-
-  factory KnowledgeHit.fromJson(Map<String, dynamic> json) => KnowledgeHit(
-    id: _string(json['id']),
-    kind: _string(json['kind']).toLowerCase(),
-    title: _string(json['title']),
-    excerpt: _string(json['excerpt']),
-    side: _string(json['side']).toLowerCase(),
-    path: _string(json['path']),
-    updated: _string(json['updated']),
-    score: _score(json['score']),
-  );
-
-  /// A score from a number or a numeric string; anything else is zero.
-  static double _score(Object? value) {
-    if (value is num) return value.toDouble();
-    if (value is String) return double.tryParse(value.trim()) ?? 0;
-    return 0;
   }
 }
 

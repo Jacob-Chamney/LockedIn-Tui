@@ -21,6 +21,11 @@ requests merge.
 
 ## Unreleased
 
+- The first Dart model decoder is generated from the core's TypeScript wire
+  type (`KnowledgeHit`), with the same tolerant parsing as before. Adding a
+  model to the generator is now a one-line allowlist entry; a stale generated
+  file fails the check.
+
 - Wire method names in the Flutter client are generated from the core's
   capability list (`CoreMethod`), so a renamed method is a compile error rather
   than a runtime `-32601`; a unit test fails if the generated file is stale.
