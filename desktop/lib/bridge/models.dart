@@ -24,7 +24,8 @@ export 'core_models.g.dart'
         LearningNode,
         LearningEdge,
         LearningGraph,
-        SettingsView;
+        SettingsView,
+        SessionFigure;
 
 String _string(Object? value) => value is String ? value : '';
 int _int(Object? value) => value is num ? value.toInt() : 0;
@@ -2711,48 +2712,10 @@ extension LearningGraphView on LearningGraph {
 }
 
 /// One figure cropped from a session's own PDF (`session.figure.*`).
-class SessionFigure {
-  const SessionFigure({
-    required this.id,
-    required this.source,
-    required this.page,
-    required this.caption,
-    required this.note,
-    required this.file,
-    required this.createdAt,
-    this.x,
-    this.y,
-    this.width,
-    this.height,
-  });
-
-  final String id;
-  final String source;
-  final int page;
-  final String caption;
-  final String note;
-  final String file;
-  final String createdAt;
-  final int? x;
-  final int? y;
-  final int? width;
-  final int? height;
-
+/// View helpers for the generated session figure.
+extension SessionFigureView on SessionFigure {
+  /// True when the figure was cropped from a page rather than the whole page.
   bool get cropped => x != null && y != null && width != null && height != null;
-
-  static SessionFigure fromJson(Map<String, dynamic> json) => SessionFigure(
-    id: json['id'] is String ? json['id'] as String : '',
-    source: json['source'] is String ? json['source'] as String : '',
-    page: json['page'] is int ? json['page'] as int : 0,
-    caption: json['caption'] is String ? json['caption'] as String : '',
-    note: json['note'] is String ? json['note'] as String : '',
-    file: json['file'] is String ? json['file'] as String : '',
-    createdAt: json['createdAt'] is String ? json['createdAt'] as String : '',
-    x: json['x'] is int ? json['x'] as int : null,
-    y: json['y'] is int ? json['y'] as int : null,
-    width: json['width'] is int ? json['width'] as int : null,
-    height: json['height'] is int ? json['height'] as int : null,
-  );
 }
 
 /// One saved research brief (`research.list`).
