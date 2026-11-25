@@ -25,6 +25,7 @@ export const MODEL_SOURCES = [
   "src/stats/types.ts",
   "src/services/knowledge/learning-graph.ts",
   "src/types/settings.ts",
+  "src/services/lockin/figures.ts",
 ];
 export const MODELS_PATH = "desktop/lib/bridge/core_models.g.dart";
 
@@ -64,6 +65,10 @@ export const MODEL_SPECS: readonly ModelSpec[] = [
     name: "SettingsView",
     ints: ["maxToolCalls", "maxTokensPerRequest", "historyLimit"],
   },
+  {
+    name: "SessionFigure",
+    ints: ["page", "x", "y", "width", "height"],
+  },
 ];
 
 export type DartFieldType =
@@ -75,7 +80,8 @@ export type DartFieldType =
   | "model"
   | "models"
   | "stringMap"
-  | "intMap";
+  | "intMap"
+  | "modelMap";
 
 export type DartField = {
   name: string;
@@ -173,7 +179,10 @@ function mapType(
   if (value !== undefined) {
     if ((value.flags & ts.TypeFlags.String) !== 0) return { type: "stringMap" };
     if ((value.flags & ts.TypeFlags.Number) !== 0) return { type: "intMap" };
-    throw new Error(`${where}: only Record<string, string|number> maps are supported`);
+    const model = symbolName(value);
+    const dart = model === undefined ? undefined : models.get(model);
+    if (dart !== undefined) return { type: "modelMap", model: dart };
+    throw new Error(`${where}: only Record<string, string|number|model> maps are supported`);
   }
   const properties = type.getProperties();
   if (properties.length > 0) {
@@ -183,6 +192,13 @@ function mapType(
     }
     if (values.every((entry) => (entry.flags & ts.TypeFlags.Number) !== 0)) {
       return { type: "intMap" };
+    }
+    const modelNames = values.map((entry) => symbolName(entry));
+    if (
+      modelNames.length > 0 &&
+      modelNames.every((name) => name !== undefined && models.has(name))
+    ) {
+      return { type: "modelMap", model: models.get(modelNames[0]!)! };
     }
   }
 
@@ -383,6 +399,8 @@ function baseDartType(field: DartField): string {
       return "Map<String, String>";
     case "intMap":
       return "Map<String, int>";
+    case "modelMap":
+      return `Map<String, ${field.model}>`;
   }
 }
 
@@ -436,6 +454,8 @@ function parser(field: DartField, model: DartModel): string {
       return `_stringMap(${read})`;
     case "intMap":
       return `_intMap(${read})`;
+    case "modelMap":
+      return `_modelMap(${read}, ${field.model}.fromJson)`;
   }
 }
 
@@ -475,6 +495,8 @@ function helperFor(field: DartField): string[] {
       return ["stringMap"];
     case "intMap":
       return ["intMap"];
+    case "modelMap":
+      return ["modelMap"];
   }
 }
 
@@ -519,6 +541,18 @@ const HELPERS: Readonly<Record<string, readonly string[]>> = {
     "  final out = <String, String>{};",
     "  value.forEach((key, entry) {",
     "    if (key is String && entry is String) out[key] = entry;",
+    "  });",
+    "  return out;",
+    "}",
+  ],
+  modelMap: [
+    "Map<String, T> _modelMap<T>(Object? value, T Function(Map<String, dynamic>) parse) {",
+    "  if (value is! Map) return const {};",
+    "  final out = <String, T>{};",
+    "  value.forEach((key, entry) {",
+    "    if (key is String && entry is Map) {",
+    "      out[key] = parse(Map<String, dynamic>.from(entry));",
+    "    }",
     "  });",
     "  return out;",
     "}",
@@ -584,6 +618,7 @@ export function renderModels(models: readonly DartModel[]): string {
     "models",
     "stringMap",
     "intMap",
+    "modelMap",
     "stringOrNull",
     "intOrNull",
     "doubleOrNull",

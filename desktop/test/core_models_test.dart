@@ -134,4 +134,28 @@ void main() {
     expect(view.hideHints, isFalse);
     expect(view.disabledPlugins, isEmpty);
   });
+
+  test('the session figure decodes and reports a crop', () {
+    final figure = SessionFigure.fromJson({
+      'id': 'figure-1',
+      'source': 'sources/paper.pdf',
+      'page': 4,
+      'x': 10,
+      'y': 20,
+      'width': 300,
+      'height': 200,
+      'caption': 'The loop',
+      'note': 'look at the offset',
+      'file': 'figures/figure-1.png',
+      'createdAt': '2026-11-01T10:00:00.000Z',
+    });
+    expect(figure.page, 4);
+    expect(figure.cropped, isTrue);
+    expect(figure.caption, 'The loop');
+
+    final whole = SessionFigure.fromJson({'id': 'figure-2', 'page': '4'});
+    expect(whole.page, 0);
+    expect(whole.cropped, isFalse);
+    expect(whole.note, '');
+  });
 }

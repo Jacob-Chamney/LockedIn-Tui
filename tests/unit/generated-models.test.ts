@@ -43,6 +43,7 @@ describe("generated Dart models", () => {
       "LearningEdge",
       "LearningGraph",
       "SettingsView",
+      "SessionFigure",
     ]);
     expect(read(MODELS_PATH)).toBe(renderModels(models));
   });
@@ -143,6 +144,67 @@ describe("generated Dart models", () => {
     expect(generated).toContain("final SampleChild? child;");
     expect(generated).toContain("child: _modelOrNull(json['child'], SampleChild.fromJson)");
     expect(generated).toContain("message: _stringOrNull(json['message'])");
+  });
+
+  test("a map of models and a recursive model are generated", () => {
+    const root = mkdtempSync(join(tmpdir(), "lockedin-dart-models-"));
+    writeFileSync(
+      join(root, "sample.ts"),
+      [
+        "export type SampleChild = { a: string };",
+        "export type SampleNode = { id: string; child?: SampleNode };",
+        "export type SampleMap = {",
+        "  items: Record<string, SampleChild>;",
+        "  tree?: SampleNode;",
+        "};",
+        "",
+      ].join("\n"),
+    );
+    const models = extractModels(root, {
+      sources: ["sample.ts"],
+      specs: [
+        { name: "SampleChild" },
+        { name: "SampleNode" },
+        { name: "SampleMap" },
+      ],
+    });
+    const map = models.find((model) => model.name === "SampleMap");
+    expect(
+      map?.fields.map((field) => [field.name, field.type, field.nullable, field.model]),
+    ).toEqual([
+      ["items", "modelMap", false, "SampleChild"],
+      ["tree", "model", true, "SampleNode"],
+    ]);
+    const node = models.find((model) => model.name === "SampleNode");
+    expect(node?.fields.map((field) => [field.name, field.type, field.nullable])).toEqual([
+      ["id", "string", false],
+      ["child", "model", true],
+    ]);
+    const generated = renderModels(models);
+    expect(generated).toContain("final Map<String, SampleChild> items;");
+    expect(generated).toContain("items: _modelMap(json['items'], SampleChild.fromJson)");
+    expect(generated).toContain("final SampleNode? child;");
+    expect(generated).toContain("child: _modelOrNull(json['child'], SampleNode.fromJson)");
+  });
+
+  test("SessionFigure keeps its ints and optional crop", () => {
+    const models = extractModels(ROOT);
+    const figure = models.find((model) => model.name === "SessionFigure");
+    expect(
+      figure?.fields.map((field) => [field.name, field.type, field.nullable]),
+    ).toEqual([
+      ["id", "string", false],
+      ["source", "string", false],
+      ["page", "int", false],
+      ["x", "int", true],
+      ["y", "int", true],
+      ["width", "int", true],
+      ["height", "int", true],
+      ["caption", "string", false],
+      ["note", "string", false],
+      ["file", "string", false],
+      ["createdAt", "string", false],
+    ]);
   });
 
   test("the source is the exported protocol type", () => {

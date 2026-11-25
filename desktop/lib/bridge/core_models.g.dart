@@ -1,7 +1,7 @@
 // GENERATED FILE — do not edit by hand.
 // dart format off
 //
-// Generated from the exported types in: src/server/protocol.ts, src/stats/types.ts, src/services/knowledge/learning-graph.ts, src/types/settings.ts.
+// Generated from the exported types in: src/server/protocol.ts, src/stats/types.ts, src/services/knowledge/learning-graph.ts, src/types/settings.ts, src/services/lockin/figures.ts.
 // Regenerate: `bun run scripts/generate-dart-models.ts`.
 //
 // The shell reads these models from the wire; every field is tolerant of a
@@ -512,5 +512,58 @@ class SettingsView {
     hideHints: _bool(json['hideHints']),
     pluginDirs: _strings(json['pluginDirs']),
     disabledPlugins: _strings(json['disabledPlugins']),
+  );
+}
+
+class SessionFigure {
+  const SessionFigure({
+    required this.id,
+    required this.source,
+    required this.page,
+    this.x,
+    this.y,
+    this.width,
+    this.height,
+    required this.caption,
+    required this.note,
+    required this.file,
+    required this.createdAt,
+  });
+
+  final String id;
+
+  /// Session-relative stored path of the source PDF.
+  final String source;
+
+  final int page;
+
+  final int? x;
+
+  final int? y;
+
+  final int? width;
+
+  final int? height;
+
+  final String caption;
+
+  final String note;
+
+  final String file;
+
+  final String createdAt;
+
+  factory SessionFigure.fromJson(Map<String, dynamic> json) => SessionFigure(
+    id: _string(json['id']),
+    source: _string(json['source']),
+    page: _int(json['page']),
+    x: _intOrNull(json['x']),
+    y: _intOrNull(json['y']),
+    width: _intOrNull(json['width']),
+    height: _intOrNull(json['height']),
+    caption: _string(json['caption']),
+    note: _string(json['note']),
+    file: _string(json['file']),
+    createdAt: _string(json['createdAt']),
   );
 }
