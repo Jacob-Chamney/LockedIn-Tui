@@ -109,15 +109,28 @@ Qt is not used. Flutter owns the window and native integration:
 - Window sizing/position: `window_manager` or native runner args; keep the
   minimum at 800×600.
 
-## Generated method catalogue
+## Generated bindings
 
-`desktop/lib/bridge/core_methods.g.dart` is generated from `CAPABILITIES` by
-`scripts/generate-dart-bindings.ts`. The client calls `CoreMethod.sessionList`
-rather than `'session.list'`, so a renamed capability changes the constant and
-a stale call site stops compiling instead of failing at runtime with `-32601`.
-The file is marked `dart format off` because the generator owns its bytes;
-`tests/unit/generated-bindings.test.ts` fails when it is stale, and the client
-must not regress to raw method literals.
+Two generated files keep the Flutter bridge tied to the core:
+
+- **`desktop/lib/bridge/core_methods.g.dart`** — generated from `CAPABILITIES`
+  by `scripts/generate-dart-bindings.ts`. The client calls
+  `CoreMethod.sessionList` rather than `'session.list'`, so a renamed capability
+  changes the constant and a stale call site stops compiling instead of failing
+  at runtime with `-32601`.
+- **`desktop/lib/bridge/core_models.g.dart`** — the model-decoder pilot.
+  `scripts/generate-dart-models.ts` reads the allowlisted exported types
+  (`KnowledgeHit`) with the TypeScript compiler API and emits a tolerant
+  `fromJson` (a missing or mistyped field becomes `''`, `0`, `false` or an empty
+  list). `models.dart` exports the generated class and keeps the presentation
+  getters in an extension. Adding a model means adding it to `MODEL_SPECS`; the
+  generator refuses a field it cannot map.
+
+Both files are marked `dart format off` because the generator owns their bytes.
+`tests/unit/generated-bindings.test.ts` and `tests/unit/generated-models.test.ts`
+fail when a file is stale, and the client must not regress to raw method
+literals. Run `bun run scripts/generate-dart-bindings.ts` and
+`bun run scripts/generate-dart-models.ts` after a protocol change.
 
 ## Testing
 
