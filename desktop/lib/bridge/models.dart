@@ -9,7 +9,21 @@ library;
 // generator. `export` keeps every existing `models.dart` import working.
 import 'core_models.g.dart';
 
-export 'core_models.g.dart' show KnowledgeHit, KnowledgeNote, KnowledgeGroup;
+export 'core_models.g.dart'
+    show
+        KnowledgeHit,
+        KnowledgeNote,
+        KnowledgeGroup,
+        StatsOverview,
+        StatsModelRow,
+        StatsToolRow,
+        LearningStats,
+        ActivityDay,
+        StatsPeriod,
+        StatsSummary,
+        LearningNode,
+        LearningEdge,
+        LearningGraph;
 
 String _string(Object? value) => value is String ? value : '';
 int _int(Object? value) => value is num ? value.toInt() : 0;
@@ -782,183 +796,14 @@ class InstructionsImportResult {
   }
 }
 
-class StatsOverview {
-  const StatsOverview({
-    required this.runs,
-    required this.failed,
-    required this.input,
-    required this.output,
-  });
-
-  final int runs;
-  final int failed;
-  final int input;
-  final int output;
-
-  factory StatsOverview.fromJson(Object? value) {
-    final json = value is Map
-        ? Map<String, dynamic>.from(value)
-        : const <String, dynamic>{};
-    return StatsOverview(
-      runs: _int(json['runs']),
-      failed: _int(json['failed']),
-      input: _int(json['input']),
-      output: _int(json['output']),
-    );
-  }
-}
-
-class StatsModelRow {
-  const StatsModelRow({
-    required this.model,
-    required this.runs,
-    required this.input,
-    required this.output,
-    required this.costMicroUsd,
-  });
-
-  final String model;
-  final int runs;
-  final int input;
-  final int output;
-  final int? costMicroUsd;
-
-  int get tokens => input + output;
-
-  factory StatsModelRow.fromJson(Map<String, dynamic> json) => StatsModelRow(
-    model: _string(json['model']),
-    runs: _int(json['runs']),
-    input: _int(json['input']),
-    output: _int(json['output']),
-    costMicroUsd: json['costMicroUsd'] is num
-        ? _int(json['costMicroUsd'])
-        : null,
-  );
-}
-
-class StatsToolRow {
-  const StatsToolRow({required this.name, required this.calls});
-
-  final String name;
-  final int calls;
-
-  factory StatsToolRow.fromJson(Map<String, dynamic> json) =>
-      StatsToolRow(name: _string(json['name']), calls: _int(json['calls']));
-}
-
-class LearningStats {
-  const LearningStats({
-    required this.steps,
-    required this.cardsKnown,
-    required this.cardsMissed,
-    required this.lessons,
-  });
-
-  final int steps;
-  final int cardsKnown;
-  final int cardsMissed;
-  final int lessons;
-
-  factory LearningStats.fromJson(Object? value) {
-    final json = value is Map
-        ? Map<String, dynamic>.from(value)
-        : const <String, dynamic>{};
-    return LearningStats(
-      steps: _int(json['steps']),
-      cardsKnown: _int(json['cardsKnown']),
-      cardsMissed: _int(json['cardsMissed']),
-      lessons: _int(json['lessons']),
-    );
-  }
-}
-
-class ActivityDay {
-  const ActivityDay({
-    required this.date,
-    required this.runs,
-    required this.tokens,
-  });
-
-  final String date;
-  final int runs;
-  final int tokens;
-
-  factory ActivityDay.fromJson(Map<String, dynamic> json) => ActivityDay(
-    date: _string(json['date']),
-    runs: _int(json['runs']),
-    tokens: _int(json['tokens']),
-  );
-}
-
-class StatsPeriod {
-  const StatsPeriod({required this.from, required this.to});
-
-  final String from;
-  final String to;
-
-  factory StatsPeriod.fromJson(Object? value) {
-    final json = value is Map
-        ? Map<String, dynamic>.from(value)
-        : const <String, dynamic>{};
-    return StatsPeriod(from: _string(json['from']), to: _string(json['to']));
-  }
-}
-
-class StatsSummary {
-  const StatsSummary({
-    required this.range,
-    required this.scope,
-    required this.overview,
-    required this.costMicroUsd,
-    required this.costLabel,
-    required this.models,
-    required this.tools,
-    required this.learning,
-    required this.activity,
-    required this.bestStreak,
-    required this.activeDays,
-    required this.period,
-    required this.diagnostic,
-  });
-
-  final String range;
-  final String scope;
-  final StatsOverview overview;
-  final int? costMicroUsd;
-  final String costLabel;
-  final List<StatsModelRow> models;
-  final List<StatsToolRow> tools;
-  final LearningStats learning;
-  final List<ActivityDay> activity;
-  final int bestStreak;
-  final int activeDays;
-  final StatsPeriod period;
-  final String? diagnostic;
-
+/// Computed views over the generated Stats models.
+extension StatsSummaryView on StatsSummary {
+  /// Input plus output tokens, used by the KPI header.
   int get tokens => overview.input + overview.output;
+}
 
-  factory StatsSummary.fromJson(Map<String, dynamic> json) {
-    final diagnostic = json['diagnostic'];
-    return StatsSummary(
-      range: _string(json['range']),
-      scope: _string(json['scope']),
-      overview: StatsOverview.fromJson(json['overview']),
-      costMicroUsd: json['costMicroUsd'] is num
-          ? _int(json['costMicroUsd'])
-          : null,
-      costLabel: _string(json['costLabel']),
-      models: _maps(json['models']).map(StatsModelRow.fromJson).toList(),
-      tools: _maps(json['tools']).map(StatsToolRow.fromJson).toList(),
-      learning: LearningStats.fromJson(json['learning']),
-      activity: _maps(json['activity']).map(ActivityDay.fromJson).toList(),
-      bestStreak: _int(json['bestStreak']),
-      activeDays: _int(json['activeDays']),
-      period: StatsPeriod.fromJson(json['period']),
-      diagnostic: diagnostic is String && diagnostic.isNotEmpty
-          ? diagnostic
-          : null,
-    );
-  }
+extension StatsModelRowView on StatsModelRow {
+  int get tokens => input + output;
 }
 
 /// `stats.export` — one Stats document and the format the core produced.
@@ -2915,121 +2760,27 @@ class PromptNoteView {
   );
 }
 
-/// The source-grounded learning graph (`knowledge.graph`).
-class LearningGraph {
-  const LearningGraph({
-    required this.nodes,
-    required this.edges,
-    required this.counts,
-    required this.diagnostics,
-    required this.truncated,
-  });
+/// A graph with no rows, for a pane that mounts before its data arrives.
+const learningGraphEmpty = LearningGraph(
+  nodes: [],
+  edges: [],
+  counts: {},
+  diagnostics: [],
+  truncated: false,
+);
 
-  static const empty = LearningGraph(
-    nodes: [],
-    edges: [],
-    counts: {},
-    diagnostics: [],
-    truncated: false,
-  );
+/// Computed views over the generated learning-graph models.
+extension LearningNodeView on LearningNode {
+  bool get isAgent => grounded == 'agent';
+}
 
-  final List<LearningNode> nodes;
-  final List<LearningEdge> edges;
-  final Map<String, int> counts;
-  final List<String> diagnostics;
-  final bool truncated;
-
+extension LearningGraphView on LearningGraph {
   LearningNode? node(String id) {
     for (final node in nodes) {
       if (node.id == id) return node;
     }
     return null;
   }
-
-  static LearningGraph fromJson(Map<String, dynamic> json) => LearningGraph(
-    nodes: json['nodes'] is List
-        ? (json['nodes'] as List)
-              .whereType<Map>()
-              .map(
-                (row) => LearningNode.fromJson(Map<String, dynamic>.from(row)),
-              )
-              .where((node) => node.id.isNotEmpty)
-              .toList(growable: false)
-        : const [],
-    edges: json['edges'] is List
-        ? (json['edges'] as List)
-              .whereType<Map>()
-              .map(
-                (row) => LearningEdge.fromJson(Map<String, dynamic>.from(row)),
-              )
-              .toList(growable: false)
-        : const [],
-    counts: json['counts'] is Map
-        ? {
-            for (final entry in (json['counts'] as Map).entries)
-              if (entry.key is String && entry.value is int)
-                entry.key as String: entry.value as int,
-          }
-        : const {},
-    diagnostics: json['diagnostics'] is List
-        ? (json['diagnostics'] as List).whereType<String>().toList(
-            growable: false,
-          )
-        : const [],
-    truncated: json['truncated'] == true,
-  );
-}
-
-class LearningNode {
-  const LearningNode({
-    required this.id,
-    required this.kind,
-    required this.label,
-    required this.detail,
-    required this.side,
-    required this.context,
-    required this.grounded,
-  });
-
-  final String id;
-  final String kind;
-  final String label;
-  final String detail;
-  final String side;
-  final String context;
-  final String grounded;
-
-  bool get isAgent => grounded == 'agent';
-
-  static LearningNode fromJson(Map<String, dynamic> json) => LearningNode(
-    id: json['id'] is String ? json['id'] as String : '',
-    kind: json['kind'] is String ? json['kind'] as String : '',
-    label: json['label'] is String ? json['label'] as String : '',
-    detail: json['detail'] is String ? json['detail'] as String : '',
-    side: json['side'] is String ? json['side'] as String : '',
-    context: json['context'] is String ? json['context'] as String : '',
-    grounded: json['grounded'] is String
-        ? json['grounded'] as String
-        : 'record',
-  );
-}
-
-class LearningEdge {
-  const LearningEdge({
-    required this.from,
-    required this.to,
-    required this.kind,
-  });
-
-  final String from;
-  final String to;
-  final String kind;
-
-  static LearningEdge fromJson(Map<String, dynamic> json) => LearningEdge(
-    from: json['from'] is String ? json['from'] as String : '',
-    to: json['to'] is String ? json['to'] as String : '',
-    kind: json['kind'] is String ? json['kind'] as String : '',
-  );
 }
 
 /// One figure cropped from a session's own PDF (`session.figure.*`).

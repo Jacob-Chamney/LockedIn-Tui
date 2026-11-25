@@ -96,7 +96,7 @@ void main() {
   });
 
   testWidgets('an empty graph teaches the next action', (tester) async {
-    await _pump(tester, graph: LearningGraph.empty);
+    await _pump(tester, graph: learningGraphEmpty);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyG);
     await tester.pumpAndSettle();
     expect(find.textContaining('no learning artifacts'), findsOneWidget);

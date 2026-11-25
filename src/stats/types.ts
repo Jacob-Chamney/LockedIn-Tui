@@ -58,16 +58,25 @@ export type ActivityDay = { date: string; runs: number; tokens: number }
 /** Inclusive local-date period the summary covers, as `YYYY-MM-DD`. */
 export type StatsPeriod = { from: string; to: string }
 
+export type StatsOverview = { runs: number; failed: number; input: number; output: number }
+
+export type LearningStats = {
+  steps: number
+  cardsKnown: number
+  cardsMissed: number
+  lessons: number
+}
+
 export type StatsSummary = {
   range: StatsRange
   scope: StatsScope
-  overview: { runs: number; failed: number; input: number; output: number }
+  overview: StatsOverview
   /** `null` means "cost unknown" — never rendered as $0.0000. */
   costMicroUsd: number | null
   costLabel: string
   models: ModelTotal[]
   tools: ToolTotal[]
-  learning: { steps: number; cardsKnown: number; cardsMissed: number; lessons: number }
+  learning: LearningStats
   /** Days with at least one run, in local-date order. */
   activity: ActivityDay[]
   bestStreak: number

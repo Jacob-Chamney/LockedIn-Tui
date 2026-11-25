@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lockedin_desktop/bridge/core_client.dart';
+import 'package:lockedin_desktop/bridge/models.dart';
 import 'package:lockedin_desktop/bridge/protocol.dart';
 
 import 'fake_core.dart';

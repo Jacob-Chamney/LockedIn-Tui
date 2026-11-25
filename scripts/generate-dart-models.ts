@@ -1,17 +1,17 @@
 /**
  * Generate Dart model decoders from the core's exported wire types.
  *
- * This is the first model in the deferred generated-bindings item: the Dart
- * decoders are hand-written and drift silently when a TypeScript field is
- * renamed. The generator reads a small allowlist of exported type aliases from
- * `src/server/protocol.ts` with the TypeScript compiler API and emits a
- * tolerant `fromJson` (a missing or mistyped field becomes `''`, `0`, `false`
- * or an empty list, as the hand-written decoders did).
+ * The Dart decoders are hand-written and drift silently when a TypeScript field
+ * is renamed. This generator reads an allowlist of exported types with the
+ * TypeScript compiler API and emits a tolerant `fromJson` (a missing or
+ * mistyped field becomes `''`, `0`, `false`, an empty list or an empty map, as
+ * the hand-written decoders did).
  *
- * The pilot covers `KnowledgeHit`. Add a name to `MODEL_NAMES` only when every
- * field maps to one of the supported shapes (`string`, `number`, `boolean`,
- * `string[]`, or a union of string literals); the generator refuses anything
- * else rather than emitting a wrong type.
+ * Supported shapes: strings, numbers (`int` or `double` per the `ints` list),
+ * booleans, string arrays, an allowlisted model, an array of one, and a
+ * `Record<string, string | number>` map. Optional and `| null` fields become
+ * nullable Dart fields. Anything else is refused with the field name rather
+ * than emitted with a wrong type.
  *
  *   bun run scripts/generate-dart-models.ts            # write the file
  *   bun run scripts/generate-dart-models.ts --check    # fail if it is stale
@@ -20,39 +20,64 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import * as ts from "typescript";
 
-export const MODELS_SOURCE = "src/server/protocol.ts";
+export const MODEL_SOURCES = [
+  "src/server/protocol.ts",
+  "src/stats/types.ts",
+  "src/services/knowledge/learning-graph.ts",
+];
 export const MODELS_PATH = "desktop/lib/bridge/core_models.g.dart";
 
-/**
- * The exported type aliases the pilot generates.
- *
- * `lowercase` and `numericStrings` are the tolerant client policies the
- * hand-written decoder applied: the wire says these are lowercase strings and a
- * number, but a defensive read of `MEMORY` or `"0.5"` still works. They are
- * declared here so the generated code carries the same behaviour instead of
- * silently dropping it.
- */
 export type ModelSpec = {
   name: string;
   /** The Dart class name; defaults to [name]. */
   dart?: string;
+  /** String fields normalised with `.toLowerCase()`. */
   lowercase?: readonly string[];
+  /** Number fields that also accept a numeric string. */
   numericStrings?: readonly string[];
+  /** Number fields rendered as `int`; everything else is `double`. */
+  ints?: readonly string[];
+  /** A fallback for a missing string field, rather than `''`. */
+  defaults?: Readonly<Record<string, string>>;
 };
 
 export const MODEL_SPECS: readonly ModelSpec[] = [
   { name: "KnowledgeHit", lowercase: ["kind", "side"], numericStrings: ["score"] },
   { name: "KnowledgeTreeNode", dart: "KnowledgeNote" },
   { name: "KnowledgeTopicGroup", dart: "KnowledgeGroup" },
+  { name: "StatsOverview", ints: ["runs", "failed", "input", "output"] },
+  {
+    name: "ModelTotal",
+    dart: "StatsModelRow",
+    ints: ["runs", "input", "output", "costMicroUsd"],
+  },
+  { name: "ToolTotal", dart: "StatsToolRow", ints: ["calls"] },
+  { name: "LearningStats", ints: ["steps", "cardsKnown", "cardsMissed", "lessons"] },
+  { name: "ActivityDay", ints: ["runs", "tokens"] },
+  { name: "StatsPeriod" },
+  { name: "StatsSummary", ints: ["bestStreak", "activeDays", "costMicroUsd"] },
+  { name: "LearningNode", defaults: { grounded: "record" } },
+  { name: "LearningEdge" },
+  { name: "LearningGraph" },
 ];
 
-export type DartFieldType = "string" | "double" | "bool" | "strings" | "models";
+export type DartFieldType =
+  | "string"
+  | "double"
+  | "int"
+  | "bool"
+  | "strings"
+  | "model"
+  | "models"
+  | "stringMap"
+  | "intMap";
 
 export type DartField = {
   name: string;
   type: DartFieldType;
-  /** The Dart class of the element, for `models`. */
+  /** The Dart class for `model` and `models`. */
   model?: string;
+  nullable: boolean;
   doc: string;
 };
 
@@ -63,6 +88,12 @@ export type DartModel = {
   fields: DartField[];
   lowercase: readonly string[];
   numericStrings: readonly string[];
+  defaults: Readonly<Record<string, string>>;
+};
+
+type MappedType = {
+  type: DartFieldType;
+  model?: string;
 };
 
 function docOf(checker: ts.TypeChecker, symbol: ts.Symbol | undefined): string {
@@ -73,10 +104,22 @@ function docOf(checker: ts.TypeChecker, symbol: ts.Symbol | undefined): string {
     .trim();
 }
 
-type MappedType = { type: DartFieldType; model?: string };
-
 function symbolName(type: ts.Type): string | undefined {
   return type.aliasSymbol?.getName() ?? type.getSymbol()?.getName();
+}
+
+function isNullish(type: ts.Type): boolean {
+  return (
+    (type.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.Void)) !== 0
+  );
+}
+
+function isStringUnion(type: ts.Type): boolean {
+  return (
+    type.isUnion() &&
+    type.types.length > 0 &&
+    type.types.every((member) => (member.flags & ts.TypeFlags.StringLiteral) !== 0)
+  );
 }
 
 function mapType(
@@ -84,28 +127,23 @@ function mapType(
   type: ts.Type,
   where: string,
   models: ReadonlyMap<string, string>,
+  isInt: boolean,
 ): MappedType {
   if ((type.flags & ts.TypeFlags.String) !== 0) return { type: "string" };
-  if ((type.flags & ts.TypeFlags.Number) !== 0) return { type: "double" };
+  if ((type.flags & ts.TypeFlags.Number) !== 0) {
+    return { type: isInt ? "int" : "double" };
+  }
   if ((type.flags & ts.TypeFlags.Boolean) !== 0) return { type: "bool" };
+  if (isStringUnion(type)) return { type: "string" };
+
   if (type.isUnion()) {
-    const members = type.types;
-    if (
-      members.length > 0 &&
-      members.every((member) => (member.flags & ts.TypeFlags.StringLiteral) !== 0)
-    ) {
-      return { type: "string" };
-    }
     throw new Error(`${where}: unsupported union ${checker.typeToString(type)}`);
   }
+
   if (checker.isArrayType(type)) {
     const [element] = checker.getTypeArguments(type as ts.TypeReference);
     if (element !== undefined) {
-      if ((element.flags & ts.TypeFlags.String) !== 0) return { type: "strings" };
-      if (
-        element.isUnion() &&
-        element.types.every((member) => (member.flags & ts.TypeFlags.StringLiteral) !== 0)
-      ) {
+      if ((element.flags & ts.TypeFlags.String) !== 0 || isStringUnion(element)) {
         return { type: "strings" };
       }
       const model = symbolName(element);
@@ -114,55 +152,95 @@ function mapType(
     }
     throw new Error(`${where}: only string[] and generated-model[] arrays are supported`);
   }
+
   const name = symbolName(type);
-  if (name !== undefined && models.has(name)) {
-    throw new Error(
-      `${where}: a single ${name} field is not supported yet; use an array of it`,
-    );
+  const dart = name === undefined ? undefined : models.get(name);
+  if (dart !== undefined) return { type: "model", model: dart };
+
+  // A `Record<string, T>` may expose a string index or, when the key is a
+  // union of literals, one property per key. Only string and number values are
+  // generated (a map of models is not needed yet).
+  const value = checker.getIndexTypeOfType(type, ts.IndexKind.String);
+  if (value !== undefined) {
+    if ((value.flags & ts.TypeFlags.String) !== 0) return { type: "stringMap" };
+    if ((value.flags & ts.TypeFlags.Number) !== 0) return { type: "intMap" };
+    throw new Error(`${where}: only Record<string, string|number> maps are supported`);
   }
+  const properties = type.getProperties();
+  if (properties.length > 0) {
+    const values = properties.map((property) => checker.getTypeOfSymbol(property));
+    if (values.every((entry) => (entry.flags & ts.TypeFlags.String) !== 0)) {
+      return { type: "stringMap" };
+    }
+    if (values.every((entry) => (entry.flags & ts.TypeFlags.Number) !== 0)) {
+      return { type: "intMap" };
+    }
+  }
+
   throw new Error(`${where}: unsupported type ${checker.typeToString(type)}`);
 }
 
 /** The allowlisted models, in source order of the allowlist. */
 export function extractModels(root: string): DartModel[] {
-  const file = join(root, MODELS_SOURCE);
-  const program = ts.createProgram([file], {
+  const program = ts.createProgram(MODEL_SOURCES.map((source) => join(root, source)), {
     strict: true,
     noEmit: true,
     skipLibCheck: true,
   });
   const checker = program.getTypeChecker();
-  const source = program.getSourceFile(file);
-  if (source === undefined) throw new Error(`cannot read ${MODELS_SOURCE}`);
 
   const declarations = new Map<string, ts.TypeAliasDeclaration | ts.InterfaceDeclaration>();
   const wanted = MODEL_SPECS.map((spec) => spec.name);
+  for (const source of MODEL_SOURCES) {
+    const file = program.getSourceFile(join(root, source));
+    if (file === undefined) throw new Error(`cannot read ${source}`);
+    ts.forEachChild(file, (node) => {
+      if (
+        (ts.isTypeAliasDeclaration(node) || ts.isInterfaceDeclaration(node)) &&
+        wanted.includes(node.name.text)
+      ) {
+        declarations.set(node.name.text, node);
+      }
+    });
+  }
+
   const modelsByTsName = new Map(
     MODEL_SPECS.map((spec) => [spec.name, spec.dart ?? spec.name] as const),
   );
-  ts.forEachChild(source, (node) => {
-    if (
-      (ts.isTypeAliasDeclaration(node) || ts.isInterfaceDeclaration(node)) &&
-      wanted.includes(node.name.text)
-    ) {
-      declarations.set(node.name.text, node);
-    }
-  });
 
   return MODEL_SPECS.map((spec) => {
     const name = spec.name;
     const node = declarations.get(name);
     if (node === undefined) {
-      throw new Error(`exported type ${name} not found in ${MODELS_SOURCE}`);
+      throw new Error(`exported type ${name} not found in ${MODEL_SOURCES.join(", ")}`);
     }
     const type = checker.getTypeAtLocation(node);
     const fields = type.getProperties().map((property) => {
-      const fieldType = checker.getTypeOfSymbolAtLocation(property, node);
-      const mapped = mapType(checker, fieldType, `${name}.${property.name}`, modelsByTsName);
+      const raw = checker.getTypeOfSymbolAtLocation(property, node);
+      const optional = (property.flags & ts.SymbolFlags.Optional) !== 0;
+      // `T | null` and `T | undefined` are the nullable spelling; the one
+      // remaining member decides the Dart type.
+      const nonNull = raw.isUnion() ? raw.types.filter((member) => !isNullish(member)) : [];
+      const nullable = optional || (raw.isUnion() && nonNull.length < raw.types.length);
+      if (nullable && nonNull.length !== 1) {
+        throw new Error(`${name}.${property.name}: ambiguous nullable union`);
+      }
+      const base = nullable && nonNull.length === 1 ? nonNull[0]! : raw;
+      const mapped = mapType(
+        checker,
+        base,
+        `${name}.${property.name}`,
+        modelsByTsName,
+        (spec.ints ?? []).includes(property.name),
+      );
+      if (nullable && mapped.type === "model") {
+        throw new Error(`${name}.${property.name}: a nullable nested model is not supported yet`);
+      }
       return {
         name: property.name,
         type: mapped.type,
         ...(mapped.model === undefined ? {} : { model: mapped.model }),
+        nullable,
         doc: docOf(checker, property),
       } satisfies DartField;
     });
@@ -178,6 +256,7 @@ export function extractModels(root: string): DartModel[] {
       fields,
       lowercase: spec.lowercase ?? [],
       numericStrings: spec.numericStrings ?? [],
+      defaults: spec.defaults ?? {},
     };
   });
 }
@@ -187,96 +266,235 @@ function docLines(doc: string): string[] {
   return doc.split("\n").map((line) => (line.trim() === "" ? "///" : `/// ${line.trim()}`));
 }
 
-function dartType(field: DartField): string {
+function baseDartType(field: DartField): string {
   switch (field.type) {
     case "string":
       return "String";
     case "double":
       return "double";
+    case "int":
+      return "int";
     case "bool":
       return "bool";
     case "strings":
       return "List<String>";
+    case "model":
+      return field.model!;
     case "models":
       return `List<${field.model}>`;
+    case "stringMap":
+      return "Map<String, String>";
+    case "intMap":
+      return "Map<String, int>";
   }
+}
+
+function dartType(field: DartField): string {
+  return `${baseDartType(field)}${field.nullable ? "?" : ""}`;
 }
 
 function parser(field: DartField, model: DartModel): string {
   const read = `json['${field.name}']`;
+  if (field.nullable) {
+    switch (field.type) {
+      case "string":
+        return `_stringOrNull(${read})`;
+      case "int":
+        return `_intOrNull(${read})`;
+      case "double":
+        return `_doubleOrNull(${read})`;
+      case "bool":
+        return `_boolOrNull(${read})`;
+      default:
+        throw new Error(`${model.name}.${field.name}: a nullable ${field.type} is not supported`);
+    }
+  }
   switch (field.type) {
     case "string": {
+      const fallback = model.defaults[field.name];
       const value = `_string(${read})`;
-      return model.lowercase.includes(field.name) ? `${value}.toLowerCase()` : value;
+      return model.lowercase.includes(field.name)
+        ? `${value}.toLowerCase()`
+        : fallback !== undefined
+          ? `_stringOrDefault(${read}, '${fallback}')`
+          : value;
     }
     case "double":
       return model.numericStrings.includes(field.name)
         ? `_numberOrString(${read})`
-        : `_number(${read})`;
+        : `_double(${read})`;
+    case "int":
+      return `_int(${read})`;
     case "bool":
       return `_bool(${read})`;
     case "strings":
       return `_strings(${read})`;
+    case "model":
+      return `${field.model}.fromJson(_map(${read}))`;
     case "models":
       return `_models(${read}, ${field.model}.fromJson)`;
+    case "stringMap":
+      return `_stringMap(${read})`;
+    case "intMap":
+      return `_intMap(${read})`;
   }
 }
 
+function helperFor(field: DartField): string[] {
+  if (field.nullable) {
+    switch (field.type) {
+      case "string":
+        return ["stringOrNull"];
+      case "int":
+        return ["intOrNull"];
+      case "double":
+        return ["doubleOrNull"];
+      case "bool":
+        return ["boolOrNull"];
+      default:
+        return [];
+    }
+  }
+  switch (field.type) {
+    case "string":
+      return ["string"];
+    case "double":
+      return ["double"];
+    case "int":
+      return ["int"];
+    case "bool":
+      return ["bool"];
+    case "strings":
+      return ["strings"];
+    case "model":
+      return ["map"];
+    case "models":
+      return ["models"];
+    case "stringMap":
+      return ["stringMap"];
+    case "intMap":
+      return ["intMap"];
+  }
+}
+
+const HELPERS: Readonly<Record<string, readonly string[]>> = {
+  string: ["String _string(Object? value) => value is String ? value : '';"],
+  stringOrDefault: [
+    "String _stringOrDefault(Object? value, String fallback) =>",
+    "    value is String ? value : fallback;",
+  ],
+  int: ["int _int(Object? value) => value is num ? value.toInt() : 0;"],
+  double: ["double _double(Object? value) => value is num ? value.toDouble() : 0;"],
+  bool: ["bool _bool(Object? value) => value is bool ? value : false;"],
+  strings: [
+    "List<String> _strings(Object? value) =>",
+    "    value is List ? value.whereType<String>().toList(growable: false) : const [];",
+  ],
+  numberOrString: [
+    "/// A number from a number or a numeric string; anything else is zero.",
+    "double _numberOrString(Object? value) {",
+    "  if (value is num) return value.toDouble();",
+    "  if (value is String) return double.tryParse(value.trim()) ?? 0;",
+    "  return 0;",
+    "}",
+  ],
+  map: [
+    "Map<String, dynamic> _map(Object? value) =>",
+    "    value is Map ? Map<String, dynamic>.from(value) : const <String, dynamic>{};",
+  ],
+  models: [
+    "/// Parse a list of objects, skipping entries that are not maps.",
+    "List<T> _models<T>(Object? value, T Function(Map<String, dynamic>) parse) {",
+    "  if (value is! List) return const [];",
+    "  return value",
+    "      .whereType<Map>()",
+    "      .map((map) => parse(Map<String, dynamic>.from(map)))",
+    "      .toList(growable: false);",
+    "}",
+  ],
+  stringMap: [
+    "Map<String, String> _stringMap(Object? value) {",
+    "  if (value is! Map) return const <String, String>{};",
+    "  final out = <String, String>{};",
+    "  value.forEach((key, entry) {",
+    "    if (key is String && entry is String) out[key] = entry;",
+    "  });",
+    "  return out;",
+    "}",
+  ],
+  intMap: [
+    "Map<String, int> _intMap(Object? value) {",
+    "  if (value is! Map) return const <String, int>{};",
+    "  final out = <String, int>{};",
+    "  value.forEach((key, entry) {",
+    "    if (key is String && entry is num) out[key] = entry.toInt();",
+    "  });",
+    "  return out;",
+    "}",
+  ],
+  stringOrNull: [
+    "String? _stringOrNull(Object? value) =>",
+    "    value is String && value.isNotEmpty ? value : null;",
+  ],
+  intOrNull: ["int? _intOrNull(Object? value) => value is num ? value.toInt() : null;"],
+  doubleOrNull: [
+    "double? _doubleOrNull(Object? value) =>",
+    "    value is num ? value.toDouble() : null;",
+  ],
+  boolOrNull: ["bool? _boolOrNull(Object? value) => value is bool ? value : null;"],
+};
+
 export function renderModels(models: readonly DartModel[]): string {
-  const has = (kind: string): boolean =>
-    models.some((model) => model.fields.some((field) => field.type === kind));
-  const needsNumericString = models.some((model) =>
-    model.fields.some(
-      (field) => field.type === "double" && model.numericStrings.includes(field.name),
-    ),
-  );
-  const helperLines: string[] = [];
-  if (has("string")) helperLines.push("String _string(Object? value) => value is String ? value : '';");
+  const needed = new Set<string>(["string"]);
+  for (const model of models) {
+    for (const field of model.fields) {
+      for (const helper of helperFor(field)) needed.add(helper);
+      if (field.type === "double" && model.numericStrings.includes(field.name)) {
+        needed.add("numberOrString");
+      }
+      if (field.type === "string" && model.defaults[field.name] !== undefined) {
+        needed.add("stringOrDefault");
+      }
+    }
+  }
   if (
-    models.some((model) =>
+    !models.some((model) =>
       model.fields.some(
         (field) => field.type === "double" && !model.numericStrings.includes(field.name),
       ),
     )
   ) {
-    helperLines.push("double _number(Object? value) => value is num ? value.toDouble() : 0;");
+    needed.delete("double");
   }
-  if (has("bool")) helperLines.push("bool _bool(Object? value) => value is bool ? value : false;");
-  if (has("strings")) {
-    helperLines.push(
-      "List<String> _strings(Object? value) =>",
-      "    value is List ? value.whereType<String>().toList(growable: false) : const [];",
-    );
+  const helperLines: string[] = [];
+  const order = [
+    "string",
+    "stringOrDefault",
+    "int",
+    "double",
+    "bool",
+    "strings",
+    "numberOrString",
+    "map",
+    "models",
+    "stringMap",
+    "intMap",
+    "stringOrNull",
+    "intOrNull",
+    "doubleOrNull",
+    "boolOrNull",
+  ];
+  for (const helper of order) {
+    if (!needed.has(helper)) continue;
+    if (helperLines.length > 0) helperLines.push("");
+    helperLines.push(...(HELPERS[helper] ?? []));
   }
-  if (has("models")) {
-    helperLines.push(
-      "",
-      "/// Parse a list of objects, skipping entries that are not maps.",
-      "List<T> _models<T>(Object? value, T Function(Map<String, dynamic>) parse) {",
-      "  if (value is! List) return const [];",
-      "  return value",
-      "      .whereType<Map>()",
-      "      .map((map) => parse(Map<String, dynamic>.from(map)))",
-      "      .toList(growable: false);",
-      "}",
-    );
-  }
-  if (needsNumericString) {
-    helperLines.push(
-      "",
-      "/// A number from a number or a numeric string; anything else is zero.",
-      "double _numberOrString(Object? value) {",
-      "  if (value is num) return value.toDouble();",
-      "  if (value is String) return double.tryParse(value.trim()) ?? 0;",
-      "  return 0;",
-      "}",
-    );
-  }
+
   const lines: string[] = [
     "// GENERATED FILE — do not edit by hand.",
     "// dart format off",
     "//",
-    `// Generated from the exported types in \`${MODELS_SOURCE}\`.`,
+    `// Generated from the exported types in: ${MODEL_SOURCES.join(", ")}.`,
     "// Regenerate: `bun run scripts/generate-dart-models.ts`.",
     "//",
     "// The shell reads these models from the wire; every field is tolerant of a",
@@ -289,7 +507,11 @@ export function renderModels(models: readonly DartModel[]): string {
     lines.push(...docLines(model.doc));
     lines.push(`class ${model.dartName} {`);
     lines.push(`  const ${model.dartName}({`);
-    for (const field of model.fields) lines.push(`    required this.${field.name},`);
+    for (const field of model.fields) {
+      lines.push(
+        field.nullable ? `    this.${field.name},` : `    required this.${field.name},`,
+      );
+    }
     lines.push("  });", "");
     for (const field of model.fields) {
       lines.push(...docLines(field.doc).map((line) => `  ${line}`));

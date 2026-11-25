@@ -13,7 +13,7 @@ import { join } from "node:path";
 
 import {
   MODELS_PATH,
-  MODELS_SOURCE,
+  MODEL_SOURCES,
   extractModels,
   renderModels,
 } from "../../scripts/generate-dart-models";
@@ -31,6 +31,16 @@ describe("generated Dart models", () => {
       "KnowledgeHit",
       "KnowledgeTreeNode",
       "KnowledgeTopicGroup",
+      "StatsOverview",
+      "ModelTotal",
+      "ToolTotal",
+      "LearningStats",
+      "ActivityDay",
+      "StatsPeriod",
+      "StatsSummary",
+      "LearningNode",
+      "LearningEdge",
+      "LearningGraph",
     ]);
     expect(read(MODELS_PATH)).toBe(renderModels(models));
   });
@@ -83,6 +93,49 @@ describe("generated Dart models", () => {
   });
 
   test("the source is the exported protocol type", () => {
-    expect(read(MODELS_SOURCE)).toContain("export type KnowledgeHit = {");
+    expect(MODEL_SOURCES).toContain("src/server/protocol.ts");
+    expect(read("src/server/protocol.ts")).toContain("export type KnowledgeHit = {");
+  });
+
+  test("stats keeps its ints, nullable fields and nested models", () => {
+    const models = extractModels(ROOT);
+    const summary = models.find((model) => model.name === "StatsSummary");
+    expect(summary?.fields.map((field) => [field.name, field.type, field.nullable, field.model])).toEqual([
+      ["range", "string", false, undefined],
+      ["scope", "string", false, undefined],
+      ["overview", "model", false, "StatsOverview"],
+      ["costMicroUsd", "int", true, undefined],
+      ["costLabel", "string", false, undefined],
+      ["models", "models", false, "StatsModelRow"],
+      ["tools", "models", false, "StatsToolRow"],
+      ["learning", "model", false, "LearningStats"],
+      ["activity", "models", false, "ActivityDay"],
+      ["bestStreak", "int", false, undefined],
+      ["activeDays", "int", false, undefined],
+      ["period", "model", false, "StatsPeriod"],
+      ["diagnostic", "string", true, undefined],
+    ]);
+
+    const generated = read(MODELS_PATH);
+    expect(generated).toContain("final int? costMicroUsd;");
+    expect(generated).toContain("final String? diagnostic;");
+    expect(generated).toContain("overview: StatsOverview.fromJson(_map(json['overview']))");
+    expect(generated).toContain("diagnostic: _stringOrNull(json['diagnostic'])");
+  });
+
+  test("a union-keyed Record becomes an int map and model arrays nest", () => {
+    const models = extractModels(ROOT);
+    const graph = models.find((model) => model.name === "LearningGraph");
+    expect(graph?.fields.map((field) => [field.name, field.type, field.model])).toEqual([
+      ["nodes", "models", "LearningNode"],
+      ["edges", "models", "LearningEdge"],
+      ["counts", "intMap", undefined],
+      ["diagnostics", "strings", undefined],
+      ["truncated", "bool", undefined],
+    ]);
+    const generated = read(MODELS_PATH);
+    expect(generated).toContain("final Map<String, int> counts;");
+    expect(generated).toContain("counts: _intMap(json['counts'])");
+    expect(generated).toContain("nodes: _models(json['nodes'], LearningNode.fromJson)");
   });
 });
