@@ -205,6 +205,24 @@ without it falls back to `bun run` and fails on a machine without Bun.
 - No secrets, tokens, workspace paths or usage data may appear in the tarball,
   logs or screenshots. See `desktop/docs/licensing.md` for the full policy.
 
+## Performance
+
+| Metric | Budget | Measurement |
+|---|---|---|
+| First paint, packaged Linux x64, cold empty workspace, 800×600 | ≤ 2000 ms | `scripts/desktop-perf.sh` (best of 3) |
+
+The check launches the compiled bundle under Xvfb and measures the time from
+process start to the first captured frame with real content. The best of three
+is reported: a loaded machine inflates a median, while a real regression raises
+every sample. `tests/fixtures/desktop-perf-budget.json` holds the number and
+`tests/unit/desktop-perf-budget.test.ts` keeps this row and the fixture equal.
+
+A missing bundle or tool prints a skip and exits 0, so a machine without a build
+still runs `bun run check`. CI runs it after the release build with
+`--host-factor=1.9`; the factor multiplies the budget for a shared runner and is
+printed with the verdict. The reference measurement on the development machine
+is ~350 ms across five runs.
+
 ## CI
 
 `.github/workflows/desktop.yml` builds both artifacts. The Linux job runs the
