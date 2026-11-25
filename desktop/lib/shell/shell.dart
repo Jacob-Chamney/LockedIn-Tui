@@ -1532,10 +1532,24 @@ class _ShellState extends State<Shell> {
         onSide: store.selectReviewSide,
         onMark: store.markReview,
         markingId: store.reviewMarkingId,
+        onReview: () {
+          final cards = store.review?.items.where(
+            (item) => item.kind == 'card',
+          );
+          final first = cards == null || cards.isEmpty ? null : cards.first;
+          if (first != null) _openReviewCard(store, first.contextId);
+        },
         // The queue's rows open their own surface: a lock-in for steps, cards
         // and memory, a skill goal for a stage. Like every other open, it is
         // one click or Enter.
         onOpen: (item) {
+          // A review card belongs in its deck, not on the session's step page:
+          // pressing a missed card used to land somewhere it could not be
+          // answered.
+          if (item.kind == 'card') {
+            _openReviewCard(store, item.contextId);
+            return;
+          }
           if (item.kind == 'stage') {
             _select(Surface.skills);
             unawaited(store.openSkill(item.contextId));
@@ -2577,6 +2591,23 @@ class _ShellState extends State<Shell> {
   /// open, or let the core pick the newest one. The detail stays on screen until
   /// the core answers, so a refusal shows its message instead of an empty chat.
   /// Open a session from the review queue: the detail, never a stale layer.
+  /// Open a review card's session and put its deck on screen.
+  ///
+  /// A card is answered in the reader, not on the session's step page; this is
+  /// the one route both the row and the primary `review cards` button use.
+  void _openReviewCard(CoreStore store, String sessionId) {
+    _select(Surface.sessions);
+    setState(() {
+      _sessionChatOpen = false;
+      _sessionSettingsOpen = false;
+      _initialStep = null;
+    });
+    unawaited(() async {
+      await store.openSession(sessionId);
+      await store.readOutput(sessionId, 'flashcards');
+    }());
+  }
+
   Future<void> _openSessionFromQueue(CoreStore store, String id) async {
     await store.openSession(id);
   }
@@ -2928,7 +2959,10 @@ class _Sidebar extends StatelessWidget {
   };
 
   bool _selected(_SidebarEntry entry) => switch (entry) {
-    _SurfaceEntry(:final surface) => active == surface,
+    // While the Achievements layer is open it owns the screen, so the surface
+    // underneath is not also lit. Two highlighted rows made it look as if the
+    // layer had navigated to Stats.
+    _SurfaceEntry(:final surface) => !achievementsActive && active == surface,
     // The layer is open or it is not; before, this row could never be active
     // because it was not a surface.
     _AchievementsEntry() => achievementsActive,
@@ -3219,7 +3253,11 @@ class _SidebarRow extends StatelessWidget {
                       left: 0,
                       top: 6,
                       bottom: 6,
-                      child: Container(width: 2, color: LockedInColors.primary),
+                      child: Container(
+                        key: ValueKey('sidebar-selected-${countKey ?? label}'),
+                        width: 2,
+                        color: LockedInColors.primary,
+                      ),
                     ),
                   Positioned.fill(
                     child: Padding(

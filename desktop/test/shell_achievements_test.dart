@@ -183,6 +183,35 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('the open layer un-highlights the surface underneath', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    await openSurface(tester, 5);
+    expect(
+      find.byKey(const ValueKey('sidebar-selected-stats')),
+      findsOneWidget,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+    await tester.pumpAndSettle();
+
+    // Achievements owns the screen; Stats is where it will return to, not a
+    // second selected destination.
+    expect(find.byKey(const ValueKey('sidebar-selected-stats')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('sidebar-selected-achievements')),
+      findsOneWidget,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('sidebar-selected-stats')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('opening achievements never takes you to Stats', (tester) async {
     // The bug: achievements was a layer *over Stats*, so asking for it selected
     // Stats first — opening it from Work landed on the Stats dashboard.

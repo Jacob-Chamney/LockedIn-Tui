@@ -33,6 +33,23 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('opening a card row lands in its deck', (tester) async {
+    final core = FakeCore();
+    final store = await pumpShell(tester, core: core);
+    await openSurface(tester, 7);
+
+    final row = find.byKey(const ValueKey('review-row-card:physics-unit-4:2'));
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+
+    expect(store.activeSessionId, FakeCore.sessionId);
+    expect(store.outputKind, 'flashcards');
+    expect(find.byKey(const ValueKey('session-output-deck')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Alt+7 opens Review with the queue snapshot', (tester) async {
     await pumpShell(tester);
     await openSurface(tester, 7);
