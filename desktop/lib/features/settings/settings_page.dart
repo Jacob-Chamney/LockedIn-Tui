@@ -559,8 +559,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
     // The updates row checks on Enter and copies the release link on `c`.
     if (row?.id == 'updates') {
       if (key == LogicalKeyboardKey.enter ||
-          key == LogicalKeyboardKey.numpadEnter ||
-          key == LogicalKeyboardKey.space) {
+          key == LogicalKeyboardKey.numpadEnter) {
         widget.onCheckUpdate?.call();
         return KeyEventResult.handled;
       }
@@ -639,14 +638,13 @@ class _SettingsBodyState extends State<_SettingsBody> {
       return KeyEventResult.handled;
     }
     if (row?.policy != null && widget.onSetMcpPolicy != null) {
-      if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.space) {
+      if (key == LogicalKeyboardKey.enter) {
         _activate();
         return KeyEventResult.handled;
       }
     }
     final decision = row?.decision;
-    if (decision != null &&
-        (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.space)) {
+    if (decision != null && key == LogicalKeyboardKey.enter) {
       // The `model` row is not editable in any build: Enter restates the core's
       // reason instead of opening a picker the core would refuse.
       if (decision.kind == _DecisionKind.model) {
@@ -659,26 +657,18 @@ class _SettingsBodyState extends State<_SettingsBody> {
       return KeyEventResult.handled;
     }
     final work = row?.work;
-    if (work != null &&
-        (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.space)) {
+    if (work != null && key == LogicalKeyboardKey.enter) {
       final write = widget.onSetWorkPermissions;
       if (write == null) return KeyEventResult.ignored;
       unawaited(_toggleWork(row!, work, write));
       return KeyEventResult.handled;
     }
-    if (row?.promptId != null &&
-        (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.space)) {
+    if (row?.promptId != null && key == LogicalKeyboardKey.enter) {
       _activate();
       return KeyEventResult.handled;
     }
     final editable = widget.onSaveSettings != null && row?.edit != null;
     if (editable && key == LogicalKeyboardKey.enter) {
-      _activate();
-      return KeyEventResult.handled;
-    }
-    if (editable &&
-        row!.edit!.kind == _EditKind.toggle &&
-        key == LogicalKeyboardKey.space) {
       _activate();
       return KeyEventResult.handled;
     }

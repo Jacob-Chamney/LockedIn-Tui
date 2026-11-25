@@ -83,6 +83,9 @@ left is always visible.
 
 - Every generation returns **structured data we render**, never prose we dump:
   a probe set, a plan tree, one step, one check, one repair.
+- The four phases are keyboard-reachable (`1`–`4`), and the teaching loop has
+  its own keys (`m` measure, `n` next step, `i` answer, `s` side question,
+  `Enter` check), so the harness never requires a pointer.
 - Prompts state the shape, the length budget and the voice, and refuse
   meta-commentary ("In this step we will…"). A reply that fails the shape is
   retried once by us with the failure named, then reported — never rendered raw.

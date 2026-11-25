@@ -14,11 +14,8 @@ void main() {
     expect(find.text('Chill'), findsWidgets);
     expect(find.text('Ask anything…'), findsOneWidget);
     expect(find.text('NORMAL'), findsOneWidget);
-    // Usage and the help chord are separate status cells now, so the bar's
-    // right side reads as three groups instead of one sentence.
-    // The status bar and the composer's own line both report usage, so this is
-    // deliberately not `findsOneWidget`.
-    expect(find.text('42 tok · cost unknown'), findsWidgets);
+    // Usage lives in the status bar only; the composer used to repeat it.
+    expect(find.text('42 tok · cost unknown'), findsOneWidget);
     expect(find.text('? help'), findsOneWidget);
     expect(find.text('openai/gpt-4.1-mini'), findsWidgets);
     expect(find.text('core offline'), findsNothing);
@@ -113,5 +110,15 @@ void main() {
     // The chat surface is open. Its name is the breadcrumb now: the in-page
     // header that repeated `Chill` was removed (the top bar already says it).
     expect(find.text('Chat'), findsWidgets);
+  });
+
+  testWidgets('the model badge sits at the right edge of the top bar', (
+    tester,
+  ) async {
+    await pumpShell(tester, size: const Size(1280, 800));
+    final badge = tester.getRect(find.byKey(const ValueKey('model-badge')));
+    // A `Spacer` plus two loose flex children left a third of the bar unused
+    // after the badge; it must end within the bar's own trailing padding.
+    expect(badge.right, greaterThan(1280 - 40));
   });
 }

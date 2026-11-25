@@ -101,4 +101,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('no learning artifacts'), findsOneWidget);
   });
+
+  testWidgets('the header tabs switch to the graph without the g key', (
+    tester,
+  ) async {
+    var loaded = 0;
+    await _pump(tester, graph: _graph, onLoadGraph: () => loaded += 1);
+
+    await tester.tap(find.byKey(const ValueKey('knowledge-mode-graph')));
+    await tester.pumpAndSettle();
+    expect(loaded, 1);
+    expect(find.byKey(const ValueKey('knowledge-graph-list')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('knowledge-mode-notes')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('knowledge-list')), findsOneWidget);
+    expect(find.textContaining('g graph'), findsOneWidget);
+  });
 }

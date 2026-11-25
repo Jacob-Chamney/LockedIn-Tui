@@ -168,9 +168,9 @@ void main() {
       expect(rowValue('work-allow-write', 'allowed'), findsOneWidget);
       expect(rowValue('work-allow-command', 'switched off'), findsOneWidget);
 
-      // Space on the other row writes the other flag only.
+      // Enter on the other row writes the other flag only.
       await selectRow(tester, 'work-allow-command');
-      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
 
       expect(calls.last, {'allowWrite': null, 'allowCommand': true});

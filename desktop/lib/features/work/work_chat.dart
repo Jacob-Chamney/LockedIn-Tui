@@ -4,7 +4,6 @@ import 'package:material_ui/material_ui.dart';
 import '../../bridge/models.dart';
 import '../../theme/palette.dart';
 import '../chat/chat_failure.dart';
-import '../chat/usage_text.dart';
 import '../chat/markdown.dart';
 import '../chat/transcript_scroll.dart';
 import '../keys.dart';
@@ -452,14 +451,6 @@ class _WorkChatViewState extends State<WorkChatView> {
                     ),
                 ],
               ),
-              if (chat != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    chatUsageLabel(chat.usage),
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
-                  ),
-                ),
             ],
           ),
         ),

@@ -758,7 +758,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Space on period toggles day to month and saves', (tester) async {
+  testWidgets('Enter on period toggles day to month and saves', (tester) async {
     Map<String, dynamic>? saved;
     await pumpPage(
       tester,
@@ -770,7 +770,7 @@ void main() {
     );
 
     await selectRow(tester, 'period');
-    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
 
     expect(saved, {

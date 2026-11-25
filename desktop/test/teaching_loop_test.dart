@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lockedin_desktop/bridge/models.dart';
 import 'package:lockedin_desktop/features/skills/skill_detail.dart';
@@ -485,7 +486,7 @@ void main() {
         ),
       );
 
-      expect(find.text('1/3 held'), findsOneWidget);
+      expect(find.text('1/3 held'), findsWidgets);
       expect(find.text('here'), findsOneWidget);
       // The tick replaces the number for a passed step.
       expect(find.text('✓'), findsWidgets);
@@ -645,6 +646,85 @@ void main() {
       ),
     );
     expect(find.text('! revisit'), findsOneWidget);
-    expect(find.textContaining('0 solved · 1 to revisit'), findsOneWidget);
+    expect(find.textContaining('0 solved · 1 to revisit'), findsWidgets);
+  });
+
+  testWidgets('m measures, n advances, s asks, and the rail jumps phases', (
+    tester,
+  ) async {
+    var measured = 0;
+    var next = 0;
+    var side = 0;
+    await pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        teaching: TeachingState.empty,
+        onMeasure: () => measured += 1,
+      ),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyM);
+    expect(measured, 1);
+
+    await pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        teaching: TeachingState(
+          goal: _measured.goal,
+          prior: _measured.prior,
+          held: _measured.held,
+          gaps: _measured.gaps,
+          plan: _measured.plan,
+          checks: const [],
+          current: _openStep,
+        ),
+        onNextStep: () => next += 1,
+        onCheck: (_, _, _) {},
+        onSideOpen: () => side += 1,
+        onSideSend: (_) {},
+      ),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+    expect(next, 1);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+    expect(side, 1);
+    // `2` is the plan phase; on a measured session it lands on the tree.
+    await tester.tap(find.byKey(const ValueKey('teach-phase-plan')));
+    await tester.pumpAndSettle();
+    expect(find.text('LEARNING TREE'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('i focuses the answer and Enter on the page submits it', (
+    tester,
+  ) async {
+    String? sent;
+    await pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        teaching: TeachingState(
+          goal: _measured.goal,
+          prior: _measured.prior,
+          held: _measured.held,
+          gaps: _measured.gaps,
+          plan: _measured.plan,
+          checks: const [],
+          current: _openStep,
+        ),
+        onCheck: (answer, _, _) => sent = answer,
+        onNextStep: () {},
+      ),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyI);
+    await tester.enterText(
+      find.byKey(const ValueKey('teach-answer')),
+      'on the stack',
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(sent, 'on the stack');
   });
 }

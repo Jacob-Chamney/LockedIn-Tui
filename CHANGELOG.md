@@ -21,8 +21,31 @@ requests merge.
 
 ## Unreleased
 
+### Fixed
+
+- The model badge sits at the right edge of the top bar; it used to float a
+  third of the bar away because a `Spacer` and two loose flex children split the
+  free space.
+- The window title is `LockedIn`, and Linux and Windows enforce the documented
+  800×600 minimum size.
+- Chat usage appears once, in the status bar. The composer no longer repeats the
+  same `tok · cost` line 20 px above it.
+- Chill's unconfigured state says "no model" once as a state and once as a
+  `connect a model` action, instead of four warnings; the `TRY` rows' return
+  glyph is readable instead of hairline-on-background.
+- The Knowledge page has visible `notes` / `graph` tabs, so the learning graph
+  is mouse-reachable, and its header hint names `g`.
+- Status-bar hints match the keys the deck really handles (`Tab flip · 1-4
+  answer · h/l move · a/f/g/e grade`) and name the teaching loop's keys.
+- Settings no longer consumes `Space`; `Enter` runs its rows, so the leader
+  works everywhere.
+
 ### Changed
 
+- The teaching page has a keyboard path: `1`–`4` jump phases, `m` measures,
+  `n` advances the tree, `i` focuses the answer, `s` opens the side question,
+  and `Enter` submits a check. The phase rail's summaries now come from the
+  teaching record, and `2 plan` lands on the learning tree even for a course.
 - The teaching plan is now a **learning tree**. The first step is open, a branch
   stays locked until every step it builds on is held, and a locked row names
   what still blocks it (`after …`) as well as saying `locked`. Passing a

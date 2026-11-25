@@ -11,7 +11,6 @@ import '../../theme/palette.dart';
 import '../../theme/tokens.dart';
 import 'attachments.dart';
 import 'chat_failure.dart';
-import 'usage_text.dart';
 import 'markdown.dart';
 import 'transcript_scroll.dart';
 import '../keys.dart';
@@ -604,7 +603,7 @@ class _ChatPageState extends State<ChatPage> {
                       ),
                     ),
                     child: const Text(
-                      'link a model in Settings → Providers',
+                      'connect a model',
                       style: TextStyle(fontSize: 12),
                     ),
                   ),
@@ -695,7 +694,7 @@ class _ChatPageState extends State<ChatPage> {
         : !widget.configured
         // The top bar's badge already says `! no model`; this line is the
         // action, so it does not repeat the diagnosis.
-        ? 'link a key in Settings → Providers, then ask anything'
+        ? 'sending needs a model — use the badge above'
         : streaming
         ? 'streaming · Esc stops the reply'
         : 'Enter send · Shift+Enter newline · p attach · Esc normal';
@@ -865,21 +864,6 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                 ],
               ),
-              if (widget.chat != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      chatUsageLabel(widget.chat!.usage),
-                      style: LockedInType.micro.copyWith(
-                        color: LockedInColors.muted,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0,
-                      ),
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
@@ -995,7 +979,7 @@ class _ExampleRow extends StatelessWidget {
             const SizedBox(width: Space.xs),
             Text(
               '↵',
-              style: LockedInType.micro.copyWith(color: LockedInColors.line),
+              style: LockedInType.micro.copyWith(color: LockedInColors.muted),
             ),
           ],
         ),

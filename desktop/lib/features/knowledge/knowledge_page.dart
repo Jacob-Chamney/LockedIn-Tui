@@ -337,11 +337,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
     }
     // `g` is the graph projection of the same surface, not another screen.
     if (key == LogicalKeyboardKey.keyG && !editing) {
-      setState(() {
-        _graphMode = !_graphMode;
-        _selectedIndex = 0;
-      });
-      if (_graphMode) widget.onLoadGraph?.call();
+      _setGraphMode(!_graphMode);
       return KeyEventResult.handled;
     }
     // `/` focuses the field; while it is focused every other bare key is INPUT.
@@ -383,6 +379,55 @@ class _KnowledgePageState extends State<KnowledgePage> {
       }
     }
     return KeyEventResult.ignored;
+  }
+
+  /// Switch the list projection without the keyboard: the graph was previously
+  /// reachable only by knowing `g`, which made a shipped surface invisible.
+  void _setGraphMode(bool graph) {
+    if (_graphMode == graph) return;
+    setState(() {
+      _graphMode = graph;
+      _selectedIndex = 0;
+    });
+    if (graph) widget.onLoadGraph?.call();
+  }
+
+  Widget _modeTab({
+    required String label,
+    required bool selected,
+    required Key key,
+    required VoidCallback onTap,
+  }) {
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: InkWell(
+        key: key,
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: selected ? LockedInColors.panel : Colors.transparent,
+            border: Border(
+              bottom: BorderSide(
+                color: selected ? LockedInColors.primary : Colors.transparent,
+                width: Stroke.focus,
+              ),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected
+                  ? LockedInColors.foreground
+                  : LockedInColors.muted,
+              fontSize: 11,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -486,15 +531,32 @@ class _KnowledgePageState extends State<KnowledgePage> {
             style: TextStyle(color: LockedInColors.muted, fontSize: 11),
           ),
         ),
+        const SizedBox(width: 10),
+        _modeTab(
+          label: 'notes',
+          selected: !_graphMode,
+          key: const ValueKey('knowledge-mode-notes'),
+          onTap: () => _setGraphMode(false),
+        ),
+        const SizedBox(width: 4),
+        _modeTab(
+          label: 'graph',
+          selected: _graphMode,
+          key: const ValueKey('knowledge-mode-graph'),
+          onTap: () => _setGraphMode(true),
+        ),
         if (!compact)
           // The hint shares the row with the summary. A bare Text here
           // overflowed at 600 once the header stopped shortening at 620.
           Flexible(
-            child: Text(
-              '/ search · j/k move · Enter open · Esc back',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            child: Padding(
+              padding: const EdgeInsets.only(left: 10),
+              child: Text(
+                '/ search · g graph · j/k move · Enter open · Esc back',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              ),
             ),
           ),
       ],

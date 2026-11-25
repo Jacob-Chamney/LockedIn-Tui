@@ -1418,8 +1418,12 @@ class _ShellState extends State<Shell> {
       if (_wizardOpen) return 'Tab next · Enter continue · Esc back';
       if (store.activeSession != null) {
         if (store.outputKind != null) {
+          // The deck's real keys (`session_outputs.dart`): Tab flips, 1-4
+          // answers, h/l move, a/f/g/e grade, m/k mark, Shift+R rebuilds. The
+          // old line named arrow scrolling and `R` for a deck that used
+          // neither.
           return store.outputKind == 'flashcards'
-              ? '↑↓ scroll · R rebuild · Esc back'
+              ? 'Tab flip · 1-4 answer · h/l move · a/f/g/e grade · Esc back'
               : 'a answers · R rebuild · Esc back';
         }
         if (_sessionSettingsOpen) {
@@ -1459,6 +1463,15 @@ class _ShellState extends State<Shell> {
         }
         if (store.skillLessonOpen) return 'b build · R rebuild · Esc back';
         if (store.skillChapterOpen) return 'Esc back';
+        // The teaching loop owns these keys (`skill_detail.dart`). The old
+        // line named stage/chapter keys only, so the harness it advertises
+        // looked inaccessible from the keyboard.
+        final teaching = store.teaching;
+        if (teaching != null) {
+          return teaching.measured
+              ? '1-4 jump · n next · i answer · s ask · c chat · a sources · Esc back'
+              : '1-4 jump · m measure · a sources · Esc back';
+        }
         if (store.activeSkill?.hasStages ?? false) {
           return '↑↓ move · Enter lesson · b build · c chat · Shift+N new chat · Esc back';
         }
@@ -2732,7 +2745,11 @@ class _TopBar extends StatelessWidget {
             style: LockedInType.micro.copyWith(color: LockedInColors.line),
           ),
           const SizedBox(width: Space.xs),
-          Flexible(
+          // The breadcrumb takes the free space and the badge takes its
+          // natural width at the right edge. A `Spacer` plus a loose
+          // `Flexible` around an `Align` split the remainder into equal
+          // thirds, so `! no model` floated ~220 px from the edge at 1280.
+          Expanded(
             child: Text(
               surface.label,
               maxLines: 1,
@@ -2743,14 +2760,8 @@ class _TopBar extends StatelessWidget {
               ),
             ),
           ),
-          const Spacer(),
-          // The badge may shrink; the breadcrumb keeps its space.
-          Flexible(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: _CoreChip(store: store, onOpenSettings: onOpenSettings),
-            ),
-          ),
+          const SizedBox(width: Space.sm),
+          _CoreChip(store: store, onOpenSettings: onOpenSettings),
           const SizedBox(width: Space.sm),
         ],
       ),
@@ -2845,7 +2856,8 @@ class _CoreChip extends StatelessWidget {
             children: [
               Text(glyph, style: LockedInType.micro.copyWith(color: tone)),
               const SizedBox(width: Space.xxs + 2),
-              Flexible(
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 240),
                 child: Text(
                   label,
                   maxLines: 1,

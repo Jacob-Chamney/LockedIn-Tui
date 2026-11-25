@@ -245,10 +245,27 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   final _chapterScroll = ScrollController();
 
   @override
+  void initState() {
+    super.initState();
+    // Enter submits; Esc hands the keyboard back to the page. Without this a
+    // focus in the answer field made the teaching loop's keys unreachable.
+    _answerFocus.onKeyEvent = (node, event) {
+      if (event is! KeyDownEvent) return KeyEventResult.ignored;
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        _pageFocus.requestFocus();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    };
+  }
+
+  @override
   void dispose() {
     _chapterScroll.dispose();
     _sectionsScroll.dispose();
     _answer.dispose();
+    _answerFocus.dispose();
+    _pageFocus.dispose();
     _thinking.dispose();
     _sideInput.dispose();
     _researchQuestion.dispose();
@@ -273,8 +290,8 @@ class _SkillDetailViewState extends State<SkillDetailView> {
 
   /// One key per phase section, so the rail can scroll to it and tests can
   /// assert where the navigation landed.
-  final _measureKey = GlobalKey(debugLabel: 'phase-measure');
   final _planKey = GlobalKey(debugLabel: 'phase-plan');
+  final _stagesKey = GlobalKey(debugLabel: 'phase-stages');
   final _teachKey = GlobalKey(debugLabel: 'phase-teach');
   final _practiceKey = GlobalKey(debugLabel: 'phase-practice');
 
@@ -285,8 +302,13 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   /// The scroll the four sections live in.
   final _sectionsScroll = ScrollController();
 
+  /// Where the keyboard rests in NORMAL mode. `Esc` in a check field returns
+  /// here, so the teaching keys are never dead behind a text field.
+  final _pageFocus = FocusNode(debugLabel: 'skill-page');
+
   /// The answer to the open step's check.
   final _answer = TextEditingController();
+  final _answerFocus = FocusNode(debugLabel: 'teach-answer');
 
   /// The learner's own reasoning, optional. Never judged as the answer.
   final _thinking = TextEditingController();
@@ -835,6 +857,62 @@ class _SkillDetailViewState extends State<SkillDetailView> {
       widget.onBack!();
       return KeyEventResult.handled;
     }
+    // The four phases are one press each, so the rail is reachable without a
+    // pointer. They are bare digits, not leader chords: the rail is the page's
+    // own map and this page has no other digit action.
+    final phaseKey = switch (key) {
+      LogicalKeyboardKey.digit1 || LogicalKeyboardKey.numpad1 => _Phase.measure,
+      LogicalKeyboardKey.digit2 || LogicalKeyboardKey.numpad2 => _Phase.plan,
+      LogicalKeyboardKey.digit3 || LogicalKeyboardKey.numpad3 => _Phase.teach,
+      LogicalKeyboardKey.digit4 ||
+      LogicalKeyboardKey.numpad4 => _Phase.practice,
+      _ => null,
+    };
+    if (phaseKey != null) {
+      if (event is KeyDownEvent) _gotoPhase(phaseKey);
+      return KeyEventResult.handled;
+    }
+    // The teaching loop's own keys. They exist only when the core has a
+    // teaching record, so a course/stage goal keeps its old grammar.
+    final teaching = widget.teaching;
+    if (teaching != null) {
+      final measured = teaching.measured;
+      if (key == LogicalKeyboardKey.keyM &&
+          !measured &&
+          widget.onMeasure != null &&
+          !widget.teachingLoading) {
+        if (event is KeyDownEvent) widget.onMeasure!();
+        return KeyEventResult.handled;
+      }
+      if (measured) {
+        if (key == LogicalKeyboardKey.keyN &&
+            widget.onNextStep != null &&
+            !widget.teachingLoading) {
+          if (event is KeyDownEvent) widget.onNextStep!();
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.keyI && teaching.current != null) {
+          if (event is KeyDownEvent) _answerFocus.requestFocus();
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.keyS &&
+            teaching.current != null &&
+            widget.onSideSend != null) {
+          if (event is KeyDownEvent) _toggleSide();
+          return KeyEventResult.handled;
+        }
+        // Enter submits the check when the page (not a field) has the
+        // keyboard. With no open step it still opens the selected
+        // stage/chapter below, so the legacy path is untouched.
+        if ((key == LogicalKeyboardKey.enter ||
+                key == LogicalKeyboardKey.numpadEnter) &&
+            teaching.current != null &&
+            _answer.text.trim().isNotEmpty) {
+          if (event is KeyDownEvent) _submitCheck();
+          return KeyEventResult.handled;
+        }
+      }
+    }
     // `e` edits the curriculum. It is separate from `a` (add sources), so the
     // sources action is not shadowed outside edit mode.
     if (key == LogicalKeyboardKey.keyE) {
@@ -911,6 +989,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   @override
   Widget build(BuildContext context) {
     return Focus(
+      focusNode: _pageFocus,
       autofocus: true,
       onKeyEvent: _onKey,
       child: widget.chapterOpen ? _reader() : _goalPage(),
@@ -1065,18 +1144,12 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                   child: _teachingCard(),
                 ),
                 const SizedBox(height: Space.md),
-                KeyedSubtree(
-                  key: _sectionKey(_Phase.measure),
-                  child: _goalCard(),
-                ),
+                _goalCard(),
                 const SizedBox(height: Space.md),
                 // A course has chapters, not stages: the plan section is the
                 // curriculum when there is one.
                 if (_stages.isNotEmpty || _editingStages) ...[
-                  KeyedSubtree(
-                    key: _sectionKey(_Phase.plan),
-                    child: _stagesCard(),
-                  ),
+                  KeyedSubtree(key: _stagesKey, child: _stagesCard()),
                   const SizedBox(height: Space.md),
                 ],
                 // Sources sit above the lesson: the plan and every stage are
@@ -1513,34 +1586,44 @@ class _SkillDetailViewState extends State<SkillDetailView> {
           const SizedBox(height: Space.md),
           const Rule(),
           const SizedBox(height: Space.sm),
-          SectionLabel(
-            'learning tree',
-            trailing: '${record.passedCount} of ${record.plan.length} held',
-          ),
-          const SizedBox(height: Space.xxs),
-          Text(
-            'Start at the top. A branch unlocks once every step it needs is held.',
-            style: LockedInType.micro.copyWith(
-              color: LockedInColors.muted,
-              letterSpacing: 0,
+          KeyedSubtree(
+            key: _planKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SectionLabel(
+                  'learning tree',
+                  trailing:
+                      '${record.passedCount} of ${record.plan.length} held',
+                ),
+                const SizedBox(height: Space.xxs),
+                Text(
+                  'Start at the top. A branch unlocks once every step it needs is held.',
+                  style: LockedInType.micro.copyWith(
+                    color: LockedInColors.muted,
+                    letterSpacing: 0,
+                  ),
+                ),
+                const SizedBox(height: Space.xs),
+                for (final (position, entry) in record.plan.indexed)
+                  _PlanRow(
+                    key: ValueKey('teach-plan-${entry.id}'),
+                    number: position + 1,
+                    title: entry.title,
+                    passed: record.checks.any(
+                      (check) =>
+                          check.stepId == entry.id &&
+                          check.verdict == 'correct',
+                    ),
+                    current: position == index && !done,
+                    depth: record.depthOf(position),
+                    needs: entry.requires.length,
+                    locked: record.lockedOf(position),
+                    blockedBy: record.blockersOf(position),
+                  ),
+              ],
             ),
           ),
-          const SizedBox(height: Space.xs),
-          for (final (position, entry) in record.plan.indexed)
-            _PlanRow(
-              key: ValueKey('teach-plan-${entry.id}'),
-              number: position + 1,
-              title: entry.title,
-              passed: record.checks.any(
-                (check) =>
-                    check.stepId == entry.id && check.verdict == 'correct',
-              ),
-              current: position == index && !done,
-              depth: record.depthOf(position),
-              needs: entry.requires.length,
-              locked: record.lockedOf(position),
-              blockedBy: record.blockersOf(position),
-            ),
           const SizedBox(height: Space.md),
           if (widget.teachingError != null) ...[
             Text(
@@ -1647,8 +1730,10 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                   TextField(
                     key: const ValueKey('teach-answer'),
                     controller: _answer,
+                    focusNode: _answerFocus,
                     minLines: 1,
                     maxLines: 3,
+                    textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _submitCheck(),
                     style: LockedInType.proseSmall.copyWith(
                       color: LockedInColors.foreground,
@@ -1938,8 +2023,16 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   );
 
   GlobalKey _sectionKey(_Phase phase) => switch (phase) {
-    _Phase.measure => _measureKey,
-    _Phase.plan => _planKey,
+    // Measure, the tree and the step all live in the teaching card. The tree
+    // has its own key so `2 plan` lands on it rather than the card's top, and
+    // a curriculum goal falls back to its stage list when there is no tree.
+    _Phase.measure => _teachKey,
+    _Phase.plan =>
+      (widget.teaching?.measured ?? false)
+          ? _planKey
+          : _stages.isEmpty
+          ? _teachKey
+          : _stagesKey,
     _Phase.teach => _teachKey,
     _Phase.practice => _practiceKey,
   };
@@ -1975,27 +2068,40 @@ class _SkillDetailViewState extends State<SkillDetailView> {
     final done = stages.where((stage) => stage.done).length;
     final stageIndex = _stageIndex;
     final stage = stageIndex < 0 ? null : stages[stageIndex];
-    final prior = widget.detail.prior.trim();
+    final teaching = widget.teaching;
+    final measured = teaching?.measured ?? false;
+    final practice = teaching?.practice;
     final rows = <(_Phase, String, String)>[
       (
         _Phase.measure,
         'measure',
-        prior.isEmpty ? 'starting point missing' : 'starting point set',
+        teaching == null
+            ? 'not measured'
+            : '${teaching.held.length} held · ${teaching.gaps.length} gap'
+                  '${teaching.gaps.length == 1 ? '' : 's'}',
       ),
       (
         _Phase.plan,
         'plan',
-        _chapters.isNotEmpty
+        measured
+            ? '${teaching!.passedCount}/${teaching.plan.length} held'
+            : _chapters.isNotEmpty
             ? 'course ${_chapters.where((chapter) => chapter.done).length}/'
                   '${_chapters.length}'
             : stages.isEmpty
-            ? 'no stages'
+            ? 'not planned'
             : '$done/${stages.length} held',
       ),
       (
         _Phase.teach,
         'teach',
-        stage == null
+        measured
+            ? teaching!.current != null
+                  ? 'step ${teaching.nextIndex + 1} of ${teaching.plan.length}'
+                  : teaching.nextIndex >= teaching.plan.length
+                  ? 'all steps held'
+                  : 'step ${teaching.nextIndex + 1} ready'
+            : stage == null
             ? 'pick a stage'
             : stage.done
             ? 'held'
@@ -2004,7 +2110,13 @@ class _SkillDetailViewState extends State<SkillDetailView> {
       (
         _Phase.practice,
         'practice',
-        stages.isEmpty ? 'after the plan' : '${stages.length - done} to hold',
+        practice != null && practice.problems.isNotEmpty
+            ? '${practice.solved.length} solved · ${practice.missed.length} to revisit'
+            : measured
+            ? 'after a check'
+            : stages.isEmpty
+            ? 'after the plan'
+            : '${stages.length - done} to hold',
       ),
     ];
     return Container(
@@ -2040,7 +2152,11 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Space.sm),
               child: Text(
-                'Enter opens a stage · b builds its lesson',
+                measured
+                    ? '1–4 jump · n next · i answer · s ask'
+                    : teaching == null
+                    ? '1–4 jump · m measure'
+                    : '1–4 jump · m measure · Enter check',
                 style: LockedInType.micro.copyWith(
                   color: LockedInColors.muted,
                   letterSpacing: 0,

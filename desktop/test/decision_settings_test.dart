@@ -184,7 +184,7 @@ void main() {
       );
 
       await selectRow(tester, 'decision-enabled');
-      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pump();
       // `saving…` replaces the value while the write is in flight, and the row
       // has not flipped yet.

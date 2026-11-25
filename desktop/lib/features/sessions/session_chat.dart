@@ -6,7 +6,6 @@ import '../../shell/chrome.dart';
 import '../../theme/palette.dart';
 import '../../theme/tokens.dart';
 import '../chat/chat_failure.dart';
-import '../chat/usage_text.dart';
 import '../chat/markdown.dart';
 import '../chat/transcript_scroll.dart';
 import '../keys.dart';
@@ -566,14 +565,6 @@ class _SessionChatViewState extends State<SessionChatView> {
                     ),
                 ],
               ),
-              if (chat != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    chatUsageLabel(chat.usage),
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
-                  ),
-                ),
             ],
           ),
         ),
