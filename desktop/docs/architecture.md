@@ -124,9 +124,9 @@ Two generated files keep the Flutter bridge tied to the core:
   Knowledge search/tree models, the whole Stats + learning-graph surface, the
   settings view, the session figure, the chat cluster including its snapshot,
   the work agent profile, the session source, its steps/memory projections, the
-  whole session detail and the work project detail (26 models): strings,
-  `int`/`double` (the `ints` list), booleans, string arrays, nested models and
-  arrays of them (nullable and recursive too),
+  whole session detail, the work project detail and its list rows (28 models):
+  strings, `int`/`double` (the `ints` list), booleans, string arrays, nested
+  models and arrays of them (nullable and recursive too),
   `Record<string, string|number|model>` maps, optional/`| null` fields as
   nullable Dart fields, a union of object shapes flattened into one class (a
   field every member shares stays required; a member-only field becomes

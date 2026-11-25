@@ -55,6 +55,8 @@ describe("generated Dart models", () => {
       "SessionMemoryView",
       "SessionDetailView",
       "WorkProjectDetailView",
+      "WorkProjectAgentView",
+      "WorkProjectRowView",
     ]);
     expect(read(MODELS_PATH)).toBe(renderModels(models));
   });
@@ -368,6 +370,36 @@ describe("generated Dart models", () => {
     const generated = read(MODELS_PATH);
     expect(generated).toContain("final List<AgentProfileView> agents;");
     expect(generated).toContain("defaultAgent: _stringOrNull(json['defaultAgent'])");
+  });
+
+  test("the work project row composes its agent rows", () => {
+    const models = extractModels(ROOT);
+    const byName = new Map(models.map((model) => [model.name, model]));
+    const agent = byName.get("WorkProjectAgentView");
+    expect(agent?.dartName).toBe("ProjectAgent");
+    expect(agent?.fields.map((field) => [field.name, field.type])).toEqual([
+      ["id", "string"],
+      ["name", "string"],
+      ["task", "string"],
+      ["model", "string"],
+      ["permissions", "string"],
+    ]);
+    const row = byName.get("WorkProjectRowView");
+    expect(row?.dartName).toBe("ProjectRow");
+    expect(
+      row?.fields.map((field) => [field.name, field.type, field.model]),
+    ).toEqual([
+      ["id", "string", undefined],
+      ["name", "string", undefined],
+      ["folder", "string", undefined],
+      ["mode", "string", undefined],
+      ["swarmName", "string", undefined],
+      ["archived", "bool", undefined],
+      ["agents", "models", "ProjectAgent"],
+    ]);
+    const generated = read(MODELS_PATH);
+    expect(generated).toContain("final List<ProjectAgent> agents;");
+    expect(generated).toContain("agents: _models(json['agents'], ProjectAgent.fromJson)");
   });
 
   test("the source is the exported protocol type", () => {

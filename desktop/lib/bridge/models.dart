@@ -36,7 +36,9 @@ export 'core_models.g.dart'
         SessionSteps,
         SessionMemory,
         SessionDetail,
-        WorkProjectDetail;
+        WorkProjectDetail,
+        ProjectAgent,
+        ProjectRow;
 
 String _string(Object? value) => value is String ? value : '';
 int _int(Object? value) => value is num ? value.toInt() : 0;
@@ -845,72 +847,14 @@ extension ChatSnapshotView on ChatSnapshot {
 /// The list row carries the shell's flat shape: [task] is the profile's
 /// instructions and [permissions] its capability sentence. The full profile
 /// (`work.open` agents) is [AgentProfileView].
-class ProjectAgent {
-  const ProjectAgent({
-    required this.id,
-    required this.name,
-    required this.task,
-    required this.model,
-    required this.permissions,
-  });
-
-  final String id;
-  final String name;
-  final String task;
-  final String model;
-  final String permissions;
-
+/// View helpers for the generated work-list agent row.
+extension ProjectAgentView on ProjectAgent {
   /// True when the core describes this agent as read-only. The badge is textual
   /// as well as coloured, so the state never relies on colour alone.
   bool get readOnly => permissions.toLowerCase().contains('read');
-
-  factory ProjectAgent.fromJson(Map<String, dynamic> json) => ProjectAgent(
-    id: _string(json['id']),
-    name: _string(json['name']),
-    task: _string(json['task']),
-    model: _string(json['model']),
-    permissions: _string(json['permissions']),
-  );
 }
 
 /// `work.list` — one registered Work project.
-class ProjectRow {
-  const ProjectRow({
-    required this.id,
-    required this.name,
-    required this.folder,
-    required this.mode,
-    required this.swarmName,
-    required this.archived,
-    required this.agents,
-  });
-
-  final String id;
-  final String name;
-
-  /// The registered project root. The shell never reads it; the core confines
-  /// every project tool to this folder.
-  final String folder;
-
-  /// `chat` (single agent) or `swarm` (coordinator plus workers).
-  final String mode;
-
-  /// Display name of the swarm; empty for a `chat` project.
-  final String swarmName;
-  final bool archived;
-  final List<ProjectAgent> agents;
-
-  factory ProjectRow.fromJson(Map<String, dynamic> json) => ProjectRow(
-    id: _string(json['id']),
-    name: _string(json['name']),
-    folder: _string(json['folder']),
-    mode: _string(json['mode']),
-    swarmName: _string(json['swarmName']),
-    archived: _bool(json['archived']),
-    agents: _maps(json['agents']).map(ProjectAgent.fromJson).toList(),
-  );
-}
-
 /// One full agent profile from `work.open`.
 ///
 /// The Work detail edits this profile through `work.agent.save`; the shell

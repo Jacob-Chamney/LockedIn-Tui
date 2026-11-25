@@ -378,4 +378,34 @@ void main() {
     expect(bare.tasks, 0);
     expect(bare.hasGit, isFalse);
   });
+
+  test('the work project row composes its agent rows', () {
+    final row = ProjectRow.fromJson({
+      'id': 'p1',
+      'name': 'Atlas',
+      'folder': '/home/me/Projects/atlas',
+      'mode': 'chat',
+      'swarmName': '',
+      'archived': false,
+      'agents': [
+        {
+          'id': 'reviewer-1',
+          'name': 'Reviewer',
+          'task': 'Review only.',
+          'model': '',
+          'permissions': 'read-only',
+        },
+        'not-a-map',
+      ],
+    });
+    expect(row.name, 'Atlas');
+    expect(row.agents, hasLength(1));
+    expect(row.agents.single.name, 'Reviewer');
+    expect(row.agents.single.readOnly, isTrue);
+
+    final bare = ProjectRow.fromJson({});
+    expect(bare.id, '');
+    expect(bare.agents, isEmpty);
+    expect(bare.archived, isFalse);
+  });
 }

@@ -922,3 +922,69 @@ class WorkProjectDetail {
     lastOpened: _string(json['lastOpened']),
   );
 }
+
+/// One agent row in the `work.list` project row.
+class ProjectAgent {
+  const ProjectAgent({
+    required this.id,
+    required this.name,
+    required this.task,
+    required this.model,
+    required this.permissions,
+  });
+
+  final String id;
+
+  final String name;
+
+  final String task;
+
+  final String model;
+
+  final String permissions;
+
+  factory ProjectAgent.fromJson(Map<String, dynamic> json) => ProjectAgent(
+    id: _string(json['id']),
+    name: _string(json['name']),
+    task: _string(json['task']),
+    model: _string(json['model']),
+    permissions: _string(json['permissions']),
+  );
+}
+
+/// One registered Work project as `work.list` returns it.
+class ProjectRow {
+  const ProjectRow({
+    required this.id,
+    required this.name,
+    required this.folder,
+    required this.mode,
+    required this.swarmName,
+    required this.archived,
+    required this.agents,
+  });
+
+  final String id;
+
+  final String name;
+
+  final String folder;
+
+  final String mode;
+
+  final String swarmName;
+
+  final bool archived;
+
+  final List<ProjectAgent> agents;
+
+  factory ProjectRow.fromJson(Map<String, dynamic> json) => ProjectRow(
+    id: _string(json['id']),
+    name: _string(json['name']),
+    folder: _string(json['folder']),
+    mode: _string(json['mode']),
+    swarmName: _string(json['swarmName']),
+    archived: _bool(json['archived']),
+    agents: _models(json['agents'], ProjectAgent.fromJson),
+  );
+}
