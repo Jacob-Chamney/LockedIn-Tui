@@ -80,6 +80,41 @@ function kinds(queue: ReviewQueue): string[] {
   return queue.items.map((item) => item.kind)
 }
 
+describe("review queue — spaced repetition", () => {
+  test("a scheduled card that is due enters with reason due", () => {
+    const queue = buildReviewQueue({
+      decks: [
+        {
+          deckId: "deck-1",
+          deckName: "Deck",
+          cards: [
+            { id: "c1", question: "Due now", missed: false, known: false, due: true },
+            { id: "c2", question: "Not due", missed: false, known: false, due: false },
+          ],
+        },
+      ],
+    })
+    expect(queue.items).toHaveLength(1)
+    expect(queue.items[0]!.reason).toBe("due")
+    expect(queue.items[0]!.kind).toBe("card")
+  })
+
+  test("a missed card stays missed even when it is also due", () => {
+    const queue = buildReviewQueue({
+      decks: [
+        {
+          deckId: "deck-1",
+          deckName: "Deck",
+          cards: [
+            { id: "c1", question: "Missed", missed: true, known: false, due: true },
+          ],
+        },
+      ],
+    })
+    expect(queue.items[0]!.reason).toBe("missed")
+  })
+})
+
 describe("review queue — composition", () => {
   test("collects the four documented kinds", () => {
     const queue = buildReviewQueue(fullInput())

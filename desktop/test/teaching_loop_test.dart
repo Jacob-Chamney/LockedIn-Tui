@@ -123,9 +123,11 @@ void main() {
   });
 
   testWidgets(
-    'an open step shows its prose and its check, and sends an answer',
+    'an open step shows its prose and its check, and sends answer, reasoning and confidence',
     (tester) async {
       String? sent;
+      String? sentThinking;
+      int? sentConfidence;
       await pump(
         tester,
         SkillDetailView(
@@ -139,7 +141,11 @@ void main() {
             checks: const [],
             current: _openStep,
           ),
-          onCheck: (answer) => sent = answer,
+          onCheck: (answer, thinking, confidence) {
+            sent = answer;
+            sentThinking = thinking;
+            sentConfidence = confidence;
+          },
         ),
       );
 
@@ -153,12 +159,144 @@ void main() {
         find.byKey(const ValueKey('teach-answer')),
         'on the stack',
       );
+      await tester.enterText(
+        find.byKey(const ValueKey('teach-thinking')),
+        'a return has to find its way back',
+      );
+      await tester.tap(find.byKey(const ValueKey('teach-confidence-4')));
+      await tester.pump();
+      expect(find.text('fairly sure'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('teach-check')));
       await tester.pump();
 
       expect(sent, 'on the stack');
+      expect(sentThinking, 'a return has to find its way back');
+      expect(sentConfidence, 4);
+      // The fields reset for a repair, not for a new step.
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('teach-answer')))
+            .controller!
+            .text,
+        isEmpty,
+      );
     },
   );
+
+  testWidgets('the plan renders as a dependency map with a join marked', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        teaching: TeachingState(
+          goal: _measured.goal,
+          prior: _measured.prior,
+          held: _measured.held,
+          gaps: _measured.gaps,
+          plan: const [
+            TeachingStep(id: 'step-1', title: 'root'),
+            TeachingStep(id: 'step-2', title: 'left', requires: ['step-1']),
+            TeachingStep(id: 'step-3', title: 'right', requires: ['step-1']),
+            TeachingStep(
+              id: 'step-4',
+              title: 'join',
+              requires: ['step-2', 'step-3'],
+            ),
+          ],
+          checks: const [],
+        ),
+        onMeasure: () {},
+        onNextStep: () {},
+      ),
+    );
+
+    expect(find.byKey(const ValueKey('teach-plan-step-4')), findsOneWidget);
+    expect(find.text('needs 2'), findsOneWidget);
+  });
+
+  testWidgets('a side question opens inside the step and sends', (
+    tester,
+  ) async {
+    var opened = 0;
+    String? asked;
+    await pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        teaching: TeachingState(
+          goal: _measured.goal,
+          prior: _measured.prior,
+          held: _measured.held,
+          gaps: _measured.gaps,
+          plan: _measured.plan,
+          checks: const [],
+          current: _openStep,
+        ),
+        onCheck: (_, _, _) {},
+        onSideOpen: () => opened += 1,
+        onSideSend: (text) => asked = text,
+        sideMessages: const [],
+      ),
+    );
+
+    expect(find.byKey(const ValueKey('teach-side-panel')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('teach-side-open')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('teach-side-panel')), findsOneWidget);
+    expect(opened, 1);
+    expect(find.byKey(const ValueKey('teach-side-empty')), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('teach-side-input')),
+      'why does the call need to save it?',
+    );
+    await tester.tap(find.byKey(const ValueKey('teach-side-send')));
+    await tester.pump();
+
+    expect(asked, 'why does the call need to save it?');
+  });
+
+  testWidgets('a side answer reads as a thread and closes', (tester) async {
+    await pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        teaching: TeachingState(
+          goal: _measured.goal,
+          prior: _measured.prior,
+          held: _measured.held,
+          gaps: _measured.gaps,
+          plan: _measured.plan,
+          checks: const [],
+          current: _openStep,
+        ),
+        onCheck: (_, _, _) {},
+        onSideOpen: () {},
+        onSideSend: (_) {},
+        sideMessages: const [
+          TeachingSideMessage(role: 'user', text: 'why save it?'),
+          TeachingSideMessage(
+            role: 'assistant',
+            text: 'so the return can find its way back.',
+          ),
+        ],
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('teach-side-open')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('you'), findsOneWidget);
+    expect(find.text('companion'), findsOneWidget);
+    expect(find.textContaining('find its way back'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('teach-side-close')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('teach-side-panel')), findsNothing);
+  });
 
   testWidgets('the verdict card states the verdict in words', (tester) async {
     await pump(

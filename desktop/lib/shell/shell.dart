@@ -602,6 +602,10 @@ class _ShellState extends State<Shell> {
   }
 
   void _select(Surface surface) {
+    if (surface == Surface.settings) {
+      final store = CoreScope.of(context);
+      if (store.appVersion == null) unawaited(store.refreshUpdateInfo());
+    }
     if (_paletteOpen) _closePalette();
     if (_commandOpen) _closeCommandLine();
     if (_surface == surface) {
@@ -1610,6 +1614,11 @@ class _ShellState extends State<Shell> {
         workPermissionsLoading: store.workPermissionsLoading,
         workPermissionsError: store.workPermissionsError,
         onSetWorkPermissions: store.setWorkPermissions,
+        appVersion: store.appVersion,
+        update: store.updateState,
+        updateChecking: store.updateChecking,
+        updateError: store.updateError,
+        onCheckUpdate: () => unawaited(store.checkForUpdates()),
       ),
     };
 
@@ -1839,6 +1848,12 @@ class _ShellState extends State<Shell> {
                   // deck so `M:`/`K:` come back from the core's own write.
                   await store.readOutput(sessionId, 'flashcards');
                 },
+          deckSchedule: store.deckSchedule,
+          deckScheduleLoading: store.deckScheduleLoading,
+          deckScheduleError: store.deckScheduleError,
+          onGradeCard: sessionId == null
+              ? null
+              : (index, grade) => store.gradeDeckCard(sessionId, index, grade),
           onRetry: sessionId == null ? null : store.retryOutput,
           onBack: store.closeOutput,
         );
@@ -1882,6 +1897,29 @@ class _ShellState extends State<Shell> {
                   store.generateDocument(sessionId, kind, attempt: attempt),
         onRetryDocument: sessionId == null ? null : store.retryDocument,
         onCloseDocument: store.closeDocument,
+        figures: store.figures,
+        figureImages: store.figureImages,
+        figuresLoading: store.figuresLoading,
+        figureBusy: store.figureBusy,
+        figureError: store.figureError,
+        onExtractFigure: sessionId == null
+            ? null
+            : ({required page, x, y, width, height, caption = ''}) =>
+                  store.extractFigure(
+                    sessionId,
+                    page: page,
+                    x: x,
+                    y: y,
+                    width: width,
+                    height: height,
+                    caption: caption,
+                  ),
+        onLoadFigure: sessionId == null
+            ? null
+            : (figureId) => store.loadFigure(sessionId, figureId),
+        onRemoveFigure: sessionId == null
+            ? null
+            : (figureId) => store.removeFigure(sessionId, figureId),
         onRetry: () {
           if (sessionId != null) unawaited(store.openSession(sessionId));
         },
@@ -1919,6 +1957,18 @@ class _ShellState extends State<Shell> {
       onModeChanged: (insert) {
         if (_insert != insert) setState(() => _insert = insert);
       },
+      context: store.sessionContext,
+      contextLoading: store.sessionContextLoading,
+      contextError: store.sessionContextError,
+      onContextLoad: sessionId == null
+          ? null
+          : () => unawaited(store.readSessionContext(sessionId)),
+      onCompact: sessionId == null
+          ? null
+          : () => unawaited(store.compactSessionChat(sessionId)),
+      onUncompact: sessionId == null
+          ? null
+          : () => unawaited(store.uncompactSessionChat(sessionId)),
     );
   }
 
@@ -2067,7 +2117,55 @@ class _ShellState extends State<Shell> {
           : () => unawaited(store.teachNextStep(skillId)),
       onCheck: skillId == null
           ? null
-          : (answer) => unawaited(store.checkTeaching(skillId, answer)),
+          : (answer, thinking, confidence) => unawaited(
+              store.checkTeaching(
+                skillId,
+                answer,
+                thinking: thinking,
+                confidence: confidence,
+              ),
+            ),
+      sideMessages: store.teachingSide,
+      sideLoading: store.teachingSideLoading,
+      sideError: store.teachingSideError,
+      onSideOpen: skillId == null
+          ? null
+          : () {
+              final stepId = store.teaching?.current?.stepId;
+              if (stepId != null) {
+                unawaited(store.openTeachingSide(skillId, stepId));
+              }
+            },
+      onSideSend: skillId == null
+          ? null
+          : (text) {
+              final stepId = store.teaching?.current?.stepId;
+              if (stepId != null) {
+                unawaited(store.askTeachingSide(skillId, stepId, text));
+              }
+            },
+      onSideClear: skillId == null
+          ? null
+          : () {
+              final stepId = store.teaching?.current?.stepId;
+              if (stepId != null) {
+                unawaited(store.clearTeachingSide(skillId, stepId));
+              }
+            },
+      research: store.research,
+      researchLoading: store.researchLoading,
+      researchRunning: store.researchRunning,
+      researchError: store.researchError,
+      researchMarkdown: store.researchMarkdown,
+      researchOpenId: store.researchOpenId,
+      onResearch: skillId == null
+          ? null
+          : (question, urls) =>
+                unawaited(store.startResearch(skillId, question, urls)),
+      onOpenResearch: skillId == null
+          ? null
+          : (id) => unawaited(store.openResearch(skillId, id)),
+      onCloseResearch: store.closeResearch,
       onPractise: skillId == null
           ? null
           : () => unawaited(store.practiseTeaching(skillId)),

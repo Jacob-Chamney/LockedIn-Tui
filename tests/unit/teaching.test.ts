@@ -55,6 +55,89 @@ describe("parseMeasure", () => {
     expect(result.state.schema).toBe(1);
   });
 
+  test("an omitted requires is read as a chain", () => {
+    const result = parseMeasure(measure(), "", NOW);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.plan.map((step) => step.requires)).toEqual([
+      [],
+      ["step-1"],
+      ["step-2"],
+      ["step-3"],
+    ]);
+  });
+
+  test("accepts a branch and keeps each prerequisite by id", () => {
+    const result = parseMeasure(
+      measure({
+        plan: [
+          { title: "root" },
+          { title: "left", requires: [1] },
+          { title: "right", requires: [1] },
+          { title: "join", requires: [2, 3] },
+        ],
+      }),
+      "",
+      NOW,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.plan.map((step) => step.requires)).toEqual([
+      [],
+      ["step-1"],
+      ["step-1"],
+      ["step-2", "step-3"],
+    ]);
+  });
+
+  test("a forward or self reference is a malformed plan, not a silent drop", () => {
+    const forward = parseMeasure(
+      measure({
+        plan: [
+          { title: "one", requires: [2] },
+          { title: "two" },
+          { title: "three" },
+        ],
+      }),
+      "",
+      NOW,
+    );
+    expect(forward.ok).toBe(false);
+    if (forward.ok) return;
+    expect(forward.error.message).toContain("step 1");
+    expect(forward.error.message).toContain("requires");
+
+    const self = parseMeasure(
+      measure({
+        plan: [
+          { title: "one" },
+          { title: "two", requires: [2] },
+          { title: "three" },
+        ],
+      }),
+      "",
+      NOW,
+    );
+    expect(self.ok).toBe(false);
+  });
+
+  test("duplicate prerequisites collapse to one edge", () => {
+    const result = parseMeasure(
+      measure({
+        plan: [
+          { title: "one" },
+          { title: "two", requires: [1, 1] },
+          { title: "three", requires: [1, 2] },
+        ],
+      }),
+      "",
+      NOW,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.plan[1]!.requires).toEqual(["step-1"]);
+  });
+
   test("finds the object inside prose and trailing braces", () => {
     const raw = `Here is the plan:\n${measure()}\nNote the {curly} braces. }`;
     const result = parseMeasure(raw, "", NOW);
@@ -166,8 +249,8 @@ describe("prompt shaping", () => {
       goal: "read disassembly",
       held: ["registers hold state"],
       plan: [
-        { id: "step-1", title: "A register is a named slot" },
-        { id: "step-2", title: "A call pushes a return address" },
+        { id: "step-1", title: "A register is a named slot", requires: [] },
+        { id: "step-2", title: "A call pushes a return address", requires: ["step-1"] },
       ],
       stepIndex: 1,
     });
@@ -184,6 +267,27 @@ describe("prompt shaping", () => {
     });
     expect(prompt).toContain("the stack pointer");
     expect(prompt).toContain(String(TEACHING_LIMITS.correctionChars));
+  });
+
+  test("the check prompt carries the reasoning and the confidence without treating them as evidence", () => {
+    const prompt = checkPrompt({
+      step: { stepId: "step-1", prose: "x", question: "which register?" },
+      answer: "eax",
+      thinking: "the return value has to survive the call",
+      confidence: 4,
+    });
+    expect(prompt).toContain("the return value has to survive the call");
+    expect(prompt).toContain("4/5");
+    expect(prompt).toContain("not evidence");
+  });
+
+  test("an empty thinking field is absent, not an empty line", () => {
+    const prompt = checkPrompt({
+      step: { stepId: "step-1", prose: "x", question: "which register?" },
+      answer: "eax",
+      thinking: "   ",
+    });
+    expect(prompt).not.toContain("Their reasoning");
   });
 
   test("wordCount counts whitespace, not characters", () => {

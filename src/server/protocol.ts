@@ -158,6 +158,19 @@ import {
   type LessonDraft,
 } from "../services/skills/lesson";
 import { parseDeck, renderDeck } from "../services/skills/outputs";
+import { readSchedule, writeSchedule } from "../services/skills/schedule";
+import {
+  clearContextPlan,
+  readContextPlan,
+  writeContextPlan,
+} from "../services/lockin/context-state";
+import {
+  COMPACT_KEEP,
+  compactPrompt,
+  contextView,
+  normaliseSummary,
+  type ContextMessage,
+} from "../domain/context";
 import {
   applyTransition,
   goalFolderFor,
@@ -168,6 +181,15 @@ import { restoreSession } from "../services/lockin/archive";
 import { createLockInSession } from "../services/lockin/create";
 import { sessionContextReport } from "../services/lockin/context";
 import {
+  REVIEW_GRADES,
+  dueCount,
+  isDue,
+  mergeSchedules,
+  reviewCard,
+  type ReviewGrade,
+} from "../domain/scheduler";
+import {
+  TEACHING_LIMITS,
   checkPrompt,
   measurePrompt,
   parseCheck,
@@ -183,7 +205,40 @@ import {
   writeTeaching,
   type TeachingRecord,
 } from "../services/teaching/store";
+import {
+  addFigure,
+  annotateFigure,
+  confineSource,
+  figuresDir,
+  readFigureBytes,
+  readFigures,
+  removeFigure,
+  renderFigure as renderPdfFigure,
+  validateCrop,
+} from "../services/lockin/figures";
+import {
+  MAX_SOURCES,
+  checkSourceUrl,
+  fetchSource,
+  listResearch,
+  newResearchId,
+  normaliseBrief,
+  readResearch,
+  researchPrompt,
+  writeResearch,
+  type ResearchItem,
+} from "../services/teaching/research";
+import {
+  appendSideExchange,
+  clearSideThread,
+  isSideStepId,
+  readSideThread,
+  sidePrompt,
+  withSideLock,
+} from "../services/teaching/side";
 import { normalisePoint, readMemory, recordTurn, type Memory, type TurnOutcome } from "../services/lockin/memory";
+import { UPDATE_REPO } from "../services/update";
+import { APP_VERSION } from "../version";
 import { extract } from "../services/extract/index";
 import {
   listSessions,
@@ -237,6 +292,14 @@ export const CAPABILITIES = [
   "session.output.build",
   "session.output.read",
   "session.output.mark",
+  "session.deck.state",
+  "session.deck.grade",
+  "session.deck.reset",
+  "session.figure.list",
+  "session.figure.extract",
+  "session.figure.read",
+  "session.figure.annotate",
+  "session.figure.remove",
   "archive.list",
   "archive.restore",
   "archive.remove",
@@ -256,6 +319,9 @@ export const CAPABILITIES = [
   "session.chat.snapshot",
   "session.chat.send",
   "session.chat.cancel",
+  "session.chat.context",
+  "session.chat.compact",
+  "session.chat.uncompact",
   "provider.list",
   "provider.link",
   "settings.patch",
@@ -308,6 +374,15 @@ export const CAPABILITIES = [
   "teach.check",
   "teach.practice",
   "teach.practice.result",
+  "teach.side.snapshot",
+  "teach.side.send",
+  "teach.side.clear",
+  "research.start",
+  "research.list",
+  "research.read",
+  "research.cancel",
+  "update.info",
+  "update.check",
   "skill.sources.list",
   "skill.sources.add",
   "skill.chat.list",
@@ -519,6 +594,23 @@ export const WORK_COMMAND_OPT_IN_OFF =
 
 /** The slice of a booted app the protocol needs. `boot()` satisfies it. */
 export type CoreServices = Pick<Booted, "workspace" | "settings"> & {
+  /**
+   * Check the public release feed for a newer build.
+   *
+   * Supplied by `main.ts` from `src/services/update.ts`, so protocol tests can
+   * inject a result without a network call. Absent means this build cannot
+   * check, which is an honest refusal rather than a hang.
+   */
+  updateCheck?: () => Promise<import("../services/update").UpdateCheck>;
+  /**
+   * The fetch used for a learner-named research source.
+   *
+   * Supplied by tests with a fake; production uses the global fetch through the
+   * service's own SSRF and content-type guards.
+   */
+  researchFetch?: typeof fetch;
+  /** Render one PDF page/crop; tests inject a fake, production spawns pdftoppm. */
+  renderFigure?: typeof import("../services/lockin/figures").renderFigure;
   /** Present on a real boot; protocol tests may omit it. */
   controller?: Booted["controller"];
   /** A fresh controller using the current config, after a settings patch. */
@@ -3351,6 +3443,9 @@ export function createCoreServer(options: CoreOptions): CoreServer {
    * decision, so it is never written to config, a session or a log. A core
    * restart forgets every pending prompt and the chat's tool call fails closed.
    */
+  /** In-memory research jobs; a restart forgets a running brief, not a saved one. */
+  const researchJobs = new Map<string, { cancelled: boolean }>();
+
   const pendingPluginPermissions = new Map<
     string,
     { finish: (granted: boolean) => void; timer: ReturnType<typeof setTimeout> }
@@ -3575,6 +3670,17 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       // `sources/`, and the context is built from the same files.
       const tools = sessionTools(current.workspace, sessionId);
       const controller = current.createChat(history, "school", "lockin", tools.context, tools);
+      // A stored summary is a *view* of the transcript used to build the next
+      // request; the log itself is never rewritten. A missing file means full
+      // history, which is the safe default.
+      if (typeof controller.setContextPlan === "function") {
+        controller.setContextPlan(async () => {
+          const plan = await readContextPlan(opened.folder);
+          return plan.ok && plan.value !== null
+            ? { summary: plan.value.summary, through: plan.value.through }
+            : null;
+        });
+      }
       await controller.load();
       // A settings patch may have dropped the cache while the history loaded;
       // a controller nobody can reach must not keep a subscription alive.
@@ -4199,6 +4305,166 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     }
   };
 
+
+  /**
+   * The flashcard schedule for one session (`session.deck.*`).
+   *
+   * The deck Markdown is the truth for a card's content; this reads the
+   * schedule beside it and pairs the two by question. A missing schedule is
+   * every card due now, which is the honest state for a deck that has never
+   * been reviewed. Nothing here writes.
+   */
+  const sessionDeckState = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const rawId = params.id;
+    if (typeof rawId !== "string" || rawId.trim() === "") {
+      return invalid(id, "session.deck.state requires a session id");
+    }
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const resolved = await resolveSession(id, current.value, rawId);
+    if ("error" in resolved) return resolved.error;
+    return deckStateReply(id, current.value.workspace, resolved.opened.session.id, new Date());
+  };
+
+  /**
+   * Grade one card and persist the new schedule.
+   *
+   * One write, atomic. `again` brings the card back in ten minutes; the other
+   * grades move it out. The deck's `M`/`K` lines are deliberately untouched:
+   * they record a manual known/missed judgement, while the schedule records
+   * when to ask again. A card can be both.
+   */
+  const sessionDeckGrade = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const rawId = params.id;
+    if (typeof rawId !== "string" || rawId.trim() === "") {
+      return invalid(id, "session.deck.grade requires a session id");
+    }
+    const grade = params.grade;
+    if (typeof grade !== "string" || !(REVIEW_GRADES as readonly string[]).includes(grade)) {
+      return invalid(
+        id,
+        `session.deck.grade: unknown grade; expected one of ${REVIEW_GRADES.join(", ")}`,
+      );
+    }
+    const index = params.index;
+    if (typeof index !== "number" || !Number.isInteger(index) || index < 0) {
+      return invalid(id, "session.deck.grade requires a whole card index");
+    }
+
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const resolved = await resolveSession(id, current.value, rawId);
+    if ("error" in resolved) return resolved.error;
+    const sessionId = resolved.opened.session.id;
+    const folder = join(current.value.workspace.root, "school", "outputs", sessionId);
+
+    const deck = await readDeckFile(folder);
+    if (!deck.ok) return deckFailure(id, sessionId, deck.message);
+    if (index >= deck.value.length) {
+      return deckFailure(
+        id,
+        sessionId,
+        `there is no card at index ${index} (the deck has ${deck.value.length})`,
+      );
+    }
+    const now = new Date();
+    const stored = await readSchedule(folder);
+    if (!stored.ok) return deckFailure(id, sessionId, stored.error.message);
+    const merged = mergeSchedules(
+      deck.value.map((card) => card.question),
+      stored.value,
+      now,
+    );
+    merged[index] = reviewCard(merged[index]!, grade as ReviewGrade, now);
+    const written = await writeSchedule(folder, merged);
+    if (!written.ok) return deckFailure(id, sessionId, written.error.message);
+    return deckStateReply(id, current.value.workspace, sessionId, now);
+  };
+
+  /** Clear a session's flashcard schedule: every card due now again. */
+  const sessionDeckReset = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const rawId = params.id;
+    if (typeof rawId !== "string" || rawId.trim() === "") {
+      return invalid(id, "session.deck.reset requires a session id");
+    }
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const resolved = await resolveSession(id, current.value, rawId);
+    if ("error" in resolved) return resolved.error;
+    const sessionId = resolved.opened.session.id;
+    const folder = join(current.value.workspace.root, "school", "outputs", sessionId);
+    try {
+      await rm(join(folder, "flashcards-schedule.json"), { force: true });
+    } catch (error) {
+      return deckFailure(id, sessionId, oneLine(messageOf(error)));
+    }
+    return deckStateReply(id, current.value.workspace, sessionId, new Date());
+  };
+
+  /** Read the deck and answer with its cards paired to schedules. */
+  const deckStateReply = async (
+    id: RpcId,
+    workspace: CoreServices["workspace"],
+    sessionId: string,
+    now: Date,
+  ): Promise<JsonRpcResponse> => {
+    const folder = join(workspace.root, "school", "outputs", sessionId);
+    const deck = await readDeckFile(folder);
+    if (!deck.ok) return deckFailure(id, sessionId, deck.message);
+    const stored = await readSchedule(folder);
+    if (!stored.ok) return deckFailure(id, sessionId, stored.error.message);
+    const merged = mergeSchedules(
+      deck.value.map((card) => card.question),
+      stored.value,
+      now,
+    );
+    return success(id, {
+      due: dueCount(merged, now),
+      total: deck.value.length,
+      cards: deck.value.map((card, index) => {
+        const schedule = merged[index]!;
+        return {
+          index,
+          question: card.question,
+          due: isDue(schedule, now),
+          dueAt: schedule.due,
+          intervalDays: schedule.intervalDays,
+          ease: schedule.ease,
+          reps: schedule.reps,
+          lapses: schedule.lapses,
+          ...(schedule.lastGrade === undefined ? {} : { lastGrade: schedule.lastGrade }),
+        };
+      }),
+    });
+  };
+
+  const readDeckFile = async (
+    folder: string,
+  ): Promise<{ ok: true; value: ReturnType<typeof parseDeck> } | { ok: false; message: string }> => {
+    try {
+      return { ok: true, value: parseDeck(await readFile(join(folder, "flashcards.md"), "utf8")) };
+    } catch (error) {
+      if ((error as { code?: string }).code === "ENOENT") {
+        return { ok: false, message: "this session has no flashcard deck; build one first" };
+      }
+      return {
+        ok: false,
+        message: `the flashcard deck cannot be read (${oneLine(messageOf(error))})`,
+      };
+    }
+  };
+
+  const deckFailure = (id: RpcId, sessionId: string, message: string): JsonRpcResponse =>
+    failure(id, BOOT_FAILED, message, { kind: "deck", id: sessionId, message }, false);
 
   /**
    * Mark one study-guide section reviewed (`docs/product.md` §5.2).
@@ -5041,6 +5307,139 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       return failure(id, -32601, "Session chat is not available in this build", undefined, false);
     }
     return success(id, chatSnapshot(runtime.controller.state(), runtime.controller.usage()));
+  };
+
+  /** Read a transcript as plain records, for context accounting. */
+  const readTranscript = async (path: string): Promise<ContextMessage[]> => {
+    let text: string;
+    try {
+      text = await readFile(path, "utf8");
+    } catch (error) {
+      if ((error as { code?: string }).code === "ENOENT") return [];
+      throw error;
+    }
+    const records: ContextMessage[] = [];
+    for (const line of text.split("\n")) {
+      if (line.trim() === "") continue;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      if (typeof parsed !== "object" || parsed === null) continue;
+      const row = parsed as { role?: unknown; content?: unknown };
+      if (row.role !== "user" && row.role !== "assistant") continue;
+      if (typeof row.content !== "string" || row.content.trim() === "") continue;
+      records.push({ role: row.role, content: row.content });
+    }
+    return records;
+  };
+
+  const contextFailure = (id: RpcId, sessionId: string, message: string): JsonRpcResponse =>
+    failure(id, BOOT_FAILED, message, { kind: "context", id: sessionId, message }, false);
+
+  /**
+   * The conversation's context meter.
+   *
+   * Read-only: it estimates the tokens the next request would carry, and says
+   * whether there is enough older history to compact. It never calls a model.
+   */
+  const sessionChatContext = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const resolved = await resolveSession(id, current.value, params.id);
+    if ("error" in resolved) return resolved.error;
+    const sessionId = resolved.opened.session.id;
+    try {
+      const records = await readTranscript(resolved.opened.chatPath);
+      const stored = await readContextPlan(resolved.opened.folder);
+      if (!stored.ok) return contextFailure(id, sessionId, stored.error.message);
+      return success(id, {
+        ...contextView({ records, plan: stored.value }),
+        ...(stored.value === null ? {} : { summary: stored.value.summary }),
+      });
+    } catch (error) {
+      return contextFailure(id, sessionId, oneLine(messageOf(error)));
+    }
+  };
+
+  /**
+   * Compact the older part of a session chat.
+   *
+   * One model call, explicit and never automatic. The last [COMPACT_KEEP]
+   * messages are left alone; everything before them becomes one paragraph in
+   * `context.json`. The transcript is byte-identical afterwards.
+   */
+  const sessionChatCompact = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const generate = current.value.generate;
+    const resolved = await resolveSession(id, current.value, params.id);
+    if ("error" in resolved) return resolved.error;
+    const sessionId = resolved.opened.session.id;
+    if (!generate) {
+      return contextFailure(id, sessionId, "link a model in Settings → Providers");
+    }
+    let records: ContextMessage[];
+    try {
+      records = await readTranscript(resolved.opened.chatPath);
+    } catch (error) {
+      return contextFailure(id, sessionId, oneLine(messageOf(error)));
+    }
+    const keep = Math.max(0, records.length - COMPACT_KEEP);
+    if (keep === 0) {
+      return contextFailure(
+        id,
+        sessionId,
+        `nothing to compact yet; a summary needs more than ${COMPACT_KEEP} messages`,
+      );
+    }
+    let raw: string;
+    try {
+      raw = await generate(compactPrompt(records.slice(0, keep)));
+    } catch (error) {
+      return contextFailure(id, sessionId, oneLine(messageOf(error)));
+    }
+    const summary = normaliseSummary(raw);
+    if (summary === null) return contextFailure(id, sessionId, "the summary was empty; try again");
+    const plan = {
+      summary,
+      through: keep,
+      updatedAt: new Date().toISOString(),
+    };
+    const written = await writeContextPlan(resolved.opened.folder, plan);
+    if (!written.ok) return contextFailure(id, sessionId, written.error.message);
+    return success(id, {
+      ...contextView({ records, plan }),
+      summary,
+    });
+  };
+
+  /** Drop the stored summary; the next request sends the full history again. */
+  const sessionChatUncompact = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const resolved = await resolveSession(id, current.value, params.id);
+    if ("error" in resolved) return resolved.error;
+    const sessionId = resolved.opened.session.id;
+    const cleared = await clearContextPlan(resolved.opened.folder);
+    if (!cleared.ok) return contextFailure(id, sessionId, cleared.error.message);
+    try {
+      const records = await readTranscript(resolved.opened.chatPath);
+      return success(id, contextView({ records, plan: null }));
+    } catch (error) {
+      return contextFailure(id, sessionId, oneLine(messageOf(error)));
+    }
   };
 
   const sessionChatSend = async (
@@ -8112,9 +8511,33 @@ export function createCoreServer(options: CoreOptions): CoreServer {
   ): Promise<JsonRpcResponse> => {
     const goalId = typeof params.goalId === "string" ? params.goalId.trim() : "";
     if (goalId === "") return invalid(id, "teach.check requires a goal id");
-    if (typeof params.answer !== "string") {
+    if (typeof params.answer !== "string" || params.answer.trim() === "") {
       return invalid(id, "teach.check requires an answer");
     }
+    if (params.thinking !== undefined && typeof params.thinking !== "string") {
+      return invalid(id, "teach.check: thinking must be a string");
+    }
+    const thinking = typeof params.thinking === "string" ? params.thinking.trim() : "";
+    if (thinking.length > TEACHING_LIMITS.thinkingChars) {
+      return invalid(
+        id,
+        `teach.check: thinking is at most ${TEACHING_LIMITS.thinkingChars} characters`,
+      );
+    }
+    if (params.confidence !== undefined) {
+      if (
+        typeof params.confidence !== "number" ||
+        !Number.isInteger(params.confidence) ||
+        params.confidence < TEACHING_LIMITS.confidenceMin ||
+        params.confidence > TEACHING_LIMITS.confidenceMax
+      ) {
+        return invalid(
+          id,
+          `teach.check: confidence must be a whole number from ${TEACHING_LIMITS.confidenceMin} to ${TEACHING_LIMITS.confidenceMax}`,
+        );
+      }
+    }
+    const confidence = typeof params.confidence === "number" ? params.confidence : undefined;
 
     const current = await services();
     if (!current.ok) return bootFailureResponse(id, current.error);
@@ -8131,7 +8554,14 @@ export function createCoreServer(options: CoreOptions): CoreServer {
 
     let raw: string;
     try {
-      raw = await generate(checkPrompt({ step: record.current, answer: params.answer }));
+      raw = await generate(
+        checkPrompt({
+          step: record.current,
+          answer: params.answer,
+          ...(thinking === "" ? {} : { thinking }),
+          ...(confidence === undefined ? {} : { confidence }),
+        }),
+      );
     } catch (error) {
       return teachFailure(id, goalId, oneLine(messageOf(error)));
     }
@@ -8149,6 +8579,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
           stepId: record.current.stepId,
           verdict: verdict.verdict,
           correction: verdict.correction,
+          ...(thinking === "" ? {} : { thinking }),
+          ...(confidence === undefined ? {} : { confidence }),
           at: new Date().toISOString(),
         },
       ],
@@ -8281,6 +8713,541 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       solved: attempts.filter((entry) => entry.verdict === "solved").length,
       missed: attempts.filter((entry) => entry.verdict === "missed").length,
       total: record.practice.problems.length,
+    });
+  };
+
+  /**
+   * The side thread for one step, or `[]`.
+   *
+   * Read-only. A step that is not in the plan is refused rather than opening a
+   * thread for a step that cannot exist.
+   */
+  const teachSideSnapshot = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const goalId = typeof params.goalId === "string" ? params.goalId.trim() : "";
+    const stepId = typeof params.stepId === "string" ? params.stepId.trim() : "";
+    if (goalId === "") return invalid(id, "teach.side.snapshot requires a goal id");
+    if (stepId === "") return invalid(id, "teach.side.snapshot requires a step id");
+    if (!isSideStepId(stepId)) return invalid(id, "teach.side.snapshot: stepId must look like step-1");
+
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const folder = goalFolderFor(current.value.workspace, goalId);
+    const meta = await readGoalMeta(folder);
+    if (!meta.ok) return teachGoalFailure(id, goalId, meta.error.message);
+
+    const loaded = await readTeaching(folder);
+    if (!loaded.ok) return teachFailure(id, goalId, loaded.error.message);
+    const record = loaded.value;
+    if (record === null) {
+      return teachFailure(id, goalId, "this session has not been measured yet; measure it first");
+    }
+    if (!record.state.plan.some((step) => step.id === stepId)) {
+      return teachFailure(id, goalId, `there is no step "${stepId}" in this plan`);
+    }
+
+    const thread = await readSideThread(folder, stepId);
+    if (!thread.ok) return teachFailure(id, goalId, thread.error.message);
+    return success(id, { messages: thread.value });
+  };
+
+  /**
+   * Ask one side question about a step.
+   *
+   * One tool-less model call, no retry. The exchange is written only after the
+   * reply exists, so a failure leaves the thread exactly as it was. The thread
+   * is the step's own; it never enters the lesson chat or the plan.
+   */
+  const teachSideSend = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const goalId = typeof params.goalId === "string" ? params.goalId.trim() : "";
+    const stepId = typeof params.stepId === "string" ? params.stepId.trim() : "";
+    const text = typeof params.text === "string" ? params.text.trim() : "";
+    if (goalId === "") return invalid(id, "teach.side.send requires a goal id");
+    if (stepId === "") return invalid(id, "teach.side.send requires a step id");
+    if (!isSideStepId(stepId)) return invalid(id, "teach.side.send: stepId must look like step-1");
+    if (text === "") return invalid(id, "teach.side.send requires a question");
+    if (text.length > 2000) return invalid(id, "teach.side.send: question is at most 2000 characters");
+
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const generate = current.value.generate;
+    if (!generate) return teachNoModel(id, goalId);
+
+    const folder = goalFolderFor(current.value.workspace, goalId);
+    const meta = await readGoalMeta(folder);
+    if (!meta.ok) return teachGoalFailure(id, goalId, meta.error.message);
+
+    const loaded = await readTeaching(folder);
+    if (!loaded.ok) return teachFailure(id, goalId, loaded.error.message);
+    const record = loaded.value;
+    if (record === null) {
+      return teachFailure(id, goalId, "this session has not been measured yet; measure it first");
+    }
+    const step = record.state.plan.find((entry) => entry.id === stepId);
+    if (!step) return teachFailure(id, goalId, `there is no step "${stepId}" in this plan`);
+
+    const open = record.current?.stepId === stepId ? record.current : undefined;
+    return withSideLock(`${folder}:${stepId}`, async () => {
+      const before = await readSideThread(folder, stepId);
+      if (!before.ok) return teachFailure(id, goalId, before.error.message);
+
+      let raw: string;
+      try {
+        raw = await generate(
+          sidePrompt({
+            goal: record.state.goal,
+            stepProse: open?.prose ?? step.title,
+            stepQuestion: open?.question ?? "(this step is not open)",
+            messages: before.value,
+            question: text,
+          }),
+        );
+      } catch (error) {
+        return teachFailure(id, goalId, oneLine(messageOf(error)));
+      }
+      const reply = raw.trim();
+      if (reply === "") {
+        return teachFailure(id, goalId, "the side answer was empty; ask again");
+      }
+
+      const at = new Date().toISOString();
+      const written = await appendSideExchange(
+        folder,
+        stepId,
+        { role: "user", text, at },
+        { role: "assistant", text: reply.slice(0, 4000), at },
+      );
+      if (!written.ok) return teachFailure(id, goalId, written.error.message);
+      return success(id, { messages: written.value, reply });
+    });
+  };
+
+  /** Clear one step's side thread. The lesson and the plan are untouched. */
+  const teachSideClear = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const goalId = typeof params.goalId === "string" ? params.goalId.trim() : "";
+    const stepId = typeof params.stepId === "string" ? params.stepId.trim() : "";
+    if (goalId === "") return invalid(id, "teach.side.clear requires a goal id");
+    if (stepId === "") return invalid(id, "teach.side.clear requires a step id");
+    if (!isSideStepId(stepId)) return invalid(id, "teach.side.clear: stepId must look like step-1");
+
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const folder = goalFolderFor(current.value.workspace, goalId);
+    const meta = await readGoalMeta(folder);
+    if (!meta.ok) return teachGoalFailure(id, goalId, meta.error.message);
+    return withSideLock(`${folder}:${stepId}`, async () => {
+      const cleared = await clearSideThread(folder, stepId);
+      if (!cleared.ok) return teachFailure(id, goalId, cleared.error.message);
+      return success(id, { messages: [] });
+    });
+  };
+
+  /* ------------------------------------------------------------------------ */
+  /* Figures                                                                  */
+  /* ------------------------------------------------------------------------ */
+
+  const figureFailure = (id: RpcId, sessionId: string, message: string): JsonRpcResponse =>
+    failure(id, BOOT_FAILED, message, { kind: "figure", id: sessionId, message }, false);
+
+  /** The session's copied PDFs, and which one a request names. */
+  const pickPdf = (
+    opened: OpenResult,
+    rawSource: unknown,
+  ): { ok: true; source: string } | { ok: false; message: string } => {
+    const sources = opened.session.sources;
+    const pdfs = sources.filter(
+      (source) =>
+        source.kind === "pdf" || source.name.toLowerCase().endsWith(".pdf"),
+    );
+    if (typeof rawSource === "string" && rawSource.trim() !== "") {
+      const match = pdfs.find(
+        (source) =>
+          source.storedPath === rawSource.trim() ||
+          source.name === rawSource.trim() ||
+          source.storedPath.endsWith(`/${rawSource.trim()}`),
+      );
+      return match
+        ? { ok: true, source: match.storedPath }
+        : { ok: false, message: `"${rawSource.trim()}" is not a PDF copied into this session` };
+    }
+    const instructions = opened.session.instructions;
+    if (instructions && (instructions.kind === "pdf" || instructions.name.toLowerCase().endsWith(".pdf"))) {
+      return { ok: true, source: instructions.storedPath };
+    }
+    if (pdfs[0]) return { ok: true, source: pdfs[0].storedPath };
+    return { ok: false, message: "add a PDF to this session first; a figure is cropped from your own source" };
+  };
+
+  /** Save one figure cropped from the session's own PDF. */
+  const sessionFigureExtract = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const resolved = await resolveSession(id, current.value, params.id);
+    if ("error" in resolved) return resolved.error;
+    const sessionId = resolved.opened.session.id;
+
+    const page = params.page;
+    if (typeof page !== "number" || !Number.isInteger(page)) {
+      return invalid(id, "session.figure.extract requires a whole page number");
+    }
+    let cropInput: import("../services/lockin/figures").FigureCrop = { page };
+    for (const key of ["x", "y", "width", "height", "dpi"] as const) {
+      const value = params[key];
+      if (value === undefined) continue;
+      if (typeof value !== "number" || !Number.isInteger(value)) {
+        return invalid(id, `session.figure.extract: ${key} must be a whole number`);
+      }
+      cropInput = { ...cropInput, [key]: value };
+    }
+    if (params.caption !== undefined && typeof params.caption !== "string") {
+      return invalid(id, "session.figure.extract: caption must be a string");
+    }
+    if (params.note !== undefined && typeof params.note !== "string") {
+      return invalid(id, "session.figure.extract: note must be a string");
+    }
+    const caption = typeof params.caption === "string" ? params.caption.trim().slice(0, 300) : "";
+    const note = typeof params.note === "string" ? params.note.trim().slice(0, 2000) : "";
+    const checked = validateCrop(cropInput);
+    if (!checked.ok) return invalid(id, `session.figure.extract: ${checked.message}`);
+
+    const picked = pickPdf(resolved.opened, params.source);
+    if (!picked.ok) return figureFailure(id, sessionId, picked.message);
+    const confined = confineSource(resolved.opened.folder, picked.source);
+    if (!confined.ok) return figureFailure(id, sessionId, confined.message);
+
+    const render = current.value.renderFigure ?? renderPdfFigure;
+    const prefix = join(figuresDir(resolved.opened.folder), `.tmp-${crypto.randomUUID()}`);
+    const rendered = await render({
+      ...checked.crop,
+      sourcePath: confined.path,
+      outputPrefix: prefix,
+      dpi: checked.dpi,
+    });
+    if (!rendered.ok) {
+      return figureFailure(id, sessionId, rendered.error.message);
+    }
+    const added = await addFigure(resolved.opened.folder, {
+      source: picked.source,
+      crop: checked.crop,
+      caption,
+      note,
+      bytes: rendered.value,
+      now: new Date(),
+    });
+    if (!added.ok) return figureFailure(id, sessionId, added.error.message);
+    return success(id, { figure: added.value });
+  };
+
+  const sessionFigureList = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const resolved = await resolveSession(id, current.value, params.id);
+    if ("error" in resolved) return resolved.error;
+    const listed = await readFigures(resolved.opened.folder);
+    if (!listed.ok) return figureFailure(id, resolved.opened.session.id, listed.error.message);
+    return success(id, { figures: listed.value });
+  };
+
+  /** One figure's PNG as base64, for the shell's `Image.memory`. */
+  const sessionFigureRead = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const resolved = await resolveSession(id, current.value, params.id);
+    if ("error" in resolved) return resolved.error;
+    const figureId = typeof params.figureId === "string" ? params.figureId.trim() : "";
+    if (figureId === "") return invalid(id, "session.figure.read requires a figure id");
+    const listed = await readFigures(resolved.opened.folder);
+    if (!listed.ok) return figureFailure(id, resolved.opened.session.id, listed.error.message);
+    const figure = listed.value.find((entry) => entry.id === figureId);
+    if (!figure) {
+      return figureFailure(id, resolved.opened.session.id, `there is no figure "${figureId}"`);
+    }
+    const bytes = await readFigureBytes(resolved.opened.folder, figure);
+    if (!bytes.ok) return figureFailure(id, resolved.opened.session.id, bytes.error.message);
+    return success(id, {
+      figure,
+      base64: Buffer.from(bytes.value).toString("base64"),
+      mediaType: "image/png",
+    });
+  };
+
+  const sessionFigureAnnotate = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const resolved = await resolveSession(id, current.value, params.id);
+    if ("error" in resolved) return resolved.error;
+    const figureId = typeof params.figureId === "string" ? params.figureId.trim() : "";
+    if (figureId === "") return invalid(id, "session.figure.annotate requires a figure id");
+    if (params.caption !== undefined && typeof params.caption !== "string") {
+      return invalid(id, "session.figure.annotate: caption must be a string");
+    }
+    if (params.note !== undefined && typeof params.note !== "string") {
+      return invalid(id, "session.figure.annotate: note must be a string");
+    }
+    const written = await annotateFigure(resolved.opened.folder, figureId, {
+      ...(typeof params.caption === "string" ? { caption: params.caption.trim().slice(0, 300) } : {}),
+      ...(typeof params.note === "string" ? { note: params.note.trim().slice(0, 2000) } : {}),
+    });
+    if (!written.ok) return figureFailure(id, resolved.opened.session.id, written.error.message);
+    return success(id, { figure: written.value });
+  };
+
+  const sessionFigureRemove = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const resolved = await resolveSession(id, current.value, params.id);
+    if ("error" in resolved) return resolved.error;
+    const figureId = typeof params.figureId === "string" ? params.figureId.trim() : "";
+    if (figureId === "") return invalid(id, "session.figure.remove requires a figure id");
+    const removed = await removeFigure(resolved.opened.folder, figureId);
+    if (!removed.ok) return figureFailure(id, resolved.opened.session.id, removed.error.message);
+    return success(id, removed.value);
+  };
+
+  /* ------------------------------------------------------------------------ */
+  /* Research                                                                 */
+  /* ------------------------------------------------------------------------ */
+
+  const researchFailure = (id: RpcId, goalId: string, message: string): JsonRpcResponse =>
+    failure(id, BOOT_FAILED, message, { kind: "research", goalId, message }, false);
+
+  /**
+   * Start one research brief.
+   *
+   * The reply returns as soon as the job is registered; `research.updated`
+   * carries the outcome. Every source is fetched under the service's guards
+   * (HTTPS, public host, text content, timeout, size cap) and the model must
+   * cite at least one of them. A failure writes nothing.
+   */
+  const researchStart = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const goalId = typeof params.goalId === "string" ? params.goalId.trim() : "";
+    const question = typeof params.question === "string" ? params.question.trim() : "";
+    if (goalId === "") return invalid(id, "research.start requires a goal id");
+    if (question === "") return invalid(id, "research.start requires a question");
+    if (question.length > 500) return invalid(id, "research.start: question is at most 500 characters");
+    const rawUrls = params.urls;
+    if (!Array.isArray(rawUrls) || rawUrls.length === 0) {
+      return invalid(id, "research.start requires at least one https source URL");
+    }
+    if (rawUrls.length > MAX_SOURCES) {
+      return invalid(id, `research.start: at most ${MAX_SOURCES} sources`);
+    }
+    const urls: string[] = [];
+    for (const entry of rawUrls) {
+      if (typeof entry !== "string" || entry.trim() === "") {
+        return invalid(id, "research.start: every source must be a URL string");
+      }
+      const checked = checkSourceUrl(entry);
+      if (!checked.ok) return invalid(id, `research.start: ${checked.message}`);
+      urls.push(checked.url.href);
+    }
+
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const generate = current.value.generate;
+    if (!generate) return researchFailure(id, goalId, "link a model in Settings → Providers");
+
+    const folder = goalFolderFor(current.value.workspace, goalId);
+    const meta = await readGoalMeta(folder);
+    if (!meta.ok) return teachGoalFailure(id, goalId, meta.error.message);
+
+    const now = new Date();
+    const researchId = newResearchId(question, now);
+    const key = `${goalId}:${researchId}`;
+    const job = { cancelled: false };
+    researchJobs.set(key, job);
+    const notify = (patch: Record<string, unknown>) =>
+      options.notify?.({
+        jsonrpc: "2.0",
+        method: "research.updated",
+        params: { goalId, id: researchId, ...patch },
+      });
+
+    void (async () => {
+      try {
+        const fetched: import("../services/teaching/research").FetchedSource[] = [];
+        for (const url of urls) {
+          if (job.cancelled) break;
+          const result = await fetchSource(url, current.value.researchFetch);
+          if (result.ok) fetched.push(result.value);
+        }
+        if (job.cancelled) {
+          researchJobs.delete(key);
+          notify({ status: "cancelled" });
+          return;
+        }
+        if (fetched.length === 0) {
+          researchJobs.delete(key);
+          notify({ status: "failed", message: "none of the sources could be read" });
+          return;
+        }
+        const raw = await generate(researchPrompt({ question, sources: fetched }));
+        if (job.cancelled) {
+          researchJobs.delete(key);
+          notify({ status: "cancelled" });
+          return;
+        }
+        const brief = normaliseBrief(raw, fetched.length);
+        if (!brief.ok) {
+          researchJobs.delete(key);
+          notify({ status: "failed", message: brief.message });
+          return;
+        }
+        const item: ResearchItem = {
+          id: researchId,
+          question,
+          created: now.toISOString(),
+          sources: fetched.map((source) => ({ url: source.url, title: source.title })),
+        };
+        const written = await writeResearch(folder, item, brief.text);
+        researchJobs.delete(key);
+        if (!written.ok) {
+          notify({ status: "failed", message: written.error.message });
+          return;
+        }
+        notify({ status: "done", item });
+      } catch (error) {
+        researchJobs.delete(key);
+        notify({ status: "failed", message: oneLine(messageOf(error)) });
+      }
+    })();
+
+    return success(id, { id: researchId, status: "running" });
+  };
+
+  /** Saved briefs for one goal, newest first. Read-only. */
+  const researchList = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const goalId = typeof params.goalId === "string" ? params.goalId.trim() : "";
+    if (goalId === "") return invalid(id, "research.list requires a goal id");
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const folder = goalFolderFor(current.value.workspace, goalId);
+    const meta = await readGoalMeta(folder);
+    if (!meta.ok) return teachGoalFailure(id, goalId, meta.error.message);
+    const listed = await listResearch(folder);
+    if (!listed.ok) return researchFailure(id, goalId, listed.error.message);
+    return success(id, { items: listed.value });
+  };
+
+  /** One saved brief, Markdown included. Read-only. */
+  const researchRead = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const goalId = typeof params.goalId === "string" ? params.goalId.trim() : "";
+    const researchId = typeof params.id === "string" ? params.id.trim() : "";
+    if (goalId === "") return invalid(id, "research.read requires a goal id");
+    if (researchId === "") return invalid(id, "research.read requires a research id");
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const folder = goalFolderFor(current.value.workspace, goalId);
+    const meta = await readGoalMeta(folder);
+    if (!meta.ok) return teachGoalFailure(id, goalId, meta.error.message);
+    const read = await readResearch(folder, researchId);
+    if (!read.ok) return researchFailure(id, goalId, read.error.message);
+    return success(id, { item: read.value.item, markdown: read.value.markdown });
+  };
+
+  /** Ask a running brief to discard its result. The fetch/model call is not aborted. */
+  const researchCancel = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const goalId = typeof params.goalId === "string" ? params.goalId.trim() : "";
+    const researchId = typeof params.id === "string" ? params.id.trim() : "";
+    if (goalId === "") return invalid(id, "research.cancel requires a goal id");
+    if (researchId === "") return invalid(id, "research.cancel requires a research id");
+    const job = researchJobs.get(`${goalId}:${researchId}`);
+    if (!job) return success(id, { cancelled: false });
+    job.cancelled = true;
+    return success(id, { cancelled: true });
+  };
+
+  /* ------------------------------------------------------------------------ */
+  /* Updates                                                                  */
+  /* ------------------------------------------------------------------------ */
+
+  /** The running version and the public release repository. No network. */
+  const updateInfo = (id: RpcId): JsonRpcResponse =>
+    success(id, { current: APP_VERSION, repo: UPDATE_REPO });
+
+  /**
+   * Ask the release feed whether a newer build exists.
+   *
+   * A check is read-only and explicit: no background re-check, no automatic
+   * download and no retry. The desktop app cannot replace its own bundle from
+   * here, so the reply carries the release page for the user to open.
+   */
+  const updateCheck = async (id: RpcId): Promise<JsonRpcResponse> => {
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const check = current.value.updateCheck;
+    if (!check) {
+      return failure(
+        id,
+        BOOT_FAILED,
+        "update checking is not available in this build",
+        { kind: "update", message: "update checking is not available in this build" },
+        false,
+      );
+    }
+    let result: import("../services/update").UpdateCheck;
+    try {
+      result = await check();
+    } catch (error) {
+      return failure(
+        id,
+        BOOT_FAILED,
+        oneLine(messageOf(error)),
+        { kind: "update", message: oneLine(messageOf(error)) },
+        false,
+      );
+    }
+    if (result.kind === "available") {
+      return success(id, {
+        current: result.current,
+        kind: "available",
+        version: result.info.version,
+        asset: result.info.asset,
+        url: result.info.releaseUrl,
+      });
+    }
+    if (result.kind === "current") {
+      return success(id, { current: result.current, kind: "current", latest: result.latest });
+    }
+    return success(id, {
+      current: result.current,
+      kind: "unavailable",
+      message: result.message,
     });
   };
 
@@ -10270,6 +11237,12 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         return sessionExport(id, params);
       case "session.output.build":
         return sessionOutputBuild(id, params);
+      case "session.deck.state":
+        return sessionDeckState(id, params);
+      case "session.deck.grade":
+        return sessionDeckGrade(id, params);
+      case "session.deck.reset":
+        return sessionDeckReset(id, params);
       case "session.output.read":
         return sessionOutputRead(id, params);
         case "session.output.mark":
@@ -10288,6 +11261,12 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         return sessionChatSnapshot(id, params);
       case "session.chat.send":
         return sessionChatSend(id, params);
+      case "session.chat.context":
+        return sessionChatContext(id, params);
+      case "session.chat.compact":
+        return sessionChatCompact(id, params);
+      case "session.chat.uncompact":
+        return sessionChatUncompact(id, params);
       case "session.chat.cancel":
         return sessionChatCancel(id, params);
       case "workspace.info":
@@ -10427,6 +11406,34 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         return teachCheck(id, params);
       case "teach.practice":
         return teachPractice(id, params);
+      case "session.figure.list":
+        return sessionFigureList(id, params);
+      case "session.figure.extract":
+        return sessionFigureExtract(id, params);
+      case "session.figure.read":
+        return sessionFigureRead(id, params);
+      case "session.figure.annotate":
+        return sessionFigureAnnotate(id, params);
+      case "session.figure.remove":
+        return sessionFigureRemove(id, params);
+      case "research.start":
+        return researchStart(id, params);
+      case "research.list":
+        return researchList(id, params);
+      case "research.read":
+        return researchRead(id, params);
+      case "research.cancel":
+        return researchCancel(id, params);
+      case "update.info":
+        return updateInfo(id);
+      case "update.check":
+        return updateCheck(id);
+      case "teach.side.snapshot":
+        return teachSideSnapshot(id, params);
+      case "teach.side.send":
+        return teachSideSend(id, params);
+      case "teach.side.clear":
+        return teachSideClear(id, params);
       case "teach.practice.result":
         return teachPracticeResult(id, params);
       case "skill.chat.list":

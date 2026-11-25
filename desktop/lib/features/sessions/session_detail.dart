@@ -52,6 +52,14 @@ class SessionDetailView extends StatefulWidget {
     this.onOpenSettings,
     this.onOpenOutput,
     this.initialStep,
+    this.figures = const [],
+    this.figureImages = const {},
+    this.figuresLoading = false,
+    this.figureBusy = false,
+    this.figureError,
+    this.onExtractFigure,
+    this.onLoadFigure,
+    this.onRemoveFigure,
   });
 
   /// The core's `session.open` projection, or null while it is unavailable.
@@ -60,6 +68,35 @@ class SessionDetailView extends StatefulWidget {
   /// The step the reader should land on, when the session was opened from a
   /// review item that names one. Null keeps the first step.
   final int? initialStep;
+
+  /// Figures cropped from this session's own PDF sources.
+  final List<SessionFigure> figures;
+
+  /// Decoded PNG bytes by figure id, loaded on demand.
+  final Map<String, Uint8List> figureImages;
+
+  final bool figuresLoading;
+  final bool figureBusy;
+
+  /// The last figure failure, shown inside the card.
+  final String? figureError;
+
+  /// Crop one figure. Null keeps the card read-only.
+  final Future<void> Function({
+    required int page,
+    int? x,
+    int? y,
+    int? width,
+    int? height,
+    String caption,
+  })?
+  onExtractFigure;
+
+  /// Load one figure's bytes.
+  final Future<void> Function(String figureId)? onLoadFigure;
+
+  /// Remove one figure.
+  final Future<void> Function(String figureId)? onRemoveFigure;
 
   /// True while the shell is opening or refreshing the session.
   final bool loading;
@@ -248,6 +285,15 @@ class _SessionDetailViewState extends State<SessionDetailView> {
       widget.documentText != null ||
       _documentError != null;
 
+  /// The figure form: a page, an optional crop, and a caption.
+  final _figurePage = TextEditingController(text: '1');
+  final _figureCaption = TextEditingController();
+  final _figureX = TextEditingController();
+  final _figureY = TextEditingController();
+  final _figureW = TextEditingController();
+  final _figureH = TextEditingController();
+  String? _figureNotice;
+
   @override
   void initState() {
     super.initState();
@@ -265,6 +311,12 @@ class _SessionDetailViewState extends State<SessionDetailView> {
 
   @override
   void dispose() {
+    _figurePage.dispose();
+    _figureCaption.dispose();
+    _figureX.dispose();
+    _figureY.dispose();
+    _figureW.dispose();
+    _figureH.dispose();
     _search.removeListener(_onSearchChanged);
     _search.dispose();
     _focus.dispose();
@@ -987,6 +1039,11 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                 _promptCard(detail),
                 const SizedBox(height: Space.md),
                 _sourcesCard(detail),
+                if (widget.onExtractFigure != null ||
+                    widget.figures.isNotEmpty) ...[
+                  const SizedBox(height: Space.md),
+                  _figuresCard(),
+                ],
                 const SizedBox(height: Space.md),
                 _memoryCard(detail),
                 if (_coverageWired) ...[
@@ -1209,6 +1266,219 @@ class _SessionDetailViewState extends State<SessionDetailView> {
         ],
       ],
     );
+  }
+
+  /// Figures cropped from the session's own PDF, with the form that adds one.
+  ///
+  /// The PDF is the session's copied source, never an arbitrary path; the core
+  /// confines and renders it. The image bytes are loaded on demand so opening a
+  /// session does not read every PNG.
+  Widget _figuresCard() {
+    final canExtract = widget.onExtractFigure != null;
+    return SectionCard(
+      label: 'FIGURES',
+      trailing: widget.figuresLoading
+          ? const ValueChip('reading…')
+          : widget.figures.isEmpty
+          ? null
+          : ValueChip('${widget.figures.length}'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Crop a diagram out of this session\'s own PDF. The page number is '
+            'the PDF\'s, so the figure keeps its provenance.',
+            style: LockedInType.proseSmall.copyWith(
+              color: LockedInColors.muted,
+            ),
+          ),
+          const SizedBox(height: Space.sm),
+          Row(
+            children: [
+              SizedBox(
+                width: 64,
+                child: TextField(
+                  key: const ValueKey('figure-page'),
+                  controller: _figurePage,
+                  enabled: canExtract,
+                  keyboardType: TextInputType.number,
+                  style: LockedInType.body.copyWith(fontSize: 12.5),
+                  decoration: const InputDecoration(hintText: 'page'),
+                ),
+              ),
+              const SizedBox(width: Space.xs),
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('figure-caption'),
+                  controller: _figureCaption,
+                  enabled: canExtract,
+                  style: LockedInType.body.copyWith(fontSize: 12.5),
+                  decoration: const InputDecoration(
+                    hintText: 'caption (optional)',
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Space.xxs),
+          Row(
+            children: [
+              for (final (key, controller, hint) in [
+                ('figure-crop-x', _figureX, 'x'),
+                ('figure-crop-y', _figureY, 'y'),
+                ('figure-crop-w', _figureW, 'w'),
+                ('figure-crop-h', _figureH, 'h'),
+              ]) ...[
+                Expanded(
+                  child: TextField(
+                    key: ValueKey(key),
+                    controller: controller,
+                    enabled: canExtract,
+                    keyboardType: TextInputType.number,
+                    style: LockedInType.body.copyWith(fontSize: 12),
+                    decoration: InputDecoration(hintText: hint),
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
+              FilledButton(
+                key: const ValueKey('figure-extract'),
+                onPressed: !canExtract || widget.figureBusy
+                    ? null
+                    : _extractFigure,
+                style: FilledButton.styleFrom(
+                  backgroundColor: LockedInColors.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                ),
+                child: Text(widget.figureBusy ? 'rendering…' : 'extract'),
+              ),
+            ],
+          ),
+          if (_figureNotice != null) ...[
+            const SizedBox(height: Space.xxs),
+            Text(
+              _figureNotice!,
+              key: const ValueKey('figure-notice'),
+              style: LockedInType.label.copyWith(color: LockedInColors.warning),
+            ),
+          ],
+          if (widget.figureError != null) ...[
+            const SizedBox(height: Space.xxs),
+            Text(
+              widget.figureError!,
+              key: const ValueKey('figure-error'),
+              style: LockedInType.label.copyWith(color: LockedInColors.error),
+            ),
+          ],
+          for (final figure in widget.figures) ...[
+            const SizedBox(height: Space.sm),
+            Container(
+              key: ValueKey('figure-item-${figure.id}'),
+              padding: const EdgeInsets.all(Space.xs),
+              decoration: BoxDecoration(
+                color: LockedInColors.surface,
+                border: Border.all(
+                  color: LockedInColors.line,
+                  width: Stroke.hairline,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          figure.caption.isEmpty
+                              ? 'figure ${figure.id} · page ${figure.page}'
+                              : figure.caption,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: LockedInType.body.copyWith(fontSize: 12.5),
+                        ),
+                      ),
+                      if (widget.onLoadFigure != null &&
+                          !widget.figureImages.containsKey(figure.id))
+                        TextButton(
+                          key: ValueKey('figure-load-${figure.id}'),
+                          onPressed: () => widget.onLoadFigure!(figure.id),
+                          child: const Text('view'),
+                        ),
+                      if (widget.onRemoveFigure != null)
+                        TextButton(
+                          key: ValueKey('figure-remove-${figure.id}'),
+                          onPressed: () => widget.onRemoveFigure!(figure.id),
+                          child: const Text('remove'),
+                        ),
+                    ],
+                  ),
+                  if (widget.figureImages[figure.id] != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: Space.xxs),
+                      child: Image.memory(
+                        widget.figureImages[figure.id]!,
+                        key: ValueKey('figure-image-${figure.id}'),
+                        fit: BoxFit.contain,
+                        height: 220,
+                      ),
+                    ),
+                  if (figure.note.trim().isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: Space.xxs),
+                      child: Text(
+                        figure.note,
+                        style: LockedInType.proseSmall.copyWith(
+                          color: LockedInColors.muted,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Parse the form and ask the core for one crop.
+  void _extractFigure() {
+    final extract = widget.onExtractFigure;
+    if (extract == null) return;
+    final page = int.tryParse(_figurePage.text.trim());
+    if (page == null || page < 1) {
+      setState(() => _figureNotice = 'the page must be a whole number');
+      return;
+    }
+    final cropTexts = [
+      _figureX.text.trim(),
+      _figureY.text.trim(),
+      _figureW.text.trim(),
+      _figureH.text.trim(),
+    ];
+    final anyCrop = cropTexts.any((text) => text.isNotEmpty);
+    final allCrop = cropTexts.every((text) => text.isNotEmpty);
+    if (anyCrop && !allCrop) {
+      setState(() => _figureNotice = 'a crop needs x, y, width and height');
+      return;
+    }
+    final numbers = cropTexts.map(int.tryParse).toList(growable: false);
+    if (anyCrop && numbers.any((value) => value == null || value < 0)) {
+      setState(() => _figureNotice = 'crop values must be whole pixels');
+      return;
+    }
+    setState(() => _figureNotice = null);
+    unawaited(
+      extract(
+        page: page,
+        x: anyCrop ? numbers[0] : null,
+        y: anyCrop ? numbers[1] : null,
+        width: anyCrop ? numbers[2] : null,
+        height: anyCrop ? numbers[3] : null,
+        caption: _figureCaption.text.trim(),
+      ),
+    );
+    _figureCaption.clear();
   }
 
   Widget _promptCard(SessionDetail detail) {

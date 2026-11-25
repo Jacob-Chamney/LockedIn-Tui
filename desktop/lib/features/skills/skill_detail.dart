@@ -58,6 +58,21 @@ class SkillDetailView extends StatefulWidget {
     this.onMeasure,
     this.onNextStep,
     this.onCheck,
+    this.sideMessages = const [],
+    this.sideLoading = false,
+    this.sideError,
+    this.onSideOpen,
+    this.onSideSend,
+    this.onSideClear,
+    this.research = const [],
+    this.researchLoading = false,
+    this.researchRunning = false,
+    this.researchError,
+    this.researchMarkdown,
+    this.researchOpenId,
+    this.onResearch,
+    this.onOpenResearch,
+    this.onCloseResearch,
     this.onPractise,
     this.onPracticeResult,
     this.onSaveStages,
@@ -161,7 +176,42 @@ class SkillDetailView extends StatefulWidget {
   final VoidCallback? onNextStep;
 
   /// Answer the open step (`teach.check`).
-  final ValueChanged<String>? onCheck;
+  ///
+  /// The second and third values are the learner's optional reasoning and
+  /// self-reported confidence (0 = not given). They travel with the answer so
+  /// the marker sees *how* the learner thought, not only whether they landed.
+  final void Function(String answer, String thinking, int confidence)? onCheck;
+
+  /// The open step's side thread, newest last (`teach.side.snapshot`).
+  final List<TeachingSideMessage> sideMessages;
+
+  /// True while a side read or question is in flight.
+  final bool sideLoading;
+
+  /// The last side failure, shown inside the panel.
+  final String? sideError;
+
+  /// Load the open step's thread when the panel opens.
+  final VoidCallback? onSideOpen;
+
+  /// Ask one side question (`teach.side.send`).
+  final void Function(String text)? onSideSend;
+
+  /// Clear the step's thread (`teach.side.clear`).
+  final VoidCallback? onSideClear;
+
+  /// Saved research briefs for this goal.
+  final List<ResearchItem> research;
+  final bool researchLoading;
+  final bool researchRunning;
+  final String? researchError;
+  final String? researchMarkdown;
+  final String? researchOpenId;
+
+  /// Start one brief: `(question, urls)`.
+  final void Function(String question, List<String> urls)? onResearch;
+  final void Function(String id)? onOpenResearch;
+  final VoidCallback? onCloseResearch;
 
   /// Build a practice set (`teach.practice`).
   final VoidCallback? onPractise;
@@ -198,6 +248,10 @@ class _SkillDetailViewState extends State<SkillDetailView> {
     _chapterScroll.dispose();
     _sectionsScroll.dispose();
     _answer.dispose();
+    _thinking.dispose();
+    _sideInput.dispose();
+    _researchQuestion.dispose();
+    _researchSources.dispose();
     super.dispose();
   }
 
@@ -232,6 +286,24 @@ class _SkillDetailViewState extends State<SkillDetailView> {
 
   /// The answer to the open step's check.
   final _answer = TextEditingController();
+
+  /// The learner's own reasoning, optional. Never judged as the answer.
+  final _thinking = TextEditingController();
+
+  /// Self-reported confidence, 1–5; 0 means "not given".
+  int _confidence = 0;
+
+  /// True while the side-question panel is open. It is a layer inside the step
+  /// card, so the lesson stays visible and Esc returns to the step.
+  bool _sideOpen = false;
+
+  /// The side question being typed.
+  final _sideInput = TextEditingController();
+
+  /// The research question and its source URLs.
+  final _researchQuestion = TextEditingController();
+  final _researchSources = TextEditingController();
+  String? _researchNotice;
 
   /// True while a file pick or a `skill.sources.add` is in flight.
   var _sourcesBusy = false;
@@ -281,6 +353,12 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   @override
   void didUpdateWidget(SkillDetailView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // A side thread belongs to one step; moving on closes it.
+    if (oldWidget.teaching?.current?.stepId !=
+        widget.teaching?.current?.stepId) {
+      _sideOpen = false;
+      _sideInput.clear();
+    }
     if (oldWidget.detail.id != widget.detail.id) {
       _selectedChapter = 0;
       _selectedStage = 0;
@@ -1014,6 +1092,8 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                 ),
                 const SizedBox(height: Space.md),
                 _chatsCard(),
+                const SizedBox(height: Space.md),
+                _researchCard(),
               ],
             ),
           ),
@@ -1029,6 +1109,336 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   /// fields and never parses prose. One action per state: measure when there is
   /// no plan, open a step when none is open, answer when one is. Every state has
   /// its next key, so the loop never dead-ends.
+  /// Open or close the side panel, loading the thread on the way in.
+  void _toggleSide() {
+    setState(() => _sideOpen = !_sideOpen);
+    if (_sideOpen) widget.onSideOpen?.call();
+  }
+
+  /// Send the typed side question. The core writes the exchange only after the
+  /// reply exists, so the panel keeps the question visible while it waits.
+  void _sendSide() {
+    final send = widget.onSideSend;
+    if (send == null || widget.sideLoading) return;
+    final text = _sideInput.text.trim();
+    if (text.isEmpty) return;
+    send(text);
+    _sideInput.clear();
+  }
+
+  /// The side thread, inside the step card.
+  ///
+  /// It is one small conversation about this step, not a second lesson: the
+  /// answers are short, they never enter the transcript, and closing the panel
+  /// loses nothing.
+  Widget _sidePanel() {
+    return Container(
+      key: const ValueKey('teach-side-panel'),
+      padding: const EdgeInsets.fromLTRB(
+        Space.sm,
+        Space.xs,
+        Space.sm,
+        Space.sm,
+      ),
+      decoration: BoxDecoration(
+        color: LockedInColors.surface,
+        border: Border.all(color: LockedInColors.line, width: Stroke.hairline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Expanded(child: SectionLabel('side question')),
+              if (widget.sideMessages.isNotEmpty && widget.onSideClear != null)
+                TextButton(
+                  key: const ValueKey('teach-side-clear'),
+                  onPressed: widget.sideLoading ? null : widget.onSideClear,
+                  child: const Text('clear'),
+                ),
+              TextButton(
+                key: const ValueKey('teach-side-close'),
+                onPressed: () => setState(() => _sideOpen = false),
+                child: const Text('close'),
+              ),
+            ],
+          ),
+          if (widget.sideError != null) ...[
+            Text(
+              widget.sideError!,
+              key: const ValueKey('teach-side-error'),
+              style: LockedInType.label.copyWith(color: LockedInColors.error),
+            ),
+            const SizedBox(height: Space.xxs),
+          ],
+          if (widget.sideMessages.isEmpty)
+            Text(
+              'Ask anything about this step. The answer stays here, not in the '
+              'lesson.',
+              key: const ValueKey('teach-side-empty'),
+              style: LockedInType.proseSmall.copyWith(
+                color: LockedInColors.muted,
+              ),
+            )
+          else
+            for (final (index, message) in widget.sideMessages.indexed) ...[
+              const SizedBox(height: Space.xxs),
+              Text(
+                message.isUser ? 'you' : 'companion',
+                key: ValueKey('teach-side-role-$index'),
+                style: LockedInType.micro.copyWith(
+                  color: message.isUser
+                      ? LockedInColors.primary
+                      : LockedInColors.muted,
+                ),
+              ),
+              Text(
+                message.text,
+                key: ValueKey('teach-side-message-$index'),
+                style: LockedInType.proseSmall.copyWith(
+                  color: LockedInColors.foreground,
+                ),
+              ),
+            ],
+          const SizedBox(height: Space.xs),
+          TextField(
+            key: const ValueKey('teach-side-input'),
+            controller: _sideInput,
+            minLines: 1,
+            maxLines: 3,
+            onSubmitted: (_) => _sendSide(),
+            style: LockedInType.proseSmall.copyWith(
+              color: LockedInColors.foreground,
+            ),
+            decoration: const InputDecoration(
+              hintText: 'ask about this step — Enter to send',
+            ),
+          ),
+          const SizedBox(height: Space.xs),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton(
+              key: const ValueKey('teach-side-send'),
+              onPressed: widget.sideLoading || widget.onSideSend == null
+                  ? null
+                  : _sendSide,
+              style: FilledButton.styleFrom(
+                backgroundColor: LockedInColors.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              ),
+              child: Text(widget.sideLoading ? 'thinking…' : 'ask'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Send one answer, its reasoning and the chosen confidence.
+  void _submitCheck() {
+    final onCheck = widget.onCheck;
+    if (onCheck == null || widget.teachingLoading) return;
+    final answer = _answer.text.trim();
+    if (answer.isEmpty) return;
+    onCheck(answer, _thinking.text.trim(), _confidence);
+    _answer.clear();
+    _thinking.clear();
+    setState(() => _confidence = 0);
+  }
+
+  /// Run one research brief and list the saved ones.
+  ///
+  /// The question and its sources are typed here; the core fetches, asks for a
+  /// cited paragraph and stores it. A saved brief opens in place, so reading it
+  /// never loses the lesson.
+  Widget _researchCard() {
+    final canRun = widget.onResearch != null;
+    return SectionCard(
+      label: 'RESEARCH',
+      trailing: widget.researchRunning
+          ? const ValueChip('researching…')
+          : widget.research.isEmpty
+          ? null
+          : ValueChip(
+              '${widget.research.length} brief${widget.research.length == 1 ? '' : 's'}',
+            ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Ask one question the lesson cannot answer, and name the pages the '
+            'answer should come from. The brief cites them.',
+            style: LockedInType.proseSmall.copyWith(
+              color: LockedInColors.muted,
+            ),
+          ),
+          const SizedBox(height: Space.sm),
+          TextField(
+            key: const ValueKey('research-question'),
+            controller: _researchQuestion,
+            enabled: canRun,
+            style: LockedInType.proseSmall.copyWith(
+              color: LockedInColors.foreground,
+            ),
+            decoration: const InputDecoration(
+              hintText: 'what do you need to look up?',
+            ),
+          ),
+          const SizedBox(height: Space.xs),
+          TextField(
+            key: const ValueKey('research-sources'),
+            controller: _researchSources,
+            enabled: canRun,
+            minLines: 1,
+            maxLines: 3,
+            style: LockedInType.proseSmall.copyWith(
+              color: LockedInColors.foreground,
+            ),
+            decoration: const InputDecoration(
+              hintText: 'https://… one source per line',
+            ),
+          ),
+          if (_researchNotice != null) ...[
+            const SizedBox(height: Space.xxs),
+            Text(
+              _researchNotice!,
+              key: const ValueKey('research-notice'),
+              style: LockedInType.label.copyWith(color: LockedInColors.warning),
+            ),
+          ],
+          if (widget.researchError != null) ...[
+            const SizedBox(height: Space.xxs),
+            Text(
+              widget.researchError!,
+              key: const ValueKey('research-error'),
+              style: LockedInType.label.copyWith(color: LockedInColors.error),
+            ),
+          ],
+          const SizedBox(height: Space.xs),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton(
+              key: const ValueKey('research-run'),
+              onPressed: !canRun || widget.researchRunning
+                  ? null
+                  : _runResearch,
+              style: FilledButton.styleFrom(
+                backgroundColor: LockedInColors.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              ),
+              child: Text(
+                widget.researchRunning ? 'researching…' : 'research this',
+              ),
+            ),
+          ),
+          if (widget.research.isNotEmpty) ...[
+            const SizedBox(height: Space.sm),
+            const Rule(),
+            const SizedBox(height: Space.xs),
+            for (final item in widget.research)
+              InkWell(
+                key: ValueKey('research-item-${item.id}'),
+                onTap: widget.onOpenResearch == null
+                    ? null
+                    : () => widget.onOpenResearch!(item.id),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: Space.xxs),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.question,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: LockedInType.body.copyWith(
+                            fontSize: 12.5,
+                            color: item.id == widget.researchOpenId
+                                ? LockedInColors.primary
+                                : LockedInColors.foreground,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '${item.sources.length} src',
+                        style: LockedInType.micro.copyWith(
+                          color: LockedInColors.muted,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+          if (widget.researchMarkdown != null) ...[
+            const SizedBox(height: Space.sm),
+            Container(
+              key: const ValueKey('research-brief'),
+              padding: const EdgeInsets.all(Space.sm),
+              decoration: BoxDecoration(
+                color: LockedInColors.surface,
+                border: Border.all(
+                  color: LockedInColors.line,
+                  width: Stroke.hairline,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(child: SectionLabel('brief')),
+                      TextButton(
+                        key: const ValueKey('research-close'),
+                        onPressed: widget.onCloseResearch,
+                        child: const Text('close'),
+                      ),
+                    ],
+                  ),
+                  ChatMarkdown(
+                    text: _briefBody(widget.researchMarkdown!),
+                    style: LockedInType.proseSmall.copyWith(
+                      color: LockedInColors.foreground,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Strip the brief's frontmatter; the reader renders the prose only.
+  String _briefBody(String markdown) {
+    if (!markdown.startsWith('---')) return markdown;
+    final end = markdown.indexOf('\n---', 3);
+    return end == -1 ? markdown : markdown.substring(end + 4).trimLeft();
+  }
+
+  /// Send the question and every non-empty source.
+  void _runResearch() {
+    final run = widget.onResearch;
+    if (run == null) return;
+    final question = _researchQuestion.text.trim();
+    final urls = _researchSources.text
+        .split(RegExp(r'[\s,]+'))
+        .map((url) => url.trim())
+        .where((url) => url.isNotEmpty)
+        .toList(growable: false);
+    if (question.isEmpty || urls.isEmpty) {
+      setState(() {
+        _researchNotice = 'a question and at least one https source';
+      });
+      return;
+    }
+    setState(() => _researchNotice = null);
+    run(question, urls);
+    _researchQuestion.clear();
+    _researchSources.clear();
+  }
+
   Widget _teachingCard() {
     final record = widget.teaching;
     final verdict = widget.teachingVerdict;
@@ -1114,6 +1524,8 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                     check.stepId == entry.id && check.verdict == 'correct',
               ),
               current: position == index && !done,
+              depth: record.depthOf(position),
+              needs: entry.requires.length,
             ),
           const SizedBox(height: Space.md),
           if (widget.teachingError != null) ...[
@@ -1197,18 +1609,66 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                     controller: _answer,
                     minLines: 1,
                     maxLines: 3,
-                    onSubmitted: (value) {
-                      if (widget.onCheck != null && value.trim().isNotEmpty) {
-                        widget.onCheck!(value);
-                        _answer.clear();
-                      }
-                    },
+                    onSubmitted: (_) => _submitCheck(),
                     style: LockedInType.proseSmall.copyWith(
                       color: LockedInColors.foreground,
                     ),
                     decoration: const InputDecoration(
                       hintText: 'your answer — Enter to check',
                     ),
+                  ),
+                  const SizedBox(height: Space.xs),
+                  TextField(
+                    key: const ValueKey('teach-thinking'),
+                    controller: _thinking,
+                    minLines: 1,
+                    maxLines: 3,
+                    style: LockedInType.proseSmall.copyWith(
+                      color: LockedInColors.foreground,
+                    ),
+                    decoration: const InputDecoration(
+                      hintText: 'how you got there (optional)',
+                    ),
+                  ),
+                  const SizedBox(height: Space.xs),
+                  Row(
+                    children: [
+                      Text(
+                        'confidence',
+                        style: LockedInType.micro.copyWith(
+                          color: LockedInColors.muted,
+                        ),
+                      ),
+                      const SizedBox(width: Space.xs),
+                      for (var level = 1; level <= 5; level++)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 2),
+                          child: _ConfidenceKey(
+                            key: ValueKey('teach-confidence-$level'),
+                            level: level,
+                            selected: _confidence == level,
+                            onTap: () => setState(
+                              () => _confidence = _confidence == level
+                                  ? 0
+                                  : level,
+                            ),
+                          ),
+                        ),
+                      const Spacer(),
+                      if (_confidence > 0)
+                        Text(
+                          switch (_confidence) {
+                            1 => 'guessing',
+                            2 => 'unsure',
+                            3 => 'half',
+                            4 => 'fairly sure',
+                            _ => 'certain',
+                          },
+                          style: LockedInType.micro.copyWith(
+                            color: LockedInColors.secondary,
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: Space.xs),
                   Wrap(
@@ -1220,12 +1680,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                         onPressed:
                             widget.teachingLoading || widget.onCheck == null
                             ? null
-                            : () {
-                                final answer = _answer.text.trim();
-                                if (answer.isEmpty) return;
-                                widget.onCheck!(answer);
-                                _answer.clear();
-                              },
+                            : _submitCheck,
                         style: FilledButton.styleFrom(
                           backgroundColor: LockedInColors.primary,
                           foregroundColor: Theme.of(context)
@@ -1244,11 +1699,20 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                               : widget.onNextStep,
                           child: const Text('say it differently'),
                         ),
+                      if (widget.onSideSend != null)
+                        TextButton(
+                          key: const ValueKey('teach-side-open'),
+                          onPressed: _toggleSide,
+                          child: Text(
+                            _sideOpen ? 'hide the question' : 'ask about this',
+                          ),
+                        ),
                     ],
                   ),
                 ],
               ),
             ),
+            if (_sideOpen) ...[const SizedBox(height: Space.sm), _sidePanel()],
             if (verdict != null) ...[
               const SizedBox(height: Space.sm),
               Container(
@@ -2466,6 +2930,54 @@ String _usedLabel(String lastUsed) {
 ///
 /// The plan is a coarse map, not the lesson (`desktop/docs/redesign.md` §2.1):
 /// one line per idea, so the whole route fits on screen beside the step.
+/// One 1–5 confidence key. Selected is filled; the number is the label.
+class _ConfidenceKey extends StatelessWidget {
+  const _ConfidenceKey({
+    super.key,
+    required this.level,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final int level;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'confidence $level of 5',
+      selected: selected,
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          width: 22,
+          height: 22,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? LockedInColors.primary : Colors.transparent,
+            border: Border.all(
+              color: selected ? LockedInColors.primary : LockedInColors.line,
+              width: Stroke.hairline,
+            ),
+            borderRadius: BorderRadius.circular(Radii.control),
+          ),
+          child: Text(
+            '$level',
+            style: LockedInType.micro.copyWith(
+              color: selected
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : LockedInColors.muted,
+              letterSpacing: 0,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PlanRow extends StatelessWidget {
   const _PlanRow({
     super.key,
@@ -2473,12 +2985,20 @@ class _PlanRow extends StatelessWidget {
     required this.title,
     required this.passed,
     required this.current,
+    this.depth = 0,
+    this.needs = 0,
   });
 
   final int number;
   final String title;
   final bool passed;
   final bool current;
+
+  /// How far down the prerequisite map this step sits; drives the indent.
+  final int depth;
+
+  /// How many earlier steps it builds on (0 = a root).
+  final int needs;
 
   @override
   Widget build(BuildContext context) {
@@ -2500,6 +3020,17 @@ class _PlanRow extends StatelessWidget {
       ),
       child: Row(
         children: [
+          // The map, not a list: a branch is indented under what it needs.
+          if (depth > 0) ...[
+            SizedBox(width: 14.0 * (depth - 1)),
+            SizedBox(
+              width: 14,
+              child: Text(
+                '└',
+                style: LockedInType.micro.copyWith(color: LockedInColors.line),
+              ),
+            ),
+          ],
           SizedBox(
             width: 32,
             child: Text(
@@ -2520,6 +3051,17 @@ class _PlanRow extends StatelessWidget {
               style: LockedInType.body.copyWith(fontSize: 12.5, color: tone),
             ),
           ),
+          if (needs > 1)
+            Padding(
+              padding: const EdgeInsets.only(left: Space.xxs),
+              child: Text(
+                'needs $needs',
+                style: LockedInType.micro.copyWith(
+                  color: LockedInColors.muted,
+                  letterSpacing: 0,
+                ),
+              ),
+            ),
           if (current)
             Text(
               'here',

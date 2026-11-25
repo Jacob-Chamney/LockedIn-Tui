@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lockedin_desktop/app.dart';
 import 'package:lockedin_desktop/bridge/core_client.dart';
+import 'package:lockedin_desktop/bridge/models.dart';
 import 'package:lockedin_desktop/features/sessions/deck.dart';
 import 'package:lockedin_desktop/effects/effect.dart';
 import 'package:lockedin_desktop/features/sessions/session_outputs.dart';
@@ -145,6 +146,10 @@ SessionOutputView deckView({
   bool loading = false,
   Future<void> Function(String cardId, String result)? onMarkCard,
   Future<void> Function()? onBuild,
+  DeckSchedule? deckSchedule,
+  bool deckScheduleLoading = false,
+  String? deckScheduleError,
+  Future<void> Function(int index, String grade)? onGradeCard,
   VoidCallback? onBack,
 }) {
   return SessionOutputView(
@@ -159,6 +164,10 @@ SessionOutputView deckView({
     error: null,
     onMarkCard: onMarkCard,
     onBuild: onBuild,
+    deckSchedule: deckSchedule,
+    deckScheduleLoading: deckScheduleLoading,
+    deckScheduleError: deckScheduleError,
+    onGradeCard: onGradeCard,
     onBack: onBack,
   );
 }
@@ -644,6 +653,72 @@ void main() {
   });
 
   group('the deck multiple choice', () {
+    testWidgets('a due card shows its schedule and grades with a', (
+      tester,
+    ) async {
+      int? gradedIndex;
+      String? graded;
+      await pumpDeck(
+        tester,
+        deckView(
+          deckSchedule: const DeckSchedule(
+            due: 2,
+            total: 2,
+            cards: [
+              DeckCardSchedule(
+                index: 0,
+                question: 'What does a register hold?',
+                due: true,
+                dueAt: '2026-11-24T10:00:00.000Z',
+                intervalDays: 0,
+                ease: 2.5,
+                reps: 0,
+                lapses: 0,
+              ),
+              DeckCardSchedule(
+                index: 1,
+                question: 'What does a call save?',
+                due: true,
+                dueAt: '2026-11-24T10:00:00.000Z',
+                intervalDays: 0,
+                ease: 2.5,
+                reps: 0,
+                lapses: 0,
+              ),
+            ],
+          ),
+          onMarkCard: (_, _) async {},
+          onGradeCard: (index, grade) async {
+            gradedIndex = index;
+            graded = grade;
+          },
+        ),
+      );
+
+      expect(find.text('due 2/2'), findsOneWidget);
+      expect(find.textContaining('not reviewed yet'), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+      await tester.pumpAndSettle();
+
+      expect(gradedIndex, 0);
+      expect(graded, 'again');
+      expect(find.byKey(const ValueKey('deck-grade-good')), findsOneWidget);
+    });
+
+    testWidgets('a schedule failure is shown beside the deck', (tester) async {
+      await pumpDeck(
+        tester,
+        deckView(
+          deckSchedule: DeckSchedule.empty,
+          deckScheduleError: 'the flashcard schedule cannot be read',
+          onMarkCard: (_, _) async {},
+          onGradeCard: (_, _) async {},
+        ),
+      );
+      expect(find.byKey(const ValueKey('deck-schedule-error')), findsOneWidget);
+    });
+
     testWidgets('a four-choice card shows numbered rows before a flip', (
       tester,
     ) async {

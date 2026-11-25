@@ -29,6 +29,10 @@ export type TeachingCheckRecord = {
   stepId: string
   verdict: TeachingCheck["verdict"]
   correction: string
+  /** The learner's reasoning, when they wrote any. */
+  thinking?: string
+  /** Self-reported 1–5 confidence, when they gave one. */
+  confidence?: number
   at: string
 }
 
@@ -150,11 +154,30 @@ export async function writeTeaching(
   return { ok: true, value: record }
 }
 
-/** The step that is next: the first plan step with no passing check. */
+/**
+ * The step that is next: the first unpassed step whose prerequisites are held.
+ *
+ * The plan is a map, so this is not "the next row". A branch that does not
+ * depend on the step just passed becomes available immediately; a step whose
+ * prerequisite is still open waits, even if it sits earlier in the list.
+ * Records written before `requires` existed are read as a chain.
+ */
 export function nextStepIndex(record: TeachingRecord): number {
+  const plan = record.state.plan
   const passed = new Set(
     record.checks.filter((check) => check.verdict === "correct").map((check) => check.stepId),
   )
-  const index = record.state.plan.findIndex((step) => !passed.has(step.id))
-  return index === -1 ? record.state.plan.length : index
+  const requiresOf = (index: number): string[] => {
+    const step = plan[index]!
+    if (step.requires !== undefined) return step.requires
+    return index === 0 ? [] : [plan[index - 1]!.id]
+  }
+  const index = plan.findIndex(
+    (step, position) => !passed.has(step.id) && requiresOf(position).every((id) => passed.has(id)),
+  )
+  if (index !== -1) return index
+  // A valid plan always has an available root; this only happens on a damaged
+  // record, where the first unpassed step is the least surprising answer.
+  const firstOpen = plan.findIndex((step) => !passed.has(step.id))
+  return firstOpen === -1 ? plan.length : firstOpen
 }

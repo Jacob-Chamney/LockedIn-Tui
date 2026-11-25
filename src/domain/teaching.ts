@@ -37,12 +37,26 @@ export const TEACHING_LIMITS = {
   problemChars: 260,
   /** A problem's answer, kept short so it is a criterion, not a lecture. */
   answerChars: 320,
+  /** The learner's own reasoning about an answer. Long enough to be useful. */
+  thinkingChars: 2000,
+  /** Self-reported confidence, 1 (guessing) to 5 (certain). */
+  confidenceMin: 1,
+  confidenceMax: 5,
 } as const
 
 export type TeachingStep = {
   /** Stable for the life of the plan: `step-<n>`. */
   id: string
   title: string
+  /**
+   * The earlier steps this one builds on, by id, in plan order.
+   *
+   * The plan is a dependency map, not a queue: a step whose prerequisites are
+   * not held yet is not the next step, even if it comes first. An empty list is
+   * a root, so a plan can branch. Records written before this field existed
+   * have no value; they are read as a chain in `nextStepIndex`.
+   */
+  requires: string[]
 }
 
 export type TeachingState = {
@@ -138,6 +152,27 @@ function stringList(value: unknown, cap: number, itemCap: number): string[] | nu
 }
 
 /**
+ * A step's prerequisites, as ids.
+ *
+ * The model names earlier steps by their 1-based position ("step 2 builds on
+ * step 1"), so a forward reference or a self-reference is a malformed plan and
+ * is refused rather than silently dropped. An omitted field keeps the old
+ * linear behaviour: every step builds on the one before it.
+ */
+function parseRequires(value: unknown, position: number): string[] | null {
+  if (value === undefined) return position === 0 ? [] : [`step-${position}`]
+  if (!Array.isArray(value)) return null
+  const ids: string[] = []
+  for (const entry of value) {
+    if (typeof entry !== "number" || !Number.isInteger(entry)) return null
+    if (entry < 1 || entry > position) return null
+    const id = `step-${entry}`
+    if (!ids.includes(id)) ids.push(id)
+  }
+  return ids
+}
+
+/**
  * A measure reply: the goal made concrete, what is held, what is unclear, and
  * the plan.
  *
@@ -187,7 +222,20 @@ export function parseMeasure(
     if (!isRecord(entry)) continue
     const title = oneLine(entry.title, TEACHING_LIMITS.titleChars)
     if (title === "") continue
-    plan.push({ id: `step-${plan.length + 1}`, title })
+    const position = plan.length
+    const requires = parseRequires(entry.requires, position)
+    if (requires === null) {
+      return {
+        ok: false,
+        error: {
+          kind: "malformed",
+          message:
+            `plan step ${position + 1} has an invalid "requires"; name only earlier ` +
+            "steps by their 1-based number, for example [1, 2]",
+        },
+      }
+    }
+    plan.push({ id: `step-${position + 1}`, title, requires })
   }
   if (plan.length < TEACHING_LIMITS.minPlanSteps) {
     return {
@@ -308,13 +356,14 @@ export function measurePrompt(input: {
     `What they already say they know: ${input.prior.trim() === "" ? "(not given)" : input.prior}`,
     "",
     "Reply with exactly this shape:",
-    '{"goal":"...","held":["..."],"gaps":["..."],"plan":[{"title":"..."}]}',
+    '{"goal":"...","held":["..."],"gaps":["..."],"plan":[{"title":"...","requires":[1]}]}',
     "",
     `Limits: goal <= ${TEACHING_LIMITS.goalChars} characters; held and gaps items <= ${TEACHING_LIMITS.itemChars} characters, at most ${TEACHING_LIMITS.heldItems} held and ${TEACHING_LIMITS.gaps} gaps; ` +
       `${TEACHING_LIMITS.minPlanSteps}-${TEACHING_LIMITS.planSteps} plan steps, each title <= ${TEACHING_LIMITS.titleChars} characters.`,
     "held: what this learner can already build on, stated as facts they hold.",
     "gaps: what the goal needs that they may not hold yet, one line each.",
     "plan: the shortest route from held to goal. Each title names one idea to be added, not a topic to be covered.",
+    "requires: the earlier steps this step builds on, as 1-based numbers in plan order (step 3 that builds on 1 and 2 is [1,2]). A step that follows only from what is already held is [].",
     sourceBlock,
   ]
     .filter((line) => line !== "")
@@ -355,13 +404,26 @@ export function stepPrompt(input: {
 export function checkPrompt(input: {
   step: TeachingStepBody
   answer: string
+  /** The learner's own reasoning; optional, and never treated as evidence. */
+  thinking?: string
+  /** Self-reported 1–5 confidence; optional, and never treated as evidence. */
+  confidence?: number
 }): string {
+  const thinking = (input.thinking ?? "").trim()
+  const confidence = input.confidence
+  const confidenceLine =
+    confidence !== undefined && Number.isInteger(confidence)
+      ? `Self-reported confidence: ${confidence}/${TEACHING_LIMITS.confidenceMax}. ` +
+        "It is the learner's own estimate, not evidence that the answer is right."
+      : ""
   return [
     "You are marking one answer in a lesson. Reply with JSON only.",
     VOICE,
     "",
     `The idea being checked: ${input.step.question}`,
     `The learner answered: ${input.answer.trim()}`,
+    thinking === "" ? "" : `Their reasoning, in their own words: ${thinking}`,
+    confidenceLine,
     "",
     "Reply with exactly this shape:",
     '{"verdict":"correct|partial|incorrect","correction":"..."}',

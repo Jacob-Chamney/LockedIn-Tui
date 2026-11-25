@@ -51,6 +51,13 @@ const server = createCoreServer({
         linkProvider: booted.linkProvider,
         modelsForProvider: booted.modelsForProvider,
         linkedProviders: booted.linkedProviders,
+        updateCheck: async () => {
+          const [{ checkForUpdate }, { APP_VERSION }] = await Promise.all([
+            import("../services/update"),
+            import("../version"),
+          ]);
+          return checkForUpdate({ current: APP_VERSION });
+        },
         // Persist first, then apply to the live service, then report the view.
         // The protocol never sees TOML and never invents a settings shape.
         saveConfig: async (patch: Record<string, unknown>) => {

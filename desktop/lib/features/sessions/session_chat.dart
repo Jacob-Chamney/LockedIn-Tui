@@ -2,7 +2,9 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../bridge/models.dart';
+import '../../shell/chrome.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 import '../chat/chat_failure.dart';
 import '../chat/usage_text.dart';
 import '../chat/markdown.dart';
@@ -35,6 +37,12 @@ class SessionChatView extends StatefulWidget {
     this.onModeChanged,
     this.initialText,
     this.onDraftChanged,
+    this.context,
+    this.contextLoading = false,
+    this.contextError,
+    this.onContextLoad,
+    this.onCompact,
+    this.onUncompact,
   });
 
   /// The open session, used for the title and the empty-state copy.
@@ -71,6 +79,24 @@ class SessionChatView extends StatefulWidget {
   /// Reports every keystroke of the draft to the shell.
   final ValueChanged<String>? onDraftChanged;
 
+  /// The conversation's context meter (`session.chat.context`).
+  final SessionContextView? context;
+
+  /// True while the meter is read or a compaction is in flight.
+  final bool contextLoading;
+
+  /// The last context failure, shown beside the meter.
+  final String? contextError;
+
+  /// Ask the shell for the meter; called once when the chat mounts.
+  final VoidCallback? onContextLoad;
+
+  /// Compact the older messages (`session.chat.compact`).
+  final VoidCallback? onCompact;
+
+  /// Drop the summary (`session.chat.uncompact`).
+  final VoidCallback? onUncompact;
+
   @override
   State<SessionChatView> createState() => _SessionChatViewState();
 }
@@ -86,6 +112,11 @@ class _SessionChatViewState extends State<SessionChatView> {
   @override
   void initState() {
     super.initState();
+    // The store notifies its listeners when the read starts; doing that inside
+    // initState would mark the tree dirty during the build that created it.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onContextLoad?.call();
+    });
     _composerFocus.onKeyEvent = _handleComposerKey;
     _composerFocus.addListener(_reportMode);
     final draft = widget.initialText;
@@ -230,7 +261,96 @@ class _SessionChatViewState extends State<SessionChatView> {
               failed: widget.sendError!,
               kept: 'your message is still in the composer',
             ),
+          _contextStrip(),
           _composerBox(),
+        ],
+      ),
+    );
+  }
+
+  /// The context meter: how much of the window the conversation is using, and
+  /// the explicit compaction action. It is one hairline row, not a panel: it
+  /// belongs beside the composer, not in the middle of the conversation.
+  Widget _contextStrip() {
+    final context = widget.context;
+    if (context == null && widget.contextError == null) {
+      return const SizedBox.shrink();
+    }
+    String size(int tokens) =>
+        tokens >= 1000 ? '${(tokens / 1000).toStringAsFixed(1)}k' : '$tokens';
+    return Container(
+      key: const ValueKey('session-context-strip'),
+      padding: const EdgeInsets.fromLTRB(12, 5, 12, 5),
+      decoration: BoxDecoration(
+        color: LockedInColors.surface,
+        border: Border(
+          top: BorderSide(color: LockedInColors.line, width: Stroke.hairline),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text(
+                'context',
+                style: LockedInType.micro.copyWith(color: LockedInColors.muted),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Meter(
+                  value: context?.fraction ?? 0,
+                  tone: (context?.fraction ?? 0) >= 0.9
+                      ? LockedInColors.error
+                      : (context?.fraction ?? 0) >= 0.7
+                      ? LockedInColors.warning
+                      : LockedInColors.primary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                context == null
+                    ? '—'
+                    : '${size(context.tokens)} / ${size(context.window)}',
+                key: const ValueKey('session-context-size'),
+                style: LockedInType.micro.copyWith(color: LockedInColors.muted),
+              ),
+              if (context?.compacted == true) ...[
+                const SizedBox(width: 8),
+                Text(
+                  'summarised ${context!.through}',
+                  key: const ValueKey('session-context-compacted'),
+                  style: LockedInType.micro.copyWith(
+                    color: LockedInColors.secondary,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ],
+              if (context?.compactable == true && widget.onCompact != null)
+                TextButton(
+                  key: const ValueKey('session-context-compact'),
+                  onPressed: widget.contextLoading ? null : widget.onCompact,
+                  child: Text(
+                    widget.contextLoading ? 'compacting…' : 'compact',
+                  ),
+                ),
+              if (context?.compacted == true && widget.onUncompact != null)
+                TextButton(
+                  key: const ValueKey('session-context-uncompact'),
+                  onPressed: widget.contextLoading ? null : widget.onUncompact,
+                  child: const Text('full history'),
+                ),
+            ],
+          ),
+          if (widget.contextError != null)
+            Text(
+              widget.contextError!,
+              key: const ValueKey('session-context-error'),
+              style: LockedInType.micro.copyWith(
+                color: LockedInColors.error,
+                letterSpacing: 0,
+              ),
+            ),
         ],
       ),
     );

@@ -2,6 +2,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../theme/palette.dart';
 import 'code_highlight.dart';
+import 'diagram.dart';
+import 'math.dart';
 
 /// Renders a small, safe subset of Markdown inside a chat bubble.
 ///
@@ -93,6 +95,11 @@ class ChatMarkdown extends StatelessWidget {
         ],
       ),
       _MdCode() => _codePanel(block),
+      _MdMath() => MathView(block.tex, style: base),
+      _MdDiagram() =>
+        parseFlowchart(block.source) == null
+            ? _codePanel(_MdCode(block.source, 'mermaid'))
+            : Flowchart(block.source),
       _MdTable() => _table(block, base),
     };
   }
@@ -337,6 +344,31 @@ List<InlineSpan> _inline(String source, TextStyle base) {
       continue;
     }
 
+    if (char == r'$') {
+      final close = source.indexOf(r'$', index + 1);
+      if (close > index + 1) {
+        final content = source.substring(index + 1, close);
+        final looksLikeMath =
+            !content.startsWith(' ') &&
+            !content.endsWith(' ') &&
+            RegExp(r'[A-Za-z\\^_{}=+\-*/<>]').hasMatch(content);
+        if (looksLikeMath && !content.contains('\n')) {
+          flush();
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: InlineMath(content, style: base),
+            ),
+          );
+          index = close + 1;
+          continue;
+        }
+      }
+      buffer.write(char);
+      index++;
+      continue;
+    }
+
     if (char == '[') {
       final close = source.indexOf(']', index + 1);
       if (close != -1 &&
@@ -434,6 +466,16 @@ class _MdTable extends _MdBlock {
   final List<List<String>> rows;
 }
 
+class _MdMath extends _MdBlock {
+  const _MdMath(this.tex);
+  final String tex;
+}
+
+class _MdDiagram extends _MdBlock {
+  const _MdDiagram(this.source);
+  final String source;
+}
+
 final _headingPattern = RegExp(r'^(#{1,6})\s+(.*)$');
 final _bulletPattern = RegExp(r'^[-*]\s+(.*)$');
 final _checkboxPattern = RegExp(r'^[-*]\s+\[([ xX])\]\s+(.*)$');
@@ -467,7 +509,38 @@ List<_MdBlock> _parse(String source) {
         index++;
       }
       if (index < lines.length) index++;
-      blocks.add(_MdCode(body.join('\n'), language.isEmpty ? null : language));
+      final bodyText = body.join('\n');
+      if (language.toLowerCase() == 'math') {
+        blocks.add(_MdMath(bodyText));
+      } else if (language.toLowerCase() == 'mermaid') {
+        blocks.add(_MdDiagram(bodyText));
+      } else {
+        blocks.add(_MdCode(bodyText, language.isEmpty ? null : language));
+      }
+      continue;
+    }
+
+    if (trimmed.startsWith(r'$$')) {
+      final body = <String>[];
+      final rest = trimmed.substring(2);
+      if (rest.trim().length >= 2 && rest.trim().endsWith(r'$$')) {
+        body.add(rest.trim().substring(0, rest.trim().length - 2));
+        index++;
+      } else {
+        if (rest.trim().isNotEmpty) body.add(rest);
+        index++;
+        while (index < lines.length) {
+          final candidate = lines[index].trimRight();
+          if (candidate.endsWith(r'$$')) {
+            body.add(candidate.substring(0, candidate.length - 2));
+            index++;
+            break;
+          }
+          body.add(lines[index]);
+          index++;
+        }
+      }
+      blocks.add(_MdMath(body.join('\n')));
       continue;
     }
 

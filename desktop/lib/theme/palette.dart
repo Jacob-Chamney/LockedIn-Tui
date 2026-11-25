@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:material_ui/material_ui.dart';
 
 import 'tokens.dart';
@@ -192,6 +194,126 @@ String customTokenHex(String token, Map<String, String>? tokens) {
   return colour == null ? '' : hexOfColour(colour);
 }
 
+/// [base] with the stored token overrides laid on top.
+///
+/// Overrides are a *layer*, not a theme: they follow the selected palette, so a
+/// background set over Crimson stays set when the base becomes Codex. A token
+/// with no override keeps the base value, and a malformed value is ignored for
+/// that token rather than blanking it. Semantic names never move: `error` is
+/// still the failure colour.
+LockedInPalette paletteWithOverrides(
+  LockedInPalette base,
+  Map<String, String>? tokens,
+) {
+  if (tokens == null || tokens.isEmpty) return base;
+  Color token(String name, Color fallback) =>
+      parseHexColour(tokens[name]) ?? fallback;
+  return LockedInPalette(
+    id: base.id,
+    label: base.label,
+    background: token('background', base.background),
+    surface: token('surface', base.surface),
+    panel: token('panel', base.panel),
+    foreground: token('foreground', base.foreground),
+    muted: token('muted', base.muted),
+    primary: token('primary', base.primary),
+    secondary: token('secondary', base.secondary),
+    accent: token('accent', base.accent),
+    success: token('success', base.success),
+    warning: token('warning', base.warning),
+    error: token('error', base.error),
+    line: token('line', base.line),
+  );
+}
+
+/// A parsed theme document: the overrides, an optional base, or one error.
+///
+/// One parser for export and import, so the two cannot disagree about the
+/// shape. `error` is written for the dialog and names the token at fault.
+typedef ThemeDocument = ({
+  Map<String, String> tokens,
+  String? base,
+  String? error,
+});
+
+/// The document string an export copies: stable, indented, human-editable.
+String themeDocumentJson({
+  required String base,
+  required Map<String, String> tokens,
+}) => const JsonEncoder.withIndent('  ').convert({
+  'name': 'LockedIn ${paletteLabel(base)}',
+  'base': base,
+  'tokens': tokens,
+});
+
+/// Parse a theme document from JSON.
+///
+/// Accepts the exported shape (`{name, base, tokens}`) and a bare
+/// `{token: "#RRGGBB"}` map, because a person pasting two colours should not
+/// have to invent the wrapper. Unknown token names and values that are not
+/// `#RRGGBB` are refused by name; nothing is applied here.
+ThemeDocument parseThemeDocument(String text) {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) {
+    return (
+      tokens: const {},
+      base: null,
+      error: 'paste a theme JSON document first',
+    );
+  }
+  Object? parsed;
+  try {
+    parsed = jsonDecode(trimmed);
+  } catch (_) {
+    return (tokens: const {}, base: null, error: 'that is not valid JSON');
+  }
+  if (parsed is! Map) {
+    return (
+      tokens: const {},
+      base: null,
+      error: 'the document must be a JSON object',
+    );
+  }
+  final map = Map<String, dynamic>.from(parsed);
+  final rawTokens = map['tokens'] is Map
+      ? Map<String, dynamic>.from(map['tokens'] as Map)
+      : map;
+  final tokens = <String, String>{};
+  for (final entry in rawTokens.entries) {
+    if (entry.key == 'name' || entry.key == 'base' || entry.key == 'tokens') {
+      continue;
+    }
+    if (!customThemeTokenNames.contains(entry.key)) {
+      return (
+        tokens: const {},
+        base: null,
+        error: 'unknown token "${entry.key}"',
+      );
+    }
+    final value = entry.value;
+    if (value is! String || !isHexColour(value)) {
+      return (
+        tokens: const {},
+        base: null,
+        error: 'token "${entry.key}" must be a #RRGGBB colour',
+      );
+    }
+    tokens[entry.key] = value.trim().toUpperCase();
+  }
+  final base = map['base'] is String ? (map['base'] as String).trim() : null;
+  if (base != null &&
+      base.isNotEmpty &&
+      !lockedInThemeIds.contains(base) &&
+      base != 'custom') {
+    return (tokens: const {}, base: null, error: 'unknown base theme "$base"');
+  }
+  return (
+    tokens: tokens,
+    base: base == null || base.isEmpty ? null : base,
+    error: null,
+  );
+}
+
 /// The custom palette: crimson with any stored token overriding one entry.
 ///
 /// A partial map falls back to crimson **per token**, so a single edited
@@ -261,7 +383,7 @@ bool applyPalette(String id, {Map<String, String>? tokens}) {
   }
   final palette = lockedInPalettes[id];
   if (palette == null) return false;
-  _active = palette;
+  _active = paletteWithOverrides(palette, tokens);
   return true;
 }
 
@@ -270,7 +392,7 @@ bool applyPalette(String id, {Map<String, String>? tokens}) {
 LockedInPalette applyPaletteOr(String? id, {Map<String, String>? tokens}) {
   _active = id == 'custom'
       ? customPalette(tokens)
-      : lockedInPalettes[id] ?? lockedInCrimson;
+      : paletteWithOverrides(lockedInPalettes[id] ?? lockedInCrimson, tokens);
   return _active;
 }
 

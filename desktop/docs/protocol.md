@@ -8,7 +8,7 @@ to stderr.
 
 ```json
 → {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol":1,"client":"flutter"}}
-← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","chat.snapshot","chat.send","chat.cancel","session.chat.snapshot","session.chat.send","session.chat.cancel","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","keybinds.get","keybinds.set","work.list","work.open","work.create","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","teach.state","teach.measure","teach.step","teach.check","teach.practice","teach.practice.result","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read"]}}
+← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","session.deck.state","session.deck.grade","session.deck.reset","session.figure.list","session.figure.extract","session.figure.read","session.figure.annotate","session.figure.remove","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","keybinds.get","keybinds.set","chat.snapshot","chat.send","chat.cancel","session.chat.snapshot","session.chat.send","session.chat.cancel","session.chat.context","session.chat.compact","session.chat.uncompact","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","work.list","work.open","work.create","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","teach.state","teach.measure","teach.step","teach.check","teach.practice","teach.practice.result","teach.side.snapshot","teach.side.send","teach.side.clear","research.start","research.list","research.read","research.cancel","update.info","update.check","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read"]}}
 ```
 
 - `protocol` is an integer. A mismatch is a blocking shell error, not a retry.
@@ -2276,7 +2276,7 @@ it never parses model prose to guess.
 The record lives at `skills/goals/<id>/teaching.json` (atomic replace):
 
 ```json
-{"schema":1,"state":{"schema":1,"goal":"…","prior":"…","measuredAt":"…","held":["…"],"gaps":["…"],"plan":[{"id":"step-1","title":"…"}]},"current":{"stepId":"step-1","prose":"…","question":"…"},"checks":[{"stepId":"step-1","verdict":"correct","correction":"…","at":"…"}],"practice":{"problems":[{"id":"practice-1","prompt":"…","answer":"…"}],"attempts":[{"problemId":"practice-1","verdict":"solved","at":"…"}],"generatedAt":"…"}}
+{"schema":1,"state":{"schema":1,"goal":"…","prior":"…","measuredAt":"…","held":["…"],"gaps":["…"],"plan":[{"id":"step-1","title":"…","requires":[]},{"id":"step-2","title":"…","requires":["step-1"]}]},"current":{"stepId":"step-1","prose":"…","question":"…"},"checks":[{"stepId":"step-1","verdict":"correct","correction":"…","at":"…"}],"practice":{"problems":[{"id":"practice-1","prompt":"…","answer":"…"}],"attempts":[{"problemId":"practice-1","verdict":"solved","at":"…"}],"generatedAt":"…"}}
 ```
 
 - `teach.state` `{goalId}` → `{record}` — the record, or `null` before a measure.
@@ -2288,10 +2288,21 @@ The record lives at `skills/goals/<id>/teaching.json` (atomic replace):
   first step with no passing check. While a step is open the same record is
   returned (no model call) unless `again: true`. `step: null` when every step is
   passed.
-- `teach.check` `{goalId, answer}` → `{record, verdict, correction, passed,
-  nextIndex, total}` — one verdict (`correct` | `partial` | `incorrect`) and one
-  correction. `correct` passes the step and clears the open one, so the next
-  `teach.step` moves on; anything else keeps it open for a repair.
+- `teach.check` `{goalId, answer, thinking?, confidence?}` → `{record, verdict,
+  correction, passed, nextIndex, total}` — one verdict (`correct` | `partial` |
+  `incorrect`) and one correction. `thinking` is the learner's own reasoning
+  (≤ 2000 characters) and `confidence` a whole number 1–5; both are stored on
+  the check record and included in the marking prompt as context, never as
+  evidence that the answer is right. `correct` passes the step and clears the
+  open one, so the next `teach.step` moves on; anything else keeps it open for a
+  repair. A wrong type or out-of-range value is `-32602`.
+
+A plan is a **map**, not a queue: each step carries `requires`, the ids of the
+earlier steps it builds on (an omitted `requires` is read as a chain). The next
+step is the first unpassed step whose prerequisites are all held, so a branch
+becomes available as soon as its own root passed. A forward reference, a
+self-reference or a non-integer index is a malformed plan and the measure is
+refused rather than silently repaired.
 - `teach.practice` `{goalId}` → `{record, problems}` — the fourth phase. One
   model call, no retry: 1–5 problems that state a situation and ask for an
   outcome, each with an `answer` that is a **criterion**, never a worked
@@ -2317,6 +2328,131 @@ Failures are `-32000`, `retryable: false`, never retried: `{kind:"teaching",
 goalId, message}` for a refusal or a malformed reply, `{kind:"skill"}` for an
 unknown goal, and `link a model in Settings → Providers` when no model is
 configured. A malformed reply writes nothing.
+
+### Side questions
+
+One small, tool-free conversation per teaching step. It never enters the lesson
+chat or changes the plan, and it is stored beside the goal at
+`skills/goals/<id>/side/<stepId>.jsonl` (append-only).
+
+- `teach.side.snapshot` `{goalId, stepId}` → `{messages}` — the thread, or `[]`.
+  Read-only. `stepId` must be `step-<n>` and must exist in the plan.
+- `teach.side.send` `{goalId, stepId, text}` → `{messages, reply}` — one model
+  call, no retry. `text` is non-empty and ≤ 2000 characters. The exchange is
+  appended **only after** the reply exists, so a failure leaves the thread
+  unchanged. The prompt carries the step, its check and the thread so far, and
+  asks for one or two sentences.
+- `teach.side.clear` `{goalId, stepId}` → `{messages: []}`.
+
+An unknown goal is the shared `{kind:"skill"}` error; a teaching refusal is
+`{kind:"teaching", goalId, message}`, `-32000`, `retryable: false`.
+
+### Flashcard schedule
+
+The deck Markdown stays the truth for a card's content and its `M:`/`K:` lines;
+a schedule beside it (`school/outputs/<id>/flashcards-schedule.json`) records
+**when** to ask again. It is keyed by the card's question, so regenerating the
+deck keeps the progress of a question that survived.
+
+- `session.deck.state` `{id}` → `{due, total, cards:[{index, question, due,
+  dueAt, intervalDays, ease, reps, lapses, lastGrade?}]}`. Read-only; a missing
+  schedule means every card is due now.
+- `session.deck.grade` `{id, index, grade}` → the same state after the write.
+  `grade` is `again`, `hard`, `good` or `easy`; `index` is the 0-based deck
+  index. One atomic write. `again` is a ten-minute step, a lapse and a lower
+  ease; the other grades move the card out. The scheduler is pure and lives in
+  `src/domain/scheduler.ts` (ease 1.3–3.0, interval ≤ 365 days).
+- `session.deck.reset` `{id}` → the state with the schedule deleted, so every
+  card is due again.
+
+A session without a deck is one `{kind:"deck", id, message}` refusal naming
+`build one first`; a bad grade or index is `-32602`.
+
+### Context and compaction
+
+`session.chat.context` is the conversation's meter, read-only:
+
+```json
+{"messages":12,"kept":8,"summaryChars":210,"through":4,"tokens":1840,
+ "window":128000,"fraction":0.014,"compactable":true}
+```
+
+`tokens` is a four-characters-per-token estimate of the summary plus the kept
+messages, never a provider call. `through` is how many transcript records the
+stored summary covers; `compactable` is true when more than eight messages sit
+before the keep window.
+
+- `session.chat.compact` `{id}` → the same view plus `summary`. One model call,
+  no retry, explicit only: the last eight messages are untouched and everything
+  older becomes one ≤ 4000-character paragraph in `<session>/context.json`. The
+  transcript (`chat.jsonl`) is **byte-identical** afterwards; compaction is a
+  view used to build the next request. A failure or an empty summary writes
+  nothing.
+- `session.chat.uncompact` `{id}` → the view with the summary removed.
+
+`session.chat.send` installs the stored plan on the controller; a summary read
+failure falls back to the full history rather than failing the turn.
+
+### Research
+
+A background brief, grounded in pages the learner names. Every source is fetched
+under the service's guards (HTTPS only, no credentials, no loopback/private
+host, text content type, 8 s timeout, 20 000 characters) and the model must cite
+at least one supplied source with `[n]`; an unsourced sentence is prefixed
+`(agent explanation)`. A brief with no citation is refused and writes nothing.
+
+- `research.start` `{goalId, question, urls}` → `{id, status:"running"}`. One
+  to six URLs, all validated before any fetch. Returns immediately; the job
+  emits `research.updated {goalId, id, status: "done"|"failed"|"cancelled",
+  item?, message?}` when it settles.
+- `research.list` `{goalId}` → `{items:[{id, question, created, sources}]}`,
+  newest first. Read-only.
+- `research.read` `{goalId, id}` → `{item, markdown}`. Read-only.
+- `research.cancel` `{goalId, id}` → `{cancelled}`. The fetch or model call is
+  not aborted; its result is discarded.
+
+Files live at `skills/goals/<id>/research/<id>.md` and `<id>.json`. Research is
+not a source: it never enters `sources`, coverage or the lesson plan.
+
+### Figures
+
+Crop a diagram out of the session's own copied PDF. The core confines the source
+to `sources/`, renders with `pdftoppm` (argv, no shell), requires a PNG, and caps
+the image at 8 MB. A machine without poppler gets one actionable
+`{kind:"figure"}` refusal.
+
+- `session.figure.extract` `{id, page, source?, x?, y?, width?, height?, dpi?,
+  caption?, note?}` → `{figure}`. `page` is 1–500; a crop is all four of x/y/
+  width/height (otherwise `-32602`); `dpi` is 72–200 (default 110). `source` is
+  a copied PDF's stored path; omitted, the instructions PDF or the first PDF
+  source is used.
+- `session.figure.list` `{id}` → `{figures}`.
+- `session.figure.read` `{id, figureId}` → `{figure, base64, mediaType:
+  "image/png"}` for the shell's `Image.memory`.
+- `session.figure.annotate` `{id, figureId, caption?, note?}` → `{figure}`.
+- `session.figure.remove` `{id, figureId}` → `{removed}`.
+
+Metadata lives in `<session>/figures/index.json`; images are
+`<session>/figures/figure-<n>.png`. A figure is not a source and does not enter
+coverage.
+
+### Updates
+
+- `update.info` → `{current, repo}`. Offline; answers before a workspace boots.
+- `update.check` → `{current, kind: "available"|"current"|"unavailable",
+  version?, latest?, asset?, url?, message?}`. One explicit request to the
+  public release feed, no retry and no automatic download. `url` is the release
+  page, not an artifact: the desktop shell opens or copies it, and never replaces
+  its own bundle. A failed check is one `{kind:"update"}` refusal.
+
+### Themes
+
+`theme.custom.get` / `theme.custom.set` store the twelve token overrides. The
+overrides are a **layer** over whichever base palette is selected, so a panel
+colour set over Crimson survives switching the base to Codex. `theme.custom.set`
+replaces the whole map (an omitted token is cleared), and the shell exports /
+imports the same shape as JSON (`{name, base, tokens}`); an unknown token, a
+value that is not `#RRGGBB` or an unknown base is refused by name.
 
 ### Keybinds
 
