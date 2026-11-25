@@ -8,8 +8,11 @@
  * the hand-written decoders did).
  *
  * Supported shapes: strings, numbers (`int` or `double` per the `ints` list),
- * booleans, string arrays, an allowlisted model, an array of one, and a
- * `Record<string, string | number>` map. Optional and `| null` fields become
+ * booleans, string arrays, an allowlisted model, an array of one, a
+ * `Record<string, string | number>` map, and a union of object shapes. A field
+ * every union member shares keeps its type; a field only some members carry
+ * becomes nullable; a field whose members disagree on its type becomes
+ * `Object?` and keeps the raw JSON value. Optional and `| null` fields become
  * nullable Dart fields. Anything else is refused with the field name rather
  * than emitted with a wrong type.
  *
@@ -119,7 +122,8 @@ export type DartFieldType =
   | "models"
   | "stringMap"
   | "intMap"
-  | "modelMap";
+  | "modelMap"
+  | "object";
 
 export type DartField = {
   name: string;
@@ -250,7 +254,8 @@ function mapType(
  * view). A Dart sealed hierarchy is more precise, but the shell only reads
  * fields, so the generator flattens: a field every member shares keeps its
  * type and requiredness; a field only some members carry becomes nullable. A
- * field that maps to different types across members is refused.
+ * field that maps to different types across members becomes `Object?`, which
+ * keeps the raw JSON value rather than guessing one member's type.
  */
 function flattenUnion(
   checker: ts.TypeChecker,
@@ -262,7 +267,13 @@ function flattenUnion(
   const order: string[] = [];
   const byName = new Map<
     string,
-    { mapped: MappedType; count: number; optional: boolean; doc: string }
+    {
+      mapped: MappedType;
+      count: number;
+      optional: boolean;
+      conflicting: boolean;
+      doc: string;
+    }
   >();
   const members = type.types.filter((member) => !isNullish(member));
   if (members.length !== type.types.length) {
@@ -295,6 +306,7 @@ function flattenUnion(
           mapped,
           count: 1,
           optional: (property.flags & ts.SymbolFlags.Optional) !== 0,
+          conflicting: false,
           doc: docOf(checker, property),
         });
       } else {
@@ -302,9 +314,7 @@ function flattenUnion(
           existing.mapped.type !== mapped.type ||
           existing.mapped.model !== mapped.model
         ) {
-          throw new Error(
-            `${name}.${property.name}: union members disagree on the field type`,
-          );
+          existing.conflicting = true;
         }
         existing.count += 1;
         existing.optional ||= (property.flags & ts.SymbolFlags.Optional) !== 0;
@@ -313,11 +323,14 @@ function flattenUnion(
   }
   return order.map((fieldName) => {
     const entry = byName.get(fieldName)!;
+    const mapped = entry.conflicting ? { type: "object" as const } : entry.mapped;
     return {
       name: fieldName,
-      type: entry.mapped.type,
-      ...(entry.mapped.model === undefined ? {} : { model: entry.mapped.model }),
-      nullable: entry.optional || entry.count < members.length,
+      type: mapped.type,
+      ...(mapped.model === undefined ? {} : { model: mapped.model }),
+      // A conflicting field keeps the raw value, so it is always nullable: the
+      // one thing every member agrees on is that the shape cannot be narrowed.
+      nullable: entry.optional || entry.count < members.length || entry.conflicting,
       doc: entry.doc,
     } satisfies DartField;
   });
@@ -441,6 +454,8 @@ function baseDartType(field: DartField): string {
       return "Map<String, int>";
     case "modelMap":
       return `Map<String, ${field.model}>`;
+    case "object":
+      return "Object";
   }
 }
 
@@ -462,6 +477,8 @@ function parser(field: DartField, model: DartModel): string {
         return `_boolOrNull(${read})`;
       case "model":
         return `_modelOrNull(${read}, ${field.model}.fromJson)`;
+      case "object":
+        return `_any(${read})`;
       default:
         throw new Error(`${model.name}.${field.name}: a nullable ${field.type} is not supported`);
     }
@@ -496,6 +513,8 @@ function parser(field: DartField, model: DartModel): string {
       return `_intMap(${read})`;
     case "modelMap":
       return `_modelMap(${read}, ${field.model}.fromJson)`;
+    case "object":
+      return `_any(${read})`;
   }
 }
 
@@ -512,6 +531,8 @@ function helperFor(field: DartField): string[] {
         return ["boolOrNull"];
       case "model":
         return ["modelOrNull"];
+      case "object":
+        return ["any"];
       default:
         return [];
     }
@@ -537,6 +558,8 @@ function helperFor(field: DartField): string[] {
       return ["intMap"];
     case "modelMap":
       return ["modelMap"];
+    case "object":
+      return ["any"];
   }
 }
 
@@ -621,6 +644,10 @@ const HELPERS: Readonly<Record<string, readonly string[]>> = {
     "T? _modelOrNull<T>(Object? value, T Function(Map<String, dynamic>) parse) =>",
     "    value is Map ? parse(Map<String, dynamic>.from(value)) : null;",
   ],
+  any: [
+    "/// A field whose union members disagree on the type: keep the raw JSON value.",
+    "Object? _any(Object? value) => value;",
+  ],
 };
 
 export function renderModels(models: readonly DartModel[]): string {
@@ -664,6 +691,7 @@ export function renderModels(models: readonly DartModel[]): string {
     "doubleOrNull",
     "boolOrNull",
     "modelOrNull",
+    "any",
   ];
   for (const helper of order) {
     if (!needed.has(helper)) continue;

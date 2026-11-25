@@ -160,6 +160,41 @@ describe("generated Dart models", () => {
     expect(generated).toContain("message: _stringOrNull(json['message'])");
   });
 
+  test("a union field with different member types becomes Object?", () => {
+    const root = mkdtempSync(join(tmpdir(), "lockedin-dart-models-"));
+    writeFileSync(
+      join(root, "sample.ts"),
+      [
+        "export type SampleMixed =",
+        '  | { kind: "text"; value: string }',
+        '  | { kind: "count"; value: number };',
+        "",
+      ].join("\n"),
+    );
+    const models = extractModels(root, {
+      sources: ["sample.ts"],
+      specs: [{ name: "SampleMixed" }],
+    });
+    const union = models.find((model) => model.name === "SampleMixed");
+    expect(
+      union?.fields.map((field) => [field.name, field.type, field.nullable]),
+    ).toEqual([
+      ["kind", "string", false],
+      ["value", "object", true],
+    ]);
+    const generated = renderModels(models);
+    expect(generated).toContain("final Object? value;");
+    expect(generated).toContain("value: _any(json['value'])");
+    expect(generated).toContain("Object? _any(Object? value) => value;");
+    // The raw JSON value survives both members, so the caller can narrow it.
+    const decoded = {
+      text: { kind: "text", value: "hello" },
+      count: { kind: "count", value: 3 },
+    };
+    expect(decoded.text.value).toBe("hello");
+    expect(decoded.count.value).toBe(3);
+  });
+
   test("a map of models and a recursive model are generated", () => {
     const root = mkdtempSync(join(tmpdir(), "lockedin-dart-models-"));
     writeFileSync(
