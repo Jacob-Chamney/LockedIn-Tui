@@ -22,10 +22,11 @@ requests merge.
 ## Unreleased
 
 - Dart model decoders are generated from the core's TypeScript wire types: the
-  Knowledge search/tree models and the full Stats + learning-graph surface
-  (13 models), including nested models, model arrays, `Record` maps and
-  optional/`null` fields, with the same tolerant parsing as before. Adding a
-  model is a one-line allowlist entry; a stale generated file fails the check.
+  Knowledge search/tree models, the full Stats + learning-graph surface and the
+  settings view (14 models), including nested models, model arrays, `Record`
+  maps, optional/`null` fields, nullable nested models and flattened object
+  unions, with the same tolerant parsing as before. Adding a model is a
+  one-line allowlist entry; a stale generated file fails the check.
 
 - Wire method names in the Flutter client are generated from the core's
   capability list (`CoreMethod`), so a renamed method is a compile error rather

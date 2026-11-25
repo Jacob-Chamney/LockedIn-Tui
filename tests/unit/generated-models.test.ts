@@ -8,7 +8,8 @@
  * disappear.
  */
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
@@ -41,6 +42,7 @@ describe("generated Dart models", () => {
       "LearningNode",
       "LearningEdge",
       "LearningGraph",
+      "SettingsView",
     ]);
     expect(read(MODELS_PATH)).toBe(renderModels(models));
   });
@@ -90,6 +92,57 @@ describe("generated Dart models", () => {
     expect(generated).toContain("class KnowledgeGroup");
     expect(generated).toContain("final List<KnowledgeNote> notes;");
     expect(generated).toContain("notes: _models(json['notes'], KnowledgeNote.fromJson)");
+  });
+
+  test("the settings view keeps its ints, doubles, bools and lists", () => {
+    const models = extractModels(ROOT);
+    const settings = models.find((model) => model.name === "SettingsView");
+    const types = new Map(settings?.fields.map((field) => [field.name, field.type]));
+    expect(types.get("username")).toBe("string");
+    expect(types.get("maxToolCalls")).toBe("int");
+    expect(types.get("maxTokensPerRequest")).toBe("int");
+    expect(types.get("budgetUsd")).toBe("double");
+    expect(types.get("warnAt")).toBe("double");
+    expect(types.get("pauseAtLimit")).toBe("bool");
+    expect(types.get("pluginServers")).toBe("strings");
+    expect(types.get("disabledPlugins")).toBe("strings");
+    expect(settings?.fields).toHaveLength(20);
+    expect(read(MODELS_PATH)).toContain("class SettingsView");
+  });
+
+  test("a union flattens and a nullable nested model becomes nullable", () => {
+    const root = mkdtempSync(join(tmpdir(), "lockedin-dart-models-"));
+    writeFileSync(
+      join(root, "sample.ts"),
+      [
+        "export type SampleChild = { a: string };",
+        "export type SampleUnion =",
+        '  | { kind: "one"; current: string; child: SampleChild }',
+        '  | { kind: "two"; current: string; message: string };',
+        "",
+      ].join("\n"),
+    );
+    const models = extractModels(root, {
+      sources: ["sample.ts"],
+      specs: [
+        { name: "SampleChild" },
+        { name: "SampleUnion" },
+      ],
+    });
+    const union = models.find((model) => model.name === "SampleUnion");
+    expect(
+      union?.fields.map((field) => [field.name, field.type, field.nullable, field.model]),
+    ).toEqual([
+      ["kind", "string", false, undefined],
+      ["current", "string", false, undefined],
+      ["child", "model", true, "SampleChild"],
+      ["message", "string", true, undefined],
+    ]);
+    const generated = renderModels(models);
+    expect(generated).toContain("class SampleUnion");
+    expect(generated).toContain("final SampleChild? child;");
+    expect(generated).toContain("child: _modelOrNull(json['child'], SampleChild.fromJson)");
+    expect(generated).toContain("message: _stringOrNull(json['message'])");
   });
 
   test("the source is the exported protocol type", () => {

@@ -23,11 +23,11 @@ export 'core_models.g.dart'
         StatsSummary,
         LearningNode,
         LearningEdge,
-        LearningGraph;
+        LearningGraph,
+        SettingsView;
 
 String _string(Object? value) => value is String ? value : '';
 int _int(Object? value) => value is num ? value.toInt() : 0;
-double _double(Object? value) => value is num ? value.toDouble() : 0;
 bool _bool(Object? value) => value is bool ? value : false;
 
 List<Map<String, dynamic>> _maps(Object? value) {
@@ -826,79 +826,6 @@ class StatsExportResult {
         text: _string(json['text']),
         format: _string(json['format']),
       );
-}
-
-class SettingsView {
-  const SettingsView({
-    required this.username,
-    required this.theme,
-    required this.chatModel,
-    required this.baseUrl,
-    required this.maxToolCalls,
-    required this.maxTokensPerRequest,
-    required this.budgetUsd,
-    required this.period,
-    required this.warnAt,
-    required this.pauseAtLimit,
-    required this.dataDir,
-    required this.archiveBackend,
-    required this.archiveFolder,
-    required this.historyLimit,
-    required this.responseStyle,
-    required this.tutorPolicy,
-    required this.pluginServers,
-    required this.hideHints,
-    required this.pluginDirs,
-    required this.disabledPlugins,
-  });
-
-  final String username;
-  final String theme;
-  final String chatModel;
-  final String baseUrl;
-  final int maxToolCalls;
-  final int maxTokensPerRequest;
-  final double budgetUsd;
-  final String period;
-  final double warnAt;
-  final bool pauseAtLimit;
-  final String dataDir;
-  final String archiveBackend;
-  final String archiveFolder;
-  final int historyLimit;
-  final String responseStyle;
-  final String tutorPolicy;
-  final List<String> pluginServers;
-  final bool hideHints;
-  final List<String> pluginDirs;
-  final List<String> disabledPlugins;
-
-  factory SettingsView.fromJson(Map<String, dynamic> json) {
-    List<String> strings(Object? value) =>
-        value is List ? value.whereType<String>().toList() : const [];
-    return SettingsView(
-      username: _string(json['username']),
-      theme: _string(json['theme']),
-      chatModel: _string(json['chatModel']),
-      baseUrl: _string(json['baseUrl']),
-      maxToolCalls: _int(json['maxToolCalls']),
-      maxTokensPerRequest: _int(json['maxTokensPerRequest']),
-      budgetUsd: _double(json['budgetUsd']),
-      period: _string(json['period']),
-      warnAt: _double(json['warnAt']),
-      pauseAtLimit: _bool(json['pauseAtLimit']),
-      dataDir: _string(json['dataDir']),
-      archiveBackend: _string(json['archiveBackend']),
-      archiveFolder: _string(json['archiveFolder']),
-      historyLimit: _int(json['historyLimit']),
-      responseStyle: _string(json['responseStyle']),
-      tutorPolicy: _string(json['tutorPolicy']),
-      pluginServers: strings(json['pluginServers']),
-      hideHints: _bool(json['hideHints']),
-      pluginDirs: strings(json['pluginDirs']),
-      disabledPlugins: strings(json['disabledPlugins']),
-    );
-  }
 }
 
 /// `theme.custom.get` / `theme.custom.set` — the stored `[ui.custom_theme]` map.
