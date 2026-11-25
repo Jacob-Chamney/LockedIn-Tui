@@ -311,4 +311,39 @@ void main() {
     expect(emptyMemory.isEmpty, isTrue);
     expect(emptyMemory.updated, '');
   });
+
+  test('the session detail composes sources, steps and optional memory', () {
+    final detail = SessionDetail.fromJson({
+      'id': 's1',
+      'name': 'Physics',
+      'created': '2026-11-01T09:00:00.000Z',
+      'archived': false,
+      'prompt': 'Study.',
+      'sources': [
+        {
+          'name': 'lecture.md',
+          'storedPath': 'sources/lecture.md',
+          'kind': 'markdown',
+        },
+        'not-a-map',
+      ],
+      'steps': {'done': 1, 'total': 2, 'exists': true, 'markdown': '# Steps'},
+      'memory': {
+        'points': ['A point'],
+        'updated': '2026-11-01T15:00:00Z',
+      },
+    });
+    expect(detail.name, 'Physics');
+    expect(detail.sources, hasLength(1));
+    expect(detail.sources.single.name, 'lecture.md');
+    expect(detail.steps.total, 2);
+    expect(detail.memory?.points, ['A point']);
+    expect(detail.memory?.isEmpty, isFalse);
+
+    final bare = SessionDetail.fromJson({'id': 's2'});
+    expect(bare.id, 's2');
+    expect(bare.sources, isEmpty);
+    expect(bare.steps.exists, isFalse);
+    expect(bare.memory, isNull);
+  });
 }

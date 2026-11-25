@@ -53,6 +53,7 @@ describe("generated Dart models", () => {
       "Source",
       "SessionStepsView",
       "SessionMemoryView",
+      "SessionDetailView",
     ]);
     expect(read(MODELS_PATH)).toBe(renderModels(models));
   });
@@ -318,6 +319,28 @@ describe("generated Dart models", () => {
       ["folded", "strings"],
       ["updated", "string"],
     ]);
+  });
+
+  test("the session detail composes the generated leaves", () => {
+    const models = extractModels(ROOT);
+    const detail = models.find((model) => model.name === "SessionDetailView");
+    expect(detail?.dartName).toBe("SessionDetail");
+    expect(
+      detail?.fields.map((field) => [field.name, field.type, field.nullable, field.model]),
+    ).toEqual([
+      ["id", "string", false, undefined],
+      ["name", "string", false, undefined],
+      ["created", "string", false, undefined],
+      ["archived", "bool", false, undefined],
+      ["prompt", "string", false, undefined],
+      ["sources", "models", false, "SessionSource"],
+      ["steps", "model", false, "SessionSteps"],
+      ["memory", "model", true, "SessionMemory"],
+    ]);
+    const generated = read(MODELS_PATH);
+    expect(generated).toContain("final List<SessionSource> sources;");
+    expect(generated).toContain("steps: SessionSteps.fromJson(_map(json['steps']))");
+    expect(generated).toContain("memory: _modelOrNull(json['memory'], SessionMemory.fromJson)");
   });
 
   test("the source is the exported protocol type", () => {

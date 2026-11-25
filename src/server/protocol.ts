@@ -85,7 +85,7 @@ import {
 import { err, ok, parseDocument, readString, readStringArray, type Result } from "../domain/markdown";
 import type { ToolSpec } from "../llm/tools";
 import { MAX_IMAGES } from "../llm/chat";
-import { isInsideSources } from "../domain/source";
+import { isInsideSources, type Source } from "../domain/source";
 import { parseProgress } from "../domain/progress";
 import type {
   ReviewItemKind,
@@ -1747,7 +1747,7 @@ type ChatState = ReturnType<ChatController["state"]>;
 type ChatUsage = ReturnType<ChatController["usage"]>;
 
 /** The one source shape `session.open` and `source.list` both return. */
-function sourceRows(session: OpenResult["session"]): Record<string, unknown>[] {
+function sourceRows(session: OpenResult["session"]): Source[] {
   return session.sources.map((source) => ({
     name: source.name,
     originalPath: source.originalPath,
@@ -2154,6 +2154,18 @@ export type SessionMemoryView = {
   points: string[];
   folded: string[];
   updated: string;
+};
+
+/** The whole `session.open` detail the Flutter shell renders. */
+export type SessionDetailView = {
+  id: string;
+  name: string;
+  created: string;
+  archived: boolean;
+  prompt: string;
+  sources: Source[];
+  steps: SessionStepsView;
+  memory?: SessionMemoryView;
 };
 
 function memoryRow(memory: StoredMemory | null): SessionMemoryView | null {
@@ -3963,23 +3975,22 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     const memory = await readMemory(resolved.opened.folder, session.id);
     const memoryView = memoryRow(memory.ok ? memory.value : null);
 
-    return success(id, {
-      session: {
-        id: session.id,
-        name: session.name,
-        created: session.created,
-        archived: session.archived,
-        prompt,
-        sources: sourceRows(session),
-        steps: {
-          done: counts.ok ? counts.value.checked : 0,
-          total: counts.ok ? counts.value.total : 0,
-          exists: markdown.trim() !== "",
-          markdown,
-        } satisfies SessionStepsView,
-        ...(memoryView === null ? {} : { memory: memoryView }),
+    const detail: SessionDetailView = {
+      id: session.id,
+      name: session.name,
+      created: session.created,
+      archived: session.archived,
+      prompt,
+      sources: sourceRows(session),
+      steps: {
+        done: counts.ok ? counts.value.checked : 0,
+        total: counts.ok ? counts.value.total : 0,
+        exists: markdown.trim() !== "",
+        markdown,
       },
-    });
+      ...(memoryView === null ? {} : { memory: memoryView }),
+    };
+    return success(id, { session: detail });
   };
 
   /**
