@@ -123,16 +123,16 @@ Two generated files keep the Flutter bridge tied to the core:
   the TypeScript compiler API and emits a tolerant `fromJson`. It covers the
   Knowledge search/tree models, the whole Stats + learning-graph surface, the
   settings view, the session figure, the chat cluster including its snapshot,
-  the work agent profile and the session source (22 models): strings,
-  `int`/`double` (the `ints` list), booleans, string arrays, nested models and
-  arrays of them (nullable and recursive too),
+  the work agent profile, the session source and its steps/memory projections
+  (24 models): strings, `int`/`double` (the `ints` list), booleans, string
+  arrays, nested models and arrays of them (nullable and recursive too),
   `Record<string, string|number|model>` maps, optional/`| null` fields as
   nullable Dart fields, a union of object shapes flattened into one class (a
   field every member shares stays required; a member-only field becomes
   nullable), and an `omit` list for a wire field the Dart model does not carry
   (the chat stream's `seq`). `models.dart` exports the generated classes and
   keeps the presentation getters (`streaming`, `hasModel`, `tokens`, `isAgent`,
-  `node()`, `cropped`, `readOnly`), the `toSaveJson` payload and the
+  `node()`, `cropped`, `readOnly`, `isEmpty`), the `toSaveJson` payload and the
   `learningGraphEmpty` sentinel as hand-written glue. Adding a model means
   adding it to `MODEL_SPECS`; the generator refuses a shape it cannot map (a
   field whose type differs across union members is the one unsupported case).

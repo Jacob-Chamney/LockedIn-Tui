@@ -32,7 +32,9 @@ export 'core_models.g.dart'
         ChatFailure,
         ChatSnapshot,
         AgentProfileView,
-        SessionSource;
+        SessionSource,
+        SessionSteps,
+        SessionMemory;
 
 String _string(Object? value) => value is String ? value : '';
 int _int(Object? value) => value is num ? value.toInt() : 0;
@@ -193,34 +195,6 @@ class SourceAddResult {
 }
 
 /// The session's `assignment-steps.md` and the counts parsed from it.
-class SessionSteps {
-  const SessionSteps({
-    required this.done,
-    required this.total,
-    required this.exists,
-    required this.markdown,
-  });
-
-  final int done;
-  final int total;
-
-  /// False when the session has no steps file yet; [markdown] is then empty.
-  final bool exists;
-  final String markdown;
-
-  factory SessionSteps.fromJson(Object? value) {
-    final json = value is Map
-        ? Map<String, dynamic>.from(value)
-        : const <String, dynamic>{};
-    return SessionSteps(
-      done: _int(json['done']),
-      total: _int(json['total']),
-      exists: _bool(json['exists']),
-      markdown: _string(json['markdown']),
-    );
-  }
-}
-
 /// `session.toggleStep` — one assignment step toggled.
 ///
 /// The core rewrites exactly one bracket character and the progress line, then
@@ -306,35 +280,10 @@ class StepGenerateResult {
 /// absent key parses to a null [SessionDetail.memory] rather than an empty note.
 /// Parsing is tolerant: a missing or mistyped field becomes an empty value or an
 /// empty list, because one odd memory block must not blank the session.
-class SessionMemory {
-  const SessionMemory({
-    required this.points,
-    required this.folded,
-    required this.updated,
-  });
-
-  /// Kept key points, in the note's order.
-  final List<String> points;
-
-  /// Overflowing lines the note folded behind `earlier:`.
-  final List<String> folded;
-
-  /// ISO-8601 instant of the last written turn; empty when absent.
-  final String updated;
-
+/// View helpers for the generated [SessionMemory].
+extension SessionMemoryView on SessionMemory {
   /// True when the note carries nothing a card can render.
   bool get isEmpty => points.isEmpty && folded.isEmpty;
-
-  factory SessionMemory.fromJson(Object? value) {
-    final json = value is Map
-        ? Map<String, dynamic>.from(value)
-        : const <String, dynamic>{};
-    return SessionMemory(
-      points: _strings(json['points']),
-      folded: _strings(json['folded']),
-      updated: _string(json['updated']),
-    );
-  }
 }
 
 /// The school note a mistake was promoted into (`session.mistake.promote`).
@@ -570,9 +519,15 @@ class SessionDetail {
     archived: _bool(json['archived']),
     prompt: _string(json['prompt']),
     sources: _maps(json['sources']).map(SessionSource.fromJson).toList(),
-    steps: SessionSteps.fromJson(json['steps']),
+    steps: SessionSteps.fromJson(
+      json['steps'] is Map
+          ? Map<String, dynamic>.from(json['steps'] as Map)
+          : const <String, dynamic>{},
+    ),
     memory: json['memory'] is Map
-        ? SessionMemory.fromJson(json['memory'])
+        ? SessionMemory.fromJson(
+            Map<String, dynamic>.from(json['memory'] as Map),
+          )
         : null,
   );
 }

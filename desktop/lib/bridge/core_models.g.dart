@@ -774,3 +774,49 @@ class SessionSource {
     kind: _string(json['kind']),
   );
 }
+
+/// The steps half of a `session.open` projection.
+class SessionSteps {
+  const SessionSteps({
+    required this.done,
+    required this.total,
+    required this.exists,
+    required this.markdown,
+  });
+
+  final int done;
+
+  final int total;
+
+  final bool exists;
+
+  final String markdown;
+
+  factory SessionSteps.fromJson(Map<String, dynamic> json) => SessionSteps(
+    done: _int(json['done']),
+    total: _int(json['total']),
+    exists: _bool(json['exists']),
+    markdown: _string(json['markdown']),
+  );
+}
+
+/// The memory half of a `session.open` projection (history, never a source).
+class SessionMemory {
+  const SessionMemory({
+    required this.points,
+    required this.folded,
+    required this.updated,
+  });
+
+  final List<String> points;
+
+  final List<String> folded;
+
+  final String updated;
+
+  factory SessionMemory.fromJson(Map<String, dynamic> json) => SessionMemory(
+    points: _strings(json['points']),
+    folded: _strings(json['folded']),
+    updated: _string(json['updated']),
+  );
+}

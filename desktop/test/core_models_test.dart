@@ -281,4 +281,34 @@ void main() {
     expect(empty.name, '');
     expect(empty.hash, '');
   });
+
+  test('the session steps and memory decode their projections', () {
+    final steps = SessionSteps.fromJson({
+      'done': 1,
+      'total': 2,
+      'exists': true,
+      'markdown': '# Assignment steps',
+    });
+    expect(steps.done, 1);
+    expect(steps.total, 2);
+    expect(steps.exists, isTrue);
+    expect(steps.markdown, '# Assignment steps');
+
+    final emptySteps = SessionSteps.fromJson({});
+    expect(emptySteps.total, 0);
+    expect(emptySteps.exists, isFalse);
+
+    final memory = SessionMemory.fromJson({
+      'points': ['A point'],
+      'folded': ['an older line'],
+      'updated': '2026-11-01T15:00:00.000Z',
+    });
+    expect(memory.points, ['A point']);
+    expect(memory.folded, ['an older line']);
+    expect(memory.isEmpty, isFalse);
+
+    final emptyMemory = SessionMemory.fromJson({});
+    expect(emptyMemory.isEmpty, isTrue);
+    expect(emptyMemory.updated, '');
+  });
 }
