@@ -807,6 +807,19 @@ class _SwarmPageState extends State<SwarmPage> {
                           fontFamily: 'monospace',
                         ),
                       ),
+                      if (task.requires.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          'after ${task.requires.join(', ')}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: LockedInColors.secondary,
+                            fontSize: 10.5,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 4),
                       Text(
                         detail == null || detail.trim().isEmpty

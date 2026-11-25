@@ -7652,7 +7652,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
   const swarmId = (value: unknown): string | null =>
     typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 
-  /** The wire plan, or `null` when a task is not `{title, agentId?, assignment}`. */
+  /** The wire plan, or `null` when a task is not `{title, agentId?, assignment, requires?}`. */
   const parseSwarmPlan = (raw: unknown): SwarmPlanTask[] | null => {
     if (!Array.isArray(raw) || raw.length === 0) return null;
     const plan: SwarmPlanTask[] = [];
@@ -7664,10 +7664,21 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       if (agentId !== undefined && (typeof agentId !== "string" || agentId.trim() === "")) {
         return null;
       }
+      const requires = entry.requires;
+      if (
+        requires !== undefined &&
+        (!Array.isArray(requires) ||
+          requires.some(
+            (value) => typeof value !== "number" || !Number.isInteger(value) || value < 1,
+          ))
+      ) {
+        return null;
+      }
       plan.push({
         title: entry.title.trim(),
         assignment: entry.assignment,
         ...(typeof agentId === "string" ? { agentId: agentId.trim() } : {}),
+        ...(Array.isArray(requires) ? { requires: [...requires] } : {}),
       });
     }
     return plan;
@@ -7694,7 +7705,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     if (plan === null) {
       return invalid(
         id,
-        "work.swarm.run requires a non-empty plan of {title, agentId?, assignment} tasks",
+        "work.swarm.run requires a non-empty plan of {title, agentId?, assignment, requires?} tasks",
       );
     }
     const rawParallel = params.parallel;

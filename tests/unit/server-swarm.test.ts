@@ -352,6 +352,25 @@ describe("capabilities", () => {
 /* -------------------------------------------------------------------------- */
 
 describe("work.swarm.run", () => {
+  test("a plan's requires reach the board", async () => {
+    const server = coreWith(
+      fakeServices({
+        swarmRunner: async () => ({ status: "done" as const, summary: "read" }),
+      }),
+    );
+    const started = await runSwarm(server, {
+      projectId,
+      objective: "Dependent work",
+      plan: [
+        { title: "One", assignment: "read one" },
+        { title: "Two", assignment: "read two", requires: [1] },
+      ],
+      parallel: 2,
+    });
+    const board = await settledBoard(server, projectId, started.runId);
+    expect(board.tasks[1]?.requires).toEqual(["task-1"]);
+  });
+
   test("a two-task plan runs each worker read-only and writes one report", async () => {
     const { captured, createChat } = fakeChats([
       { kind: "done", text: "The modules are src/ and docs/.\nSecond line." },

@@ -147,6 +147,42 @@ describe("research", () => {
     expect((read.item as Record<string, unknown>).sources).toHaveLength(1);
   });
 
+  test("cancel discards a running brief and writes nothing", async () => {
+    const notifications: CoreNotification[] = [];
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const server = core(async () => {
+      await gate;
+      return "A register holds state [1].";
+    }, notifications);
+
+    const started = await resultOf(server, "research.start", {
+      goalId: GOAL_ID,
+      question: "why?",
+      urls: ["https://example.org/registers"],
+    });
+    const researchId = started.id as string;
+    const cancelled = await resultOf(server, "research.cancel", {
+      goalId: GOAL_ID,
+      id: researchId,
+    });
+    expect(cancelled.cancelled).toBe(true);
+
+    release();
+    const event = await settled(notifications);
+    expect(event.status).toBe("cancelled");
+    const listed = await resultOf(server, "research.list", { goalId: GOAL_ID });
+    expect(listed.items).toEqual([]);
+
+    const unknown = await resultOf(server, "research.cancel", {
+      goalId: GOAL_ID,
+      id: "not-running",
+    });
+    expect(unknown.cancelled).toBe(false);
+  });
+
   test("a brief with no citation fails and writes nothing", async () => {
     const notifications: CoreNotification[] = [];
     const server = core(async () => "Registers are fast.", notifications);
