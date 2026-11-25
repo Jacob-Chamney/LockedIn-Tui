@@ -120,17 +120,33 @@ class CoreClient implements CoreConnection {
     // while the core carried on and wrote the file, and the "retry" that
     // followed was a second paid run (or a duplicate goal). A crash still fails
     // the call: `_handleExit` completes every pending request with an error.
-    if (_longRunning.contains(method)) return completer.future;
+    //
+    // `session.create` is the exception: it is local file work with its own
+    // deadline and a per-attempt idempotency key, so a timed-out retry joins
+    // the first create instead of duplicating it (`docs/decisions/0019`).
+    final deadline = deadlineFor(method);
+    if (deadline == null) return completer.future;
     return completer.future.timeout(
-      const Duration(seconds: 30),
+      deadline,
       onTimeout: () {
         _pending.remove(id);
-        throw TimeoutException(
-          'core did not answer $method',
-          const Duration(seconds: 30),
-        );
+        throw TimeoutException('core did not answer $method', deadline);
       },
     );
+  }
+
+  /// A quick read gives up at 30 s; a create gets 60 s and then reports.
+  static const Duration quickCallDeadline = Duration(seconds: 30);
+  static const Duration createDeadline = Duration(seconds: 60);
+
+  /// The deadline for [method], or null when it may run indefinitely.
+  ///
+  /// `session.create` is deliberately **not** in `_longRunning`: its timeout is
+  /// what gives the wizard a way out, and its request id makes the retry safe.
+  static Duration? deadlineFor(String method) {
+    if (method == 'session.create') return createDeadline;
+    if (_longRunning.contains(method)) return null;
+    return quickCallDeadline;
   }
 
   /// Methods whose reply legitimately takes longer than a quick read.
@@ -142,7 +158,6 @@ class CoreClient implements CoreConnection {
     'session.generateSteps',
     'session.document',
     'session.output.build',
-    'session.create',
     'session.instructions.import',
     'session.instructions.reextract',
     'session.archive',
@@ -2976,9 +2991,11 @@ class CoreStore extends ChangeNotifier {
     List<String> files = const [],
     String? instructionsFile,
     bool steps = true,
+    String requestId = '',
   }) async {
     final json = await _connection.call('session.create', {
       'name': name,
+      if (requestId.trim().isNotEmpty) 'requestId': requestId.trim(),
       if (prompt.trim().isNotEmpty) 'prompt': prompt,
       if (files.isNotEmpty) 'files': files,
       if (instructionsFile != null && instructionsFile.trim().isNotEmpty)

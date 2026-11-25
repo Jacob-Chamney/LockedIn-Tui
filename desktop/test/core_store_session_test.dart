@@ -362,4 +362,21 @@ void main() {
     );
     expect(store.mistakes.single.note?.status, 'corrected');
   });
+
+  test('createSession forwards a request id, and omits an empty one', () async {
+    final core = FakeCore();
+    final store = CoreStore(connection: core);
+    addTearDown(store.dispose);
+    await store.start();
+
+    await store.createSession(
+      name: 'Physics',
+      prompt: 'Study.',
+      requestId: 'attempt-1',
+    );
+    expect(core.sessionCreateRequests.single['requestId'], 'attempt-1');
+
+    await store.createSession(name: 'Chemistry', prompt: 'Study.');
+    expect(core.sessionCreateRequests.last.containsKey('requestId'), isFalse);
+  });
 }

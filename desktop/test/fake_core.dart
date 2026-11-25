@@ -461,6 +461,13 @@ class FakeCore implements CoreConnection {
   final _created = <String, Map<String, dynamic>>{};
   var _createdCount = 0;
 
+  /// The params of every `session.create`, in call order.
+  final List<Map<String, dynamic>> sessionCreateRequests = [];
+
+  /// When true, the next `session.create` throws a timeout instead of
+  /// answering, then clears itself. Exercises the wizard's retry path.
+  bool sessionCreateTimeout = false;
+
   /// Registered Work projects (`work.list` rows) and their details
   /// (`work.open`). `work.create` appends to both, so a test sees exactly what
   /// the real core's registry would report after a registration.
@@ -4762,6 +4769,14 @@ class FakeCore implements CoreConnection {
       };
     }
     if (method == 'session.create') {
+      sessionCreateRequests.add(Map<String, dynamic>.from(params ?? const {}));
+      if (sessionCreateTimeout) {
+        sessionCreateTimeout = false;
+        throw TimeoutException(
+          'core did not answer session.create',
+          const Duration(seconds: 60),
+        );
+      }
       final rawName = params?['name'];
       final name = rawName is String ? rawName.trim() : '';
       if (name.isEmpty) {

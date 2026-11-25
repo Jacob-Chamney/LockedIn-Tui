@@ -66,7 +66,7 @@ Implemented today (`src/server/protocol.ts`, capability names in the handshake):
 | `session.list` | `{query?}` | `{sessions: SessionRow[]}` |
 | `session.open` | `{id}` | `{session: SessionDetail}` |
 | `session.coverage` | `{id}` | `{coverage: CoverageReport}` |
-| `session.create` | `{name, prompt?, files?, instructionsFile?, steps?}` | `{id, name}` |
+| `session.create` | `{name, prompt?, files?, instructionsFile?, steps?, requestId?}` | `{id, name}` |
 | `session.toggleStep` | `{id, index}` | `{index, checked, done, total, markdown, hash}` |
 | `session.generateSteps` | `{id}` | `{markdown, kept, lost}` |
 | `session.document` | `{id, kind, attempt?}` | `{text, name}` |
@@ -260,6 +260,23 @@ Implemented today (`src/server/protocol.ts`, capability names in the handshake):
   `-32602` naming the field; a refusal is `-32000`, `retryable: false`, with
   `data: {kind: "session-create", message, field?}`, where `field` appears for
   an invalid-session/field error and is absent for a blocked or storage failure.
+
+  `requestId` is an optional idempotency key for **one** wizard attempt: a
+  non-empty string of at most 128 characters. The core keeps the result by key,
+  so a repeat of a successful key returns the same `{id, name}` and writes
+  nothing, and a repeat while the first create is still running is `-32000`,
+  `retryable: false`, with
+  `data: {kind: "session-create", requestId, status: "creating", message}` and
+  the message `still creating — check Sessions`. A **failed** create is not
+  cached: a corrected retry with the same key runs. The map is process state,
+  holds the last 32 successes, and is empty after a restart.
+
+  The shell gives this one method a **60 s deadline** instead of the
+  no-deadline rule for model runs (`desktop/lib/bridge/core_client.dart`), which
+  is what gives the wizard a way out; a create that finishes after the deadline
+  appears in `session.list` on the next read. The wizard generates one key per
+  attempt, keeps it across a Retry, and drops it when the user goes back to edit
+  the input.
 - `session.toggleStep`: the steps reader's only write. `id` is a session folder
   name (never a path) and `index` is the 0-based ordinal of a task-list item in
   `assignment-steps.md`. The core rewrites **exactly two things** — that item's

@@ -1767,6 +1767,7 @@ class _ShellState extends State<Shell> {
             files: input.files,
             instructionsFile: input.instructionsFile,
             steps: input.steps,
+            requestId: input.requestId,
           );
         },
         onCancel: () => setState(() => _wizardOpen = false),

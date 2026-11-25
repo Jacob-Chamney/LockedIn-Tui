@@ -21,6 +21,10 @@ requests merge.
 
 ## Unreleased
 
+- A hung `session.create` now has a way out: the wizard gives the call a 60 s
+  deadline and a per-attempt idempotency key, so a Retry joins the first create
+  (never a second session) and a late session appears in Sessions.
+
 - Numeric columns (the status bar's tokens/cost, Stats' KPI figures and model
   rows, a session row's date and counts) use tabular figures, so they line up
   while they change. The chat status bar no longer repeats the composer's

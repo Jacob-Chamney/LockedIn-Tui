@@ -6,7 +6,7 @@
  * `tests/integration/server-data.test.ts`.
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -223,5 +223,86 @@ describe("session.create success shape", () => {
     const folder = join(services.workspace.paths.schoolSessions, result.id);
     expect(existsSync(join(folder, SESSION_FILES.meta))).toBe(true);
     expect(existsSync(join(folder, SESSION_FILES.prompt))).toBe(true);
+  });
+});
+
+describe("session.create idempotency", () => {
+  function folders(services: CoreServices): string[] {
+    try {
+      return readdirSync(services.workspace.paths.schoolSessions).filter(
+        (name) => !name.startsWith("."),
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  test("a repeated requestId creates one session and returns the same id", async () => {
+    const { server, services } = fakeCore();
+    const params = { name: "Physics", prompt: "Study.", requestId: "attempt-1" };
+
+    const first = await ask(server, "session.create", params);
+    const second = await ask(server, "session.create", params);
+    if ("error" in first || "error" in second) throw new Error("create failed");
+
+    expect(second.result).toEqual(first.result);
+    expect(folders(services)).toHaveLength(1);
+  });
+
+  test("a different requestId creates a second session", async () => {
+    const { server, services } = fakeCore();
+    await ask(server, "session.create", {
+      name: "Physics",
+      prompt: "Study.",
+      requestId: "attempt-1",
+    });
+    await ask(server, "session.create", {
+      name: "Chemistry",
+      prompt: "Study.",
+      requestId: "attempt-2",
+    });
+    expect(folders(services)).toHaveLength(2);
+  });
+
+  test("a failed create is not cached: a corrected retry with the same id runs", async () => {
+    const { server, services } = fakeCore();
+    const missing = join(base, "missing-lecture.md");
+    const failed = await errorOf(server, "session.create", {
+      name: "Physics",
+      files: [missing],
+      requestId: "attempt-3",
+    });
+    expect(failed.code).toBe(BOOT_FAILED);
+    expect(folders(services)).toHaveLength(0);
+
+    const retry = await ask(server, "session.create", {
+      name: "Physics",
+      prompt: "Study.",
+      requestId: "attempt-3",
+    });
+    if ("error" in retry) throw new Error(`retry failed: ${retry.error.message}`);
+    expect(folders(services)).toHaveLength(1);
+  });
+
+  test("a bad requestId is invalid params", async () => {
+    for (const requestId of ["", "   ", 7, "x".repeat(129)]) {
+      const error = await errorOf(fakeCore().server, "session.create", {
+        name: "Physics",
+        prompt: "Study.",
+        requestId,
+      });
+      expect(error.code).toBe(-32602);
+      expect(error.message).toContain("requestId");
+    }
+  });
+
+  test("a call without a requestId still creates", async () => {
+    const { server, services } = fakeCore();
+    const response = await ask(server, "session.create", {
+      name: "Physics",
+      prompt: "Study.",
+    });
+    if ("error" in response) throw new Error(response.error.message);
+    expect(folders(services)).toHaveLength(1);
   });
 });
