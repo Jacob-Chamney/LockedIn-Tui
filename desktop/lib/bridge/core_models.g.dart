@@ -1,7 +1,7 @@
 // GENERATED FILE — do not edit by hand.
 // dart format off
 //
-// Generated from the exported types in: src/server/protocol.ts, src/stats/types.ts, src/services/knowledge/learning-graph.ts, src/types/settings.ts, src/services/lockin/figures.ts.
+// Generated from the exported types in: src/server/protocol.ts, src/stats/types.ts, src/services/knowledge/learning-graph.ts, src/types/settings.ts, src/services/lockin/figures.ts, src/services/work/agents.ts.
 // Regenerate: `bun run scripts/generate-dart-models.ts`.
 //
 // The shell reads these models from the wire; every field is tolerant of a
@@ -688,5 +688,58 @@ class ChatSnapshot {
     blocked: _modelOrNull(json['blocked'], ChatBlocked.fromJson),
     error: _modelOrNull(json['error'], ChatFailure.fromJson),
     usage: ChatUsageView.fromJson(_map(json['usage'])),
+  );
+}
+
+class AgentProfileView {
+  const AgentProfileView({
+    required this.id,
+    required this.name,
+    required this.role,
+    required this.instructions,
+    required this.model,
+    required this.maxToolCalls,
+    required this.allowedTools,
+    required this.allowWrite,
+    required this.allowCommand,
+    required this.template,
+  });
+
+  /// Stable for the life of the agent; renaming never changes it.
+  final String id;
+
+  final String name;
+
+  final String role;
+
+  final String instructions;
+
+  /// `""` means the project/chat default model.
+  final String model;
+
+  final int maxToolCalls;
+
+  /// The tools this profile may call. An empty list means "every tool the
+  /// profile's capabilities permit" (the same rule WP-502 applies at chat time).
+  final List<String> allowedTools;
+
+  final bool allowWrite;
+
+  final bool allowCommand;
+
+  /// The template id this profile was seeded from, or `""`.
+  final String template;
+
+  factory AgentProfileView.fromJson(Map<String, dynamic> json) => AgentProfileView(
+    id: _string(json['id']),
+    name: _string(json['name']),
+    role: _string(json['role']),
+    instructions: _string(json['instructions']),
+    model: _string(json['model']),
+    maxToolCalls: _int(json['maxToolCalls']),
+    allowedTools: _strings(json['allowedTools']),
+    allowWrite: _bool(json['allowWrite']),
+    allowCommand: _bool(json['allowCommand']),
+    template: _string(json['template']),
   );
 }

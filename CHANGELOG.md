@@ -23,8 +23,9 @@ requests merge.
 
 - Dart model decoders are generated from the core's TypeScript wire types: the
   Knowledge search/tree models, the full Stats + learning-graph surface, the
-  settings view, the session figure and the whole chat cluster including
-  `ChatSnapshot` (20 models), with nested models, model arrays, `Record` maps
+  settings view, the session figure, the whole chat cluster including
+  `ChatSnapshot` and the work agent profile (21 models), with nested models,
+  model arrays, `Record` maps
   (of scalars and of models), optional/`null` fields, nullable and recursive
   nested models, flattened object unions and an omit list for the stream
   counter, with the same tolerant parsing as before. Adding a model is a

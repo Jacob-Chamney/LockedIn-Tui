@@ -233,4 +233,35 @@ void main() {
       expect(empty.usage.tokens, 0);
     },
   );
+
+  test(
+    'the agent profile decodes, reports read-only and builds its save payload',
+    () {
+      final agent = AgentProfileView.fromJson({
+        'id': 'reviewer-9ab12c',
+        'name': 'Reviewer',
+        'role': 'reviewer',
+        'instructions': 'Review only.',
+        'model': '',
+        'maxToolCalls': 8,
+        'allowedTools': ['read_file'],
+        'allowWrite': false,
+        'allowCommand': false,
+        'template': 'reviewer',
+      });
+      expect(agent.maxToolCalls, 8);
+      expect(agent.allowedTools, ['read_file']);
+      expect(agent.readOnly, isTrue);
+
+      final save = agent.toSaveJson();
+      expect(save['id'], 'reviewer-9ab12c');
+      expect(save['maxToolCalls'], 8);
+      expect(save['allowedTools'], ['read_file']);
+
+      final fresh = AgentProfileView.fromJson({'name': '  New agent  '});
+      expect(fresh.id, '');
+      expect(fresh.readOnly, isTrue);
+      expect(fresh.toSaveJson().containsKey('id'), isFalse);
+    },
+  );
 }

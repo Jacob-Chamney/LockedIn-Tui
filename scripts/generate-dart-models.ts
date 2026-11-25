@@ -26,6 +26,7 @@ export const MODEL_SOURCES = [
   "src/services/knowledge/learning-graph.ts",
   "src/types/settings.ts",
   "src/services/lockin/figures.ts",
+  "src/services/work/agents.ts",
 ];
 export const MODELS_PATH = "desktop/lib/bridge/core_models.g.dart";
 
@@ -80,6 +81,11 @@ export const MODEL_SPECS: readonly ModelSpec[] = [
   { name: "ChatBlockedWire", dart: "ChatBlocked" },
   { name: "ChatErrorWire", dart: "ChatFailure" },
   { name: "ChatSnapshotView", dart: "ChatSnapshot", omit: ["seq"] },
+  {
+    name: "AgentProfile",
+    dart: "AgentProfileView",
+    ints: ["maxToolCalls"],
+  },
 ];
 
 export type DartFieldType =
