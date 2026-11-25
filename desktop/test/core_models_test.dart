@@ -198,4 +198,39 @@ void main() {
     expect(failure.kept, 'nothing was sent');
     expect(failure.next, 'fix the key');
   });
+
+  test(
+    'the chat snapshot composes its views and ignores the stream counter',
+    () {
+      final snapshot = ChatSnapshot.fromJson({
+        'seq': 9,
+        'status': 'idle',
+        'model': 'openai/gpt-4.1-mini',
+        'streamed': '',
+        'messages': [
+          {'id': 'm1', 'role': 'assistant', 'text': 'hi', 'outcome': 'done'},
+        ],
+        'blocked': null,
+        'error': {
+          'failed': 'provider refused',
+          'kept': 'nothing',
+          'next': 'fix the key',
+        },
+        'usage': {'tokens': 12, 'costMicroUsd': 1000, 'durationMs': 250},
+      });
+      expect(snapshot.status, 'idle');
+      expect(snapshot.streaming, isFalse);
+      expect(snapshot.hasModel, isTrue);
+      expect(snapshot.messages.single.text, 'hi');
+      expect(snapshot.error?.failed, 'provider refused');
+      expect(snapshot.usage.tokens, 12);
+
+      final empty = ChatSnapshot.fromJson({});
+      expect(empty.model, isNull);
+      expect(empty.blocked, isNull);
+      expect(empty.error, isNull);
+      expect(empty.messages, isEmpty);
+      expect(empty.usage.tokens, 0);
+    },
+  );
 }
