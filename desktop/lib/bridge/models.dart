@@ -38,7 +38,8 @@ export 'core_models.g.dart'
         SessionDetail,
         WorkProjectDetail,
         ProjectAgent,
-        ProjectRow;
+        ProjectRow,
+        AgentTemplateRow;
 
 String _string(Object? value) => value is String ? value : '';
 int _int(Object? value) => value is num ? value.toInt() : 0;
@@ -892,49 +893,11 @@ extension AgentProfileViewActions on AgentProfileView {
 /// saved through `work.agent.save`. Nothing applies a template implicitly, and
 /// the row carries no `allowWrite`/`allowCommand`, so a pick can never grant a
 /// capability the user did not turn on.
-class AgentTemplateRow {
-  const AgentTemplateRow({
-    required this.id,
-    required this.name,
-    required this.role,
-    required this.summary,
-    required this.source,
-    required this.instructions,
-    required this.maxToolCalls,
-    required this.allowedTools,
-  });
-
-  /// The template id recorded in the profile's free-string `template` field.
-  final String id;
-  final String name;
-  final String role;
-
-  /// The instructions collapsed to one line, for the picker row.
-  final String summary;
-
-  /// `built-in` for the three shipped profiles, `project` for a project file.
-  final String source;
-
-  /// The instructions a pick copies into the editor, verbatim.
-  final String instructions;
-  final int maxToolCalls;
-  final List<String> allowedTools;
-
+/// View helpers for the generated template picker row.
+extension AgentTemplateRowView on AgentTemplateRow {
   /// True when this row is one of the shipped profiles. The word is shown beside
   /// the name, so the distinction never relies on colour alone.
   bool get builtin => source == 'built-in';
-
-  factory AgentTemplateRow.fromJson(Map<String, dynamic> json) =>
-      AgentTemplateRow(
-        id: _string(json['id']),
-        name: _string(json['name']),
-        role: _string(json['role']),
-        summary: _string(json['summary']),
-        source: _string(json['source']),
-        instructions: _string(json['instructions']),
-        maxToolCalls: _int(json['maxToolCalls']),
-        allowedTools: _strings(json['allowedTools']),
-      );
 }
 
 /// `work.permissions.get` / `work.permissions.set` — the global Work opt-in.

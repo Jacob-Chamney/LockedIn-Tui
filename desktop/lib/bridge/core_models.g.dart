@@ -988,3 +988,44 @@ class ProjectRow {
     agents: _models(json['agents'], ProjectAgent.fromJson),
   );
 }
+
+/// One row of the `work.templates.list` template picker.
+class AgentTemplateRow {
+  const AgentTemplateRow({
+    required this.id,
+    required this.name,
+    required this.role,
+    required this.summary,
+    required this.source,
+    required this.instructions,
+    required this.maxToolCalls,
+    required this.allowedTools,
+  });
+
+  final String id;
+
+  final String name;
+
+  final String role;
+
+  final String summary;
+
+  final String source;
+
+  final String instructions;
+
+  final int maxToolCalls;
+
+  final List<String> allowedTools;
+
+  factory AgentTemplateRow.fromJson(Map<String, dynamic> json) => AgentTemplateRow(
+    id: _string(json['id']),
+    name: _string(json['name']),
+    role: _string(json['role']),
+    summary: _string(json['summary']),
+    source: _string(json['source']),
+    instructions: _string(json['instructions']),
+    maxToolCalls: _int(json['maxToolCalls']),
+    allowedTools: _strings(json['allowedTools']),
+  );
+}
