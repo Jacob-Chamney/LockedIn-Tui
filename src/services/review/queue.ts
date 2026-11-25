@@ -24,6 +24,8 @@ import { readSteps } from "../lockin/steps";
 import { openSession } from "../lockin/manager";
 import { readMeta } from "../skills/progress";
 import { parseDeck } from "../skills/outputs";
+import { readSchedule } from "../skills/schedule";
+import { isDue, mergeSchedules } from "../../domain/scheduler";
 export type ReviewDiagnostic = {
   kind: "review"
   path: string
@@ -175,15 +177,37 @@ export async function reviewQueue(
       deckText = ""
     }
     if (deckText !== "") {
-      const cards: CardEntry[] = parseDeck(deckText)
-        .map((card, index) => ({ card, index }))
-        .filter(({ card }) => card.missed && !card.known)
-        .map(({ card, index }) => ({
+      const parsed = parseDeck(deckText)
+      const schedule = await readSchedule(
+        join(workspace.paths.root, "school", "outputs", session.id),
+      )
+      const now = new Date()
+      const merged = schedule.ok
+        ? mergeSchedules(
+            parsed.map((card) => card.question),
+            schedule.value,
+            now,
+          )
+        : []
+      const cards: CardEntry[] = parsed
+        .map((card, index) => {
+          const entry = merged[index]
+          // A brand-new card is not a review item: it has never been asked, so
+          // it belongs in the deck's own study flow. Once it has a repetition,
+          // the schedule can put it in the queue.
+          const due =
+            entry !== undefined && entry.reps > 0 && isDue(entry, now)
+          return { card, index, due, dueAt: entry?.due }
+        })
+        .filter(({ card, due }) => !card.known && (card.missed || due))
+        .map(({ card, index, due, dueAt }) => ({
           id: `card-${index + 1}`,
           question: card.question,
           missed: card.missed,
           known: card.known,
           misses: 0,
+          due,
+          ...(dueAt === undefined ? {} : { dueAt }),
         }))
       if (cards.length > 0) {
         deckStates.push({ deckId: session.id, deckName: session.name, cards })

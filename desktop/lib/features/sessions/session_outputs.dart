@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../bridge/errors.dart';
+import '../../bridge/models.dart';
 
 import '../keys.dart';
 import '../../effects/effect.dart';
@@ -43,6 +44,10 @@ class SessionOutputView extends StatefulWidget {
     this.onReadAnswers,
     this.onMarkSection,
     this.onMarkCard,
+    this.deckSchedule,
+    this.deckScheduleLoading = false,
+    this.deckScheduleError,
+    this.onGradeCard,
     this.onRetry,
     this.onBack,
   });
@@ -95,6 +100,18 @@ class SessionOutputView extends StatefulWidget {
   /// Null keeps the deck read-only. The shell writes the deck and re-reads it,
   /// so the view never rewrites `M:`/`K:` itself.
   final Future<void> Function(String cardId, String result)? onMarkCard;
+
+  /// The deck's spaced-repetition schedule (`session.deck.state`).
+  final DeckSchedule? deckSchedule;
+
+  /// True while the schedule is being read or a grade is being written.
+  final bool deckScheduleLoading;
+
+  /// The last schedule failure, shown inside the deck.
+  final String? deckScheduleError;
+
+  /// Grade one card (`session.deck.grade`), by its 0-based deck index.
+  final Future<void> Function(int index, String grade)? onGradeCard;
 
   /// Ask again for the request that failed.
   final Future<void> Function()? onRetry;
@@ -368,6 +385,41 @@ class _SessionOutputViewState extends State<SessionOutputView> {
     }
   }
 
+  /// The schedule row for the current card, if the core has one.
+  DeckCardSchedule? _scheduled(Flashcard card) {
+    final schedule = widget.deckSchedule;
+    if (schedule == null) return null;
+    final ordinal = int.tryParse(card.id.split('-').last);
+    if (ordinal == null) return null;
+    for (final entry in schedule.cards) {
+      if (entry.index == ordinal - 1) return entry;
+    }
+    return null;
+  }
+
+  /// One line that says when the card comes back, in plain words.
+  String _nextReviewLine(DeckCardSchedule entry) {
+    if (entry.reps == 0) return 'not reviewed yet · due now';
+    final when = entry.due
+        ? 'due now'
+        : entry.intervalDays < 1
+        ? 'in ${(entry.intervalDays * 24 * 60).round()} min'
+        : 'in ${entry.intervalDays.toStringAsFixed(entry.intervalDays < 10 ? 1 : 0)} days';
+    return '${entry.reps} review${entry.reps == 1 ? '' : 's'} · $when'
+        '${entry.lapses > 0 ? ' · ${entry.lapses} lapse${entry.lapses == 1 ? '' : 's'}' : ''}';
+  }
+
+  /// Grade the current card, then move on.
+  Future<void> _grade(String grade) async {
+    final gradeCard = widget.onGradeCard;
+    final card = _deck?.current;
+    if (gradeCard == null || card == null) return;
+    final ordinal = int.tryParse(card.id.split('-').last);
+    if (ordinal == null || ordinal < 1) return;
+    await gradeCard(ordinal - 1, grade);
+    if (mounted) setState(() => _deck?.next());
+  }
+
   /// Record one card verdict. The shell writes the deck and re-reads it, so this
   /// only reports the failure; a successful answer arrives as a new
   /// [SessionOutputView.cardsMarkdown] and is parsed by [_syncDeck].
@@ -472,6 +524,19 @@ class _SessionOutputViewState extends State<SessionOutputView> {
         key == LogicalKeyboardKey.arrowRight) {
       if (deck != null) setState(deck.next);
       return KeyEventResult.handled;
+    }
+    if (widget.onGradeCard != null) {
+      final grade = switch (key) {
+        LogicalKeyboardKey.keyA => 'again',
+        LogicalKeyboardKey.keyF => 'hard',
+        LogicalKeyboardKey.keyG => 'good',
+        LogicalKeyboardKey.keyE => 'easy',
+        _ => null,
+      };
+      if (grade != null) {
+        if (event is KeyDownEvent) _grade(grade);
+        return KeyEventResult.handled;
+      }
     }
     if (key == LogicalKeyboardKey.keyM) {
       if (HardwareKeyboard.instance.isShiftPressed) {
@@ -822,6 +887,15 @@ class _SessionOutputViewState extends State<SessionOutputView> {
               _deckChip('missed only', LockedInColors.secondary),
               const SizedBox(width: 6),
             ],
+            if (widget.deckSchedule != null) ...[
+              _deckChip(
+                'due ${widget.deckSchedule!.due}/${widget.deckSchedule!.total}',
+                widget.deckSchedule!.due > 0
+                    ? LockedInColors.warning
+                    : LockedInColors.success,
+              ),
+              const SizedBox(width: 6),
+            ],
             if (card.missed && !card.known) ...[
               _deckChip('missed', LockedInColors.warning),
               const SizedBox(width: 6),
@@ -911,6 +985,42 @@ class _SessionOutputViewState extends State<SessionOutputView> {
             ],
           ),
         ),
+        if (widget.onGradeCard != null && _scheduled(card) != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            _nextReviewLine(_scheduled(card)!),
+            key: const ValueKey('deck-next-review'),
+            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final (grade, label) in const [
+                ('again', 'a again'),
+                ('hard', 'f hard'),
+                ('good', 'g good'),
+                ('easy', 'e easy'),
+              ])
+                OutlinedButton(
+                  key: ValueKey('deck-grade-$grade'),
+                  onPressed: widget.deckScheduleLoading
+                      ? null
+                      : () => unawaited(_grade(grade)),
+                  child: Text(label),
+                ),
+            ],
+          ),
+        ],
+        if (widget.deckScheduleError != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            widget.deckScheduleError!,
+            key: const ValueKey('deck-schedule-error'),
+            style: TextStyle(color: LockedInColors.error, fontSize: 11),
+          ),
+        ],
         const SizedBox(height: 16),
         Wrap(
           spacing: 8,

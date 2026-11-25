@@ -42,6 +42,8 @@ const server = createCoreServer({
      * editor would not persist.
      */
     let storedThemeTokens: ThemeTokens = visibleTokens(booted.config.ui.custom_theme);
+    /** Notes from `[prompts]`; an empty string is a cleared note. */
+    const storedPrompts: Record<string, string> = { ...booted.config.prompts };
     return {
       ok: true as const,
       value: {
@@ -51,6 +53,26 @@ const server = createCoreServer({
         linkProvider: booted.linkProvider,
         modelsForProvider: booted.modelsForProvider,
         linkedProviders: booted.linkedProviders,
+        promptNote: (id) => (storedPrompts[id] ?? "").trim(),
+        savePrompt: async (id, note) => {
+          const written = await patchConfig(booted.workspace.paths, {
+            prompts: { [id]: note },
+          } as never);
+          if (!written.ok) {
+            return { ok: false as const, error: { message: written.error.message } };
+          }
+          if (note.trim() === "") delete storedPrompts[id];
+          else storedPrompts[id] = note.trim();
+          await booted.updateConfig(written.value.config);
+          return { ok: true as const, value: undefined };
+        },
+        updateCheck: async () => {
+          const [{ checkForUpdate }, { APP_VERSION }] = await Promise.all([
+            import("../services/update"),
+            import("../version"),
+          ]);
+          return checkForUpdate({ current: APP_VERSION });
+        },
         // Persist first, then apply to the live service, then report the view.
         // The protocol never sees TOML and never invents a settings shape.
         saveConfig: async (patch: Record<string, unknown>) => {

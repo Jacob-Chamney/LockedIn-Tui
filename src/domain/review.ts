@@ -20,7 +20,7 @@ import { coverageGaps, type CoverageReport, type SourceCoverage } from "./covera
 export type ReviewItemKind = "step" | "card" | "stage" | "memory"
 
 /** Why the item is in the queue, in the words of `docs/product.md` §6.1. */
-export type ReviewReason = "unchecked" | "missed" | "unfinished" | "memory"
+export type ReviewReason = "unchecked" | "missed" | "due" | "unfinished" | "memory"
 
 /** Where the item came from; `session-memory` is never a source. */
 export type ReviewOrigin = "steps" | "flashcards" | "curriculum" | "session-memory"
@@ -62,6 +62,10 @@ export type CardEntry = {
   missed: boolean
   known: boolean
   misses?: number
+  /** True when the spaced-repetition schedule says the card is due. */
+  due?: boolean
+  /** The instant it became due, when scheduled. */
+  dueAt?: string
 }
 
 export type FlashcardState = {
@@ -207,15 +211,17 @@ export function buildReviewQueue(input: ReviewInput): ReviewQueue {
 
   for (const deck of input.decks ?? []) {
     for (const card of deck.cards) {
-      // Known cards leave the queue; a card that was never marked is not review.
-      if (card.known || !card.missed) continue
+      // Known cards leave the queue. A card enters when it was missed **or**
+      // when the schedule says it is due; a card that is neither is not review.
+      if (card.known) continue;
+      if (!card.missed && !card.due) continue
       collected.push({
         id: `card:${deck.deckId}:${card.id}`,
         kind: "card",
         label: clampLabel(card.question),
         context: deck.deckName,
         contextId: deck.deckId,
-        reason: "missed",
+        reason: card.missed ? "missed" : "due",
         priority: KIND_PRIORITY.card,
         count: missesOf(card),
         origin: "flashcards",

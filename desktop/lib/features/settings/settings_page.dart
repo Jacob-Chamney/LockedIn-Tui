@@ -51,6 +51,14 @@ class SettingsPage extends StatelessWidget {
     this.onSetKeybind,
     this.customThemeTokens,
     this.onSetCustomTheme,
+    this.appVersion,
+    this.update,
+    this.updateChecking = false,
+    this.updateError,
+    this.onCheckUpdate,
+    this.prompts = const <PromptNoteView>[],
+    this.promptsError,
+    this.onSetPrompt,
   });
 
   final SettingsView? settings;
@@ -143,6 +151,28 @@ class SettingsPage extends StatelessWidget {
   /// [CoreScope] store and, with neither available, keeps the editor read-only.
   final Future<ThemeTokens> Function(Map<String, String> tokens)?
   onSetCustomTheme;
+
+  /// The running build's version (`update.info`), or null before it is read.
+  final String? appVersion;
+
+  /// The last explicit update check, or null before one ran.
+  final UpdateView? update;
+
+  /// True while a check is in flight.
+  final bool updateChecking;
+
+  /// The last update failure, shown under the row.
+  final String? updateError;
+
+  /// Run one check (`update.check`).
+  final VoidCallback? onCheckUpdate;
+
+  /// The prompt catalogue with its notes (`prompts.list`).
+  final List<PromptNoteView> prompts;
+  final String? promptsError;
+
+  /// Set or clear one note (`prompts.set`). Null keeps the group read-only.
+  final Future<void> Function(String id, String text)? onSetPrompt;
 
   bool get _canConnect => onLinkProvider != null && onSaveSettings != null;
 
@@ -262,6 +292,14 @@ class SettingsPage extends StatelessWidget {
       onSetKeybind: onSetKeybind,
       customThemeTokens: customThemeTokens ?? store?.customThemeTokens,
       onSetCustomTheme: onSetCustomTheme ?? store?.setCustomTheme,
+      appVersion: appVersion,
+      update: update,
+      updateChecking: updateChecking,
+      updateError: updateError,
+      onCheckUpdate: onCheckUpdate,
+      prompts: prompts,
+      promptsError: promptsError,
+      onSetPrompt: onSetPrompt,
     );
   }
 }
@@ -293,6 +331,14 @@ class _SettingsBody extends StatefulWidget {
     this.onSetKeybind,
     this.customThemeTokens,
     this.onSetCustomTheme,
+    this.appVersion,
+    this.update,
+    this.updateChecking = false,
+    this.updateError,
+    this.onCheckUpdate,
+    this.prompts = const <PromptNoteView>[],
+    this.promptsError,
+    this.onSetPrompt,
   });
 
   final SettingsView settings;
@@ -337,6 +383,26 @@ class _SettingsBody extends StatefulWidget {
   /// Replace the custom palette. Null keeps `edit custom palette` read-only.
   final Future<ThemeTokens> Function(Map<String, String> tokens)?
   onSetCustomTheme;
+
+  /// The running build's version (`update.info`), or null before it is read.
+  final String? appVersion;
+
+  /// The last explicit update check, or null before one ran.
+  final UpdateView? update;
+
+  /// True while a check is in flight.
+  final bool updateChecking;
+
+  /// The last update failure, shown under the row.
+  final String? updateError;
+
+  /// Run one check (`update.check`).
+  final VoidCallback? onCheckUpdate;
+
+  /// The prompt catalogue with its notes (`prompts.list`).
+  final List<PromptNoteView> prompts;
+  final String? promptsError;
+  final Future<void> Function(String id, String text)? onSetPrompt;
 
   @override
   State<_SettingsBody> createState() => _SettingsBodyState();
@@ -385,6 +451,11 @@ class _SettingsBodyState extends State<_SettingsBody> {
       decision: widget.decision,
       workPermissions: widget.workPermissions,
       keymap: widget.keymap,
+      appVersion: widget.appVersion,
+      update: widget.update,
+      updateChecking: widget.updateChecking,
+      updateError: widget.updateError,
+      prompts: widget.prompts,
     );
     _rows = [for (final group in _groups) ...group.rows];
     _rowKeys = [for (var i = 0; i < _rows.length; i++) GlobalKey()];
@@ -403,11 +474,17 @@ class _SettingsBodyState extends State<_SettingsBody> {
       widget.workPermissions,
     );
     final keymapChanged = !identical(oldWidget.keymap, widget.keymap);
+    final updateChanged =
+        !identical(oldWidget.update, widget.update) ||
+        oldWidget.updateChecking != widget.updateChecking ||
+        oldWidget.updateError != widget.updateError ||
+        oldWidget.appVersion != widget.appVersion;
     if (!settingsChanged &&
         !mcpChanged &&
         !keymapChanged &&
         !decisionChanged &&
-        !workChanged) {
+        !workChanged &&
+        !updateChanged) {
       return;
     }
     // A row can appear or disappear (a server, or a whole group). Keep the
@@ -478,6 +555,31 @@ class _SettingsBodyState extends State<_SettingsBody> {
       return KeyEventResult.handled;
     }
     final row = _rows.isEmpty ? null : _rows[_selected];
+    // The updates row checks on Enter and copies the release link on `c`.
+    if (row?.id == 'updates') {
+      if (key == LogicalKeyboardKey.enter ||
+          key == LogicalKeyboardKey.numpadEnter ||
+          key == LogicalKeyboardKey.space) {
+        widget.onCheckUpdate?.call();
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.keyC) {
+        final url = widget.update?.url;
+        if (url == null || url.isEmpty) {
+          setState(() {
+            _noticeId = 'updates';
+            _notice = 'no release link until a newer build is found';
+          });
+          return KeyEventResult.handled;
+        }
+        unawaited(Clipboard.setData(ClipboardData(text: url)));
+        setState(() {
+          _noticeId = 'updates';
+          _notice = 'release link copied';
+        });
+        return KeyEventResult.handled;
+      }
+    }
     // The theme row is the one row with two extra local actions: `c` picks the
     // custom palette and applies it at once, `e` opens the twelve-token editor.
     // `Enter` still cycles the four built-ins, so the existing flow is intact.
@@ -488,6 +590,14 @@ class _SettingsBodyState extends State<_SettingsBody> {
       }
       if (key == LogicalKeyboardKey.keyE) {
         unawaited(_openCustomPalette());
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.keyX) {
+        unawaited(_exportThemeJson());
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.keyI) {
+        unawaited(_importThemeJson());
         return KeyEventResult.handled;
       }
     }
@@ -553,6 +663,11 @@ class _SettingsBodyState extends State<_SettingsBody> {
       final write = widget.onSetWorkPermissions;
       if (write == null) return KeyEventResult.ignored;
       unawaited(_toggleWork(row!, work, write));
+      return KeyEventResult.handled;
+    }
+    if (row?.promptId != null &&
+        (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.space)) {
+      _activate();
       return KeyEventResult.handled;
     }
     final editable = widget.onSaveSettings != null && row?.edit != null;
@@ -732,6 +847,10 @@ class _SettingsBodyState extends State<_SettingsBody> {
   void _activate() {
     if (_rows.isEmpty || _savingId != null) return;
     final row = _rows[_selected];
+    if (row.promptId != null) {
+      unawaited(_editPrompt(row));
+      return;
+    }
     // The theme row opens a picker: the built-ins are a visible choice, not a
     // value that changes each time Enter is pressed.
     if (row.id == 'theme' && widget.onSaveSettings != null) {
@@ -787,6 +906,56 @@ class _SettingsBodyState extends State<_SettingsBody> {
     }
   }
 
+  /// Edit one prompt note, then write it through the core.
+  ///
+  /// The dialog is the same for every generator: a note is guidance, not a new
+  /// shape, so there is no raw prompt to edit.
+  Future<void> _editPrompt(_SettingRow row) async {
+    final write = widget.onSetPrompt;
+    final promptId = row.promptId;
+    if (write == null || promptId == null) return;
+    final item = widget.prompts.firstWhere(
+      (entry) => entry.id == promptId,
+      orElse: () => PromptNoteView(
+        id: promptId,
+        label: row.label,
+        description: row.hint,
+        note: '',
+        custom: false,
+      ),
+    );
+    final text = await showDialog<String>(
+      context: context,
+      builder: (_) => _PromptNoteDialog(prompt: item),
+    );
+    if (!mounted || text == null) return;
+    setState(() {
+      _savingId = row.id;
+      _rowErrorId = null;
+      _rowError = null;
+      _noticeId = null;
+      _notice = null;
+    });
+    try {
+      await write(promptId, text);
+      if (!mounted) return;
+      setState(() {
+        _noticeId = row.id;
+        _notice = text.trim().isEmpty
+            ? '${row.label}: note cleared'
+            : '${row.label}: note saved';
+      });
+    } catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _rowErrorId = row.id;
+        _rowError = userMessage(failure);
+      });
+    } finally {
+      if (mounted) setState(() => _savingId = null);
+    }
+  }
+
   /// Choose a theme from the catalogue (`Enter` on the theme row).
   ///
   /// One `settings.patch` of `ui.theme`, then the palette is applied locally so
@@ -801,6 +970,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
       builder: (_) => ThemePickerDialog(
         current: widget.settings.theme,
         customTokens: widget.customThemeTokens?.values ?? const {},
+        overrideTokens: widget.customThemeTokens?.values ?? const {},
       ),
     );
     if (!mounted || picked == null) return;
@@ -915,6 +1085,77 @@ class _SettingsBodyState extends State<_SettingsBody> {
           : 'custom palette saved · ${saved.length} of '
                 '${customThemeTokenNames.length} tokens';
     });
+  }
+
+  /// Export the base theme and every override as JSON on the clipboard.
+  ///
+  /// The app has no file picker of its own for a text document, and the
+  /// clipboard is the path a desktop user already expects: `x`, then paste
+  /// wherever they keep their themes. The shape is stable and human-editable.
+  Future<void> _exportThemeJson() async {
+    final tokens = widget.customThemeTokens?.values ?? const <String, String>{};
+    final payload = themeDocumentJson(
+      base: widget.settings.theme,
+      tokens: tokens,
+    );
+    await Clipboard.setData(ClipboardData(text: payload));
+    if (!mounted) return;
+    setState(() {
+      _noticeId = 'theme';
+      _notice = tokens.isEmpty
+          ? 'theme JSON copied · no overrides'
+          : 'theme JSON copied · ${tokens.length} overrides';
+    });
+  }
+
+  /// Import a theme JSON document from the clipboard (or a pasted string).
+  ///
+  /// The document is validated before a byte is written: an unknown token or a
+  /// value that is not `#RRGGBB` is refused by name, and the dialog stays open
+  /// so the user can fix it. A `base` that names a known palette is selected on
+  /// the same import; an unknown base is refused rather than silently ignored.
+  Future<void> _importThemeJson() async {
+    final write = widget.onSetCustomTheme;
+    final save = widget.onSaveSettings;
+    if (write == null) {
+      setState(() {
+        _noticeId = 'theme';
+        _notice = 'this build cannot store a custom palette';
+      });
+      return;
+    }
+    final imported = await showDialog<_ImportedTheme>(
+      context: context,
+      builder: (_) => const _ThemeJsonDialog(),
+    );
+    if (!mounted || imported == null) return;
+    try {
+      await write(imported.tokens);
+      if (!mounted) return;
+      if (imported.base != null &&
+          imported.base != widget.settings.theme.trim()) {
+        await save?.call({
+          'ui': {'theme': imported.base},
+        });
+        if (!mounted) return;
+      }
+      final base = imported.base ?? widget.settings.theme.trim();
+      applyPaletteOr(base, tokens: imported.tokens);
+      setState(() {
+        _customApplied = base == 'custom';
+        _noticeId = 'theme';
+        _notice = imported.tokens.isEmpty
+            ? 'theme imported · base ${paletteLabel(base)}'
+            : 'theme imported · ${imported.tokens.length} overrides on '
+                  '${paletteLabel(base)}';
+      });
+    } catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _rowErrorId = 'theme';
+        _rowError = userMessage(failure);
+      });
+    }
   }
 
   /// Cycle one policy cell and write it through the core once.
@@ -2548,6 +2789,7 @@ class _SettingRow {
     this.keybind,
     this.decision,
     this.work,
+    this.promptId,
   });
 
   final String id;
@@ -2574,6 +2816,9 @@ class _SettingRow {
   /// One row of the `WORK` group. Non-null rows own Enter and Space and write
   /// the matching global opt-in; null keeps the row read-only.
   final _WorkCell? work;
+
+  /// One row of the `PROMPTS` group: Enter edits the note, empty clears it.
+  final String? promptId;
 
   /// Null keeps the row read-only. A value editor opens a dialog; a toggle
   /// patch is written on Enter or Space.
@@ -2691,6 +2936,18 @@ TextStyle _valueStyle(String value) {
   );
 }
 
+/// What the updates row prints, in the order the states become true.
+String _updateRowValue(UpdateView? state, bool checking, String? error) {
+  if (checking) return 'checking…';
+  if (error != null) return 'check failed';
+  if (state == null) return 'not checked';
+  if (state.available) return 'v${state.version} available';
+  if (state.currentBuild) return 'up to date';
+  return state.message?.trim().isNotEmpty == true
+      ? state.message!.trim()
+      : 'not available';
+}
+
 List<_SettingGroup> _buildGroups(
   SettingsView settings, {
   List<McpServerView> mcpServers = const <McpServerView>[],
@@ -2699,6 +2956,11 @@ List<_SettingGroup> _buildGroups(
   DecisionView? decision,
   WorkPermissions? workPermissions,
   KeymapRegistry? keymap,
+  String? appVersion,
+  UpdateView? update,
+  bool updateChecking = false,
+  String? updateError,
+  List<PromptNoteView> prompts = const <PromptNoteView>[],
 }) {
   return [
     _SettingGroup(
@@ -2723,7 +2985,7 @@ List<_SettingGroup> _buildGroups(
           id: 'theme',
           label: 'theme',
           value: _text(settings.theme),
-          hint: 'Enter pick · c custom · e edit palette',
+          hint: 'Enter pick · c custom · e edit · x export · i import',
           edit: _SettingEdit(
             kind: _EditKind.toggle,
             label: 'theme',
@@ -2945,6 +3207,47 @@ List<_SettingGroup> _buildGroups(
     ),
     _SettingGroup(title: 'DECISION LAYER', rows: _decisionRows(decision)),
     _SettingGroup(title: 'WORK', rows: _workRows(workPermissions)),
+    _SettingGroup(
+      title: 'ABOUT',
+      rows: [
+        _SettingRow(
+          id: 'app-version',
+          label: 'version',
+          value: appVersion?.trim().isNotEmpty == true
+              ? appVersion!
+              : 'not read',
+          hint: 'the running build',
+        ),
+        _SettingRow(
+          id: 'updates',
+          label: 'updates',
+          value: _updateRowValue(update, updateChecking, updateError),
+          hint: 'Enter check · c copy link',
+        ),
+      ],
+    ),
+    _SettingGroup(
+      title: 'PROMPTS',
+      rows: prompts.isEmpty
+          ? [
+              _SettingRow(
+                id: 'prompts-empty',
+                label: 'prompt notes',
+                value: 'no note',
+                hint: 'guidance for one generator; shape and limits stay fixed',
+              ),
+            ]
+          : [
+              for (final prompt in prompts)
+                _SettingRow(
+                  id: 'prompt-${prompt.id}',
+                  label: prompt.label,
+                  value: prompt.custom ? 'custom' : 'no note',
+                  hint: prompt.description,
+                  promptId: prompt.id,
+                ),
+            ],
+    ),
     _SettingGroup(
       title: 'KEYBINDS',
       rows: [
@@ -3679,6 +3982,225 @@ class _PreviewChip extends StatelessWidget {
           style: TextStyle(color: LockedInColors.muted, fontSize: 10),
         ),
       ],
+    );
+  }
+}
+
+/// One validated theme document: the overrides and, optionally, a base palette.
+class _ImportedTheme {
+  const _ImportedTheme({required this.tokens, this.base});
+  final Map<String, String> tokens;
+  final String? base;
+}
+
+/// Paste-or-edit a theme JSON document, validate it, then close.
+///
+/// Validation happens in the dialog so a typo does not close the only place the
+/// text exists. The clipboard is prefilled because that is how a theme arrives
+/// from another machine or a note.
+class _ThemeJsonDialog extends StatefulWidget {
+  const _ThemeJsonDialog();
+
+  @override
+  State<_ThemeJsonDialog> createState() => _ThemeJsonDialogState();
+}
+
+class _ThemeJsonDialogState extends State<_ThemeJsonDialog> {
+  final _input = TextEditingController();
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_prefill());
+  }
+
+  Future<void> _prefill() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    if (!mounted || _input.text.isNotEmpty) return;
+    final text = data?.text?.trim() ?? '';
+    if (text.startsWith('{')) {
+      _input.text = text;
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _input.dispose();
+    super.dispose();
+  }
+
+  void _import() {
+    final result = parseThemeDocument(_input.text);
+    if (result.error != null) {
+      setState(() => _error = result.error);
+      return;
+    }
+    Navigator.of(context)
+        .pop(_ImportedTheme(tokens: result.tokens, base: result.base));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: LockedInColors.surface,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Import theme',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Paste a theme document. Unknown tokens and non-hex values are '
+                'refused before anything is stored.',
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: 11,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                key: const ValueKey('theme-json-input'),
+                controller: _input,
+                minLines: 8,
+                maxLines: 14,
+                style: TextStyle(
+                  color: LockedInColors.foreground,
+                  fontFamily: 'JetBrainsMono',
+                  fontSize: 12,
+                ),
+                decoration: const InputDecoration(
+                  hintText: '{"base":"lockedin","tokens":{"panel":"#161A20"}}',
+                ),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  _error!,
+                  key: const ValueKey('theme-json-error'),
+                  style: TextStyle(color: LockedInColors.error, fontSize: 11),
+                ),
+              ],
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('cancel'),
+                  ),
+                  const SizedBox(width: 6),
+                  FilledButton(
+                    key: const ValueKey('theme-json-import'),
+                    onPressed: _import,
+                    child: const Text('import'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Edit one prompt note.
+///
+/// The note is appended below the generator's own contract. The dialog says that
+/// plainly, so the user never expects it to replace the shape or the limits.
+class _PromptNoteDialog extends StatefulWidget {
+  const _PromptNoteDialog({required this.prompt});
+
+  final PromptNoteView prompt;
+
+  @override
+  State<_PromptNoteDialog> createState() => _PromptNoteDialogState();
+}
+
+class _PromptNoteDialogState extends State<_PromptNoteDialog> {
+  late final TextEditingController _note = TextEditingController(
+    text: widget.prompt.note,
+  );
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: LockedInColors.surface,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Prompt note · ${widget.prompt.label}',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${widget.prompt.description} The note is guidance. The reply '
+                'shape, its length limits and the safety rules still apply.',
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: 11,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                key: const ValueKey('prompt-note-input'),
+                controller: _note,
+                minLines: 6,
+                maxLines: 12,
+                maxLength: 2000,
+                style: TextStyle(
+                  color: LockedInColors.foreground,
+                  fontSize: 12.5,
+                  height: 1.45,
+                ),
+                decoration: const InputDecoration(
+                  hintText:
+                      'e.g. prefer short sentences and one concrete example',
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('cancel'),
+                  ),
+                  const SizedBox(width: 6),
+                  FilledButton(
+                    key: const ValueKey('prompt-note-save'),
+                    onPressed: () => Navigator.of(context).pop(_note.text),
+                    child: const Text('save'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

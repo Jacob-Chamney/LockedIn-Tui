@@ -1,7 +1,0 @@
-{
-  "schema": 1,
-  "messages": [
-    { "role": "user", "content": "earlier question" },
-    { "role": "assistant", "content": "earlier answer" }
-  ]
-}

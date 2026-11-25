@@ -602,6 +602,11 @@ class _ShellState extends State<Shell> {
   }
 
   void _select(Surface surface) {
+    if (surface == Surface.settings) {
+      final store = CoreScope.of(context);
+      if (store.appVersion == null) unawaited(store.refreshUpdateInfo());
+      unawaited(store.refreshPrompts());
+    }
     if (_paletteOpen) _closePalette();
     if (_commandOpen) _closeCommandLine();
     if (_surface == surface) {
@@ -678,6 +683,7 @@ class _ShellState extends State<Shell> {
       // is elsewhere, so it is read on entry. A failure keeps the previous
       // groups and the page shows the core's message with a retry.
       unawaited(store.loadKnowledgeTree());
+      unawaited(store.readLearningGraph());
     }
     // Skills keeps the open goal like Sessions and Work do, but the chapter
     // reader and the staged-lesson reader are layers of that surface: leaving
@@ -1526,10 +1532,24 @@ class _ShellState extends State<Shell> {
         onSide: store.selectReviewSide,
         onMark: store.markReview,
         markingId: store.reviewMarkingId,
+        onReview: () {
+          final cards = store.review?.items.where(
+            (item) => item.kind == 'card',
+          );
+          final first = cards == null || cards.isEmpty ? null : cards.first;
+          if (first != null) _openReviewCard(store, first.contextId);
+        },
         // The queue's rows open their own surface: a lock-in for steps, cards
         // and memory, a skill goal for a stage. Like every other open, it is
         // one click or Enter.
         onOpen: (item) {
+          // A review card belongs in its deck, not on the session's step page:
+          // pressing a missed card used to land somewhere it could not be
+          // answered.
+          if (item.kind == 'card') {
+            _openReviewCard(store, item.contextId);
+            return;
+          }
           if (item.kind == 'stage') {
             _select(Surface.skills);
             unawaited(store.openSkill(item.contextId));
@@ -1610,6 +1630,14 @@ class _ShellState extends State<Shell> {
         workPermissionsLoading: store.workPermissionsLoading,
         workPermissionsError: store.workPermissionsError,
         onSetWorkPermissions: store.setWorkPermissions,
+        appVersion: store.appVersion,
+        update: store.updateState,
+        updateChecking: store.updateChecking,
+        updateError: store.updateError,
+        onCheckUpdate: () => unawaited(store.checkForUpdates()),
+        prompts: store.prompts,
+        promptsError: store.promptsError,
+        onSetPrompt: store.setPrompt,
       ),
     };
 
@@ -1680,6 +1708,10 @@ class _ShellState extends State<Shell> {
       ),
       // `Enter` reads the row through the core and shows it in the layer above.
       onOpen: (id) => unawaited(store.readKnowledge(id)),
+      graph: store.learningGraph ?? LearningGraph.empty,
+      graphLoading: store.learningGraphLoading,
+      graphError: store.learningGraphError,
+      onLoadGraph: () => unawaited(store.readLearningGraph()),
       // Knowledge is a read-only snapshot over the vaults, not a layer: `Esc`
       // goes back to chat, the home surface, instead of inventing a parent.
       onBack: () => _select(Surface.chat),
@@ -1839,6 +1871,12 @@ class _ShellState extends State<Shell> {
                   // deck so `M:`/`K:` come back from the core's own write.
                   await store.readOutput(sessionId, 'flashcards');
                 },
+          deckSchedule: store.deckSchedule,
+          deckScheduleLoading: store.deckScheduleLoading,
+          deckScheduleError: store.deckScheduleError,
+          onGradeCard: sessionId == null
+              ? null
+              : (index, grade) => store.gradeDeckCard(sessionId, index, grade),
           onRetry: sessionId == null ? null : store.retryOutput,
           onBack: store.closeOutput,
         );
@@ -1882,6 +1920,29 @@ class _ShellState extends State<Shell> {
                   store.generateDocument(sessionId, kind, attempt: attempt),
         onRetryDocument: sessionId == null ? null : store.retryDocument,
         onCloseDocument: store.closeDocument,
+        figures: store.figures,
+        figureImages: store.figureImages,
+        figuresLoading: store.figuresLoading,
+        figureBusy: store.figureBusy,
+        figureError: store.figureError,
+        onExtractFigure: sessionId == null
+            ? null
+            : ({required page, x, y, width, height, caption = ''}) =>
+                  store.extractFigure(
+                    sessionId,
+                    page: page,
+                    x: x,
+                    y: y,
+                    width: width,
+                    height: height,
+                    caption: caption,
+                  ),
+        onLoadFigure: sessionId == null
+            ? null
+            : (figureId) => store.loadFigure(sessionId, figureId),
+        onRemoveFigure: sessionId == null
+            ? null
+            : (figureId) => store.removeFigure(sessionId, figureId),
         onRetry: () {
           if (sessionId != null) unawaited(store.openSession(sessionId));
         },
@@ -1919,6 +1980,18 @@ class _ShellState extends State<Shell> {
       onModeChanged: (insert) {
         if (_insert != insert) setState(() => _insert = insert);
       },
+      context: store.sessionContext,
+      contextLoading: store.sessionContextLoading,
+      contextError: store.sessionContextError,
+      onContextLoad: sessionId == null
+          ? null
+          : () => unawaited(store.readSessionContext(sessionId)),
+      onCompact: sessionId == null
+          ? null
+          : () => unawaited(store.compactSessionChat(sessionId)),
+      onUncompact: sessionId == null
+          ? null
+          : () => unawaited(store.uncompactSessionChat(sessionId)),
     );
   }
 
@@ -2067,7 +2140,55 @@ class _ShellState extends State<Shell> {
           : () => unawaited(store.teachNextStep(skillId)),
       onCheck: skillId == null
           ? null
-          : (answer) => unawaited(store.checkTeaching(skillId, answer)),
+          : (answer, thinking, confidence) => unawaited(
+              store.checkTeaching(
+                skillId,
+                answer,
+                thinking: thinking,
+                confidence: confidence,
+              ),
+            ),
+      sideMessages: store.teachingSide,
+      sideLoading: store.teachingSideLoading,
+      sideError: store.teachingSideError,
+      onSideOpen: skillId == null
+          ? null
+          : () {
+              final stepId = store.teaching?.current?.stepId;
+              if (stepId != null) {
+                unawaited(store.openTeachingSide(skillId, stepId));
+              }
+            },
+      onSideSend: skillId == null
+          ? null
+          : (text) {
+              final stepId = store.teaching?.current?.stepId;
+              if (stepId != null) {
+                unawaited(store.askTeachingSide(skillId, stepId, text));
+              }
+            },
+      onSideClear: skillId == null
+          ? null
+          : () {
+              final stepId = store.teaching?.current?.stepId;
+              if (stepId != null) {
+                unawaited(store.clearTeachingSide(skillId, stepId));
+              }
+            },
+      research: store.research,
+      researchLoading: store.researchLoading,
+      researchRunning: store.researchRunning,
+      researchError: store.researchError,
+      researchMarkdown: store.researchMarkdown,
+      researchOpenId: store.researchOpenId,
+      onResearch: skillId == null
+          ? null
+          : (question, urls) =>
+                unawaited(store.startResearch(skillId, question, urls)),
+      onOpenResearch: skillId == null
+          ? null
+          : (id) => unawaited(store.openResearch(skillId, id)),
+      onCloseResearch: store.closeResearch,
       onPractise: skillId == null
           ? null
           : () => unawaited(store.practiseTeaching(skillId)),
@@ -2470,6 +2591,23 @@ class _ShellState extends State<Shell> {
   /// open, or let the core pick the newest one. The detail stays on screen until
   /// the core answers, so a refusal shows its message instead of an empty chat.
   /// Open a session from the review queue: the detail, never a stale layer.
+  /// Open a review card's session and put its deck on screen.
+  ///
+  /// A card is answered in the reader, not on the session's step page; this is
+  /// the one route both the row and the primary `review cards` button use.
+  void _openReviewCard(CoreStore store, String sessionId) {
+    _select(Surface.sessions);
+    setState(() {
+      _sessionChatOpen = false;
+      _sessionSettingsOpen = false;
+      _initialStep = null;
+    });
+    unawaited(() async {
+      await store.openSession(sessionId);
+      await store.readOutput(sessionId, 'flashcards');
+    }());
+  }
+
   Future<void> _openSessionFromQueue(CoreStore store, String id) async {
     await store.openSession(id);
   }
@@ -2821,7 +2959,10 @@ class _Sidebar extends StatelessWidget {
   };
 
   bool _selected(_SidebarEntry entry) => switch (entry) {
-    _SurfaceEntry(:final surface) => active == surface,
+    // While the Achievements layer is open it owns the screen, so the surface
+    // underneath is not also lit. Two highlighted rows made it look as if the
+    // layer had navigated to Stats.
+    _SurfaceEntry(:final surface) => !achievementsActive && active == surface,
     // The layer is open or it is not; before, this row could never be active
     // because it was not a surface.
     _AchievementsEntry() => achievementsActive,
@@ -3112,7 +3253,11 @@ class _SidebarRow extends StatelessWidget {
                       left: 0,
                       top: 6,
                       bottom: 6,
-                      child: Container(width: 2, color: LockedInColors.primary),
+                      child: Container(
+                        key: ValueKey('sidebar-selected-${countKey ?? label}'),
+                        width: 2,
+                        color: LockedInColors.primary,
+                      ),
                     ),
                   Positioned.fill(
                     child: Padding(

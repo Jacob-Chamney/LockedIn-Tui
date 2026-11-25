@@ -15,8 +15,8 @@ import { join } from "node:path";
 import type { BootFailure } from "../../src/app/boot";
 import type { ChatController } from "../../src/app/chat-controller";
 import type { Result } from "../../src/domain/markdown";
-import type { ChatState } from "../../src/ui/chat/model";
-import type { SettingsView } from "../../src/ui/settings";
+import type { ChatState } from "../../src/app/chat-model";
+import type { SettingsView } from "../../src/types/settings";
 import {
   BOOT_FAILED,
   createCoreServer,

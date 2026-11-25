@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 import type { BootFailure } from "../../src/app/boot";
 import type { Result } from "../../src/domain/markdown";
-import type { SettingsView } from "../../src/ui/settings";
+import type { SettingsView } from "../../src/types/settings";
 import {
   createCoreServer,
   type CoreServices,

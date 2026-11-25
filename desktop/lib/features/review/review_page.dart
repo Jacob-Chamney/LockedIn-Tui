@@ -14,12 +14,12 @@ import '../shared/format.dart';
 
 /// The Review surface.
 ///
-/// The queue is a **snapshot** the core owns: it reports what the workspace
-/// already records — unchecked steps, missed cards, unfinished skill stages and
-/// session memory — and this page renders it. When [onMark] is wired, `k` and
-/// `m` send one `review.mark` and the core's returned queue replaces the list;
-/// the page never patches a count itself. Session memory is refused here and by
-/// the core.
+/// The queue is a **snapshot** the core owns. It groups what is actionable —
+/// due/missed cards first, then unchecked steps, then unfinished stages — and
+/// keeps session memory in a labelled history group that is neither counted nor
+/// markable. A card is answered in its deck; steps and stages open where they
+/// live. When [onMark] is wired, `k`/`m` send one `review.mark` and the core's
+/// returned queue replaces the list; the page never patches a count itself.
 class ReviewPage extends StatefulWidget {
   const ReviewPage({
     super.key,
@@ -32,6 +32,7 @@ class ReviewPage extends StatefulWidget {
     this.onBack,
     this.onMark,
     this.onOpen,
+    this.onReview,
     this.markingId,
   });
 
@@ -66,6 +67,10 @@ class ReviewPage extends StatefulWidget {
   /// memory, a skill goal for a stage. Null keeps the page read-only and drops
   /// the verb, exactly like [onMark].
   final ValueChanged<ReviewItem>? onOpen;
+
+  /// The primary verb: open the first card's deck and review. Null leaves the
+  /// button off, so a page without a shell never advertises a dead action.
+  final VoidCallback? onReview;
 
   /// The item the shell is currently marking, so `marking…` survives a rebuild.
   final String? markingId;
@@ -308,6 +313,9 @@ class _ReviewPageState extends State<ReviewPage> {
   Widget _header({required bool compact}) {
     final theme = Theme.of(context);
     final counts = widget.queue?.counts ?? ReviewCounts.zero;
+    // Session memory is history, not a task. Counting it in the badge made the
+    // surface look like it had more work than it did.
+    final actionable = counts.total - counts.countFor('memory');
     final summary = [
       for (final kind in _kinds)
         if (counts.countFor(kind) > 0) _countLabel(kind, counts.countFor(kind)),
@@ -334,7 +342,7 @@ class _ReviewPageState extends State<ReviewPage> {
             border: Border.all(color: LockedInColors.line),
           ),
           child: Text(
-            '${counts.total}',
+            '$actionable',
             style: TextStyle(
               color: LockedInColors.muted,
               fontSize: 10,
@@ -416,11 +424,21 @@ class _ReviewPageState extends State<ReviewPage> {
 
   Widget _body() {
     final queue = widget.queue;
-    final children = <Widget>[];
-    if (queue != null && queue.coverage.isNotEmpty) {
-      children.add(_coverageSummary(queue));
-      children.add(const SizedBox(height: 8));
-    }
+    final children = <Widget>[
+      // The one sentence that says what this surface is for. Without it the
+      // queue read as a random mix of cards, steps and history.
+      Text(
+        'What the workspace already records. Cards are reviewed here; steps '
+        'and stages open where they live; memory is history, not review.',
+        key: const ValueKey('review-purpose'),
+        style: TextStyle(
+          color: LockedInColors.muted,
+          fontSize: 11,
+          height: 1.45,
+        ),
+      ),
+      const SizedBox(height: 10),
+    ];
     if (widget.loading && queue != null) {
       children.add(
         LinearProgressIndicator(
@@ -468,6 +486,24 @@ class _ReviewPageState extends State<ReviewPage> {
         children.add(_DiagnosticsBlock(diagnostics: queue.diagnostics));
         children.add(const SizedBox(height: 10));
       }
+      final cards = queue.counts.countFor('card');
+      if (cards > 0 && widget.onReview != null) {
+        children.add(
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton(
+              key: const ValueKey('review-start'),
+              onPressed: widget.onReview,
+              style: FilledButton.styleFrom(
+                backgroundColor: LockedInColors.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              ),
+              child: Text('review $cards ${cards == 1 ? 'card' : 'cards'}'),
+            ),
+          ),
+        );
+        children.add(const SizedBox(height: 10));
+      }
       final items = _orderedItems;
       if (items.isEmpty) {
         children.add(
@@ -479,8 +515,24 @@ class _ReviewPageState extends State<ReviewPage> {
       } else {
         final selected = _selected;
         final marking = _pendingId ?? widget.markingId;
+        String? lastKind;
         for (var index = 0; index < items.length; index++) {
           final item = items[index];
+          if (item.kind != lastKind) {
+            children.add(
+              _SectionHeading(
+                label: switch (item.kind) {
+                  'card' => 'TO REVIEW',
+                  'step' => 'OPEN STEPS',
+                  'stage' => 'OPEN STAGES',
+                  'memory' => 'HISTORY · read-only',
+                  _ => item.kind.toUpperCase(),
+                },
+                count: queue.counts.countFor(item.kind),
+              ),
+            );
+            lastKind = item.kind;
+          }
           children.add(
             Padding(
               key: _rowKey(index, item.id),
@@ -519,6 +571,10 @@ class _ReviewPageState extends State<ReviewPage> {
           );
         }
       }
+      if (queue.coverage.isNotEmpty) {
+        children.add(const SizedBox(height: 6));
+        children.add(_coverageSummary(queue));
+      }
       children.add(const SizedBox(height: 4));
       children.add(
         widget.onMark == null
@@ -537,6 +593,39 @@ class _ReviewPageState extends State<ReviewPage> {
     return ListView(
       padding: const EdgeInsets.only(bottom: 8),
       children: children,
+    );
+  }
+}
+
+/// One intent group in the queue: cards, open steps, open stages or history.
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading({required this.label, required this.count});
+
+  final String label;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 5),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: LockedInColors.secondary,
+              fontSize: 10,
+              letterSpacing: 1.2,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '$count',
+            style: TextStyle(color: LockedInColors.muted, fontSize: 10),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,3 +1,7 @@
+> **2026-11-25 — this is the desktop shell.** The TUI frontend has been removed.
+> "Advanced TUI" describes the visual language (hairlines, mono chrome, one
+> accent), not a second frontend.
+
 # Redesign — "advanced TUI" visual system + a real learning harness
 
 Status: proposed (2026-11-23). Supersedes the look, not the behaviour rules in
@@ -196,3 +200,29 @@ puts exactly one step in front of them with the list beside it.
 - Every state legible: empty, loading, streaming, failed, blocked, cancelled.
 - The wall, chill-is-tool-free, source-bound facts, atomic writes — unchanged.
 - 80×24-ish (800×600) must stay usable; nothing clips.
+
+## 6. Depth systems (P1/P2, built 2026-11-24)
+
+Ten systems on top of the harness, each with its own contract and tests. They
+are ours: the reference product was read for the *problems it solves*, not for
+its data shapes or code.
+
+| System | Where | What it does |
+|---|---|---|
+| Thinking + confidence | `teach.check` | The learner's reasoning and a 1–5 self-report travel with the answer; both are stored and shown to the marker, never treated as evidence. |
+| Plan map | `teaching.json`, `src/domain/teaching.ts` | Each step names the earlier steps it requires. The next step is the first unpassed step whose prerequisites are held, so a branch is available without waiting for an unrelated one. |
+| Side questions | `src/services/teaching/side.ts` | One tool-free thread per step, stored beside the goal, opened inside the step card. A failure writes nothing. |
+| Math + Mermaid | `desktop/lib/features/chat/math.dart`, `diagram.dart` | A small LaTeX renderer (fractions, roots, scripts, greek, operators) and a layered flowchart renderer, both in-repo; an unreadable diagram keeps its source. |
+| Theme overrides | `theme.custom.*`, `desktop/lib/theme/palette.dart` | Twelve token overrides layered over any base palette, with JSON import/export and validation by name. |
+| Updater surface | `update.info`, `update.check` | Shows the running version and checks the public release feed on an explicit key; the reply is a release page, never an automatic self-replace. |
+| Spaced repetition | `src/domain/scheduler.ts` | Four grades, one ease per card, keyed by question so a regenerated deck keeps progress. `again` is a ten-minute step with a lapse. |
+| Context + compaction | `src/domain/context.ts`, `session.chat.*` | A meter over the transcript and an explicit compaction that stores one summary beside an unchanged `chat.jsonl`; the next request sends the summary plus the recent messages. |
+| Research briefs | `src/services/teaching/research.ts` | Fetches the learner's named pages under SSRF/content/size guards, then requires `[n]` citations or `(agent explanation)` before anything is written. |
+| PDF figures | `src/services/lockin/figures.ts` | Crops a page or a box out of the session's own PDF with `pdftoppm`, stores the PNG inside the session, and serves it to the shell as base64. |
+| Teaching citations | `src/domain/teaching.ts` | A step may quote a copied source with an exact excerpt; a citation outside the goal's sources is refused. No citation is labelled `agent explanation`. |
+| Learning graph | `src/services/knowledge/learning-graph.ts` | A read-only projection over goals, steps, sources, sessions, tasks, cards, research and figures. Every node is a file and every edge is provable; no model extraction. |
+| Prompt notes | `src/domain/prompts.ts`, `[prompts]` | One standing note per generator, appended below the shape and limits. It cannot change the contract, and `settings.patch` cannot write it. |
+
+The non-negotiables still hold: the wall, chill-is-tool-free, source-bound facts,
+atomic writes, no retry, and colour never being the only signal. Research and
+figures are **not sources**: neither enters coverage or the plan.

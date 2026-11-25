@@ -19,6 +19,7 @@ class ThemePickerDialog extends StatefulWidget {
     super.key,
     required this.current,
     this.customTokens = const {},
+    this.overrideTokens = const {},
   });
 
   /// The stored `ui.theme`, so the active entry can be marked.
@@ -27,6 +28,12 @@ class ThemePickerDialog extends StatefulWidget {
   /// The stored custom-palette overrides, so the Custom entry previews what the
   /// user would actually get rather than plain crimson.
   final Map<String, String> customTokens;
+
+  /// The per-token overrides that layer on top of **every** base palette.
+  ///
+  /// A preview that ignored them would not be the theme the user gets, so each
+  /// row is drawn with the overrides applied.
+  final Map<String, String> overrideTokens;
 
   @override
   State<ThemePickerDialog> createState() => _ThemePickerDialogState();
@@ -42,8 +49,15 @@ class _ThemePickerDialogState extends State<ThemePickerDialog> {
   }
 
   LockedInPalette _palette(String id) => id == 'custom'
-      ? customPalette(widget.customTokens)
-      : lockedInPalettes[id] ?? lockedInCrimson;
+      ? customPalette(
+          widget.customTokens.isEmpty
+              ? widget.overrideTokens
+              : widget.customTokens,
+        )
+      : paletteWithOverrides(
+          lockedInPalettes[id] ?? lockedInCrimson,
+          widget.overrideTokens,
+        );
 
   String _label(String id) =>
       id == 'custom' ? 'Custom palette' : paletteLabel(id);
@@ -115,8 +129,12 @@ class _ThemePickerDialogState extends State<ThemePickerDialog> {
                   ),
                 const SizedBox(height: 8),
                 Text(
-                  'The custom palette is edited in Settings with `e`; twelve '
-                  'tokens, crimson filling any gap.',
+                  widget.overrideTokens.isEmpty
+                      ? 'The custom palette is edited in Settings with `e`; '
+                            'twelve tokens, crimson filling any gap.'
+                      : '${widget.overrideTokens.length} colour override'
+                            '${widget.overrideTokens.length == 1 ? '' : 's'} apply '
+                            'on top of every palette. Edit with `e`, export with `x`.',
                   style: TextStyle(
                     color: LockedInColors.muted,
                     fontSize: 11,

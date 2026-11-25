@@ -65,6 +65,7 @@ Future<void> pumpReview(
   VoidCallback? onBack,
   Future<void> Function(String itemId, String result)? onMark,
   ValueChanged<ReviewItem>? onOpen,
+  VoidCallback? onReview,
   Size size = const Size(1280, 800),
   bool settle = true,
 }) async {
@@ -86,6 +87,7 @@ Future<void> pumpReview(
           onBack: onBack,
           onMark: onMark,
           onOpen: onOpen,
+          onReview: onReview,
         ),
       ),
     ),
@@ -141,6 +143,69 @@ void main() {
     await tester.pumpAndSettle();
     expect(marks.last, 'step:physics:1:known');
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the purpose line names what is and is not reviewed', (
+    tester,
+  ) async {
+    await pumpReview(tester, queue: reviewFixture());
+    expect(find.byKey(const ValueKey('review-purpose')), findsOneWidget);
+    expect(find.textContaining('Cards are reviewed here'), findsOneWidget);
+    expect(find.text('TO REVIEW'), findsOneWidget);
+    expect(find.text('OPEN STEPS'), findsOneWidget);
+  });
+
+  testWidgets('history is a labelled read-only group outside the count', (
+    tester,
+  ) async {
+    final queue = ReviewQueue.fromJson({
+      'items': [
+        {
+          'id': 'card:physics:2',
+          'kind': 'card',
+          'label': 'What does the learning rate control?',
+          'context': 'Physics — Unit 4',
+          'contextId': '2026-11-01-0900-physics',
+          'reason': 'missed',
+          'priority': 0,
+          'count': 1,
+          'origin': 'flashcards',
+        },
+        {
+          'id': 'memory:physics:0',
+          'kind': 'memory',
+          'label': 'Boundary conditions determine the integral limits.',
+          'context': 'Physics — Unit 4',
+          'contextId': '2026-11-01-0900-physics',
+          'reason': 'memory',
+          'priority': 3,
+          'count': 0,
+          'origin': 'session-memory',
+        },
+      ],
+      'nudge': {
+        'intensity': 'balanced',
+        'threshold': 3,
+        'due': [],
+        'suggestions': [],
+      },
+      'counts': {
+        'total': 2,
+        'byKind': {'card': 1, 'step': 0, 'stage': 0, 'memory': 1},
+      },
+      'diagnostics': [],
+      'intensity': 'balanced',
+    });
+    await pumpReview(tester, queue: queue);
+
+    expect(find.text('HISTORY · read-only'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('review-total')),
+        matching: find.text('1'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('the queue renders items, counts, a nudge and a diagnostic', (
@@ -265,6 +330,21 @@ void main() {
 
     expect(sides, ['school', 'skills']);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the primary action reviews the cards', (tester) async {
+    var reviewed = 0;
+    await pumpReview(
+      tester,
+      queue: reviewFixture(),
+      onReview: () => reviewed += 1,
+    );
+    final button = find.byKey(const ValueKey('review-start'));
+    expect(button, findsOneWidget);
+    expect(find.text('review 1 card'), findsOneWidget);
+    await tester.tap(button);
+    await tester.pump();
+    expect(reviewed, 1);
   });
 
   testWidgets('r refreshes and Esc goes back', (tester) async {

@@ -1,3 +1,10 @@
+## 2026-11-25 — desktop only
+
+- The TUI frontend, its entrypoints, tests and OpenTUI/Solid dependencies are
+  removed. The Flutter desktop app is the only frontend.
+- The Bun core and the stdio JSON-RPC contract are unchanged; the core suite is
+  the gate.
+
 # Changelog
 
 User-visible changes, newest first. The wiki [Releases](https://github.com/Jacob-Chamney/LockedIn-Tui/wiki/Releases)

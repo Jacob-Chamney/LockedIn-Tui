@@ -276,6 +276,116 @@ describe("teach", () => {
     expect((record.current as Record<string, unknown>).stepId).toBe("step-2");
   });
 
+  test("thinking and confidence ride with the check and are kept on the record", async () => {
+    let checkPrompt = "";
+    const { server } = fakeCore(async (prompt) => {
+      if (prompt.includes("marking one answer")) {
+        checkPrompt = prompt;
+        return CORRECT;
+      }
+      if (prompt.includes("teaching one step")) return STEP;
+      return MEASURE;
+    });
+    await resultOf(server, "teach.measure", { goalId: GOAL_ID });
+    await resultOf(server, "teach.step", { goalId: GOAL_ID });
+
+    await resultOf(server, "teach.check", {
+      goalId: GOAL_ID,
+      answer: "on the stack",
+      thinking: "the return address has to survive the call",
+      confidence: 4,
+    });
+
+    expect(checkPrompt).toContain("the return address has to survive the call");
+    expect(checkPrompt).toContain("4/5");
+    const state = await resultOf(server, "teach.state", { goalId: GOAL_ID });
+    const record = state.record as Record<string, unknown>;
+    const check = (record.checks as Record<string, unknown>[])[0]!;
+    expect(check.thinking).toBe("the return address has to survive the call");
+    expect(check.confidence).toBe(4);
+  });
+
+  test("a bad confidence or a non-string thinking is a shape error, not a silent drop", async () => {
+    const { server } = fakeCore(async (prompt) => {
+      if (prompt.includes("teaching one step")) return STEP;
+      return MEASURE;
+    });
+    await resultOf(server, "teach.measure", { goalId: GOAL_ID });
+    await resultOf(server, "teach.step", { goalId: GOAL_ID });
+
+    for (const confidence of [0, 6, 2.5, "4"]) {
+      const error = await errorOf(server, "teach.check", {
+        goalId: GOAL_ID,
+        answer: "x",
+        confidence,
+      });
+      expect(error.code).toBe(-32602);
+      expect(error.message).toContain("confidence");
+    }
+    const wrongType = await errorOf(server, "teach.check", {
+      goalId: GOAL_ID,
+      answer: "x",
+      thinking: 4,
+    });
+    expect(wrongType.code).toBe(-32602);
+    const tooLong = await errorOf(server, "teach.check", {
+      goalId: GOAL_ID,
+      answer: "x",
+      thinking: "x".repeat(2001),
+    });
+    expect(tooLong.code).toBe(-32602);
+    expect(tooLong.message).toContain("2000");
+  });
+
+  test("a step cites its source and the citation survives the check", async () => {
+    let stepPrompt = "";
+    const cited = JSON.stringify({
+      prose:
+        "A register is a named slot inside the processor. A call writes the return address onto the stack.",
+      question: "Where does a call keep the return address?",
+      citations: [{ name: "intel.md", quote: "Registers hold working state across calls." }],
+    });
+    const { server } = fakeCore(async (prompt) => {
+      if (prompt.includes("marking one answer")) return CORRECT;
+      if (prompt.includes("teaching one step")) {
+        stepPrompt = prompt;
+        return cited;
+      }
+      return MEASURE;
+    });
+    await resultOf(server, "teach.measure", { goalId: GOAL_ID });
+    const opened = await resultOf(server, "teach.step", { goalId: GOAL_ID });
+    expect(stepPrompt).toContain("intel.md");
+    expect((opened.step as Record<string, unknown>).citations).toEqual([
+      { name: "intel.md", quote: "Registers hold working state across calls." },
+    ]);
+
+    await resultOf(server, "teach.check", { goalId: GOAL_ID, answer: "on the stack" });
+    const state = await resultOf(server, "teach.state", { goalId: GOAL_ID });
+    const record = state.record as Record<string, unknown>;
+    const check = (record.checks as Record<string, unknown>[])[0]!;
+    expect(check.citations).toEqual([
+      { name: "intel.md", quote: "Registers hold working state across calls." },
+    ]);
+  });
+
+  test("a step that cites a file the goal does not have is refused", async () => {
+    const bad = JSON.stringify({
+      prose: "A register is a slot inside the processor. It holds work.",
+      question: "what holds work?",
+      citations: [{ name: "secret.md", quote: "invented" }],
+    });
+    const { server } = fakeCore(async (prompt) => {
+      if (prompt.includes("teaching one step")) return bad;
+      return MEASURE;
+    });
+    await resultOf(server, "teach.measure", { goalId: GOAL_ID });
+    const error = await errorOf(server, "teach.step", { goalId: GOAL_ID });
+    expect(error.code).toBe(BOOT_FAILED);
+    expect(error.message).toContain("secret.md");
+    expect(error.retryable).toBe(false);
+  });
+
   test("a partial check keeps the step open for a repair", async () => {
     let stepCalls = 0;
     const { server } = fakeCore(async (prompt) => {
@@ -325,6 +435,119 @@ describe("teach", () => {
     const done = await resultOf(server, "teach.step", { goalId: GOAL_ID });
     expect(done.step).toBeNull();
     expect(done.index).toBe(4);
+  });
+
+  test("a side question is answered without touching the lesson or the plan", async () => {
+    let sidePrompt = "";
+    const { server } = fakeCore(async (prompt) => {
+      if (prompt.includes("companion answering one side question")) {
+        sidePrompt = prompt;
+        return "The return address is what a call saves so it can come back.";
+      }
+      if (prompt.includes("teaching one step")) return STEP;
+      return MEASURE;
+    });
+    await resultOf(server, "teach.measure", { goalId: GOAL_ID });
+    await resultOf(server, "teach.step", { goalId: GOAL_ID });
+
+    const before = await resultOf(server, "teach.state", { goalId: GOAL_ID });
+    const empty = await resultOf(server, "teach.side.snapshot", {
+      goalId: GOAL_ID,
+      stepId: "step-1",
+    });
+    expect(empty.messages).toEqual([]);
+
+    const asked = await resultOf(server, "teach.side.send", {
+      goalId: GOAL_ID,
+      stepId: "step-1",
+      text: "why does it need the address?",
+    });
+    expect(asked.reply).toContain("return address");
+    const messages = asked.messages as Record<string, unknown>[];
+    expect(messages.map((message) => message.role)).toEqual(["user", "assistant"]);
+    expect(messages[0]!.text).toBe("why does it need the address?");
+    expect(sidePrompt).toContain("A call writes the address");
+    expect(sidePrompt).toContain("why does it need the address?");
+
+    // The lesson record is byte-for-byte what it was: a side answer is not a
+    // check, a step or a plan edit.
+    const after = await resultOf(server, "teach.state", { goalId: GOAL_ID });
+    expect(JSON.stringify(after.record)).toBe(JSON.stringify(before.record));
+
+    // A second question carries the first exchange into the prompt.
+    await resultOf(server, "teach.side.send", {
+      goalId: GOAL_ID,
+      stepId: "step-1",
+      text: "and where is it stored?",
+    });
+    expect(sidePrompt).toContain("why does it need the address?");
+  });
+
+  test("a failed side answer writes nothing", async () => {
+    const { server } = fakeCore(async (prompt) => {
+      if (prompt.includes("companion answering one side question")) {
+        throw new Error("provider refused");
+      }
+      return MEASURE;
+    });
+    await resultOf(server, "teach.measure", { goalId: GOAL_ID });
+
+    const error = await errorOf(server, "teach.side.send", {
+      goalId: GOAL_ID,
+      stepId: "step-2",
+      text: "why?",
+    });
+    expect(error.code).toBe(BOOT_FAILED);
+    expect(error.message).toContain("provider refused");
+    const thread = await resultOf(server, "teach.side.snapshot", {
+      goalId: GOAL_ID,
+      stepId: "step-2",
+    });
+    expect(thread.messages).toEqual([]);
+  });
+
+  test("a side thread names one step and can be cleared", async () => {
+    const { server } = fakeCore(async (prompt) => {
+      if (prompt.includes("companion answering one side question")) return "a short answer";
+      return MEASURE;
+    });
+    await resultOf(server, "teach.measure", { goalId: GOAL_ID });
+    await resultOf(server, "teach.side.send", {
+      goalId: GOAL_ID,
+      stepId: "step-3",
+      text: "one",
+    });
+
+    const unknown = await errorOf(server, "teach.side.snapshot", {
+      goalId: GOAL_ID,
+      stepId: "step-99",
+    });
+    expect(unknown.code).toBe(BOOT_FAILED);
+    expect(unknown.message).toContain("step-99");
+
+    const cleared = await resultOf(server, "teach.side.clear", {
+      goalId: GOAL_ID,
+      stepId: "step-3",
+    });
+    expect(cleared.messages).toEqual([]);
+    const after = await resultOf(server, "teach.side.snapshot", {
+      goalId: GOAL_ID,
+      stepId: "step-3",
+    });
+    expect(after.messages).toEqual([]);
+  });
+
+  test("a blank question or a bad step id is a shape error", async () => {
+    const { server } = fakeCore(async () => MEASURE);
+    await resultOf(server, "teach.measure", { goalId: GOAL_ID });
+    for (const params of [
+      { goalId: GOAL_ID, stepId: "step-1", text: "  " },
+      { goalId: GOAL_ID, stepId: "nope", text: "why?" },
+      { goalId: GOAL_ID, stepId: "", text: "why?" },
+    ]) {
+      const error = await errorOf(server, "teach.side.send", params);
+      expect(error.code).toBe(-32602);
+    }
   });
 
   test("an unknown goal is the skill error shape", async () => {

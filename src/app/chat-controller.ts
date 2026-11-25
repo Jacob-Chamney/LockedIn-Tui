@@ -18,9 +18,9 @@ import {
   type ResponseStyle,
   type TutorPolicy,
 } from "../llm/response-style";
-import type { ToolMode } from "../ui/chat/model";
+import type { ToolMode } from "./chat-model";
 import type { AppError, Usage } from "../llm/events";
-import { MAX_ATTACHMENTS, cancel as cancelState, initialChat, loadMore as loadMoreState, pastedText, type Attachment, type ChatState, type Message } from "../ui/chat/model";
+import { MAX_ATTACHMENTS, cancel as cancelState, initialChat, loadMore as loadMoreState, pastedText, type Attachment, type ChatState, type Message } from "./chat-model";
 export type HistoryRecord = { role: "user" | "assistant"; content: string; at: string }
 
 /** `chill.json` — text only, nothing derived, no reasoning. */
@@ -44,6 +44,14 @@ export type ControllerConfig = {
   responseStyle?: ResponseStyle
   /** Default tutoring policy for this chat. */
   tutorPolicy?: TutorPolicy
+  /**
+   * A stored compaction summary for this chat, or null.
+   *
+   * Called once per send, before the request is built. It returns the summary
+   * and how many transcript records it covers; the controller then sends that
+   * summary plus the records after it. The transcript itself is never rewritten.
+   */
+  contextPlan?: () => Promise<{ summary: string; through: number } | null>
   /** Which surface this chat belongs to; defaults to Chill. */
   mode?: ChatMode
   /** Extra system context for this buffer, never written to the transcript. */
@@ -151,6 +159,16 @@ export type ChatController = {
   setResponseStyle: (style: ResponseStyle) => void
   /** Local chat setting: how the model should tutor. */
   setTutorPolicy: (policy: TutorPolicy) => void
+  /**
+   * Set (or clear) the compaction summary reader.
+   *
+   * The protocol installs one for a session chat after it creates the
+   * controller. A controller with no reader sends the full history, which is
+   * the safe default.
+   */
+  setContextPlan: (
+    plan: (() => Promise<{ summary: string; through: number } | null>) | undefined,
+  ) => void
   /** Test/diagnostic view: what the controller actually asked for. */
   requests: () => ChatRequest[]
 }
@@ -204,6 +222,8 @@ export function createChatController(deps: ControllerDeps): ChatController {
   const started: ChatRequest[] = []
   let spentMicroUsd = deps.spentMicroUsd ?? 0
   let usageErrorReported = false
+  /** Installed by the protocol for a session chat; null means full history. */
+  let contextPlan: (() => Promise<{ summary: string; through: number } | null>) | undefined
 
   /**
    * Append exactly one run per terminal turn, and keep the in-memory spend in
@@ -391,9 +411,32 @@ export function createChatController(deps: ControllerDeps): ChatController {
       return { kind: "sent", requestId, outcome: "error" }
     }
 
+    // A stored summary replaces the messages it covers. A failure to read it
+    // is not a turn failure: the full history is the safe fallback.
+    let plan: { summary: string; through: number } | null = null
+    const reader = contextPlan ?? config.contextPlan
+    try {
+      plan = (await reader?.()) ?? null
+    } catch {
+      plan = null
+    }
+    const through = plan === null
+      ? 0
+      : Math.min(Math.max(0, Math.floor(plan.through)), state.messages.length)
     const requestMessages: import("../llm/events").Message[] = [
       ...contextual,
+      ...(plan !== null && plan.summary.trim() !== ""
+        ? [
+            {
+              role: "system" as const,
+              content:
+                "Earlier conversation, compressed (history for context; not a source):\n" +
+                plan.summary,
+            },
+          ]
+        : []),
       ...state.messages
+        .slice(through)
         .filter((message) => message.text.length > 0)
         .map((message) => ({ role: message.role, content: message.text })),
     ]
@@ -786,6 +829,9 @@ export function createChatController(deps: ControllerDeps): ChatController {
     },
     setResponseStyle: (style) => emit({ ...state, responseStyle: style }),
     setTutorPolicy: (policy) => emit({ ...state, tutorPolicy: policy }),
+    setContextPlan: (plan) => {
+      contextPlan = plan
+    },
     requests: () => [...started],
   }
 }

@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:collection';
 import 'dart:convert';
+import 'dart:collection';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -1234,6 +1234,98 @@ class CoreStore extends ChangeNotifier {
   /// The verdict of the last `teach.check`.
   TeachingCheckResult? teachingVerdict;
 
+  /// The open step's side thread, newest last.
+  List<TeachingSideMessage> teachingSide = const [];
+
+  /// True while a side read or question is in flight.
+  bool teachingSideLoading = false;
+
+  /// The last side failure, shown inside the panel.
+  String? teachingSideError;
+
+  /// The running build's version (`update.info`), once read.
+  String? appVersion;
+
+  /// The public release repository (`update.info`).
+  String? updateRepo;
+
+  /// The last update check, or null before one ran.
+  UpdateView? updateState;
+
+  /// True while `update.check` is in flight.
+  bool updateChecking = false;
+
+  /// One readable update failure. A check is explicit, so this is shown in
+  /// Settings and nowhere else.
+  String? updateError;
+
+  /// The open deck's spaced-repetition schedule, or null before a read.
+  DeckSchedule? deckSchedule;
+
+  /// True while a deck schedule read or grade is in flight.
+  bool deckScheduleLoading = false;
+
+  /// The last deck schedule failure, shown beside the deck.
+  String? deckScheduleError;
+
+  /// The open session chat's context meter, or null before a read.
+  SessionContextView? sessionContext;
+
+  /// True while a context read or compaction is in flight.
+  bool sessionContextLoading = false;
+
+  /// The last context failure, shown beside the meter.
+  String? sessionContextError;
+
+  /// Saved research briefs for the open goal.
+  List<ResearchItem> research = const [];
+
+  /// True while the list is being read.
+  bool researchLoading = false;
+
+  /// True while a brief is being fetched and written.
+  bool researchRunning = false;
+
+  /// The last research failure, shown in the card.
+  String? researchError;
+
+  /// The open brief's Markdown, or null when none is open.
+  String? researchMarkdown;
+
+  /// The open brief's id.
+  String? researchOpenId;
+
+  /// The prompt catalogue with its stored notes.
+  List<PromptNoteView> prompts = const [];
+
+  /// The last prompt-note failure, shown in Settings.
+  String? promptsError;
+
+  /// The learning graph, or null before a read.
+  LearningGraph? learningGraph;
+
+  /// True while the graph is being derived.
+  bool learningGraphLoading = false;
+
+  /// The last graph failure, shown in the Knowledge surface.
+  String? learningGraphError;
+
+  /// Figures cropped from the open session's PDFs.
+  List<SessionFigure> figures = const [];
+
+  /// Decoded PNG bytes by figure id, loaded on demand.
+  final Map<String, Uint8List> figureImages = {};
+
+  bool figuresLoading = false;
+  bool figureBusy = false;
+  String? figureError;
+  int _figureTicket = 0;
+
+  int _researchTicket = 0;
+
+  int _deckTicket = 0;
+  int _contextTicket = 0;
+
   int _teachingTicket = 0;
 
   /// Read the teaching record for [goalId].
@@ -1374,7 +1466,12 @@ class CoreStore extends ChangeNotifier {
   /// A `correct` verdict passes the step and clears it in the core's record, so
   /// the next [teachNextStep] moves on; anything else keeps the step open for a
   /// repair.
-  Future<bool> checkTeaching(String goalId, String answer) async {
+  Future<bool> checkTeaching(
+    String goalId,
+    String answer, {
+    String thinking = '',
+    int? confidence,
+  }) async {
     final id = goalId.trim();
     if (id.isEmpty || answer.trim().isEmpty) return false;
     final ticket = ++_teachingTicket;
@@ -1385,6 +1482,8 @@ class CoreStore extends ChangeNotifier {
       final json = await _connection.call('teach.check', {
         'goalId': id,
         'answer': answer,
+        if (thinking.trim().isNotEmpty) 'thinking': thinking.trim(),
+        'confidence': ?confidence,
       });
       if (ticket != _teachingTicket) return false;
       teaching = TeachingState.fromJson(
@@ -1403,6 +1502,110 @@ class CoreStore extends ChangeNotifier {
       }
     }
   }
+
+  /// Read one step's side thread (`teach.side.snapshot`).
+  ///
+  /// Read-only. A missing thread is `[]`, not an error.
+  Future<void> openTeachingSide(String goalId, String stepId) async {
+    final id = goalId.trim();
+    if (id.isEmpty || stepId.isEmpty) return;
+    final ticket = ++_teachingTicket;
+    teachingSideLoading = true;
+    teachingSideError = null;
+    // A different step's thread must not flash while this one loads.
+    teachingSide = const [];
+    notifyListeners();
+    try {
+      final json = await _connection.call('teach.side.snapshot', {
+        'goalId': id,
+        'stepId': stepId,
+      });
+      if (ticket != _teachingTicket) return;
+      teachingSide = _sideMessages(json['messages']);
+    } catch (failure) {
+      if (ticket != _teachingTicket) return;
+      teachingSideError = _messageOf(failure);
+    } finally {
+      if (ticket == _teachingTicket) {
+        teachingSideLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Ask one side question (`teach.side.send`).
+  ///
+  /// One model call, no retry. The exchange is written by the core only after a
+  /// reply exists, so a failure leaves the thread unchanged.
+  Future<bool> askTeachingSide(
+    String goalId,
+    String stepId,
+    String text,
+  ) async {
+    final id = goalId.trim();
+    final question = text.trim();
+    if (id.isEmpty || stepId.isEmpty || question.isEmpty) return false;
+    final ticket = ++_teachingTicket;
+    teachingSideLoading = true;
+    teachingSideError = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call('teach.side.send', {
+        'goalId': id,
+        'stepId': stepId,
+        'text': question,
+      });
+      if (ticket != _teachingTicket) return false;
+      teachingSide = _sideMessages(json['messages']);
+      return true;
+    } catch (failure) {
+      if (ticket != _teachingTicket) return false;
+      teachingSideError = _messageOf(failure);
+      return false;
+    } finally {
+      if (ticket == _teachingTicket) {
+        teachingSideLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Clear one step's side thread (`teach.side.clear`).
+  Future<void> clearTeachingSide(String goalId, String stepId) async {
+    final id = goalId.trim();
+    if (id.isEmpty || stepId.isEmpty) return;
+    final ticket = ++_teachingTicket;
+    teachingSideLoading = true;
+    teachingSideError = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call('teach.side.clear', {
+        'goalId': id,
+        'stepId': stepId,
+      });
+      if (ticket != _teachingTicket) return;
+      teachingSide = _sideMessages(json['messages']);
+    } catch (failure) {
+      if (ticket != _teachingTicket) return;
+      teachingSideError = _messageOf(failure);
+    } finally {
+      if (ticket == _teachingTicket) {
+        teachingSideLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  static List<TeachingSideMessage> _sideMessages(Object? value) => value is List
+      ? value
+            .whereType<Map>()
+            .map(
+              (row) =>
+                  TeachingSideMessage.fromJson(Map<String, dynamic>.from(row)),
+            )
+            .where((message) => message.text.isNotEmpty)
+            .toList(growable: false)
+      : const [];
 
   /// Transcript for one goal chat, cached or not: a collapsed chat keeps its
   /// snapshot so reopening does not flash an empty transcript.
@@ -1624,6 +1827,42 @@ class CoreStore extends ChangeNotifier {
       notifyListeners();
     } catch (failure) {
       settingsError = _messageOf(failure);
+      notifyListeners();
+    }
+  }
+
+  /// Read the running version and repository (`update.info`).
+  ///
+  /// Cheap and offline; quiet on failure, because a build with no update
+  /// surface still runs.
+  Future<void> refreshUpdateInfo() async {
+    try {
+      final json = await _connection.call('update.info');
+      appVersion = json['current'] is String ? json['current'] as String : null;
+      updateRepo = json['repo'] is String ? json['repo'] as String : null;
+      notifyListeners();
+    } catch (_) {
+      // A missing update surface is not a session error.
+    }
+  }
+
+  /// Ask the release feed for a newer build (`update.check`).
+  ///
+  /// One explicit request, no retry, no automatic download. The previous result
+  /// stays visible until the new one arrives or the check fails.
+  Future<void> checkForUpdates() async {
+    if (updateChecking) return;
+    updateChecking = true;
+    updateError = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call('update.check');
+      updateState = UpdateView.fromJson(json);
+      appVersion ??= updateState?.current;
+    } catch (failure) {
+      updateError = _messageOf(failure);
+    } finally {
+      updateChecking = false;
       notifyListeners();
     }
   }
@@ -2909,6 +3148,7 @@ class CoreStore extends ChangeNotifier {
       outputMarkdown = null;
       outputExists = false;
       outputAnswers = null;
+      if (kind != 'flashcards') deckSchedule = null;
     }
     notifyListeners();
     try {
@@ -2922,6 +3162,7 @@ class CoreStore extends ChangeNotifier {
       if (part == null) {
         outputMarkdown = result.markdown;
         outputExists = result.exists;
+        if (kind == 'flashcards') unawaited(readDeckSchedule(id));
       } else {
         // `exists: false` on the answers part is still the reader's empty state;
         // an empty string lets the view say so without a second flag.
@@ -2946,6 +3187,416 @@ class CoreStore extends ChangeNotifier {
   /// part is reset to "not read yet"; the shell never re-reads or re-parses a
   /// file the core just wrote. A failure is recorded once in [outputError] and
   /// the previous document stays exactly as it was. The method never throws.
+  /// Read the open session's figures (`session.figure.list`).
+  Future<void> readFigures(String sessionId) async {
+    final id = sessionId.trim();
+    if (id.isEmpty) return;
+    final ticket = ++_figureTicket;
+    figuresLoading = true;
+    figureError = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call('session.figure.list', {'id': id});
+      if (ticket != _figureTicket) return;
+      final rows = json['figures'];
+      figures = rows is List
+          ? rows
+                .whereType<Map>()
+                .map(
+                  (row) =>
+                      SessionFigure.fromJson(Map<String, dynamic>.from(row)),
+                )
+                .toList(growable: false)
+          : const [];
+    } catch (failure) {
+      if (ticket != _figureTicket) return;
+      figureError = _messageOf(failure);
+    } finally {
+      if (ticket == _figureTicket) {
+        figuresLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Crop one figure from the session's own PDF (`session.figure.extract`).
+  Future<bool> extractFigure(
+    String sessionId, {
+    required int page,
+    int? x,
+    int? y,
+    int? width,
+    int? height,
+    String caption = '',
+    String note = '',
+  }) async {
+    final id = sessionId.trim();
+    if (id.isEmpty || page < 1) return false;
+    figureBusy = true;
+    figureError = null;
+    notifyListeners();
+    try {
+      await _connection.call('session.figure.extract', {
+        'id': id,
+        'page': page,
+        'x': ?x,
+        'y': ?y,
+        'width': ?width,
+        'height': ?height,
+        if (caption.trim().isNotEmpty) 'caption': caption.trim(),
+        if (note.trim().isNotEmpty) 'note': note.trim(),
+      });
+      await readFigures(id);
+      return true;
+    } catch (failure) {
+      figureError = _messageOf(failure);
+      return false;
+    } finally {
+      figureBusy = false;
+      notifyListeners();
+    }
+  }
+
+  /// Load one figure's PNG bytes (`session.figure.read`).
+  Future<void> loadFigure(String sessionId, String figureId) async {
+    final id = sessionId.trim();
+    if (id.isEmpty || figureId.isEmpty) return;
+    try {
+      final json = await _connection.call('session.figure.read', {
+        'id': id,
+        'figureId': figureId,
+      });
+      final base64 = json['base64'];
+      if (base64 is String) {
+        figureImages[figureId] = base64Decode(base64);
+      }
+      figureError = null;
+    } catch (failure) {
+      figureError = _messageOf(failure);
+    }
+    notifyListeners();
+  }
+
+  /// Change one figure's caption or note (`session.figure.annotate`).
+  Future<void> annotateFigure(
+    String sessionId,
+    String figureId, {
+    String? caption,
+    String? note,
+  }) async {
+    final id = sessionId.trim();
+    if (id.isEmpty || figureId.isEmpty) return;
+    try {
+      await _connection.call('session.figure.annotate', {
+        'id': id,
+        'figureId': figureId,
+        'caption': ?caption,
+        'note': ?note,
+      });
+      await readFigures(id);
+    } catch (failure) {
+      figureError = _messageOf(failure);
+      notifyListeners();
+    }
+  }
+
+  /// Remove one figure (`session.figure.remove`).
+  Future<void> removeFigure(String sessionId, String figureId) async {
+    final id = sessionId.trim();
+    if (id.isEmpty || figureId.isEmpty) return;
+    try {
+      await _connection.call('session.figure.remove', {
+        'id': id,
+        'figureId': figureId,
+      });
+      figureImages.remove(figureId);
+      await readFigures(id);
+    } catch (failure) {
+      figureError = _messageOf(failure);
+      notifyListeners();
+    }
+  }
+
+  /// Read the prompt catalogue (`prompts.list`).
+  Future<void> refreshPrompts() async {
+    try {
+      final json = await _connection.call('prompts.list');
+      final rows = json['items'];
+      prompts = rows is List
+          ? rows
+                .whereType<Map>()
+                .map(
+                  (row) =>
+                      PromptNoteView.fromJson(Map<String, dynamic>.from(row)),
+                )
+                .toList(growable: false)
+          : const [];
+      promptsError = null;
+    } catch (failure) {
+      promptsError = _messageOf(failure);
+    }
+    notifyListeners();
+  }
+
+  /// Set or clear one prompt note (`prompts.set`). Empty text clears it.
+  Future<void> setPrompt(String id, String text) async {
+    try {
+      final json = await _connection.call('prompts.set', {
+        'id': id,
+        'text': text,
+      });
+      final rows = json['items'];
+      prompts = rows is List
+          ? rows
+                .whereType<Map>()
+                .map(
+                  (row) =>
+                      PromptNoteView.fromJson(Map<String, dynamic>.from(row)),
+                )
+                .toList(growable: false)
+          : const [];
+      promptsError = null;
+    } catch (failure) {
+      promptsError = _messageOf(failure);
+    }
+    notifyListeners();
+  }
+
+  /// Derive the learning graph (`knowledge.graph`).
+  ///
+  /// Read-only and derived; a broken folder comes back as a diagnostic in the
+  /// graph, not as a failed request.
+  Future<void> readLearningGraph() async {
+    if (learningGraphLoading) return;
+    learningGraphLoading = true;
+    learningGraphError = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call('knowledge.graph');
+      final graph = json['graph'];
+      learningGraph = graph is Map
+          ? LearningGraph.fromJson(Map<String, dynamic>.from(graph))
+          : LearningGraph.empty;
+    } catch (failure) {
+      learningGraphError = _messageOf(failure);
+    } finally {
+      learningGraphLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Read the open goal's saved briefs (`research.list`).
+  Future<void> readResearch(String goalId) async {
+    final id = goalId.trim();
+    if (id.isEmpty) return;
+    final ticket = ++_researchTicket;
+    researchLoading = true;
+    notifyListeners();
+    try {
+      final json = await _connection.call('research.list', {'goalId': id});
+      if (ticket != _researchTicket) return;
+      final rows = json['items'];
+      research = rows is List
+          ? rows
+                .whereType<Map>()
+                .map(
+                  (row) =>
+                      ResearchItem.fromJson(Map<String, dynamic>.from(row)),
+                )
+                .toList(growable: false)
+          : const [];
+      researchError = null;
+    } catch (failure) {
+      if (ticket != _researchTicket) return;
+      researchError = _messageOf(failure);
+    } finally {
+      if (ticket == _researchTicket) {
+        researchLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Start one background brief (`research.start`).
+  ///
+  /// The reply is only an acknowledgement; `research.updated` carries the
+  /// result. A refusal is shown in the card and nothing is left running.
+  Future<bool> startResearch(
+    String goalId,
+    String question,
+    List<String> urls,
+  ) async {
+    final id = goalId.trim();
+    final text = question.trim();
+    if (id.isEmpty || text.isEmpty || urls.isEmpty) return false;
+    researchRunning = true;
+    researchError = null;
+    notifyListeners();
+    try {
+      await _connection.call('research.start', {
+        'goalId': id,
+        'question': text,
+        'urls': urls,
+      });
+      return true;
+    } catch (failure) {
+      researchRunning = false;
+      researchError = _messageOf(failure);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Open one saved brief (`research.read`).
+  Future<void> openResearch(String goalId, String researchId) async {
+    final id = goalId.trim();
+    if (id.isEmpty || researchId.isEmpty) return;
+    try {
+      final json = await _connection.call('research.read', {
+        'goalId': id,
+        'id': researchId,
+      });
+      researchMarkdown = json['markdown'] is String
+          ? json['markdown'] as String
+          : '';
+      researchOpenId = researchId;
+      researchError = null;
+    } catch (failure) {
+      researchError = _messageOf(failure);
+    }
+    notifyListeners();
+  }
+
+  void closeResearch() {
+    researchMarkdown = null;
+    researchOpenId = null;
+    notifyListeners();
+  }
+
+  /// Read one session chat's context meter (`session.chat.context`).
+  Future<void> readSessionContext(String sessionId) async {
+    final id = sessionId.trim();
+    if (id.isEmpty) return;
+    final ticket = ++_contextTicket;
+    sessionContextLoading = true;
+    sessionContextError = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call('session.chat.context', {'id': id});
+      if (ticket != _contextTicket) return;
+      sessionContext = SessionContextView.fromJson(json);
+    } catch (failure) {
+      if (ticket != _contextTicket) return;
+      sessionContextError = _messageOf(failure);
+    } finally {
+      if (ticket == _contextTicket) {
+        sessionContextLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Compact the older part of a session chat (`session.chat.compact`).
+  ///
+  /// One explicit model call, no retry; the reply is the new meter.
+  Future<void> compactSessionChat(String sessionId) async {
+    final id = sessionId.trim();
+    if (id.isEmpty || sessionContextLoading) return;
+    final ticket = ++_contextTicket;
+    sessionContextLoading = true;
+    sessionContextError = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call('session.chat.compact', {'id': id});
+      if (ticket != _contextTicket) return;
+      sessionContext = SessionContextView.fromJson(json);
+    } catch (failure) {
+      if (ticket != _contextTicket) return;
+      sessionContextError = _messageOf(failure);
+    } finally {
+      if (ticket == _contextTicket) {
+        sessionContextLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Drop the stored summary (`session.chat.uncompact`).
+  Future<void> uncompactSessionChat(String sessionId) async {
+    final id = sessionId.trim();
+    if (id.isEmpty || sessionContextLoading) return;
+    final ticket = ++_contextTicket;
+    sessionContextLoading = true;
+    sessionContextError = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call('session.chat.uncompact', {'id': id});
+      if (ticket != _contextTicket) return;
+      sessionContext = SessionContextView.fromJson(json);
+    } catch (failure) {
+      if (ticket != _contextTicket) return;
+      sessionContextError = _messageOf(failure);
+    } finally {
+      if (ticket == _contextTicket) {
+        sessionContextLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Read one session's flashcard schedule (`session.deck.state`).
+  Future<void> readDeckSchedule(String sessionId) async {
+    final id = sessionId.trim();
+    if (id.isEmpty) return;
+    final ticket = ++_deckTicket;
+    deckScheduleLoading = true;
+    deckScheduleError = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call('session.deck.state', {'id': id});
+      if (ticket != _deckTicket) return;
+      deckSchedule = DeckSchedule.fromJson(json);
+    } catch (failure) {
+      if (ticket != _deckTicket) return;
+      deckScheduleError = _messageOf(failure);
+    } finally {
+      if (ticket == _deckTicket) {
+        deckScheduleLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Grade one card (`session.deck.grade`).
+  ///
+  /// One write, atomic. The reply is the whole schedule, so the deck replaces
+  /// its view rather than patching a card locally.
+  Future<void> gradeDeckCard(String sessionId, int index, String grade) async {
+    final id = sessionId.trim();
+    if (id.isEmpty) return;
+    final ticket = ++_deckTicket;
+    deckScheduleLoading = true;
+    deckScheduleError = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call('session.deck.grade', {
+        'id': id,
+        'index': index,
+        'grade': grade,
+      });
+      if (ticket != _deckTicket) return;
+      deckSchedule = DeckSchedule.fromJson(json);
+    } catch (failure) {
+      if (ticket != _deckTicket) return;
+      deckScheduleError = _messageOf(failure);
+    } finally {
+      if (ticket == _deckTicket) {
+        deckScheduleLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
   Future<void> buildOutput(String sessionId, String kind) async {
     final id = sessionId.trim();
     if (id.isEmpty || outputLoading) return;
@@ -4158,6 +4809,11 @@ class CoreStore extends ChangeNotifier {
     activeSkillChatId = null;
     skillChats = const [];
     _clearSkillSources();
+    research = const [];
+    researchOpenId = null;
+    researchMarkdown = null;
+    researchError = null;
+    unawaited(readResearch(goalId));
     notifyListeners();
     // The saved-chat list is a property of the open goal, so it is read here.
     // A failure is recorded in [error] and the page still renders.
@@ -5107,6 +5763,30 @@ class CoreStore extends ChangeNotifier {
   void _handleEvent(Map<String, dynamic> event) {
     final method = event['method'];
     final params = event['params'];
+    if (method == 'research.updated' && params is Map) {
+      final goalId = params['goalId'];
+      final researchId = params['id'];
+      final status = params['status'];
+      if (goalId is String && goalId == activeSkillId) {
+        if (status == 'done' || status == 'failed' || status == 'cancelled') {
+          researchRunning = false;
+        }
+        if (status == 'failed') {
+          researchError = params['message'] is String
+              ? params['message'] as String
+              : 'the research brief failed';
+        }
+        if (status == 'done') {
+          researchError = null;
+          unawaited(readResearch(goalId));
+          if (researchId is String && researchId == researchOpenId) {
+            unawaited(openResearch(goalId, researchId));
+          }
+        }
+        notifyListeners();
+      }
+      return;
+    }
     if (method == 'session.chat.state' && params is Map) {
       final snapshot = Map<String, dynamic>.from(params);
       final sessionId = snapshot.remove('sessionId');
