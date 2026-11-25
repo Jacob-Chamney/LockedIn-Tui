@@ -5,6 +5,7 @@ import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
+import '../shared/content_column.dart';
 import '../../theme/tokens.dart';
 import 'agent_dialog.dart';
 import 'project_dialog.dart';
@@ -175,45 +176,47 @@ class _WorkPageState extends State<WorkPage> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final showMode = constraints.maxWidth >= 520;
-        return Focus(
-          focusNode: _pageFocus,
-          autofocus: true,
-          onKeyEvent: _onKey,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _header(compact: constraints.maxWidth < 560),
-                const SizedBox(height: 10),
-                TextField(
-                  key: _searchFieldKey,
-                  controller: _searchController,
-                  focusNode: _searchFocus,
-                  onChanged: (value) => setState(() {
-                    _query = value;
-                    _selectedIndex = 0;
-                  }),
-                  decoration: const InputDecoration(
-                    hintText: 'search projects',
-                    isDense: true,
-                    prefixIcon: Icon(Icons.search, size: 16),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
+    return ContentColumn(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final showMode = constraints.maxWidth >= 520;
+          return Focus(
+            focusNode: _pageFocus,
+            autofocus: true,
+            onKeyEvent: _onKey,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _header(compact: constraints.maxWidth < 560),
+                  const SizedBox(height: 10),
+                  TextField(
+                    key: _searchFieldKey,
+                    controller: _searchController,
+                    focusNode: _searchFocus,
+                    onChanged: (value) => setState(() {
+                      _query = value;
+                      _selectedIndex = 0;
+                    }),
+                    decoration: const InputDecoration(
+                      hintText: 'search projects',
+                      isDense: true,
+                      prefixIcon: Icon(Icons.search, size: 16),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Expanded(child: _body(showMode: showMode)),
-              ],
+                  const SizedBox(height: 12),
+                  Expanded(child: _body(showMode: showMode)),
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 

@@ -21,6 +21,11 @@ requests merge.
 
 ## Unreleased
 
+- Every list manager (sessions, skills, review, archive, knowledge, work,
+  achievements) shares the detail views' content column, so a wide window no
+  longer stretches a row's sentence and its trailing control to opposite edges.
+  One `ContentColumn` widget, geometry-tested at 1400×900 and 800×600.
+
 - Raw exception text no longer reaches the UI: the Stats save error and the
   agent Templates hint use the shared `userMessage` mapper, so a stack trace or
   a multi-line payload becomes one readable sentence.
