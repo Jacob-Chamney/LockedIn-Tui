@@ -9,6 +9,7 @@ import '../../bridge/errors.dart';
 import '../../shell/chrome.dart';
 import '../shared/cards.dart';
 import '../../theme/palette.dart';
+import '../shared/content_column.dart';
 import '../../theme/tokens.dart';
 
 /// The manager's sort orders (`docs/product.md` §4.4: date/name/size). `o`
@@ -453,64 +454,69 @@ class _SessionsPageState extends State<SessionsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final showDate = constraints.maxWidth >= 700;
-        final compact = constraints.maxWidth < 560;
-        return Focus(
-          focusNode: _pageFocus,
-          autofocus: true,
-          onKeyEvent: _onKey,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _header(compact: compact),
-                const SizedBox(height: 12),
-                TextField(
-                  key: _searchFieldKey,
-                  controller: _searchController,
-                  focusNode: _searchFocus,
-                  onChanged: _onQueryChanged,
-                  // Enter keeps the query and hands the list its keys back.
-                  onSubmitted: (_) => _pageFocus.requestFocus(),
-                  onTapOutside: (_) => _pageFocus.requestFocus(),
-                  decoration: const InputDecoration(
-                    hintText: 'search sessions',
-                    isDense: true,
-                    prefixIcon: Icon(Icons.search, size: 16),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
+    return ContentColumn(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final showDate = constraints.maxWidth >= 700;
+          final compact = constraints.maxWidth < 560;
+          return Focus(
+            focusNode: _pageFocus,
+            autofocus: true,
+            onKeyEvent: _onKey,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _header(compact: compact),
+                  const SizedBox(height: 12),
+                  TextField(
+                    key: _searchFieldKey,
+                    controller: _searchController,
+                    focusNode: _searchFocus,
+                    onChanged: _onQueryChanged,
+                    // Enter keeps the query and hands the list its keys back.
+                    onSubmitted: (_) => _pageFocus.requestFocus(),
+                    onTapOutside: (_) => _pageFocus.requestFocus(),
+                    decoration: const InputDecoration(
+                      hintText: 'search sessions',
+                      isDense: true,
+                      prefixIcon: Icon(Icons.search, size: 16),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                if (_hasActions) ...[
-                  Text(
-                    'a archive · d delete · x export',
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
-                  ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
+                  if (_hasActions) ...[
+                    Text(
+                      'a archive · d delete · x export',
+                      style: TextStyle(
+                        color: LockedInColors.muted,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  if (_actionError != null || _notice != null) ...[
+                    _ActionBanner(
+                      message: _actionError ?? _notice!,
+                      failed: _actionError != null,
+                      onDismiss: () => setState(() {
+                        _actionError = null;
+                        _notice = null;
+                      }),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  Expanded(child: _body(showDate)),
                 ],
-                if (_actionError != null || _notice != null) ...[
-                  _ActionBanner(
-                    message: _actionError ?? _notice!,
-                    failed: _actionError != null,
-                    onDismiss: () => setState(() {
-                      _actionError = null;
-                      _notice = null;
-                    }),
-                  ),
-                  const SizedBox(height: 10),
-                ],
-                Expanded(child: _body(showDate)),
-              ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 

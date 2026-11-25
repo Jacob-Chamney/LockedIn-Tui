@@ -8,6 +8,7 @@ import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
 import '../shared/cards.dart';
 import '../../theme/palette.dart';
+import '../shared/content_column.dart';
 import '../../theme/tokens.dart';
 import '../shared/format.dart';
 
@@ -367,44 +368,46 @@ class _ArchivePageState extends State<ArchivePage> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 620;
-        return Focus(
-          autofocus: true,
-          onKeyEvent: _onKey,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _header(compact: compact),
-                const SizedBox(height: 12),
-                Text(
-                  _hint,
-                  key: const ValueKey('archive-restore-hint'),
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
-                ),
-                const SizedBox(height: 8),
-                if (_actionError != null || _notice != null) ...[
-                  _ActionBanner(
-                    message: _actionError ?? _notice!,
-                    failed: _actionError != null,
-                    onRetry: _failedRow == null ? null : _retry,
-                    onDismiss: () => setState(() {
-                      _actionError = null;
-                      _notice = null;
-                      _failedRow = null;
-                    }),
+    return ContentColumn(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 620;
+          return Focus(
+            autofocus: true,
+            onKeyEvent: _onKey,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _header(compact: compact),
+                  const SizedBox(height: 12),
+                  Text(
+                    _hint,
+                    key: const ValueKey('archive-restore-hint'),
+                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
+                  if (_actionError != null || _notice != null) ...[
+                    _ActionBanner(
+                      message: _actionError ?? _notice!,
+                      failed: _actionError != null,
+                      onRetry: _failedRow == null ? null : _retry,
+                      onDismiss: () => setState(() {
+                        _actionError = null;
+                        _notice = null;
+                        _failedRow = null;
+                      }),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  Expanded(child: _body()),
                 ],
-                Expanded(child: _body()),
-              ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 

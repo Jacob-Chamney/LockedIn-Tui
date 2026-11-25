@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../theme/palette.dart';
+import '../shared/content_column.dart';
 import 'star_field.dart';
 import 'star_map.dart';
 
@@ -236,29 +237,31 @@ class _AchievementsPageState extends State<AchievementsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 720;
-        _narrow = compact;
-        return Focus(
-          focusNode: widget.focusNode,
-          autofocus: true,
-          onKeyEvent: _onKey,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _header(compact: compact),
-                const SizedBox(height: 12),
-                Expanded(child: _body(compact: compact)),
-                const SizedBox(height: 8),
-                _footer(compact: compact),
-              ],
+    return ContentColumn(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 720;
+          _narrow = compact;
+          return Focus(
+            focusNode: widget.focusNode,
+            autofocus: true,
+            onKeyEvent: _onKey,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _header(compact: compact),
+                  const SizedBox(height: 12),
+                  Expanded(child: _body(compact: compact)),
+                  const SizedBox(height: 8),
+                  _footer(compact: compact),
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 

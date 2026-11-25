@@ -9,6 +9,7 @@ import '../keys.dart';
 import '../../bridge/models.dart';
 import '../shared/cards.dart';
 import '../../theme/palette.dart';
+import '../shared/content_column.dart';
 import '../../theme/tokens.dart';
 import '../shared/format.dart';
 
@@ -286,27 +287,29 @@ class _ReviewPageState extends State<ReviewPage> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 620;
-        return Focus(
-          autofocus: true,
-          onKeyEvent: _onKey,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _header(compact: compact),
-                const SizedBox(height: 12),
-                _sideChips(),
-                const SizedBox(height: 12),
-                Expanded(child: _body()),
-              ],
+    return ContentColumn(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 620;
+          return Focus(
+            autofocus: true,
+            onKeyEvent: _onKey,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _header(compact: compact),
+                  const SizedBox(height: 12),
+                  _sideChips(),
+                  const SizedBox(height: 12),
+                  Expanded(child: _body()),
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 

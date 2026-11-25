@@ -7,6 +7,7 @@ import '../keys.dart';
 import '../../bridge/models.dart';
 import '../shared/cards.dart';
 import '../../theme/palette.dart';
+import '../shared/content_column.dart';
 import '../../theme/tokens.dart';
 import '../shared/format.dart';
 
@@ -385,44 +386,46 @@ class _KnowledgePageState extends State<KnowledgePage> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 620;
-        return Focus(
-          focusNode: _listFocus,
-          autofocus: true,
-          onKeyEvent: _onKey,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _header(compact: compact),
-                const SizedBox(height: 10),
-                if (_graphMode)
-                  _graphHint()
-                else ...[
-                  _searchField(),
+    return ContentColumn(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 620;
+          return Focus(
+            focusNode: _listFocus,
+            autofocus: true,
+            onKeyEvent: _onKey,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _header(compact: compact),
+                  const SizedBox(height: 10),
+                  if (_graphMode)
+                    _graphHint()
+                  else ...[
+                    _searchField(),
+                    const SizedBox(height: 8),
+                    _scopeChips(),
+                  ],
+                  if (_showsWorkTreeNote) ...[
+                    const SizedBox(height: 8),
+                    _workTreeNote(),
+                  ],
                   const SizedBox(height: 8),
-                  _scopeChips(),
-                ],
-                if (_showsWorkTreeNote) ...[
+                  _historyNote(),
                   const SizedBox(height: 8),
-                  _workTreeNote(),
+                  if (_notice != null) ...[
+                    _noticeBlock(_notice!),
+                    const SizedBox(height: 8),
+                  ],
+                  Expanded(child: _body()),
                 ],
-                const SizedBox(height: 8),
-                _historyNote(),
-                const SizedBox(height: 8),
-                if (_notice != null) ...[
-                  _noticeBlock(_notice!),
-                  const SizedBox(height: 8),
-                ],
-                Expanded(child: _body()),
-              ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
