@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../theme/palette.dart';
+import '../../theme/breakpoints.dart';
 
 /// One case-insensitive match inside a document.
 ///
@@ -270,7 +271,7 @@ class _DocumentSearchBarState extends State<DocumentSearchBar> {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 640;
+          final wide = constraints.maxWidth >= Breakpoints.snippet;
           return Row(
             children: [
               Icon(Icons.search, size: 14, color: LockedInColors.muted),

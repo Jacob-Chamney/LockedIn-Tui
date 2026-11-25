@@ -11,6 +11,7 @@ import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
 import '../../shell/chrome.dart';
 import '../../theme/palette.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/tokens.dart';
 import '../chat/markdown.dart';
 import '../chat/transcript_scroll.dart';
@@ -1006,7 +1007,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
       builder: (context, constraints) {
         // The rail needs 176 px and the page at least 420: below that it
         // becomes a numbered strip, still complete as a control.
-        final compactRail = constraints.maxWidth < 720;
+        final compactRail = constraints.maxWidth < Breakpoints.column;
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

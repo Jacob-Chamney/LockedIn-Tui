@@ -8,6 +8,7 @@ import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
+import '../../theme/breakpoints.dart';
 
 /// What the wizard gathered on its way to the Review step.
 ///
@@ -402,7 +403,7 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
       onKeyEvent: _onKey,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 560;
+          final compact = constraints.maxWidth < Breakpoints.hint;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

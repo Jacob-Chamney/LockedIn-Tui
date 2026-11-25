@@ -7,6 +7,7 @@ import '../keys.dart';
 import '../../bridge/models.dart';
 import '../shared/cards.dart';
 import '../../theme/palette.dart';
+import '../../theme/breakpoints.dart';
 import '../shared/content_column.dart';
 import '../../theme/tokens.dart';
 import '../shared/format.dart';
@@ -389,7 +390,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
     return ContentColumn(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 620;
+          final compact = constraints.maxWidth < Breakpoints.hint;
           return Focus(
             focusNode: _listFocus,
             autofocus: true,
@@ -486,9 +487,15 @@ class _KnowledgePageState extends State<KnowledgePage> {
           ),
         ),
         if (!compact)
-          Text(
-            '/ search · j/k move · Enter open · Esc back',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+          // The hint shares the row with the summary. A bare Text here
+          // overflowed at 600 once the header stopped shortening at 620.
+          Flexible(
+            child: Text(
+              '/ search · j/k move · Enter open · Esc back',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            ),
           ),
       ],
     );

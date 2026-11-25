@@ -7,6 +7,7 @@ import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
+import '../../theme/breakpoints.dart';
 
 /// Creates one goal. The shell's implementation calls `CoreStore.createSkill`,
 /// which rethrows the core's [RpcException] so the wizard can show the exact
@@ -216,7 +217,7 @@ class _GoalWizardState extends State<GoalWizard> {
       onKeyEvent: _onKey,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 560;
+          final compact = constraints.maxWidth < Breakpoints.hint;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

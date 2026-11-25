@@ -11,6 +11,7 @@ import '../../shell/chrome.dart';
 import '../shared/cards.dart';
 import '../../theme/tokens.dart';
 import '../../theme/palette.dart';
+import '../../theme/breakpoints.dart';
 import '../chat/document_search.dart';
 import '../chat/markdown.dart';
 import '../shared/format.dart';
@@ -901,7 +902,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
   Widget _headerAt(double width) {
     final theme = Theme.of(context);
     final detail = widget.detail;
-    final compact = width < 560;
+    final compact = width < Breakpoints.hint;
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 8, 14, 8),
       decoration: BoxDecoration(
@@ -1033,7 +1034,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
     // the work; the page's only job is to keep the next action obvious.
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 980;
+        final wide = constraints.maxWidth >= Breakpoints.columns;
         final centre = _centrePane(detail, includeSteps: !wide);
         if (!wide) return centre;
         return Row(

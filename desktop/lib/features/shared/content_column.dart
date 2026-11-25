@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../theme/breakpoints.dart';
+
 /// The shared width cap for a page's content column.
 ///
 /// A detail view caps its reading column so a line does not run the width of a
@@ -11,7 +13,11 @@ import 'package:material_ui/material_ui.dart';
 /// 900 px column the details use. On a window narrower than the cap the column
 /// fills the window as before.
 class ContentColumn extends StatelessWidget {
-  const ContentColumn({super.key, required this.child, this.maxWidth = 900});
+  const ContentColumn({
+    super.key,
+    required this.child,
+    this.maxWidth = Breakpoints.content,
+  });
 
   /// The widest the column may be, including any page padding the caller puts
   /// inside it.

@@ -7,6 +7,7 @@ import '../../bridge/models.dart';
 import '../../bridge/protocol.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
+import '../../theme/breakpoints.dart';
 import '../shared/format.dart';
 
 /// Returns the files the user chose, or an empty list when they cancelled.
@@ -256,7 +257,7 @@ class _SourcesPageState extends State<SourcesPage> {
       onKeyEvent: _onKey,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 560;
+          final compact = constraints.maxWidth < Breakpoints.hint;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
