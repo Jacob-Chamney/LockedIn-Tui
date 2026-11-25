@@ -21,6 +21,11 @@ requests merge.
 
 ## Unreleased
 
+- Review now includes promoted mistakes with no correction yet and Work tasks
+  that are done but unverified. `k` marks a mistake reviewed or verifies a task;
+  `m` records a mistake miss and is refused for a task; the `work` side joins
+  `all`, `school` and `skills`.
+
 - Mistakes can be recorded in a session and **promoted** into a labelled
   school knowledge note with provenance (session, entry, step, open/corrected);
   the note is searchable through Knowledge and is never a source.

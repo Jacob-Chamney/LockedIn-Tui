@@ -121,7 +121,7 @@ describe("review queue — composition", () => {
     expect(kinds(queue)).toEqual(["card", "step", "step", "stage", "stage", "memory"])
     expect(queue.counts).toEqual({
       total: 6,
-      byKind: { card: 1, step: 2, stage: 2, memory: 1 },
+      byKind: { card: 1, step: 2, stage: 2, mistake: 0, memory: 1, task: 0 },
     })
   })
 
@@ -152,7 +152,7 @@ describe("review queue — composition", () => {
     expect(queue.coverage).toEqual([])
     expect(queue.counts).toEqual({
       total: 0,
-      byKind: { step: 0, card: 0, stage: 0, memory: 0 },
+      byKind: { step: 0, card: 0, stage: 0, mistake: 0, memory: 0, task: 0 },
     })
   })
 
@@ -171,7 +171,7 @@ describe("review queue — composition", () => {
 describe("review queue — ordering and identity", () => {
   test("orders cards, steps, stages, then memory", () => {
     const queue = buildReviewQueue(fullInput())
-    expect(queue.items.map((item) => item.priority)).toEqual([0, 1, 1, 2, 2, 3])
+    expect(queue.items.map((item) => item.priority)).toEqual([0, 1, 1, 2, 2, 4])
   })
 
   test("ties break by context name, then context id, then item id", () => {
@@ -440,5 +440,77 @@ describe("purity", () => {
       memory: [{ ...MEMORY, excerpt: "\n\n   \nReal content here" }],
     })
     expect(queue.items[0]?.label).toBe("Real content here")
+  })
+})
+
+describe("promoted mistakes and work tasks", () => {
+  const mistake = {
+    sessionId: "physics",
+    sessionName: "Physics — Unit 4",
+    noteId: "0",
+    text: "Energy is conserved per object.",
+    misses: 3,
+  }
+
+  const task = {
+    projectId: "my-app",
+    projectName: "My app",
+    runId: "2026-11-01T16-00-00Z",
+    taskId: "task-1",
+    title: "Check the offset handling",
+    status: "done" as const,
+    verified: false,
+  }
+
+  test("an uncorrected mistake is an item whose misses drive the nudge", () => {
+    const queue = buildReviewQueue({ mistakes: [mistake] })
+    expect(queue.items).toHaveLength(1)
+    expect(queue.items[0]).toMatchObject({
+      id: "mistake:physics:0",
+      kind: "mistake",
+      label: "Energy is conserved per object.",
+      context: "Physics — Unit 4",
+      contextId: "physics",
+      reason: "uncorrected",
+      priority: KIND_PRIORITY.mistake,
+      count: 3,
+      origin: "session-mistake",
+    })
+    expect(queue.nudge.due).toEqual(["mistake:physics:0"])
+    expect(queue.counts.byKind.mistake).toBe(1)
+  })
+
+  test("a done, unverified task is an item; verified and unfinished work is not", () => {
+    const queue = buildReviewQueue({
+      tasks: [
+        task,
+        { ...task, taskId: "task-2", verified: true },
+        { ...task, taskId: "task-3", status: "failed" },
+        { ...task, taskId: "task-4", status: "running" },
+      ],
+    })
+    expect(queue.items).toHaveLength(1)
+    expect(queue.items[0]).toMatchObject({
+      id: "task:my-app:2026-11-01T16-00-00Z:task-1",
+      kind: "task",
+      label: "Check the offset handling",
+      context: "My app",
+      contextId: "my-app",
+      reason: "unverified",
+      priority: KIND_PRIORITY.task,
+      count: 0,
+      origin: "swarm",
+    })
+    expect(queue.counts.byKind.task).toBe(1)
+  })
+
+  test("learning work stays ahead of work tasks; memory sits between them", () => {
+    const queue = buildReviewQueue({
+      memory: [{ sessionId: "physics", sessionName: "Physics", noteId: "n1", excerpt: "A point" }],
+      mistakes: [mistake],
+      tasks: [task],
+    })
+    expect(queue.items.map((item) => item.kind)).toEqual(["mistake", "memory", "task"])
+    expect(queue.items.map((item) => item.priority)).toEqual([3, 4, 5])
   })
 })

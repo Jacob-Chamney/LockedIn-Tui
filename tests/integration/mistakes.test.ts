@@ -14,6 +14,7 @@ import { parseDocument, readString, readStringArray, type Result } from "../../s
 import { createLockInSession } from "../../src/services/lockin/create";
 import {
   listMistakes,
+  markMistake,
   promoteMistake,
   recordMistake,
 } from "../../src/services/lockin/mistakes";
@@ -173,3 +174,52 @@ describe("promotion", () => {
     expect(b.note.path).toContain("a-derivative-is-a-fraction");
   });
 });
+
+describe("review marking", () => {
+  beforeEach(async () => {
+    unwrap(
+      await recordMistake({
+        workspace,
+        sessionId,
+        text: "Energy is conserved per object.",
+      }),
+    )
+    unwrap(await promoteMistake({ workspace, sessionId, index: 0 }))
+  })
+
+  test("known marks the note reviewed and leaves the body untouched", async () => {
+    const first = unwrap(await markMistake({ workspace, sessionId, index: 0, result: "known" }))
+    expect(first.misses).toBe(0)
+
+    const listed = unwrap(await listMistakes({ workspace, sessionId }))
+    const path = listed.entries[0]?.note?.path ?? ""
+    const parsed = parseDocument(await readFile(join(workspace.root, path), "utf8"))
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(readString(parsed.value.data, "status")).toBe("reviewed")
+    expect(readString(parsed.value.data, "reviewed_at")).not.toBe("")
+    expect(parsed.value.body).toContain("not one of the session's sources")
+    expect(parsed.value.body).toContain("Not written yet.")
+  })
+
+  test("missed increments a durable count", async () => {
+    expect(unwrap(await markMistake({ workspace, sessionId, index: 0, result: "missed" })).misses).toBe(1)
+    expect(unwrap(await markMistake({ workspace, sessionId, index: 0, result: "missed" })).misses).toBe(2)
+
+    const listed = unwrap(await listMistakes({ workspace, sessionId }))
+    const path = listed.entries[0]?.note?.path ?? ""
+    const parsed = parseDocument(await readFile(join(workspace.root, path), "utf8"))
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.data.misses).toBe(2)
+    expect(readString(parsed.value.data, "last_missed")).not.toBe("")
+    // Still open: a miss is not a review pass.
+    expect(readString(parsed.value.data, "status")).toBe("open")
+  })
+
+  test("an entry that was never promoted cannot be marked", async () => {
+    const marked = await markMistake({ workspace, sessionId, index: 4, result: "known" })
+    expect(marked.ok).toBe(false)
+    if (!marked.ok) expect(marked.error.message).toContain("no promoted mistake 4")
+  })
+})

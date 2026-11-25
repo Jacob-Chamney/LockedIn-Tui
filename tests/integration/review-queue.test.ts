@@ -175,7 +175,7 @@ describe("items from real state", () => {
     ])
     expect(queue.counts).toEqual({
       total: 8,
-      byKind: { card: 1, step: 4, stage: 2, memory: 1 },
+      byKind: { card: 1, step: 4, stage: 2, mistake: 0, memory: 1, task: 0 },
     })
 
     const card = queue.items[0]!
@@ -306,4 +306,106 @@ describe("nudge intensity", () => {
     expect(await configuredIntensity(workspace)).toBe("intensive")
     expect((await reviewQueue(workspace)).nudge.threshold).toBe(2)
   })
+})
+
+describe("promoted mistakes and work tasks in the queue", () => {
+  /** A promoted note with the provenance the promotion writes. */
+  async function promote(options: {
+    index: number
+    title: string
+    status: "open" | "corrected" | "reviewed"
+    misses?: number
+  }): Promise<string> {
+    const vault = workspace.paths.schoolVault
+    await mkdir(join(vault, "knowledge"), { recursive: true })
+    const path = join(vault, "knowledge", `mistake-${options.index}.md`)
+    await writeFile(
+      path,
+      [
+        "---",
+        "type: knowledge",
+        `title: ${options.title}`,
+        `origin: session-mistake`,
+        `session: ${sessionId}`,
+        `premise_index: ${options.index}`,
+        `status: ${options.status}`,
+        ...(options.misses === undefined ? [] : [`misses: ${options.misses}`]),
+        "topics:",
+        "  - Session mistakes",
+        "---",
+        "",
+        `# ${options.title}`,
+        "",
+        "Your own record, not a source.",
+        "",
+      ].join("\n"),
+    )
+    return path
+  }
+
+  test("only an uncorrected mistake enters the queue, labelled and not a source", async () => {
+    await promote({ index: 0, title: "Energy is conserved per object.", status: "open", misses: 3 })
+    await promote({ index: 1, title: "A derivative is a fraction.", status: "corrected" })
+    await promote({ index: 2, title: "A limit is a value.", status: "reviewed" })
+
+    const queue = await reviewQueue(workspace)
+    const mistakes = queue.items.filter((item) => item.kind === "mistake")
+    expect(mistakes).toHaveLength(1)
+    expect(mistakes[0]).toMatchObject({
+      id: `mistake:${sessionId}:0`,
+      label: "Energy is conserved per object.",
+      context: "Physics — Unit 4",
+      reason: "uncorrected",
+      origin: "session-mistake",
+      count: 3,
+    })
+    // The recorded misses reach the nudge signal with the documented thresholds.
+    expect(queue.nudge.due).toContain(`mistake:${sessionId}:0`)
+    expect(queue.counts.byKind.mistake).toBe(1)
+  });
+
+  test("work tasks are supplied by the caller and only done+unverified enters", async () => {
+    const base = {
+      projectId: "p1",
+      projectName: "My app",
+      runId: "2026-11-01T16-00-00Z",
+    }
+    const queue = await reviewQueue(workspace, {
+        tasks: [
+          { ...base, taskId: "task-1", title: "Check the API", status: "done", verified: false },
+          { ...base, taskId: "task-2", title: "Verified", status: "done", verified: true },
+          { ...base, taskId: "task-3", title: "Failed", status: "failed", verified: false },
+          { ...base, taskId: "task-4", title: "Running", status: "running", verified: false },
+        ],
+      })
+    const tasks = queue.items.filter((item) => item.kind === "task")
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0]).toMatchObject({
+      id: "task:p1:2026-11-01T16-00-00Z:task-1",
+      label: "Check the API",
+      context: "My app",
+      reason: "unverified",
+      origin: "swarm",
+      count: 0,
+    })
+  });
+
+  test("the queue stays read-only with mistakes and tasks in it", async () => {
+    await promote({ index: 0, title: "Energy is conserved per object.", status: "open" })
+    const before = await treeHash(workspace.root)
+    await reviewQueue(workspace, {
+        tasks: [
+          {
+            projectId: "p1",
+            projectName: "My app",
+            runId: "r1",
+            taskId: "task-1",
+            title: "Check the API",
+            status: "done",
+            verified: false,
+          },
+        ],
+      })
+    expect(await treeHash(workspace.root)).toBe(before)
+  });
 })

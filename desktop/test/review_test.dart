@@ -299,11 +299,14 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('s cycles all, school, skills and back to all', (tester) async {
+  testWidgets('s cycles all, school, skills, work and back to all', (
+    tester,
+  ) async {
     for (final (from, to) in [
       ('all', 'school'),
       ('school', 'skills'),
-      ('skills', 'all'),
+      ('skills', 'work'),
+      ('work', 'all'),
     ]) {
       final next = <String>[];
       await pumpReview(
@@ -408,6 +411,78 @@ void main() {
     expect(find.text('REVIEW'), findsOneWidget);
     expect(find.text('Derive the energy balance'), findsOneWidget);
     expect(find.byKey(const ValueKey('review-nudge')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mistakes and work tasks have their own groups', (tester) async {
+    final queue = ReviewQueue.fromJson({
+      'items': [
+        {
+          'id': 'mistake:physics:0',
+          'kind': 'mistake',
+          'label': 'Energy is conserved per object.',
+          'context': 'Physics — Unit 4',
+          'contextId': 'physics',
+          'reason': 'uncorrected',
+          'priority': 3,
+          'count': 0,
+          'origin': 'session-mistake',
+        },
+        {
+          'id': 'task:my-app:run-1:task-1',
+          'kind': 'task',
+          'label': 'Check the offset handling',
+          'context': 'My app',
+          'contextId': 'my-app',
+          'reason': 'unverified',
+          'priority': 5,
+          'count': 0,
+          'origin': 'swarm',
+        },
+      ],
+      'nudge': {
+        'intensity': 'balanced',
+        'threshold': 3,
+        'due': [],
+        'suggestions': [],
+      },
+      'counts': {
+        'total': 2,
+        'byKind': {'mistake': 1, 'task': 1},
+      },
+      'diagnostics': [],
+      'coverage': [],
+      'intensity': 'balanced',
+    });
+    await pumpReview(tester, queue: queue, onMark: (id, result) async {});
+
+    expect(find.text('MISTAKES · no correction yet'), findsOneWidget);
+    expect(find.text('WORK · needs verification'), findsOneWidget);
+
+    // A mistake offers both verdicts; a task only offers verification.
+    expect(
+      find.byKey(const ValueKey('review-known-mistake:physics:0')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('review-missed-mistake:physics:0')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('review-known-task:my-app:run-1:task-1')),
+      findsOneWidget,
+    );
+    // The task's missed button is present but disabled: a completed task has
+    // no miss signal, and the page must not advertise a dead action.
+    final missedTask = find.byKey(
+      const ValueKey('review-missed-task:my-app:run-1:task-1'),
+    );
+    expect(missedTask, findsOneWidget);
+    expect(tester.widget<TextButton>(missedTask).onPressed, isNull);
+    final missedMistake = find.byKey(
+      const ValueKey('review-missed-mistake:physics:0'),
+    );
+    expect(tester.widget<TextButton>(missedMistake).onPressed, isNotNull);
     expect(tester.takeException(), isNull);
   });
 }

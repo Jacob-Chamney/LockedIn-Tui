@@ -133,16 +133,19 @@ describe("review.queue request shape", () => {
         items: [],
         nudge: { intensity: "balanced", threshold: 3, due: [], suggestions: [] },
         coverage: [],
-        counts: { total: 0, byKind: { step: 0, card: 0, stage: 0, memory: 0 } },
+        counts: {
+          total: 0,
+          byKind: { step: 0, card: 0, stage: 0, mistake: 0, memory: 0, task: 0 },
+        },
         diagnostics: [],
         intensity: "balanced",
       },
     });
   });
 
-  test("school, skills and all are accepted and each returns its own empty queue", async () => {
+  test("school, skills, work and all are accepted and each returns its own empty queue", async () => {
     const { server } = fakeCore();
-    for (const side of ["all", "school", "skills"] as const) {
+    for (const side of ["all", "school", "skills", "work"] as const) {
       const response = await ask(server, "review.queue", { side });
       if ("error" in response) throw new Error(`review.queue ${side} should answer`);
       const queue = response.result.queue as {

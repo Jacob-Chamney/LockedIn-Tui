@@ -5236,10 +5236,10 @@ class FakeCore implements CoreConnection {
     if (method == 'review.queue') {
       final rawSide = params?['side'] ?? 'all';
       if (rawSide is! String ||
-          !const {'all', 'school', 'skills'}.contains(rawSide)) {
+          !const {'all', 'school', 'skills', 'work'}.contains(rawSide)) {
         throw const RpcException(
           -32602,
-          'review.queue side must be all, school or skills',
+          'review.queue side must be all, school, skills or work',
         );
       }
       reviewSides.add(rawSide);

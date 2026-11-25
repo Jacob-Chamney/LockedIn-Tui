@@ -19,7 +19,7 @@
 import { mkdir, readFile } from "node:fs/promises"
 import { basename, join, relative, sep } from "node:path"
 
-import { err, ok, parseDocument, readString, type Result } from "../../domain/markdown"
+import { err, ok, parseDocument, patchFrontmatter, readString, type Result } from "../../domain/markdown"
 import {
   MAX_CORRECTION_CHARS,
   MAX_MISTAKE_CHARS,
@@ -35,7 +35,7 @@ import {
 import { slugify, uniqueSlug, type Note } from "../../domain/note"
 import type { Workspace } from "../../storage/workspace"
 import { listNotes, openNoteStore } from "../../storage/note-store"
-import { appendMisconception, readSessionFile } from "./insights"
+import { appendMisconception, readSessionFile, writeSessionFile } from "./insights"
 import { openSession } from "./manager"
 
 export type MistakeError =
@@ -163,6 +163,62 @@ export async function recordMistake(input: {
     return err({ kind: "storage", path: opened.value.folder, message: messageOf(error) })
   }
   return listMistakes(input)
+}
+
+/**
+ * Record a review verdict for one promoted mistake.
+ *
+ * This is the Review surface's write (`docs/product.md` §6.1). `known` means
+ * the learner has understood it: `status` becomes `reviewed` and the note leaves
+ * the queue — without pretending a correction was written, because the body
+ * still carries its own wording. `missed` keeps the note `open` and increments
+ * `misses`, so the nudge signal has something durable to count.
+ *
+ * Only frontmatter changes; the body is byte-identical. The write is atomic and
+ * a failure leaves the note as it was.
+ */
+export async function markMistake(input: {
+  workspace: Workspace
+  sessionId: string
+  index: number
+  result: "known" | "missed"
+}): Promise<Result<{ misses: number }, MistakeError>> {
+  const promoted = await promotedNotes(input.workspace, input.sessionId)
+  const note = promoted.get(input.index)
+  if (note === undefined) {
+    return err({
+      kind: "invalid",
+      message: `there is no promoted mistake ${input.index} in this session`,
+    })
+  }
+  const absolute = join(input.workspace.root, note.path)
+  let text: string
+  try {
+    text = await readFile(absolute, "utf8")
+  } catch (error) {
+    return err({ kind: "storage", path: note.path, message: messageOf(error) })
+  }
+  const parsed = parseDocument(text)
+  if (!parsed.ok) {
+    return err({ kind: "storage", path: note.path, message: parsed.error.message })
+  }
+  const current = typeof parsed.value.data.misses === "number" ? parsed.value.data.misses : 0
+  const misses = input.result === "missed" ? Math.max(0, Math.floor(current)) + 1 : Math.max(0, Math.floor(current))
+  const at = new Date().toISOString()
+  const patch: Record<string, string | number> =
+    input.result === "known"
+      ? { status: "reviewed", reviewed_at: at }
+      : { misses, last_missed: at }
+  const patched = patchFrontmatter(text, patch)
+  if (!patched.ok) {
+    return err({ kind: "storage", path: note.path, message: patched.error.message })
+  }
+  try {
+    await writeSessionFile(input.workspace.paths.schoolVault, relative(input.workspace.paths.schoolVault, absolute), patched.value)
+  } catch (error) {
+    return err({ kind: "storage", path: note.path, message: messageOf(error) })
+  }
+  return ok({ misses })
 }
 
 export type PromoteOutcome = {
