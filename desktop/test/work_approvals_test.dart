@@ -615,6 +615,41 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('a 110-character cwd is capped, not overflowing, at 800x600', (
+      tester,
+    ) async {
+      // The review's unconfirmed case: static arithmetic said this could
+      // overflow; the chip has to cap and ellipsise instead.
+      final longCwd = 'a/' * 70 + 'z';
+      await pumpSurface(
+        tester,
+        WorkApprovalsView(
+          approvals: WorkApprovals(
+            writes: const [],
+            commands: [
+              WorkCommandProposal(
+                id: 'command-long',
+                projectId: FakeCore.projectId,
+                argv: const ['printf', 'ok'],
+                cwd: longCwd,
+                reason: 'deep folder',
+                risk: 'This process can read and write outside the project.',
+              ),
+            ],
+          ),
+        ),
+        size: const Size(800, 600),
+      );
+
+      expect(tester.takeException(), isNull);
+      final chip = find.textContaining('cwd a/a/');
+      expect(chip, findsOneWidget);
+      final text = tester.widget<Text>(chip);
+      expect(text.maxLines, 1);
+      expect(text.overflow, TextOverflow.ellipsis);
+      expect(tester.getSize(chip).width, lessThanOrEqualTo(220));
+    });
+
     testWidgets('the approval surface fits 800x600 without overflow', (
       tester,
     ) async {
