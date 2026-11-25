@@ -360,6 +360,7 @@ export const CAPABILITIES = [
   "work.swarm.cancel",
   "work.swarm.remove",
   "work.swarm.retry",
+  "work.swarm.verify",
   "activity.list",
   "mcp.list",
   "mcp.refresh",
@@ -7849,6 +7850,44 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     });
   };
 
+  /**
+   * Mark one completed task verified, or clear it.
+   *
+   * `done` means a worker answered; `verified` means a person reviewed it. Only
+   * a `done` task can be verified. The report is rewritten when it exists, and
+   * the decision is recorded in the activity log. This is process state, like
+   * the rest of the board: a core restart forgets it.
+   */
+  const workSwarmVerify = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const projectId = swarmId(params.projectId);
+    if (projectId === null) return invalid(id, "work.swarm.verify requires a project id");
+    const runId = swarmId(params.runId);
+    if (runId === null) return invalid(id, "work.swarm.verify requires a run id");
+    const taskId = swarmId(params.taskId);
+    if (taskId === null) return invalid(id, "work.swarm.verify requires a task id");
+    if (params.verified !== undefined && typeof params.verified !== "boolean") {
+      return invalid(id, "work.swarm.verify: verified must be a boolean");
+    }
+
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const resolved = await resolveLoadedProject(id, current.value, projectId);
+    if ("error" in resolved) return resolved.error;
+
+    const service = ensureSwarm(current.value);
+    const result = await service.verify({
+      projectId: resolved.project.id,
+      runId,
+      taskId,
+      ...(params.verified === undefined ? {} : { verified: params.verified }),
+    });
+    if (!result.ok) return swarmFailure(id, resolved.project.id, result.error, runId);
+    return success(id, { task: result.value.task, board: result.value.board });
+  };
+
   const workSwarmRetry = async (
     id: RpcId,
     params: Record<string, unknown>,
@@ -11476,6 +11515,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         return workSwarmCancel(id, params);
       case "work.swarm.remove":
         return workSwarmRemove(id, params);
+      case "work.swarm.verify":
+        return workSwarmVerify(id, params);
       case "work.swarm.retry":
         return workSwarmRetry(id, params);
       case "activity.list":

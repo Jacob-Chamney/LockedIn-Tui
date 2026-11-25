@@ -738,4 +738,32 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+
+  testWidgets('a done task can be verified from its row', (tester) async {
+    String? verifiedTask;
+    bool? verifiedValue;
+    await pumpSurface(
+      tester,
+      SwarmPage(
+        project: _project,
+        runs: const [_settled],
+        board: _settled,
+        onVerify: (runId, taskId, verified) async {
+          verifiedTask = taskId;
+          verifiedValue = verified;
+        },
+      ),
+    );
+
+    final button = find.byKey(
+      ValueKey('swarm-verify-${FakeCore.swarmTaskDoneId}'),
+    );
+    expect(button, findsOneWidget);
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+
+    expect(verifiedTask, FakeCore.swarmTaskDoneId);
+    expect(verifiedValue, isTrue);
+    expect(tester.takeException(), isNull);
+  });
 }

@@ -2364,6 +2364,14 @@ class _ShellState extends State<Shell> {
         onRetry: projectId == null
             ? null
             : (runId, taskId) => store.retrySwarmTask(projectId, runId, taskId),
+        onVerify: projectId == null
+            ? null
+            : (runId, taskId, verified) => store.verifySwarmTask(
+                projectId,
+                runId,
+                taskId,
+                verified: verified,
+              ),
       );
     }
     if (_workApprovalsOpen) {

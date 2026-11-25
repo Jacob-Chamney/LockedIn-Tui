@@ -66,6 +66,7 @@ class SwarmPage extends StatefulWidget {
     this.onCancel,
     this.onRemove,
     this.onRetry,
+    this.onVerify,
   });
 
   /// The open project, for the header and the agent ids the run dialog checks.
@@ -102,6 +103,10 @@ class SwarmPage extends StatefulWidget {
 
   /// `Enter` on a failed or blocked task starts a new read-only run.
   final Future<SwarmRunResult> Function(String runId, String taskId)? onRetry;
+
+  /// `v` or the row button marks a done task verified (or clears it).
+  final Future<void> Function(String runId, String taskId, bool verified)?
+  onVerify;
 
   @override
   State<SwarmPage> createState() => _SwarmPageState();
@@ -330,6 +335,10 @@ class _SwarmPageState extends State<SwarmPage> {
       if (event is KeyDownEvent) _removeRun();
       return KeyEventResult.handled;
     }
+    if (key == LogicalKeyboardKey.keyV && widget.onVerify != null) {
+      if (event is KeyDownEvent) unawaited(_verifySelected());
+      return KeyEventResult.handled;
+    }
     if (key == LogicalKeyboardKey.enter ||
         key == LogicalKeyboardKey.numpadEnter) {
       // Enter is retry, and only a failed or blocked task offers it. It is
@@ -410,8 +419,17 @@ class _SwarmPageState extends State<SwarmPage> {
                   .label,
               tone: swarmStatusStyle(board.isRunning ? 'running' : board.status)
                   .tone,
-            )
-          else if (widget.loading)
+            ),
+          if (board != null &&
+              board.tasks.any(
+                (task) => task.status == 'done' && !task.verified,
+              )) ...[
+            const SizedBox(width: 8),
+            _Chip(
+              '${board.tasks.where((task) => task.status == 'done' && !task.verified).length} unverified',
+              tone: LockedInColors.warning,
+            ),
+          ] else if (widget.loading)
             _Chip('reading…', tone: LockedInColors.warning),
           // The pointer path for r / x / d, gated on the same callbacks.
           if (widget.onRefresh != null)
@@ -740,6 +758,26 @@ class _SwarmPageState extends State<SwarmPage> {
     );
   }
 
+  /// Toggle verification on the selected done task.
+  Future<void> _verifySelected() async {
+    final verify = widget.onVerify;
+    final task = _selectedRow;
+    final board = widget.board;
+    if (verify == null || task == null || board == null || _busy) return;
+    if (task.status != 'done') return;
+    setState(() {
+      _busy = true;
+      _actionError = null;
+    });
+    try {
+      await verify(board.runId, task.id, !task.verified);
+    } catch (failure) {
+      if (mounted) setState(() => _actionError = userMessage(failure));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Widget _taskRow(SwarmTaskRow task, int index) {
     final selected = index == _selectedTask;
     final style = swarmStatusStyle(task.status);
@@ -820,6 +858,19 @@ class _SwarmPageState extends State<SwarmPage> {
                           ),
                         ),
                       ],
+                      if (task.status == 'done') ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          task.verified ? 'verified' : 'unverified',
+                          style: TextStyle(
+                            color: task.verified
+                                ? LockedInColors.success
+                                : LockedInColors.warning,
+                            fontSize: 10.5,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 4),
                       Text(
                         detail == null || detail.trim().isEmpty
@@ -840,6 +891,17 @@ class _SwarmPageState extends State<SwarmPage> {
                     ],
                   ),
                 ),
+                if (task.status == 'done' && widget.onVerify != null)
+                  TextButton(
+                    key: ValueKey('swarm-verify-${task.id}'),
+                    onPressed: _busy
+                        ? null
+                        : () {
+                            _select(index);
+                            unawaited(_verifySelected());
+                          },
+                    child: Text(task.verified ? 'unverify' : 'verify'),
+                  ),
                 if ((task.status == 'failed' || task.status == 'blocked') &&
                     widget.onRetry != null)
                   TextButton(

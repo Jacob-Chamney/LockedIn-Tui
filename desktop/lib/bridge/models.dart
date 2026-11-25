@@ -1860,6 +1860,7 @@ class SwarmTaskRow {
     this.summary,
     this.error,
     this.requires = const [],
+    this.verified = false,
   });
 
   /// Stable for the life of the run (`task-1`, `task-2`, …).
@@ -1881,6 +1882,9 @@ class SwarmTaskRow {
   /// Task ids this task waited for.
   final List<String> requires;
 
+  /// A person reviewed a completed task. Distinct from `status == 'done'`.
+  final bool verified;
+
   /// True when `work.swarm.retry` may start a fresh read-only run for this
   /// task. A running, pending, cancelled or done task is never retried.
   bool get retryable => status == 'failed' || status == 'blocked';
@@ -1895,6 +1899,7 @@ class SwarmTaskRow {
     requires: json['requires'] is List
         ? (json['requires'] as List).whereType<String>().toList(growable: false)
         : const [],
+    verified: json['verified'] == true,
   );
 }
 

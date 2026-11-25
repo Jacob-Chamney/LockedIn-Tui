@@ -21,6 +21,10 @@ requests merge.
 
 ## Unreleased
 
+- Work swarm tasks distinguish **done** from **verified**: a person can verify
+  a completed task, the run report is rewritten and the decision is recorded in
+  the activity log.
+
 - Work swarms accept task dependencies (`requires`): a task starts only when
   its prerequisites finish, a failed prerequisite blocks its dependents, and the
   board shows what each task waited for.

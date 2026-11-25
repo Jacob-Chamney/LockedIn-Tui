@@ -538,6 +538,66 @@ describe("report contents", () => {
   })
 })
 
+describe("verification", () => {
+  test("a done task is verified separately and the report is rewritten", async () => {
+    const { runner } = ordered()
+    const { service: swarm, events } = service(runner)
+    const outcome = unwrap(
+      await swarm.run({
+        projectId,
+        objective: "Verify the result",
+        plan: planFrom(["1"]),
+      }),
+    )
+    const task = outcome.run.tasks[0]!
+    expect(task.status).toBe("done")
+    expect(task.verified).toBe(false)
+
+    const verified = unwrap(
+      await swarm.verify({ projectId, runId: outcome.run.id, taskId: task.id }),
+    )
+    expect(verified.task.verified).toBe(true)
+    expect(verified.board.tasks[0]?.verified).toBe(true)
+    expect(events).toContain("verified:verified")
+    expect(await runReport(projectId, outcome.run.id)).toContain(
+      "- [verified] Reader — finished task-1",
+    )
+
+    const cleared = unwrap(
+      await swarm.verify({
+        projectId,
+        runId: outcome.run.id,
+        taskId: task.id,
+        verified: false,
+      }),
+    )
+    expect(cleared.task.verified).toBe(false)
+    expect(await runReport(projectId, outcome.run.id)).toContain("[done]")
+  })
+
+  test("a running task cannot be verified", async () => {
+    const gate = deferred()
+    const { service: swarm } = service(async () => {
+      await gate.promise
+      return { status: "done", summary: "read" }
+    })
+    const pending = swarm.run({
+      projectId,
+      objective: "Still working",
+      plan: planFrom(["1"]),
+    })
+    await Bun.sleep(10)
+    const runId = serviceRun(swarm, projectId)
+    const error = refusal(
+      await swarm.verify({ projectId, runId, taskId: "task-1" }),
+    )
+    expect(error.kind).toBe("invalid-input")
+    expect(error.message).toContain("completed")
+    gate.resolve()
+    await pending
+  })
+})
+
 /** The first (only) run id the service knows about, for `cancel()` before the promise resolves. */
 function serviceRun(swarm: ReturnType<typeof createSwarmService>, project: string): string {
   const runs = swarm.runs(project)
