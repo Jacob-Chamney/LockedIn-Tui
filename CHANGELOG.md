@@ -21,6 +21,11 @@ requests merge.
 
 ## Unreleased
 
+- The packaged desktop bundle has a startup gate: `scripts/desktop-perf.sh`
+  measures cold first paint under Xvfb against a 2000 ms budget, CI runs it
+  after the release build, and a unit test keeps the doc row and the fixture
+  equal.
+
 - A hung `session.create` now has a way out: the wizard gives the call a 60 s
   deadline and a per-attempt idempotency key, so a Retry joins the first create
   (never a second session) and a late session appears in Sessions.
