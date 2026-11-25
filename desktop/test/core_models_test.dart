@@ -408,4 +408,26 @@ void main() {
     expect(bare.agents, isEmpty);
     expect(bare.archived, isFalse);
   });
+
+  test('the agent template row decodes its picker fields', () {
+    final row = AgentTemplateRow.fromJson({
+      'id': 'reviewer',
+      'name': 'Reviewer',
+      'role': 'reviewer',
+      'summary': 'Review the work for correctness.',
+      'source': 'built-in',
+      'instructions': 'Review the work for correctness.',
+      'maxToolCalls': 8,
+      'allowedTools': ['list_files', 'read_file'],
+    });
+    expect(row.name, 'Reviewer');
+    expect(row.builtin, isTrue);
+    expect(row.maxToolCalls, 8);
+    expect(row.allowedTools, ['list_files', 'read_file']);
+
+    final project = AgentTemplateRow.fromJson({...{}, 'source': 'project'});
+    expect(project.builtin, isFalse);
+    expect(project.allowedTools, isEmpty);
+    expect(project.maxToolCalls, 0);
+  });
 }

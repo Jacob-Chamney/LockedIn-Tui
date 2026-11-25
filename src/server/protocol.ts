@@ -2156,6 +2156,18 @@ export type SessionMemoryView = {
   updated: string;
 };
 
+/** One row of the `work.templates.list` template picker. */
+export type AgentTemplateRowView = {
+  id: string;
+  name: string;
+  role: string;
+  summary: string;
+  source: string;
+  instructions: string;
+  maxToolCalls: number;
+  allowedTools: string[];
+};
+
 /** One agent row in the `work.list` project row. */
 export type WorkProjectAgentView = {
   id: string;
@@ -6288,18 +6300,20 @@ export function createCoreServer(options: CoreOptions): CoreServer {
 
     const listed = await loadAgentTemplates(workspace);
     return success(id, {
-      templates: listed.templates.map((template) => ({
-        id: template.id,
-        name: template.name,
-        role: template.role,
-        summary: templateSummary(template.instructions),
-        source: template.builtin ? "built-in" : "project",
-        // `name` and `role` above plus these three are the fields a pick fills,
-        // so the shell never keeps a second template table.
-        instructions: template.instructions,
-        maxToolCalls: template.maxToolCalls,
-        allowedTools: [...template.allowedTools],
-      })),
+      templates: listed.templates.map(
+        (template): AgentTemplateRowView => ({
+          id: template.id,
+          name: template.name,
+          role: template.role,
+          summary: templateSummary(template.instructions),
+          source: template.builtin ? "built-in" : "project",
+          // `name` and `role` above plus these three are the fields a pick fills,
+          // so the shell never keeps a second template table.
+          instructions: template.instructions,
+          maxToolCalls: template.maxToolCalls,
+          allowedTools: [...template.allowedTools],
+        }),
+      ),
     });
   };
 

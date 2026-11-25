@@ -57,6 +57,7 @@ describe("generated Dart models", () => {
       "WorkProjectDetailView",
       "WorkProjectAgentView",
       "WorkProjectRowView",
+      "AgentTemplateRowView",
     ]);
     expect(read(MODELS_PATH)).toBe(renderModels(models));
   });
@@ -400,6 +401,25 @@ describe("generated Dart models", () => {
     const generated = read(MODELS_PATH);
     expect(generated).toContain("final List<ProjectAgent> agents;");
     expect(generated).toContain("agents: _models(json['agents'], ProjectAgent.fromJson)");
+  });
+
+  test("the agent template row keeps its eight picker fields", () => {
+    const models = extractModels(ROOT);
+    const row = models.find((model) => model.name === "AgentTemplateRowView");
+    expect(row?.dartName).toBe("AgentTemplateRow");
+    expect(row?.fields.map((field) => [field.name, field.type])).toEqual([
+      ["id", "string"],
+      ["name", "string"],
+      ["role", "string"],
+      ["summary", "string"],
+      ["source", "string"],
+      ["instructions", "string"],
+      ["maxToolCalls", "int"],
+      ["allowedTools", "strings"],
+    ]);
+    const generated = read(MODELS_PATH);
+    expect(generated).toContain("maxToolCalls: _int(json['maxToolCalls'])");
+    expect(generated).toContain("allowedTools: _strings(json['allowedTools'])");
   });
 
   test("the source is the exported protocol type", () => {
