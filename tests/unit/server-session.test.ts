@@ -319,6 +319,7 @@ describe("session.chat.snapshot", () => {
 
     const snapshot = await resultOf(server, "session.chat.snapshot", { id: SESSION_ID });
     expect(snapshot).toEqual({
+      seq: 0,
       status: "idle",
       model: null,
       streamed: "",
@@ -375,6 +376,10 @@ describe("session.chat.send", () => {
       usage: { tokens: 0, costMicroUsd: null, durationMs: null },
     });
     expect(states[0]!.params).toHaveProperty("messages");
+    // The snapshot above was sequence 0, so the first emitted frame is 1.
+    expect((states[0]!.params as { seq: number }).seq).toBe(1);
+    const after = await resultOf(server, "session.chat.snapshot", { id: SESSION_ID });
+    expect((after as { seq: number }).seq).toBe(1);
   });
 
   test("empty text is invalid params and builds no controller", async () => {

@@ -155,6 +155,33 @@ describe("chat protocol", () => {
     expect(notifications.some((entry) => entry.method === "chat.done")).toBe(true);
   });
 
+  test("state frames carry a strictly increasing seq and the snapshot reports the same series", async () => {
+    const { controller } = fakeController();
+    const notifications: CoreNotification[] = [];
+    const server = makeServer(controller, notifications);
+
+    const before = await server.handle(req(10, "chat.snapshot"));
+    const first = (before as unknown as { result: { seq: number } }).result;
+    expect(first.seq).toBe(0);
+
+    await server.handle(req(11, "chat.send", { text: "hello" }));
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    const seqs = notifications
+      .filter((entry) => entry.method === "chat.state")
+      .map((entry) => (entry.params as { seq: number }).seq);
+    expect(seqs.length).toBeGreaterThanOrEqual(1);
+    for (let index = 1; index < seqs.length; index += 1) {
+      expect(seqs[index]!).toBeGreaterThan(seqs[index - 1]!);
+    }
+
+    // A snapshot is the whole state at its sequence, so a shell can use it as a
+    // baseline and then drop any frame at or below it.
+    const after = await server.handle(req(12, "chat.snapshot"));
+    const last = (after as unknown as { result: { seq: number } }).result;
+    expect(last.seq).toBe(seqs.at(-1)!);
+  });
+
   test("cancel reaches the controller", async () => {
     const { controller, calls } = fakeController();
     const server = makeServer(controller, []);
