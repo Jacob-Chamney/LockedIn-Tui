@@ -82,6 +82,10 @@ target.
 - A protocol change adds a contract test and updates
   `desktop/docs/protocol.md`; the capability list is checked against the
   handshake example.
+- `desktop/lib/bridge/core_methods.g.dart` is generated from `CAPABILITIES`.
+  After adding or renaming a method, run
+  `bun run scripts/generate-dart-bindings.ts` and commit the result. The check
+  fails if the file is stale or a raw `_connection.call('…')` literal returns.
 - A UI change that alters a screen shown in the README or Wiki updates the
   matching image or description in the same pull request.
 

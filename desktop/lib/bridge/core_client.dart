@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 
 import 'models.dart';
 import 'errors.dart';
+import 'core_methods.g.dart';
 import 'protocol.dart';
 
 /// The transport surface a [CoreStore] needs. `CoreClient` is the real one;
@@ -1400,7 +1401,9 @@ class CoreStore extends ChangeNotifier {
     if (id.isEmpty) return;
     final ticket = ++_teachingTicket;
     try {
-      final json = await _connection.call('teach.state', {'goalId': id});
+      final json = await _connection.call(CoreMethod.teachState, {
+        'goalId': id,
+      });
       if (ticket != _teachingTicket) return;
       final record = json['record'];
       teaching = record is Map
@@ -1427,7 +1430,9 @@ class CoreStore extends ChangeNotifier {
     teachingVerdict = null;
     notifyListeners();
     try {
-      final json = await _connection.call('teach.measure', {'goalId': id});
+      final json = await _connection.call(CoreMethod.teachMeasure, {
+        'goalId': id,
+      });
       if (ticket != _teachingTicket) return false;
       teaching = TeachingState.fromJson(
         Map<String, dynamic>.from(json['record'] as Map),
@@ -1455,7 +1460,7 @@ class CoreStore extends ChangeNotifier {
     teachingVerdict = null;
     notifyListeners();
     try {
-      final json = await _connection.call('teach.step', {
+      final json = await _connection.call(CoreMethod.teachStep, {
         'goalId': id,
         if (again) 'again': true,
       });
@@ -1545,7 +1550,7 @@ class CoreStore extends ChangeNotifier {
     teachingError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('teach.check', {
+      final json = await _connection.call(CoreMethod.teachCheck, {
         'goalId': id,
         'answer': answer,
         if (thinking.trim().isNotEmpty) 'thinking': thinking.trim(),
@@ -1582,7 +1587,7 @@ class CoreStore extends ChangeNotifier {
     teachingSide = const [];
     notifyListeners();
     try {
-      final json = await _connection.call('teach.side.snapshot', {
+      final json = await _connection.call(CoreMethod.teachSideSnapshot, {
         'goalId': id,
         'stepId': stepId,
       });
@@ -1616,7 +1621,7 @@ class CoreStore extends ChangeNotifier {
     teachingSideError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('teach.side.send', {
+      final json = await _connection.call(CoreMethod.teachSideSend, {
         'goalId': id,
         'stepId': stepId,
         'text': question,
@@ -1645,7 +1650,7 @@ class CoreStore extends ChangeNotifier {
     teachingSideError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('teach.side.clear', {
+      final json = await _connection.call(CoreMethod.teachSideClear, {
         'goalId': id,
         'stepId': stepId,
       });
@@ -1777,14 +1782,14 @@ class CoreStore extends ChangeNotifier {
   }
 
   Future<void> refreshWorkspace() async {
-    final json = await _connection.call('workspace.info');
+    final json = await _connection.call(CoreMethod.workspaceInfo);
     workspace = WorkspaceInfo.fromJson(json);
     notifyListeners();
   }
 
   Future<void> refreshSessions() async {
     try {
-      final json = await _connection.call('session.list');
+      final json = await _connection.call(CoreMethod.sessionList);
       final raw = json['sessions'];
       sessions = raw is List
           ? raw
@@ -1819,7 +1824,7 @@ class CoreStore extends ChangeNotifier {
     statsRange = range ?? statsRange;
     statsScope = scope ?? statsScope;
     final ticket = ++_statsTicket;
-    final json = await _connection.call('stats.summary', {
+    final json = await _connection.call(CoreMethod.statsSummary, {
       'range': statsRange,
       'scope': statsScope,
     });
@@ -1845,7 +1850,7 @@ class CoreStore extends ChangeNotifier {
     achievementsError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('achievements.list');
+      final json = await _connection.call(CoreMethod.achievementsList);
       if (ticket != _achievementsTicket) return;
       final raw = json['achievements'];
       achievements = raw is List
@@ -1887,7 +1892,7 @@ class CoreStore extends ChangeNotifier {
   /// works.
   Future<void> refreshSettings() async {
     try {
-      final json = await _connection.call('settings.get');
+      final json = await _connection.call(CoreMethod.settingsGet);
       settings = SettingsView.fromJson(json);
       settingsError = null;
       notifyListeners();
@@ -1903,7 +1908,7 @@ class CoreStore extends ChangeNotifier {
   /// surface still runs.
   Future<void> refreshUpdateInfo() async {
     try {
-      final json = await _connection.call('update.info');
+      final json = await _connection.call(CoreMethod.updateInfo);
       appVersion = json['current'] is String ? json['current'] as String : null;
       updateRepo = json['repo'] is String ? json['repo'] as String : null;
       notifyListeners();
@@ -1922,7 +1927,7 @@ class CoreStore extends ChangeNotifier {
     updateError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('update.check');
+      final json = await _connection.call(CoreMethod.updateCheck);
       updateState = UpdateView.fromJson(json);
       appVersion ??= updateState?.current;
     } catch (failure) {
@@ -1941,7 +1946,7 @@ class CoreStore extends ChangeNotifier {
   /// core answer, so the shell cannot store a binding it invented.
   Future<void> refreshKeybinds() async {
     try {
-      final json = await _connection.call('keybinds.get');
+      final json = await _connection.call(CoreMethod.keybindsGet);
       final maps = KeybindMaps.fromJson(json);
       keybinds = maps.keybinds;
       fixedKeybinds = maps.fixedKeybinds;
@@ -1960,7 +1965,7 @@ class CoreStore extends ChangeNotifier {
   /// custom palette", so a transient error cannot repaint the app.
   Future<void> refreshCustomTheme() async {
     try {
-      final json = await _connection.call('theme.custom.get');
+      final json = await _connection.call(CoreMethod.themeCustomGet);
       customThemeTokens = ThemeTokens.fromJson(json['tokens']);
       notifyListeners();
     } catch (_) {
@@ -1976,7 +1981,7 @@ class CoreStore extends ChangeNotifier {
   /// message. A refusal throws its [RpcException] unchanged and leaves the
   /// previous tokens in place, so the editor can show the core's own sentence.
   Future<ThemeTokens> setCustomTheme(Map<String, String> tokens) async {
-    final json = await _connection.call('theme.custom.set', {
+    final json = await _connection.call(CoreMethod.themeCustomSet, {
       'tokens': <String, dynamic>{...tokens},
     });
     customThemeTokens = ThemeTokens.fromJson(json['tokens']);
@@ -2007,7 +2012,7 @@ class CoreStore extends ChangeNotifier {
       throw ArgumentError.value(action, 'action', 'must not be blank');
     }
     final text = binding?.trim();
-    final json = await _connection.call('keybinds.set', {
+    final json = await _connection.call(CoreMethod.keybindsSet, {
       'action': id,
       // Omitted means "clear": the core documents `null` and an absent
       // `binding` as the same request, and an explicit empty string as a
@@ -2025,7 +2030,7 @@ class CoreStore extends ChangeNotifier {
   /// reading keychain presence should not delay the first frame.
   Future<List<ProviderRow>> refreshProviders() async {
     try {
-      final json = await _connection.call('provider.list');
+      final json = await _connection.call(CoreMethod.providerList);
       final raw = json['providers'];
       providers = raw is List
           ? raw
@@ -2052,7 +2057,7 @@ class CoreStore extends ChangeNotifier {
   /// invents an empty list.
   Future<void> refreshMcp() async {
     try {
-      final json = await _connection.call('mcp.list');
+      final json = await _connection.call(CoreMethod.mcpList);
       mcpServers = _mcpRows(json);
       mcpPolicy = PluginPolicy.fromJson(json['policy']);
       mcpError = null;
@@ -2072,7 +2077,7 @@ class CoreStore extends ChangeNotifier {
   /// [RpcException] unchanged so the settings page can keep it inline beside
   /// the row and let the user retry.
   Future<void> setMcpPolicy(String command, String server, String value) async {
-    final json = await _connection.call('mcp.policy.set', {
+    final json = await _connection.call(CoreMethod.mcpPolicySet, {
       'command': command,
       'server': server,
       'value': value,
@@ -2101,7 +2106,7 @@ class CoreStore extends ChangeNotifier {
     decisionError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('decision.get');
+      final json = await _connection.call(CoreMethod.decisionGet);
       if (ticket != _decisionTicket) return;
       decision = DecisionView.fromJson(json);
     } catch (failure) {
@@ -2127,7 +2132,7 @@ class CoreStore extends ChangeNotifier {
   /// exactly as it was; the Settings row shows the core's own sentence inline and
   /// keeps the old state. Nothing is retried here.
   Future<void> setDecision({bool? enabled, String? model}) async {
-    final json = await _connection.call('decision.set', {
+    final json = await _connection.call(CoreMethod.decisionSet, {
       'enabled': ?enabled,
       'model': ?model,
     });
@@ -2152,7 +2157,7 @@ class CoreStore extends ChangeNotifier {
     workPermissionsError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('work.permissions.get');
+      final json = await _connection.call(CoreMethod.workPermissionsGet);
       if (ticket != _workPermissionsTicket) return;
       workPermissions = WorkPermissions.fromJson(json);
     } catch (failure) {
@@ -2180,7 +2185,7 @@ class CoreStore extends ChangeNotifier {
     bool? allowWrite,
     bool? allowCommand,
   }) async {
-    final json = await _connection.call('work.permissions.set', {
+    final json = await _connection.call(CoreMethod.workPermissionsSet, {
       'allowWrite': ?allowWrite,
       'allowCommand': ?allowCommand,
     });
@@ -2221,7 +2226,10 @@ class CoreStore extends ChangeNotifier {
       return;
     }
     try {
-      await _connection.call('mcp.confirm', {'requestId': id, 'allow': allow});
+      await _connection.call(CoreMethod.mcpConfirm, {
+        'requestId': id,
+        'allow': allow,
+      });
     } catch (failure) {
       pluginPermissionError = _messageOf(failure);
       notifyListeners();
@@ -2242,7 +2250,7 @@ class CoreStore extends ChangeNotifier {
   /// records the reason in [mcpError].
   Future<void> refreshMcpServers() async {
     try {
-      final json = await _connection.call('mcp.refresh');
+      final json = await _connection.call(CoreMethod.mcpRefresh);
       mcpServers = _mcpRows(json);
       mcpError = null;
       notifyListeners();
@@ -2279,7 +2287,9 @@ class CoreStore extends ChangeNotifier {
     reviewError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('review.queue', {'side': target});
+      final json = await _connection.call(CoreMethod.reviewQueue, {
+        'side': target,
+      });
       if (ticket != _reviewTicket) return;
       review = ReviewQueue.fromJson(json['queue']);
       reviewSide = target;
@@ -2320,7 +2330,7 @@ class CoreStore extends ChangeNotifier {
     final write = ++_reviewWriteTicket;
     notifyListeners();
     try {
-      final json = await _connection.call('review.mark', {
+      final json = await _connection.call(CoreMethod.reviewMark, {
         'itemId': id,
         'result': result,
       });
@@ -2362,7 +2372,7 @@ class CoreStore extends ChangeNotifier {
     archiveError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('archive.list');
+      final json = await _connection.call(CoreMethod.archiveList);
       if (ticket != _archiveTicket) return;
       final raw = json['rows'];
       archiveRows = raw is List
@@ -2422,7 +2432,7 @@ class CoreStore extends ChangeNotifier {
     _syncKnowledgeLoading();
     notifyListeners();
     try {
-      final json = await _connection.call('knowledge.search', {
+      final json = await _connection.call(CoreMethod.knowledgeSearch, {
         'query': text,
         'scope': target,
       });
@@ -2475,7 +2485,9 @@ class CoreStore extends ChangeNotifier {
     notifyListeners();
     try {
       final side = target == 'work' ? 'all' : target;
-      final json = await _connection.call('knowledge.tree', {'side': side});
+      final json = await _connection.call(CoreMethod.knowledgeTree, {
+        'side': side,
+      });
       if (ticket != _knowledgeTreeTicket) return;
       final raw = json['groups'];
       knowledgeGroups = raw is List
@@ -2524,7 +2536,9 @@ class CoreStore extends ChangeNotifier {
     knowledgeDocument = null;
     notifyListeners();
     try {
-      final json = await _connection.call('knowledge.read', {'id': target});
+      final json = await _connection.call(CoreMethod.knowledgeRead, {
+        'id': target,
+      });
       if (ticket != _knowledgeReadTicket) return;
       knowledgeDocument = KnowledgeDocument.fromJson(json);
     } catch (failure) {
@@ -2613,7 +2627,7 @@ class CoreStore extends ChangeNotifier {
     required String id,
     required String side,
   }) async {
-    await _connection.call('archive.restore', {'id': id, 'side': side});
+    await _connection.call(CoreMethod.archiveRestore, {'id': id, 'side': side});
     await refreshArchive();
     try {
       if (side.trim() == 'skills') {
@@ -2640,7 +2654,7 @@ class CoreStore extends ChangeNotifier {
   /// refusal rethrows the [RpcException] untouched for the page's inline
   /// message, and no row moves.
   Future<void> removeArchive({required String id, required String side}) async {
-    await _connection.call('archive.remove', {'id': id, 'side': side});
+    await _connection.call(CoreMethod.archiveRemove, {'id': id, 'side': side});
     await refreshArchive();
     try {
       if (side.trim() == 'skills') {
@@ -2661,7 +2675,7 @@ class CoreStore extends ChangeNotifier {
     required String key,
     String? baseUrl,
   }) async {
-    final json = await _connection.call('provider.link', {
+    final json = await _connection.call(CoreMethod.providerLink, {
       'providerId': providerId,
       'key': key,
       if (baseUrl != null && baseUrl.trim().isNotEmpty)
@@ -2675,7 +2689,9 @@ class CoreStore extends ChangeNotifier {
   /// Persist one settings patch and project the result. The core writes the
   /// file and applies it to the live service before returning.
   Future<void> saveSettings(Map<String, dynamic> patch) async {
-    final json = await _connection.call('settings.patch', {'patch': patch});
+    final json = await _connection.call(CoreMethod.settingsPatch, {
+      'patch': patch,
+    });
     settings = SettingsView.fromJson(json);
     // A model change drops every core chat controller, so the next snapshot
     // starts a fresh per-stream counter. Forget the old maxima or the new
@@ -2689,7 +2705,7 @@ class CoreStore extends ChangeNotifier {
 
   Future<void> refreshChat() async {
     try {
-      final json = await _connection.call('chat.snapshot');
+      final json = await _connection.call(CoreMethod.chatSnapshot);
       if (_acceptChatSnapshot(_chillChatKey, json['seq'])) {
         chat = ChatSnapshot.fromJson(json);
         chatError = null;
@@ -2721,7 +2737,7 @@ class CoreStore extends ChangeNotifier {
 
   Future<bool> sendChat(String text, {List<String> images = const []}) async {
     try {
-      await _connection.call('chat.send', {
+      await _connection.call(CoreMethod.chatSend, {
         'text': text,
         if (images.isNotEmpty) 'images': images,
       });
@@ -2739,7 +2755,7 @@ class CoreStore extends ChangeNotifier {
 
   Future<void> cancelChat() async {
     try {
-      await _connection.call('chat.cancel');
+      await _connection.call(CoreMethod.chatCancel);
     } catch (failure) {
       error = _messageOf(failure);
       notifyListeners();
@@ -2758,7 +2774,7 @@ class CoreStore extends ChangeNotifier {
     final ticket = ++_sessionOpenTicket;
     final Map<String, dynamic> json;
     try {
-      json = await _connection.call('session.open', {'id': id});
+      json = await _connection.call(CoreMethod.sessionOpen, {'id': id});
     } catch (failure) {
       if (ticket != _sessionOpenTicket) return;
       error = _messageOf(failure);
@@ -2787,7 +2803,7 @@ class CoreStore extends ChangeNotifier {
     _sessionChatErrors.remove(sessionId);
 
     try {
-      final snapshot = await _connection.call('session.chat.snapshot', {
+      final snapshot = await _connection.call(CoreMethod.sessionChatSnapshot, {
         'id': sessionId,
       });
       // The transcript is keyed by session, so it is kept whichever session
@@ -2831,7 +2847,9 @@ class CoreStore extends ChangeNotifier {
     coverageError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('session.coverage', {'id': id});
+      final json = await _connection.call(CoreMethod.sessionCoverage, {
+        'id': id,
+      });
       if (ticket != _coverageTicket) return;
       if (activeSessionId != null && activeSessionId != id) return;
       coverage = CoverageReport.fromJson(json['coverage']);
@@ -2886,7 +2904,9 @@ class CoreStore extends ChangeNotifier {
     mistakesError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('session.mistake.list', {'id': id});
+      final json = await _connection.call(CoreMethod.sessionMistakeList, {
+        'id': id,
+      });
       if (ticket != _mistakesTicket) return;
       if (activeSessionId != null && activeSessionId != id) return;
       mistakes = _mistakeRows(json['entries']);
@@ -2913,7 +2933,7 @@ class CoreStore extends ChangeNotifier {
   }) async {
     final id = sessionId.trim();
     if (id.isEmpty) return;
-    final json = await _connection.call('session.mistake.record', {
+    final json = await _connection.call(CoreMethod.sessionMistakeRecord, {
       'id': id,
       'text': text,
       if (step != null && step.trim().isNotEmpty) 'step': step.trim(),
@@ -2936,7 +2956,7 @@ class CoreStore extends ChangeNotifier {
     String correction,
   ) async {
     final id = sessionId.trim();
-    final json = await _connection.call('session.mistake.correct', {
+    final json = await _connection.call(CoreMethod.sessionMistakeCorrect, {
       'id': id,
       'index': index,
       'correction': correction,
@@ -2961,7 +2981,7 @@ class CoreStore extends ChangeNotifier {
     String? title,
   }) async {
     final id = sessionId.trim();
-    final json = await _connection.call('session.mistake.promote', {
+    final json = await _connection.call(CoreMethod.sessionMistakePromote, {
       'id': id,
       'index': index,
       if (correction != null && correction.trim().isNotEmpty)
@@ -2993,7 +3013,7 @@ class CoreStore extends ChangeNotifier {
     bool steps = true,
     String requestId = '',
   }) async {
-    final json = await _connection.call('session.create', {
+    final json = await _connection.call(CoreMethod.sessionCreate, {
       'name': name,
       if (requestId.trim().isNotEmpty) 'requestId': requestId.trim(),
       if (prompt.trim().isNotEmpty) 'prompt': prompt,
@@ -3021,7 +3041,7 @@ class CoreStore extends ChangeNotifier {
   /// reply is the backend that took the folder (`folder` or `github`), or null
   /// when the core did not name one.
   Future<String?> archiveSession(String id) async {
-    final json = await _connection.call('session.archive', {'id': id});
+    final json = await _connection.call(CoreMethod.sessionArchive, {'id': id});
     final backend = json['backend'];
     await _afterSessionGone(id);
     return backend is String && backend.isNotEmpty ? backend : null;
@@ -3034,7 +3054,7 @@ class CoreStore extends ChangeNotifier {
   /// id is touched, so an archive still restores later. A refusal rethrows the
   /// [RpcException] for the page's inline message and leaves the row in place.
   Future<void> removeSession(String id) async {
-    await _connection.call('session.remove', {'id': id});
+    await _connection.call(CoreMethod.sessionRemove, {'id': id});
     await _afterSessionGone(id);
   }
 
@@ -3047,7 +3067,7 @@ class CoreStore extends ChangeNotifier {
   /// [RpcException] for the page's inline message; the reply is the zip path, or
   /// null when the core did not name one.
   Future<String?> exportSession(String id) async {
-    final json = await _connection.call('session.export', {'id': id});
+    final json = await _connection.call(CoreMethod.sessionExport, {'id': id});
     final path = json['path'];
     await _refreshSessionsQuietly();
     return path is String && path.isNotEmpty ? path : null;
@@ -3103,7 +3123,7 @@ class CoreStore extends ChangeNotifier {
   /// message and keeps the previous markdown instead of raising [error] for the
   /// whole shell.
   Future<StepToggleResult> toggleStep(String sessionId, int index) async {
-    final json = await _connection.call('session.toggleStep', {
+    final json = await _connection.call(CoreMethod.sessionToggleStep, {
       'id': sessionId,
       'index': index,
     });
@@ -3168,7 +3188,7 @@ class CoreStore extends ChangeNotifier {
     stepsError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('session.generateSteps', {
+      final json = await _connection.call(CoreMethod.sessionGenerateSteps, {
         'id': sessionId,
       });
       final result = StepGenerateResult.fromJson(json);
@@ -3233,7 +3253,7 @@ class CoreStore extends ChangeNotifier {
     documentName = null;
     notifyListeners();
     try {
-      final json = await _connection.call('session.document', {
+      final json = await _connection.call(CoreMethod.sessionDocument, {
         'id': id,
         'kind': kind,
         if (attempt != null && attempt.trim().isNotEmpty)
@@ -3305,7 +3325,7 @@ class CoreStore extends ChangeNotifier {
     final id = sessionId.trim();
     if (id.isEmpty) return false;
     try {
-      final json = await _connection.call('session.output.mark', {
+      final json = await _connection.call(CoreMethod.sessionOutputMark, {
         'id': id,
         'index': index,
       });
@@ -3350,7 +3370,7 @@ class CoreStore extends ChangeNotifier {
     }
     notifyListeners();
     try {
-      final json = await _connection.call('session.output.read', {
+      final json = await _connection.call(CoreMethod.sessionOutputRead, {
         'id': id,
         'kind': kind,
         'part': ?part,
@@ -3394,7 +3414,9 @@ class CoreStore extends ChangeNotifier {
     figureError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('session.figure.list', {'id': id});
+      final json = await _connection.call(CoreMethod.sessionFigureList, {
+        'id': id,
+      });
       if (ticket != _figureTicket) return;
       final rows = json['figures'];
       figures = rows is List
@@ -3434,7 +3456,7 @@ class CoreStore extends ChangeNotifier {
     figureError = null;
     notifyListeners();
     try {
-      await _connection.call('session.figure.extract', {
+      await _connection.call(CoreMethod.sessionFigureExtract, {
         'id': id,
         'page': page,
         'x': ?x,
@@ -3460,7 +3482,7 @@ class CoreStore extends ChangeNotifier {
     final id = sessionId.trim();
     if (id.isEmpty || figureId.isEmpty) return;
     try {
-      final json = await _connection.call('session.figure.read', {
+      final json = await _connection.call(CoreMethod.sessionFigureRead, {
         'id': id,
         'figureId': figureId,
       });
@@ -3485,7 +3507,7 @@ class CoreStore extends ChangeNotifier {
     final id = sessionId.trim();
     if (id.isEmpty || figureId.isEmpty) return;
     try {
-      await _connection.call('session.figure.annotate', {
+      await _connection.call(CoreMethod.sessionFigureAnnotate, {
         'id': id,
         'figureId': figureId,
         'caption': ?caption,
@@ -3503,7 +3525,7 @@ class CoreStore extends ChangeNotifier {
     final id = sessionId.trim();
     if (id.isEmpty || figureId.isEmpty) return;
     try {
-      await _connection.call('session.figure.remove', {
+      await _connection.call(CoreMethod.sessionFigureRemove, {
         'id': id,
         'figureId': figureId,
       });
@@ -3518,7 +3540,7 @@ class CoreStore extends ChangeNotifier {
   /// Read the prompt catalogue (`prompts.list`).
   Future<void> refreshPrompts() async {
     try {
-      final json = await _connection.call('prompts.list');
+      final json = await _connection.call(CoreMethod.promptsList);
       final rows = json['items'];
       prompts = rows is List
           ? rows
@@ -3539,7 +3561,7 @@ class CoreStore extends ChangeNotifier {
   /// Set or clear one prompt note (`prompts.set`). Empty text clears it.
   Future<void> setPrompt(String id, String text) async {
     try {
-      final json = await _connection.call('prompts.set', {
+      final json = await _connection.call(CoreMethod.promptsSet, {
         'id': id,
         'text': text,
       });
@@ -3570,7 +3592,7 @@ class CoreStore extends ChangeNotifier {
     learningGraphError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('knowledge.graph');
+      final json = await _connection.call(CoreMethod.knowledgeGraph);
       final graph = json['graph'];
       learningGraph = graph is Map
           ? LearningGraph.fromJson(Map<String, dynamic>.from(graph))
@@ -3591,7 +3613,9 @@ class CoreStore extends ChangeNotifier {
     researchLoading = true;
     notifyListeners();
     try {
-      final json = await _connection.call('research.list', {'goalId': id});
+      final json = await _connection.call(CoreMethod.researchList, {
+        'goalId': id,
+      });
       if (ticket != _researchTicket) return;
       final rows = json['items'];
       research = rows is List
@@ -3631,7 +3655,7 @@ class CoreStore extends ChangeNotifier {
     researchError = null;
     notifyListeners();
     try {
-      await _connection.call('research.start', {
+      await _connection.call(CoreMethod.researchStart, {
         'goalId': id,
         'question': text,
         'urls': urls,
@@ -3650,7 +3674,7 @@ class CoreStore extends ChangeNotifier {
     final id = goalId.trim();
     if (id.isEmpty || researchId.isEmpty) return;
     try {
-      final json = await _connection.call('research.read', {
+      final json = await _connection.call(CoreMethod.researchRead, {
         'goalId': id,
         'id': researchId,
       });
@@ -3680,7 +3704,9 @@ class CoreStore extends ChangeNotifier {
     sessionContextError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('session.chat.context', {'id': id});
+      final json = await _connection.call(CoreMethod.sessionChatContext, {
+        'id': id,
+      });
       if (ticket != _contextTicket) return;
       sessionContext = SessionContextView.fromJson(json);
     } catch (failure) {
@@ -3705,7 +3731,9 @@ class CoreStore extends ChangeNotifier {
     sessionContextError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('session.chat.compact', {'id': id});
+      final json = await _connection.call(CoreMethod.sessionChatCompact, {
+        'id': id,
+      });
       if (ticket != _contextTicket) return;
       sessionContext = SessionContextView.fromJson(json);
     } catch (failure) {
@@ -3728,7 +3756,9 @@ class CoreStore extends ChangeNotifier {
     sessionContextError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('session.chat.uncompact', {'id': id});
+      final json = await _connection.call(CoreMethod.sessionChatUncompact, {
+        'id': id,
+      });
       if (ticket != _contextTicket) return;
       sessionContext = SessionContextView.fromJson(json);
     } catch (failure) {
@@ -3751,7 +3781,9 @@ class CoreStore extends ChangeNotifier {
     deckScheduleError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('session.deck.state', {'id': id});
+      final json = await _connection.call(CoreMethod.sessionDeckState, {
+        'id': id,
+      });
       if (ticket != _deckTicket) return;
       deckSchedule = DeckSchedule.fromJson(json);
     } catch (failure) {
@@ -3777,7 +3809,7 @@ class CoreStore extends ChangeNotifier {
     deckScheduleError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('session.deck.grade', {
+      final json = await _connection.call(CoreMethod.sessionDeckGrade, {
         'id': id,
         'index': index,
         'grade': grade,
@@ -3806,7 +3838,7 @@ class CoreStore extends ChangeNotifier {
     outputError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('session.output.build', {
+      final json = await _connection.call(CoreMethod.sessionOutputBuild, {
         'id': id,
         'kind': kind,
       });
@@ -3883,7 +3915,7 @@ class CoreStore extends ChangeNotifier {
     instructionsError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('session.instructions.get', {
+      final json = await _connection.call(CoreMethod.sessionInstructionsGet, {
         'id': id,
       });
       if (stale()) return;
@@ -3914,7 +3946,7 @@ class CoreStore extends ChangeNotifier {
     instructionsError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('session.instructions.save', {
+      final json = await _connection.call(CoreMethod.sessionInstructionsSave, {
         'id': id,
         'text': text,
       });
@@ -3952,10 +3984,10 @@ class CoreStore extends ChangeNotifier {
     instructionsError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('session.instructions.import', {
-        'id': id,
-        'file': path,
-      });
+      final json = await _connection.call(
+        CoreMethod.sessionInstructionsImport,
+        {'id': id, 'file': path},
+      );
       if (ticket != _instructionsTicket) return null;
       final result = InstructionsImportResult.fromJson(json);
       _applyInstructions(
@@ -3989,9 +4021,10 @@ class CoreStore extends ChangeNotifier {
     instructionsError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('session.instructions.reextract', {
-        'id': id,
-      });
+      final json = await _connection.call(
+        CoreMethod.sessionInstructionsReextract,
+        {'id': id},
+      );
       if (ticket != _instructionsTicket) return null;
       final prompt = json['prompt'] is String
           ? json['prompt'] as String
@@ -4085,7 +4118,7 @@ class CoreStore extends ChangeNotifier {
     String sessionId,
     List<String> paths,
   ) async {
-    final json = await _connection.call('source.add', {
+    final json = await _connection.call(CoreMethod.sourceAdd, {
       'sessionId': sessionId,
       'paths': paths,
     });
@@ -4111,7 +4144,7 @@ class CoreStore extends ChangeNotifier {
   /// same detail and the new rows. The chat snapshot is left alone: adding a
   /// source must not reload a transcript.
   Future<List<SessionSource>> refreshSources(String sessionId) async {
-    final json = await _connection.call('source.list', {
+    final json = await _connection.call(CoreMethod.sourceList, {
       'sessionId': sessionId,
     });
     final raw = json['sources'];
@@ -4148,7 +4181,10 @@ class CoreStore extends ChangeNotifier {
   /// the streamed `session.chat.state` events remain authoritative.
   Future<bool> sendSessionChat(String id, String text) async {
     try {
-      await _connection.call('session.chat.send', {'id': id, 'text': text});
+      await _connection.call(CoreMethod.sessionChatSend, {
+        'id': id,
+        'text': text,
+      });
       _sessionChatErrors.remove(id);
       notifyListeners();
       return true;
@@ -4163,7 +4199,7 @@ class CoreStore extends ChangeNotifier {
   /// error in the core, so it is a no-op here too.
   Future<void> cancelSessionChat(String id) async {
     try {
-      await _connection.call('session.chat.cancel', {'id': id});
+      await _connection.call(CoreMethod.sessionChatCancel, {'id': id});
     } catch (failure) {
       error = _messageOf(failure);
       notifyListeners();
@@ -4192,7 +4228,7 @@ class CoreStore extends ChangeNotifier {
   /// "the list could not be refreshed" instead of "no projects yet".
   Future<void> refreshProjects() async {
     try {
-      final json = await _connection.call('work.list');
+      final json = await _connection.call(CoreMethod.workList);
       projects = _projectRows(json);
       projectsLoaded = true;
       error = null;
@@ -4224,7 +4260,7 @@ class CoreStore extends ChangeNotifier {
     workTemplatesLoading = true;
     workTemplatesError = null;
     try {
-      final json = await _connection.call('work.templates.list', {
+      final json = await _connection.call(CoreMethod.workTemplatesList, {
         if (id.isNotEmpty) 'projectId': id,
       });
       // The reply names templates for THIS project. Without the ticket a slow
@@ -4263,7 +4299,7 @@ class CoreStore extends ChangeNotifier {
     final ticket = ++_projectOpenTicket;
     final Map<String, dynamic> json;
     try {
-      json = await _connection.call('work.open', {'id': id});
+      json = await _connection.call(CoreMethod.workOpen, {'id': id});
     } catch (failure) {
       if (ticket != _projectOpenTicket) return;
       error = _messageOf(failure);
@@ -4346,7 +4382,7 @@ class CoreStore extends ChangeNotifier {
   Future<void> refreshProjectChats(String projectId) async {
     final epoch = _projectEpoch;
     try {
-      final json = await _connection.call('work.chat.list', {
+      final json = await _connection.call(CoreMethod.workChatList, {
         'projectId': projectId,
       });
       // The list belongs to one project: a reply that lands after the project
@@ -4384,7 +4420,9 @@ class CoreStore extends ChangeNotifier {
     workChangesError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('work.changes', {'projectId': id});
+      final json = await _connection.call(CoreMethod.workChanges, {
+        'projectId': id,
+      });
       // Dropped when the project closed or changed while git ran: the epoch
       // catches a close (nothing open any more), the id a direct switch.
       if (epoch != _projectEpoch) return;
@@ -4422,7 +4460,7 @@ class CoreStore extends ChangeNotifier {
     approvalsError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('work.approvals.list', {
+      final json = await _connection.call(CoreMethod.workApprovalsList, {
         'projectId': id,
       });
       if (ticket != _approvalsTicket) return;
@@ -4460,7 +4498,7 @@ class CoreStore extends ChangeNotifier {
   }) async {
     final proposalId = id.trim();
     if (proposalId.isEmpty) return;
-    await _connection.call('work.write.decide', {
+    await _connection.call(CoreMethod.workWriteDecide, {
       'id': proposalId,
       'decision': decision,
       'hunks': ?hunks,
@@ -4485,7 +4523,7 @@ class CoreStore extends ChangeNotifier {
     // a project that is no longer open is dropped rather than painted on the
     // next project's approvals view.
     final owner = activeProjectId;
-    final json = await _connection.call('work.command.decide', {
+    final json = await _connection.call(CoreMethod.workCommandDecide, {
       'id': proposalId,
       'decision': decision,
     });
@@ -4567,7 +4605,7 @@ class CoreStore extends ChangeNotifier {
     final owner = activeProjectId;
     final Map<String, dynamic> json;
     try {
-      json = await _connection.call('work.chat.open', {
+      json = await _connection.call(CoreMethod.workChatOpen, {
         'projectId': projectId,
         if (chatId != null && chatId.trim().isNotEmpty) 'chatId': chatId.trim(),
       });
@@ -4620,7 +4658,7 @@ class CoreStore extends ChangeNotifier {
   ) async {
     final key = _workChatKey(projectId, chatId);
     try {
-      await _connection.call('work.chat.send', {
+      await _connection.call(CoreMethod.workChatSend, {
         'projectId': projectId,
         'chatId': chatId,
         'text': text,
@@ -4637,7 +4675,7 @@ class CoreStore extends ChangeNotifier {
   /// Stop a project chat's in-flight turn. Nothing running is a no-op.
   Future<void> cancelWorkChat(String projectId, String chatId) async {
     try {
-      await _connection.call('work.chat.cancel', {
+      await _connection.call(CoreMethod.workChatCancel, {
         'projectId': projectId,
         'chatId': chatId,
       });
@@ -4671,7 +4709,9 @@ class CoreStore extends ChangeNotifier {
     swarmError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('work.swarm.runs', {'projectId': id});
+      final json = await _connection.call(CoreMethod.workSwarmRuns, {
+        'projectId': id,
+      });
       if (ticket != _swarmTicket) return;
       final open = activeProjectId;
       if (open != null && open != id) return;
@@ -4731,7 +4771,7 @@ class CoreStore extends ChangeNotifier {
     swarmError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('work.swarm.board', {
+      final json = await _connection.call(CoreMethod.workSwarmBoard, {
         'projectId': project,
         'runId': run,
       });
@@ -4773,7 +4813,7 @@ class CoreStore extends ChangeNotifier {
     required List<SwarmPlanEntry> plan,
     int parallel = 1,
   }) async {
-    final json = await _connection.call('work.swarm.run', {
+    final json = await _connection.call(CoreMethod.workSwarmRun, {
       'projectId': projectId.trim(),
       'objective': objective.trim(),
       'plan': [for (final entry in plan) entry.toJson()],
@@ -4796,7 +4836,7 @@ class CoreStore extends ChangeNotifier {
   /// writes the report once the workers settle. A finished run is a no-op that
   /// returns its board. A refusal rethrows for the page's inline message.
   Future<void> cancelSwarm(String projectId, String runId) async {
-    final json = await _connection.call('work.swarm.cancel', {
+    final json = await _connection.call(CoreMethod.workSwarmCancel, {
       'projectId': projectId.trim(),
       'runId': runId.trim(),
     });
@@ -4815,7 +4855,7 @@ class CoreStore extends ChangeNotifier {
   /// selected, or the page falls back to its empty state.
   Future<void> removeSwarm(String projectId, String runId) async {
     final id = runId.trim();
-    await _connection.call('work.swarm.remove', {
+    await _connection.call(CoreMethod.workSwarmRemove, {
       'projectId': projectId.trim(),
       'runId': id,
     });
@@ -4841,7 +4881,7 @@ class CoreStore extends ChangeNotifier {
     String runId,
     String taskId,
   ) async {
-    final json = await _connection.call('work.swarm.retry', {
+    final json = await _connection.call(CoreMethod.workSwarmRetry, {
       'projectId': projectId.trim(),
       'runId': runId.trim(),
       'taskId': taskId.trim(),
@@ -4868,7 +4908,7 @@ class CoreStore extends ChangeNotifier {
     String taskId, {
     bool verified = true,
   }) async {
-    final json = await _connection.call('work.swarm.verify', {
+    final json = await _connection.call(CoreMethod.workSwarmVerify, {
       'projectId': projectId.trim(),
       'runId': runId.trim(),
       'taskId': taskId.trim(),
@@ -4939,7 +4979,7 @@ class CoreStore extends ChangeNotifier {
     activityError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('activity.list', {
+      final json = await _connection.call(CoreMethod.activityList, {
         if (filterKind != null && filterKind.isNotEmpty) 'kind': filterKind,
         if (filterProject != null && filterProject.isNotEmpty)
           'project': filterProject,
@@ -4982,7 +5022,7 @@ class CoreStore extends ChangeNotifier {
   /// list could not be refreshed instead of "no goals yet".
   Future<void> refreshSkills() async {
     try {
-      final json = await _connection.call('skill.list');
+      final json = await _connection.call(CoreMethod.skillList);
       final raw = json['skills'];
       skills = raw is List
           ? raw
@@ -5012,7 +5052,7 @@ class CoreStore extends ChangeNotifier {
     final ticket = ++_skillOpenTicket;
     final Map<String, dynamic> json;
     try {
-      json = await _connection.call('skill.open', {'id': id});
+      json = await _connection.call(CoreMethod.skillOpen, {'id': id});
     } catch (failure) {
       if (ticket != _skillOpenTicket) return;
       error = _messageOf(failure);
@@ -5073,7 +5113,7 @@ class CoreStore extends ChangeNotifier {
     required String goal,
     String prior = '',
   }) async {
-    final json = await _connection.call('skill.create', {
+    final json = await _connection.call(CoreMethod.skillCreate, {
       'goal': goal,
       if (prior.trim().isNotEmpty) 'prior': prior.trim(),
     });
@@ -5105,7 +5145,7 @@ class CoreStore extends ChangeNotifier {
     activeSkillChapter = null;
     notifyListeners();
     try {
-      final json = await _connection.call('skill.chapter', {
+      final json = await _connection.call(CoreMethod.skillChapter, {
         'id': goalId,
         'chapterId': target,
         'practical': practical,
@@ -5169,7 +5209,7 @@ class CoreStore extends ChangeNotifier {
     skillLessonStatus = '';
     notifyListeners();
     try {
-      final json = await _connection.call('skill.lesson.read', {
+      final json = await _connection.call(CoreMethod.skillLessonRead, {
         'goalId': goal,
         'stageId': stage,
       });
@@ -5220,7 +5260,7 @@ class CoreStore extends ChangeNotifier {
     skillLessonError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('skill.lesson.build', {
+      final json = await _connection.call(CoreMethod.skillLessonBuild, {
         'goalId': goal,
         'stageId': stage,
         if (includeSolution) 'includeSolution': true,
@@ -5337,7 +5377,7 @@ class CoreStore extends ChangeNotifier {
     List<SkillStage> stages, {
     bool confirmed = false,
   }) async {
-    final json = await _connection.call('skill.stages.save', {
+    final json = await _connection.call(CoreMethod.skillStagesSave, {
       'goalId': goalId,
       // A new stage must **omit** `id`: the core treats a present id as "this
       // stage already exists" and refuses a blank one, so sending `id: ""`
@@ -5386,7 +5426,9 @@ class CoreStore extends ChangeNotifier {
   /// lesson, source and chat projections, and the list is re-read. The reply is
   /// the backend that took the folder, or null when the core did not name one.
   Future<String?> archiveSkill(String id) async {
-    final json = await _connection.call('skill.archive', {'goalId': id});
+    final json = await _connection.call(CoreMethod.skillArchive, {
+      'goalId': id,
+    });
     final outcome = SkillActionOutcome.fromJson(json);
     await _afterSkillGone(id);
     return outcome.backend;
@@ -5399,7 +5441,7 @@ class CoreStore extends ChangeNotifier {
   /// an archive still restores later. A refusal rethrows the [RpcException] for
   /// the page's inline message and leaves the row and open goal in place.
   Future<void> removeSkill(String id) async {
-    await _connection.call('skill.remove', {'goalId': id});
+    await _connection.call(CoreMethod.skillRemove, {'goalId': id});
     await _afterSkillGone(id);
   }
 
@@ -5412,7 +5454,7 @@ class CoreStore extends ChangeNotifier {
   /// is the zip path, or null when the core did not name one. The list is
   /// re-read so any change the core made is visible.
   Future<String?> exportSkill(String id) async {
-    final json = await _connection.call('skill.export', {'goalId': id});
+    final json = await _connection.call(CoreMethod.skillExport, {'goalId': id});
     final outcome = SkillActionOutcome.fromJson(json);
     await refreshSkills();
     return outcome.path;
@@ -5438,7 +5480,7 @@ class CoreStore extends ChangeNotifier {
   /// stays: a broken read never invents "this goal has no chats".
   Future<void> refreshSkillChats(String goalId) async {
     try {
-      final json = await _connection.call('skill.chat.list', {
+      final json = await _connection.call(CoreMethod.skillChatList, {
         'goalId': goalId,
       });
       if (activeSkillId != null && activeSkillId != goalId) return;
@@ -5479,7 +5521,9 @@ class CoreStore extends ChangeNotifier {
     skillSourcesError = null;
     notifyListeners();
     try {
-      final json = await _connection.call('skill.sources.list', {'goalId': id});
+      final json = await _connection.call(CoreMethod.skillSourcesList, {
+        'goalId': id,
+      });
       if (ticket != _skillSourcesTicket) return;
       if (activeSkillId != null && activeSkillId != id) return;
       final raw = json['sources'];
@@ -5521,7 +5565,7 @@ class CoreStore extends ChangeNotifier {
     String goalId,
     List<String> paths,
   ) async {
-    final json = await _connection.call('skill.sources.add', {
+    final json = await _connection.call(CoreMethod.skillSourcesAdd, {
       'goalId': goalId,
       'files': paths,
     });
@@ -5554,7 +5598,7 @@ class CoreStore extends ChangeNotifier {
     final owner = activeSkillId;
     final Map<String, dynamic> json;
     try {
-      json = await _connection.call('skill.chat.open', {
+      json = await _connection.call(CoreMethod.skillChatOpen, {
         'goalId': goalId,
         if (chatId != null && chatId.trim().isNotEmpty) 'chatId': chatId.trim(),
       });
@@ -5608,7 +5652,9 @@ class CoreStore extends ChangeNotifier {
     final owner = activeSkillId;
     final Map<String, dynamic> json;
     try {
-      json = await _connection.call('skill.chat.create', {'goalId': goalId});
+      json = await _connection.call(CoreMethod.skillChatCreate, {
+        'goalId': goalId,
+      });
     } catch (failure) {
       if (activeSkillId != owner) return false;
       error = _messageOf(failure);
@@ -5654,7 +5700,7 @@ class CoreStore extends ChangeNotifier {
   Future<bool> sendSkillChat(String goalId, String chatId, String text) async {
     final key = _skillChatKey(goalId, chatId);
     try {
-      await _connection.call('skill.chat.send', {
+      await _connection.call(CoreMethod.skillChatSend, {
         'goalId': goalId,
         'chatId': chatId,
         'text': text,
@@ -5671,7 +5717,7 @@ class CoreStore extends ChangeNotifier {
   /// Stop a goal chat's in-flight turn. Nothing running is a no-op.
   Future<void> cancelSkillChat(String goalId, String chatId) async {
     try {
-      await _connection.call('skill.chat.cancel', {
+      await _connection.call(CoreMethod.skillChatCancel, {
         'goalId': goalId,
         'chatId': chatId,
       });
@@ -5717,7 +5763,7 @@ class CoreStore extends ChangeNotifier {
     required String folder,
     required String mode,
   }) async {
-    final json = await _connection.call('work.create', {
+    final json = await _connection.call(CoreMethod.workCreate, {
       'name': name,
       'folder': folder,
       'mode': mode,
@@ -5751,7 +5797,7 @@ class CoreStore extends ChangeNotifier {
   /// [createProject]: the dialog shows the core's own sentence and stays open,
   /// so a refused save never reaches [error].
   Future<String> saveAgent(String projectId, AgentProfileView agent) async {
-    final json = await _connection.call('work.agent.save', {
+    final json = await _connection.call(CoreMethod.workAgentSave, {
       'projectId': projectId,
       'agent': agent.toSaveJson(),
     });
@@ -5766,7 +5812,7 @@ class CoreStore extends ChangeNotifier {
   /// reports that state instead of promoting a neighbour. Failure rethrows the
   /// [RpcException] for the page's inline message.
   Future<void> deleteAgent(String projectId, String agentId) async {
-    await _connection.call('work.agent.delete', {
+    await _connection.call(CoreMethod.workAgentDelete, {
       'projectId': projectId,
       'agentId': agentId,
     });
@@ -5777,7 +5823,7 @@ class CoreStore extends ChangeNotifier {
   /// (`work.defaultAgent`). Failure rethrows for the page's inline message.
   Future<void> setDefaultAgent(String projectId, String? agentId) async {
     final id = agentId?.trim() ?? '';
-    await _connection.call('work.defaultAgent', {
+    await _connection.call(CoreMethod.workDefaultAgent, {
       'projectId': projectId,
       if (id.isNotEmpty) 'agentId': id,
     });
@@ -5807,7 +5853,7 @@ class CoreStore extends ChangeNotifier {
     String scope = 'all',
     String format = 'md',
   }) async {
-    final json = await _connection.call('stats.export', {
+    final json = await _connection.call(CoreMethod.statsExport, {
       'range': range,
       'scope': scope,
       'format': format,
