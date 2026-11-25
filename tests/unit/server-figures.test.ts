@@ -126,7 +126,7 @@ describe("session figures", () => {
     expect(figure.page).toBe(2);
     expect(rendered).not.toBeNull();
     expect(rendered!.dpi).toBe(110);
-    expect(rendered!.sourcePath).toContain("sources/lecture.pdf");
+    expect(rendered!.sourcePath.replaceAll("\\", "/")).toContain("sources/lecture.pdf");
 
     const listed = await resultOf(server, "session.figure.list", { id: SESSION_ID });
     expect((listed.figures as unknown[]).length).toBe(1);
