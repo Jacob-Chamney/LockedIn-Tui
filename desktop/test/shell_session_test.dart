@@ -287,10 +287,12 @@ void main() {
 
     expect(find.byKey(const ValueKey('session-chat-composer')), findsOneWidget);
     expect(find.text('SESSION CHAT'), findsOneWidget);
+    // The composer strip names the input keys; the status bar keeps the
+    // global chord instead of repeating the same line (review #39).
+    expect(find.textContaining('Enter send'), findsWidgets);
     expect(
-      // The page strip and the status bar now agree: Esc leaves INSERT first.
-      find.text('Enter send · Shift+Enter newline · Esc normal'),
-      findsWidgets,
+      tester.widget<Text>(find.byKey(const ValueKey('status-hint'))).data,
+      'Space leader',
     );
 
     await sendSessionTurn(tester, 'hello');

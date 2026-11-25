@@ -8,6 +8,7 @@ import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
 import '../shared/cards.dart';
 import '../../theme/palette.dart';
+import '../../theme/numerals.dart';
 import '../../theme/breakpoints.dart';
 import '../../theme/tokens.dart';
 import '../keys.dart';
@@ -425,9 +426,11 @@ class _Dashboard extends StatelessWidget {
                               peak > 0
                                   ? 'peak ${_compact(peak.round())}/day'
                                   : 'no activity',
-                              style: TextStyle(
-                                color: LockedInColors.muted,
-                                fontSize: 12,
+                              style: tabular(
+                                TextStyle(
+                                  color: LockedInColors.muted,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
                           ],
@@ -494,9 +497,11 @@ class _Dashboard extends StatelessWidget {
                               const Spacer(),
                               Text(
                                 '${_plural(summary.models.length, 'model')} · ${_plural(summary.overview.runs, 'run')}',
-                                style: TextStyle(
-                                  color: LockedInColors.muted,
-                                  fontSize: 12,
+                                style: tabular(
+                                  TextStyle(
+                                    color: LockedInColors.muted,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ),
                             ],
@@ -794,11 +799,14 @@ class _KpiCard extends StatelessWidget {
           const SizedBox(height: 5),
           Text(
             value,
-            style: TextStyle(
-              color: LockedInColors.foreground,
-              fontSize: 23,
-              fontWeight: FontWeight.w600,
-              height: 1.1,
+            key: ValueKey('kpi-${label.toLowerCase()}'),
+            style: tabular(
+              TextStyle(
+                color: LockedInColors.foreground,
+                fontSize: 23,
+                fontWeight: FontWeight.w600,
+                height: 1.1,
+              ),
             ),
           ),
           const SizedBox(height: 3),
@@ -852,7 +860,9 @@ class _ModelRow extends StatelessWidget {
           child: Text(
             '$runs runs · ${(share * 100).round()}%',
             textAlign: TextAlign.right,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            style: tabular(
+              TextStyle(color: LockedInColors.muted, fontSize: 11),
+            ),
           ),
         ),
       ],
@@ -882,7 +892,9 @@ class _LearningLine extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: TextStyle(color: LockedInColors.foreground, fontSize: 12),
+              style: tabular(
+                TextStyle(color: LockedInColors.foreground, fontSize: 12),
+              ),
             ),
           ),
         ],

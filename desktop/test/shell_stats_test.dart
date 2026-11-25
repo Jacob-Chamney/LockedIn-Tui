@@ -14,6 +14,11 @@ void main() {
     await openSurface(tester, 5);
 
     expect(find.text('TOKENS'), findsOneWidget);
+    final kpi = tester.widget<Text>(find.byKey(const ValueKey('kpi-tokens')));
+    expect(
+      kpi.style?.fontFeatures,
+      contains(const FontFeature.tabularFigures()),
+    );
     expect(
       tester.widget<Text>(find.byKey(const ValueKey('status-hint'))).data,
       'r range · s scope · a achievements · x export',

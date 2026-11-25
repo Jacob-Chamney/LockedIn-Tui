@@ -9,6 +9,7 @@ import '../../bridge/errors.dart';
 import '../../shell/chrome.dart';
 import '../shared/cards.dart';
 import '../../theme/palette.dart';
+import '../../theme/numerals.dart';
 import '../../theme/breakpoints.dart';
 import '../shared/content_column.dart';
 import '../../theme/tokens.dart';
@@ -784,7 +785,9 @@ class _SessionRowTile extends StatelessWidget {
                 _dateLabel,
                 textAlign: TextAlign.right,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                style: tabular(
+                  TextStyle(color: LockedInColors.muted, fontSize: 11),
+                ),
               ),
             ),
           ],
@@ -796,7 +799,9 @@ class _SessionRowTile extends StatelessWidget {
               '${row.sources} ${row.sources == 1 ? 'source' : 'sources'}',
               textAlign: TextAlign.right,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: tabular(
+                TextStyle(color: LockedInColors.muted, fontSize: 11),
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -817,11 +822,13 @@ class _SessionRowTile extends StatelessWidget {
                     _stepsLabel,
                     textAlign: TextAlign.right,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: complete
-                          ? LockedInColors.success
-                          : LockedInColors.muted,
-                      fontSize: 11,
+                    style: tabular(
+                      TextStyle(
+                        color: complete
+                            ? LockedInColors.success
+                            : LockedInColors.muted,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
           ),
