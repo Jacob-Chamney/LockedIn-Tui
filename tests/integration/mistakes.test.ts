@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { parseDocument, readString, readStringArray, type Result } from "../../src/domain/markdown";
 import { createLockInSession } from "../../src/services/lockin/create";
 import {
+  correctMistake,
   listMistakes,
   markMistake,
   promoteMistake,
@@ -221,5 +222,91 @@ describe("review marking", () => {
     const marked = await markMistake({ workspace, sessionId, index: 4, result: "known" })
     expect(marked.ok).toBe(false)
     if (!marked.ok) expect(marked.error.message).toContain("no promoted mistake 4")
+  })
+})
+
+describe("correcting a promoted mistake", () => {
+  beforeEach(async () => {
+    unwrap(
+      await recordMistake({
+        workspace,
+        sessionId,
+        text: "Energy is conserved per object.",
+        step: "Derive the energy balance",
+      }),
+    )
+    unwrap(await promoteMistake({ workspace, sessionId, index: 0 }))
+  })
+
+  test("writes the correction, keeps the provenance and settles the note", async () => {
+    const corrected = unwrap(
+      await correctMistake({
+        workspace,
+        sessionId,
+        index: 0,
+        correction: "Energy is conserved for a closed system.",
+      }),
+    )
+    expect(corrected.note.status).toBe("corrected")
+
+    const listed = unwrap(await listMistakes({ workspace, sessionId }))
+    expect(listed.entries[0]?.note?.status).toBe("corrected")
+
+    const text = await readFile(join(workspace.root, corrected.note.path), "utf8")
+    const parsed = parseDocument(text)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return;
+    expect(readString(parsed.value.data, "status")).toBe("corrected")
+    expect(readString(parsed.value.data, "corrected_at")).not.toBe("")
+    expect(parsed.value.body).toContain("Energy is conserved for a closed system.")
+    expect(parsed.value.body).not.toContain("Not written yet.")
+    expect(parsed.value.body).toContain("not one of the session's sources")
+    expect(parsed.value.body).toContain("Promoted from `misconceptions.md`")
+    expect(parsed.value.body).toContain("Step: Derive the energy balance.")
+  })
+
+  test("a second correction replaces the first", async () => {
+    const first = unwrap(
+      await correctMistake({ workspace, sessionId, index: 0, correction: "First answer." }),
+    )
+    const second = unwrap(
+      await correctMistake({ workspace, sessionId, index: 0, correction: "Second answer." }),
+    )
+    const text = await readFile(join(workspace.root, second.note.path), "utf8")
+    expect(text).toContain("Second answer.")
+    expect(text).not.toContain("First answer.")
+    expect(second.note.path).toBe(first.note.path)
+  })
+
+  test("a blank or over-long correction is refused and the note is untouched", async () => {
+    const listed = unwrap(await listMistakes({ workspace, sessionId }))
+    const path = listed.entries[0]?.note?.path ?? ""
+    const before = await readFile(join(workspace.root, path), "utf8")
+
+    const blank = await correctMistake({ workspace, sessionId, index: 0, correction: "  " });
+    expect(blank.ok).toBe(false)
+    if (!blank.ok) expect(blank.error.message).toContain("needs some text")
+
+    const long = await correctMistake({
+      workspace,
+      sessionId,
+      index: 0,
+      correction: "x".repeat(1001),
+    });
+    expect(long.ok).toBe(false)
+    if (!long.ok) expect(long.error.message).toContain("1000")
+
+    expect(await readFile(join(workspace.root, path), "utf8")).toBe(before)
+  })
+
+  test("an entry that was never promoted cannot be corrected", async () => {
+    const corrected = await correctMistake({
+      workspace,
+      sessionId,
+      index: 4,
+      correction: "Anything.",
+    });
+    expect(corrected.ok).toBe(false)
+    if (!corrected.ok) expect(corrected.error.message).toContain("no promoted mistake 4")
   })
 })

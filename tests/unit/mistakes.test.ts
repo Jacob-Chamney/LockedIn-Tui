@@ -10,6 +10,7 @@ import {
   mistakeTitle,
   normaliseMistake,
   parseMistakes,
+  replaceCorrection,
 } from "../../src/domain/mistakes";
 
 describe("parseMistakes", () => {
@@ -109,3 +110,43 @@ describe("the ledger's published limits", () => {
     expect(MISTAKE_TOPIC).toBe("Session mistakes");
   });
 });
+
+describe("replaceCorrection", () => {
+  const body = mistakeBody({
+    sessionName: "Physics — Unit 4",
+    sessionId: "2026-11-01-0900-physics-unit-4",
+    index: 0,
+    text: "Energy is conserved per object.",
+    step: "Derive the energy balance",
+  })
+
+  test("replaces only the correction section and keeps provenance", () => {
+    const next = replaceCorrection(body, "  Energy is conserved for a closed system. ")
+    expect(next).toContain("## Corrected understanding")
+    expect(next).toContain("Energy is conserved for a closed system.")
+    expect(next).not.toContain("Not written yet.")
+    expect(next).toContain("## Mistake")
+    expect(next).toContain("not one of the session's sources")
+    expect(next).toContain("Promoted from `misconceptions.md`")
+    expect(next).toContain("Step: Derive the energy balance.")
+    expect(next.match(/## Corrected understanding/g)).toHaveLength(1)
+  })
+
+  test("a second correction replaces the first, not stacks it", () => {
+    const first = replaceCorrection(body, "First answer.")
+    const second = replaceCorrection(first, "Second answer.")
+    expect(second).not.toContain("First answer.")
+    expect(second).toContain("Second answer.")
+  })
+
+  test("a body whose heading was deleted gets one before the provenance", () => {
+    const edited = body.replace("## Corrected understanding\n", "## Notes\n")
+    const next = replaceCorrection(edited, "A later answer.")
+    expect(next).toContain("## Notes")
+    expect(next).toContain("## Corrected understanding")
+    expect(next).toContain("A later answer.")
+    const provenance = next.indexOf("Promoted from `misconceptions.md`")
+    const heading = next.indexOf("## Corrected understanding")
+    expect(heading).toBeLessThan(provenance)
+  })
+})

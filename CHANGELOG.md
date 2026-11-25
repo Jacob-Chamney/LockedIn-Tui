@@ -21,6 +21,10 @@ requests merge.
 
 ## Unreleased
 
+- A promoted mistake can be corrected later: the Mistakes card writes (or
+  replaces) the corrected-understanding section, keeps the provenance and
+  settles the note, so the graduation path is no longer one-way.
+
 - Swarm reports carry task ids (`task-1`), so a done-but-unverified task stays
   in Review after a core restart and can be verified from the report alone. Old
   reports without ids are read by position and verified in place.

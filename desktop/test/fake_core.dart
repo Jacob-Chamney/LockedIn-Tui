@@ -5118,9 +5118,41 @@ class FakeCore implements CoreConnection {
         'path': 'school/vault/knowledge/mistake-$index.md',
         'title': entry['text'] is String ? entry['text'] : 'mistake',
         'created': '2026-11-01T10:00:00.000Z',
+        'status': 'open',
       };
       entry['note'] = note;
       return {'note': note, 'already': false};
+    }
+    if (method == 'session.mistake.correct') {
+      final id = params?['id'];
+      if (_detailFor(id) == null) throw _unknownSession(id);
+      _throwIfMistakeFailed(id);
+      final index = params?['index'];
+      final correction = params?['correction'];
+      if (correction is! String || correction.trim().isEmpty) {
+        throw RpcException(-32000, 'a correction needs some text', {
+          'kind': 'mistake',
+          'id': id,
+          'message': 'a correction needs some text',
+        });
+      }
+      if (index is! int || index < 0 || index >= mistakeEntries.length) {
+        throw RpcException(-32000, 'there is no promoted mistake $index', {
+          'kind': 'mistake',
+          'id': id,
+          'message': 'there is no promoted mistake $index',
+        });
+      }
+      final note = mistakeEntries[index]['note'];
+      if (note is! Map) {
+        throw RpcException(-32000, 'there is no promoted mistake $index', {
+          'kind': 'mistake',
+          'id': id,
+          'message': 'there is no promoted mistake $index',
+        });
+      }
+      note['status'] = 'corrected';
+      return {'note': note};
     }
     if (method == 'session.chat.snapshot') {
       final id = params?['id'];

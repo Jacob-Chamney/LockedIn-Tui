@@ -86,6 +86,45 @@ export function mistakeTitle(text: string, maxLength = 80): string {
   return `${head.trimEnd()}…`
 }
 
+/**
+ * Replace the corrected-understanding section of an existing note body.
+ *
+ * The body is learner-editable, so this is line-based rather than a rebuild: the
+ * heading stays, the paragraph(s) under it are replaced, and the provenance line
+ * at the end is preserved. A body whose heading was deleted gets one appended
+ * before the provenance rather than losing the correction.
+ */
+export function replaceCorrection(body: string, correction: string): string {
+  const eol = body.includes("\r\n") ? "\r\n" : "\n"
+  const lines = body.replace(/\r\n?/g, "\n").split("\n")
+  const text = normaliseMistake(correction)
+  const heading = lines.findIndex((line) => line.trim() === "## Corrected understanding")
+  const provenance = lines.findIndex((line) =>
+    line.startsWith("Promoted from `misconceptions.md`"),
+  )
+
+  if (heading === -1) {
+    const block = ["## Corrected understanding", "", text, ""]
+    if (provenance === -1) lines.push("", ...block)
+    else lines.splice(provenance, 0, ...block)
+    return lines.join(eol)
+  }
+
+  let end = lines.length
+  for (let index = heading + 1; index < lines.length; index += 1) {
+    const line = lines[index]!
+    if (line.startsWith("## ") || line.startsWith("Promoted from `misconceptions.md`")) {
+      end = index
+      break
+    }
+  }
+  // Keep the one blank line the section had before the next heading/provenance.
+  let stop = end
+  while (stop > heading + 1 && lines[stop - 1]!.trim() === "") stop -= 1
+  lines.splice(heading + 1, stop - heading - 1, "", text, "")
+  return lines.join(eol)
+}
+
 export type MistakeBodyInput = {
   sessionName: string
   sessionId: string

@@ -2909,6 +2909,28 @@ class CoreStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Write (or replace) a promoted mistake's corrected understanding
+  /// (`session.mistake.correct`).
+  ///
+  /// Promotion is not one-way: a note promoted before the learner knew the
+  /// answer can be completed later. The reply is the updated note, and the
+  /// ledger is re-read so the row shows `corrected`.
+  Future<MistakeNote> correctMistake(
+    String sessionId,
+    int index,
+    String correction,
+  ) async {
+    final id = sessionId.trim();
+    final json = await _connection.call('session.mistake.correct', {
+      'id': id,
+      'index': index,
+      'correction': correction,
+    });
+    final note = MistakeNote.fromJson(json['note']);
+    await loadMistakes(id);
+    return note;
+  }
+
   /// Promote one ledger entry into a labelled school note
   /// (`session.mistake.promote`).
   ///

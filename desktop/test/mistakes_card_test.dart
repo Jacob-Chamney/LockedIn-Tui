@@ -257,4 +257,97 @@ void main() {
     await tester.pumpAndSettle();
     expect(retries, 1);
   });
+
+  testWidgets('a promoted mistake can be corrected and settled', (
+    tester,
+  ) async {
+    int? correctedIndex;
+    String? correctedText;
+    await pumpPage(
+      tester,
+      SessionDetailView(
+        detail: detail,
+        loading: false,
+        mistakes: const [
+          SessionMistake(
+            index: 0,
+            text: 'Energy is conserved per object.',
+            note: MistakeNote(
+              path: 'school/vault/knowledge/energy.md',
+              title: 'Energy is conserved per object.',
+              created: '2026-11-01T10:00:00.000Z',
+            ),
+          ),
+        ],
+        onCorrectMistake: (index, correction) async {
+          correctedIndex = index;
+          correctedText = correction;
+          return const MistakeNote(
+            path: 'school/vault/knowledge/energy.md',
+            title: 'Energy is conserved per object.',
+            created: '2026-11-01T10:00:00.000Z',
+            status: 'corrected',
+          );
+        },
+      ),
+    );
+
+    expect(find.textContaining('· open'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('mistake-correct-0')));
+    await tester.pumpAndSettle();
+    expect(find.text('correct mistake 1'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('mistake-correction-0')),
+      'Energy is conserved for a closed system.',
+    );
+    await tester.tap(find.byKey(const ValueKey('mistake-promote-confirm-0')));
+    await tester.pumpAndSettle();
+
+    expect(correctedIndex, 0);
+    expect(correctedText, 'Energy is conserved for a closed system.');
+    expect(find.text('corrected'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an empty correction is refused before the core call', (
+    tester,
+  ) async {
+    var calls = 0;
+    await pumpPage(
+      tester,
+      SessionDetailView(
+        detail: detail,
+        loading: false,
+        mistakes: const [
+          SessionMistake(
+            index: 0,
+            text: 'A derivative is a fraction.',
+            note: MistakeNote(
+              path: 'x',
+              title: 'x',
+              created: '',
+              status: 'reviewed',
+            ),
+          ),
+        ],
+        onCorrectMistake: (index, correction) async {
+          calls += 1;
+          return const MistakeNote(path: 'x', title: 'x', created: '');
+        },
+      ),
+    );
+
+    // A reviewed note is still correctable: `reviewed` says it was understood,
+    // not that a correction was written.
+    expect(find.text('Correct'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('mistake-correct-0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('mistake-promote-confirm-0')));
+    await tester.pumpAndSettle();
+
+    expect(calls, 0);
+    expect(find.text('write the correction first'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

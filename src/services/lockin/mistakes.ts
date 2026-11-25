@@ -19,7 +19,15 @@
 import { mkdir, readFile } from "node:fs/promises"
 import { basename, join, relative, sep } from "node:path"
 
-import { err, ok, parseDocument, patchFrontmatter, readString, type Result } from "../../domain/markdown"
+import {
+  err,
+  ok,
+  parseDocument,
+  patchFrontmatter,
+  readString,
+  serializeFrontmatter,
+  type Result,
+} from "../../domain/markdown"
 import {
   MAX_CORRECTION_CHARS,
   MAX_MISTAKE_CHARS,
@@ -30,6 +38,7 @@ import {
   mistakeTitle,
   normaliseMistake,
   parseMistakes,
+  replaceCorrection,
   type MistakeEntry,
 } from "../../domain/mistakes"
 import { slugify, uniqueSlug, type Note } from "../../domain/note"
@@ -48,6 +57,8 @@ export type PromotedMistake = {
   path: string
   title: string
   created: string
+  /** `open` until a correction is written; then `corrected` or `reviewed`. */
+  status: "open" | "corrected" | "reviewed"
 }
 
 /** One ledger entry plus the note it graduated into, when it has one. */
@@ -109,10 +120,14 @@ async function promotedNotes(
     if (index === null) continue
     const path = relativeToRoot(workspace.root, absolute)
     if (path === "") continue
+    const rawStatus = readString(data, "status") ?? "open"
+    const status =
+      rawStatus === "corrected" || rawStatus === "reviewed" ? rawStatus : "open"
     out.set(index, {
       path,
       title: readString(data, "title") ?? "",
       created: readString(data, "created") ?? "",
+      status,
     })
   }
   return out
@@ -163,6 +178,73 @@ export async function recordMistake(input: {
     return err({ kind: "storage", path: opened.value.folder, message: messageOf(error) })
   }
   return listMistakes(input)
+}
+
+/**
+ * Write (or replace) a promoted mistake's corrected understanding.
+ *
+ * Promotion is deliberately not one-way: a learner can promote before they know
+ * the right answer and fill it in later. This replaces only the
+ * `## Corrected understanding` section, keeps the mistake, the label and the
+ * provenance, and sets `status: corrected` so the note is settled and leaves the
+ * Review queue. A blank correction is refused rather than written as text.
+ */
+export async function correctMistake(input: {
+  workspace: Workspace
+  sessionId: string
+  index: number
+  correction: string
+}): Promise<Result<{ note: PromotedMistake }, MistakeError>> {
+  const correction = normaliseMistake(input.correction)
+  if (correction === "") {
+    return err({ kind: "invalid", message: "a correction needs some text" })
+  }
+  if (correction.length > MAX_CORRECTION_CHARS) {
+    return err({
+      kind: "invalid",
+      message: `a correction is at most ${MAX_CORRECTION_CHARS} characters; this one is ${correction.length}`,
+    })
+  }
+  const promoted = await promotedNotes(input.workspace, input.sessionId)
+  const note = promoted.get(input.index)
+  if (note === undefined) {
+    return err({
+      kind: "invalid",
+      message: `there is no promoted mistake ${input.index} in this session`,
+    })
+  }
+
+  const absolute = join(input.workspace.root, note.path)
+  let text: string
+  try {
+    text = await readFile(absolute, "utf8")
+  } catch (error) {
+    return err({ kind: "storage", path: note.path, message: messageOf(error) })
+  }
+  const parsed = parseDocument(text)
+  if (!parsed.ok) {
+    return err({ kind: "storage", path: note.path, message: parsed.error.message })
+  }
+
+  const at = new Date().toISOString()
+  const body = replaceCorrection(parsed.value.body, correction)
+  const frontmatter = serializeFrontmatter({
+    ...parsed.value.data,
+    status: "corrected",
+    corrected_at: at,
+  })
+  const next = `${frontmatter}${body}`
+  try {
+    await writeSessionFile(
+      input.workspace.paths.schoolVault,
+      relative(input.workspace.paths.schoolVault, absolute),
+      next,
+    )
+  } catch (error) {
+    return err({ kind: "storage", path: note.path, message: messageOf(error) })
+  }
+
+  return ok({ note: { ...note, status: "corrected" } })
 }
 
 /**
@@ -342,6 +424,7 @@ export async function promoteMistake(input: {
       path: `${relativeToRoot(input.workspace.root, vault) || "school/vault"}/${path}`,
       title,
       created,
+      status: correction === "" ? "open" : "corrected",
     },
     already: false,
   })
