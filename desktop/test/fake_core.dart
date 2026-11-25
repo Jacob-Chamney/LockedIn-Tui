@@ -2248,6 +2248,12 @@ class FakeCore implements CoreConnection {
   /// When set, snapshots carry this `seq` (the real core always numbers them).
   int? snapshotSeq;
 
+  /// The fake session's misconception ledger, in file order.
+  final List<Map<String, dynamic>> mistakeEntries = [];
+
+  /// When set, every `session.mistake.*` call refuses with this message.
+  String? mistakeFailure;
+
   Map<String, dynamic> _chat() => {
     if (snapshotSeq != null) 'seq': snapshotSeq,
     'status': 'idle',
@@ -2290,6 +2296,20 @@ class FakeCore implements CoreConnection {
         'updated': '2026-11-01T15:00:00Z',
       },
   };
+
+  List<Map<String, dynamic>> _mistakeRows() => [
+    for (final entry in mistakeEntries) Map<String, dynamic>.from(entry),
+  ];
+
+  void _throwIfMistakeFailed(Object? id) {
+    final failure = mistakeFailure;
+    if (failure == null) return;
+    throw RpcException(-32000, failure, {
+      'kind': 'mistake',
+      'id': id,
+      'message': failure,
+    });
+  }
 
   RpcException _unknownSession(Object? raw) {
     final id = raw is String ? raw : '';
@@ -5049,6 +5069,58 @@ class FakeCore implements CoreConnection {
         });
       }
       return {'coverage': _coverageReport()};
+    }
+    if (method == 'session.mistake.list') {
+      final id = params?['id'];
+      if (_detailFor(id) == null) throw _unknownSession(id);
+      _throwIfMistakeFailed(id);
+      return {'entries': _mistakeRows()};
+    }
+    if (method == 'session.mistake.record') {
+      final id = params?['id'];
+      if (_detailFor(id) == null) throw _unknownSession(id);
+      _throwIfMistakeFailed(id);
+      final text = params?['text'];
+      if (text is! String || text.trim().isEmpty) {
+        throw RpcException(-32000, 'a mistake needs some text', {
+          'kind': 'mistake',
+          'id': id,
+          'message': 'a mistake needs some text',
+        });
+      }
+      final step = params?['step'];
+      mistakeEntries.add({
+        'index': mistakeEntries.length,
+        'text': text.trim(),
+        if (step is String && step.trim().isNotEmpty) 'step': step.trim(),
+        'note': null,
+      });
+      return {'entries': _mistakeRows()};
+    }
+    if (method == 'session.mistake.promote') {
+      final id = params?['id'];
+      if (_detailFor(id) == null) throw _unknownSession(id);
+      _throwIfMistakeFailed(id);
+      final index = params?['index'];
+      if (index is! int || index < 0 || index >= mistakeEntries.length) {
+        throw RpcException(-32000, 'there is no mistake at index $index', {
+          'kind': 'mistake',
+          'id': id,
+          'message': 'there is no mistake at index $index',
+        });
+      }
+      final entry = mistakeEntries[index];
+      final existing = entry['note'];
+      if (existing is Map) {
+        return {'note': existing, 'already': true};
+      }
+      final note = {
+        'path': 'school/vault/knowledge/mistake-$index.md',
+        'title': entry['text'] is String ? entry['text'] : 'mistake',
+        'created': '2026-11-01T10:00:00.000Z',
+      };
+      entry['note'] = note;
+      return {'note': note, 'already': false};
     }
     if (method == 'session.chat.snapshot') {
       final id = params?['id'];

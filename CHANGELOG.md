@@ -21,6 +21,10 @@ requests merge.
 
 ## Unreleased
 
+- Mistakes can be recorded in a session and **promoted** into a labelled
+  school knowledge note with provenance (session, entry, step, open/corrected);
+  the note is searchable through Knowledge and is never a source.
+
 - Chat state frames and snapshots carry a per-stream `seq`; the shell drops a
   stale frame instead of overwriting a newer transcript (reconnect and
   coalesced-flush safety).

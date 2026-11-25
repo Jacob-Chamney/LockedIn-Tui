@@ -783,6 +783,26 @@ class CoreStore extends ChangeNotifier {
   /// session the user has already left cannot replace the visible report.
   int _coverageTicket = 0;
 
+  /// The open session's misconception ledger (`session.mistake.list`).
+  ///
+  /// Process history, never a source: each row says what the learner got wrong
+  /// and whether it has graduated into a [MistakeNote]. The core owns the file
+  /// and the note; the shell only renders the rows and sends intents.
+  List<SessionMistake> mistakes = const [];
+
+  /// True while the ledger is being read or re-read for the open session.
+  bool mistakesLoading = false;
+
+  /// The last ledger read or write failure, or null.
+  ///
+  /// Page-local like [coverageError]: one broken read never replaces [error],
+  /// and the previous rows stay so the card can show them with a retry.
+  String? mistakesError;
+
+  /// Bumped on every ledger request and every clear, so an answer for a
+  /// session the user has already left cannot replace the visible rows.
+  int _mistakesTicket = 0;
+
   /// The open session's `prompt.md` and provenance (`session.instructions.get`).
   ///
   /// This is the text the model reads, not a second copy of the session detail:
@@ -2748,6 +2768,7 @@ class CoreStore extends ChangeNotifier {
     _clearInstructions();
     _clearOutput();
     _clearCoverage();
+    _clearMistakes();
     _sessionChatErrors.remove(sessionId);
 
     try {
@@ -2770,6 +2791,9 @@ class CoreStore extends ChangeNotifier {
     // page-local in [coverageError]: the detail still renders and the card
     // offers a retry.
     await readCoverage(sessionId);
+    // The mistake ledger is page-local too: a failure leaves the detail usable
+    // and the card shows one message with a retry.
+    await loadMistakes(sessionId);
     notifyListeners();
   }
 
@@ -2814,6 +2838,102 @@ class CoreStore extends ChangeNotifier {
     coverage = null;
     coverageLoading = false;
     coverageError = null;
+  }
+
+  /// Drop the mistake ledger and any in-flight answer for it.
+  void _clearMistakes() {
+    _mistakesTicket += 1;
+    mistakes = const [];
+    mistakesLoading = false;
+    mistakesError = null;
+  }
+
+  static List<SessionMistake> _mistakeRows(Object? entries) {
+    if (entries is! List) return const [];
+    return [
+      for (final entry in entries)
+        if (entry is Map)
+          SessionMistake.fromJson(Map<String, dynamic>.from(entry)),
+    ];
+  }
+
+  /// Read the open session's misconception ledger (`session.mistake.list`).
+  ///
+  /// Read-only: it writes nothing, calls no model and contacts no network. A
+  /// failure is recorded once in [mistakesError] and the previous rows stay, so
+  /// the card shows the core's own message with a retry rather than an invented
+  /// empty ledger. An answer for a session the user has already left is dropped.
+  Future<void> loadMistakes(String sessionId) async {
+    final id = sessionId.trim();
+    if (id.isEmpty) return;
+    final ticket = ++_mistakesTicket;
+    mistakesLoading = true;
+    mistakesError = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call('session.mistake.list', {'id': id});
+      if (ticket != _mistakesTicket) return;
+      if (activeSessionId != null && activeSessionId != id) return;
+      mistakes = _mistakeRows(json['entries']);
+    } catch (failure) {
+      if (ticket != _mistakesTicket) return;
+      mistakesError = _messageOf(failure);
+    } finally {
+      if (ticket == _mistakesTicket) {
+        mistakesLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Record one mistake (`session.mistake.record`).
+  ///
+  /// [text] is normalised to one line and bounded by the core; an over-long or
+  /// blank entry is a refusal and the inline message is the caller's to show.
+  /// Nothing is written when the call fails, and the reply replaces the rows.
+  Future<void> recordMistake(
+    String sessionId,
+    String text, {
+    String? step,
+  }) async {
+    final id = sessionId.trim();
+    if (id.isEmpty) return;
+    final json = await _connection.call('session.mistake.record', {
+      'id': id,
+      'text': text,
+      if (step != null && step.trim().isNotEmpty) 'step': step.trim(),
+    });
+    if (activeSessionId != null && activeSessionId != id) return;
+    mistakes = _mistakeRows(json['entries']);
+    mistakesError = null;
+    notifyListeners();
+  }
+
+  /// Promote one ledger entry into a labelled school note
+  /// (`session.mistake.promote`).
+  ///
+  /// [correction] is the learner's own right answer; when it is omitted the
+  /// note stays `status: open` and says the correction is not written yet.
+  /// Promoting an entry twice returns the existing note with [MistakePromotion.already]
+  /// set, so a double click cannot create a duplicate. The ledger is re-read
+  /// afterwards, because the promotion marks the entry.
+  Future<MistakePromotion> promoteMistake(
+    String sessionId,
+    int index, {
+    String? correction,
+    String? title,
+  }) async {
+    final id = sessionId.trim();
+    final json = await _connection.call('session.mistake.promote', {
+      'id': id,
+      'index': index,
+      if (correction != null && correction.trim().isNotEmpty)
+        'correction': correction.trim(),
+      if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
+    });
+    final promotion = MistakePromotion.fromJson(json);
+    await loadMistakes(id);
+    return promotion;
   }
 
   /// Create one lock-in session through `session.create`.
@@ -4022,6 +4142,7 @@ class CoreStore extends ChangeNotifier {
     _clearInstructions();
     _clearOutput();
     _clearCoverage();
+    _clearMistakes();
     notifyListeners();
   }
 
@@ -5785,6 +5906,7 @@ class CoreStore extends ChangeNotifier {
     _clearInstructions();
     _clearOutput();
     _clearCoverage();
+    _clearMistakes();
     _clearDocument();
     _sessionChats.clear();
     _sessionChatErrors.clear();

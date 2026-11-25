@@ -245,6 +245,12 @@ import {
   withSideLock,
 } from "../services/teaching/side";
 import { normalisePoint, readMemory, recordTurn, type Memory, type TurnOutcome } from "../services/lockin/memory";
+import {
+  listMistakes,
+  promoteMistake,
+  recordMistake,
+  type MistakeRow,
+} from "../services/lockin/mistakes";
 import { UPDATE_REPO } from "../services/update";
 import { APP_VERSION } from "../version";
 import { extract } from "../services/extract/index";
@@ -308,6 +314,9 @@ export const CAPABILITIES = [
   "session.figure.read",
   "session.figure.annotate",
   "session.figure.remove",
+  "session.mistake.list",
+  "session.mistake.record",
+  "session.mistake.promote",
   "archive.list",
   "archive.restore",
   "archive.remove",
@@ -9062,6 +9071,129 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     return success(id, { figure: added.value });
   };
 
+  /** The mistake ledger's failure shape: one session, one message. */
+  const mistakeFailure = (id: RpcId, sessionId: string, message: string): JsonRpcResponse =>
+    failure(id, BOOT_FAILED, message, { kind: "mistake", id: sessionId, message }, false);
+
+  const mistakeReply = (id: RpcId, entries: MistakeRow[]): JsonRpcResponse =>
+    success(id, { entries });
+
+  /**
+   * `session.mistake.list` — the session's misconception ledger.
+   *
+   * Read-only. Each row carries the note it was promoted into, when it has
+   * one, so the reader can show "promoted" without a second request.
+   */
+  const sessionMistakeList = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const rawId = params.id;
+    if (typeof rawId !== "string" || rawId.trim() === "") {
+      return invalid(id, "session.mistake.list requires a session id");
+    }
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const resolved = await resolveSession(id, current.value, rawId);
+    if ("error" in resolved) return resolved.error;
+    const sessionId = resolved.opened.session.id;
+
+    const listed = await listMistakes({ workspace: current.value.workspace, sessionId });
+    if (!listed.ok) return mistakeFailure(id, sessionId, listed.error.message);
+    return mistakeReply(id, listed.value.entries);
+  };
+
+  /**
+   * `session.mistake.record` — append one entry and return the ledger.
+   *
+   * The text is normalised to one line and bounded; an over-long entry is
+   * refused with its length rather than silently cut. The record is process
+   * history, never a source.
+   */
+  const sessionMistakeRecord = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const rawId = params.id;
+    if (typeof rawId !== "string" || rawId.trim() === "") {
+      return invalid(id, "session.mistake.record requires a session id");
+    }
+    if (typeof params.text !== "string") {
+      return invalid(id, "session.mistake.record requires mistake text");
+    }
+    if (params.step !== undefined && typeof params.step !== "string") {
+      return invalid(id, "session.mistake.record: step must be a string");
+    }
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const resolved = await resolveSession(id, current.value, rawId);
+    if ("error" in resolved) return resolved.error;
+    const sessionId = resolved.opened.session.id;
+
+    const recorded = await recordMistake({
+      workspace: current.value.workspace,
+      sessionId,
+      text: params.text,
+      ...(params.step === undefined ? {} : { step: params.step as string }),
+    });
+    if (!recorded.ok) {
+      const message =
+        recorded.error.kind === "invalid" ? recorded.error.message : "the mistake could not be recorded";
+      return mistakeFailure(id, sessionId, message);
+    }
+    return mistakeReply(id, recorded.value.entries);
+  };
+
+  /**
+   * `session.mistake.promote` — graduate one entry into a labelled note.
+   *
+   * The note lands in the school vault's `knowledge/` folder with its session,
+   * entry and step in the frontmatter, so it is searchable and readable like
+   * any other note and still labelled as the learner's own record. Promoting
+   * the same entry twice returns the existing note (`already: true`).
+   */
+  const sessionMistakePromote = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const rawId = params.id;
+    if (typeof rawId !== "string" || rawId.trim() === "") {
+      return invalid(id, "session.mistake.promote requires a session id");
+    }
+    const index = params.index;
+    if (typeof index !== "number" || !Number.isInteger(index) || index < 0) {
+      return invalid(id, "session.mistake.promote requires a whole mistake index");
+    }
+    if (params.correction !== undefined && typeof params.correction !== "string") {
+      return invalid(id, "session.mistake.promote: correction must be a string");
+    }
+    if (params.title !== undefined && typeof params.title !== "string") {
+      return invalid(id, "session.mistake.promote: title must be a string");
+    }
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const resolved = await resolveSession(id, current.value, rawId);
+    if ("error" in resolved) return resolved.error;
+    const sessionId = resolved.opened.session.id;
+
+    const promoted = await promoteMistake({
+      workspace: current.value.workspace,
+      sessionId,
+      index,
+      ...(params.correction === undefined ? {} : { correction: params.correction as string }),
+      ...(params.title === undefined ? {} : { title: params.title as string }),
+    });
+    if (!promoted.ok) {
+      const message =
+        promoted.error.kind === "invalid" ? promoted.error.message : "the note could not be written";
+      return mistakeFailure(id, sessionId, message);
+    }
+    return success(id, {
+      note: promoted.value.note,
+      already: promoted.value.already,
+    });
+  };
+
   const sessionFigureList = async (
     id: RpcId,
     params: Record<string, unknown>,
@@ -11633,6 +11765,12 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         return sessionFigureAnnotate(id, params);
       case "session.figure.remove":
         return sessionFigureRemove(id, params);
+      case "session.mistake.list":
+        return sessionMistakeList(id, params);
+      case "session.mistake.record":
+        return sessionMistakeRecord(id, params);
+      case "session.mistake.promote":
+        return sessionMistakePromote(id, params);
       case "research.start":
         return researchStart(id, params);
       case "research.list":

@@ -185,4 +185,36 @@ void main() {
     expect(graph.node('step:g:1')?.isAgent, isTrue);
     expect(graph.edges.single.kind, 'contains');
   });
+
+  test('SessionMistake and MistakePromotion read the documented shape', () {
+    final row = SessionMistake.fromJson({
+      'index': 2,
+      'text': 'Energy is conserved per object.',
+      'step': 'Derive the energy balance',
+      'note': {
+        'path': 'school/vault/knowledge/energy-is-conserved.md',
+        'title': 'Energy is conserved per object.',
+        'created': '2026-11-01T10:00:00.000Z',
+      },
+    });
+    expect(row.index, 2);
+    expect(row.step, 'Derive the energy balance');
+    expect(row.promoted, isTrue);
+    expect(row.note?.path, 'school/vault/knowledge/energy-is-conserved.md');
+
+    final open = SessionMistake.fromJson({'index': 0, 'text': 'a mistake'});
+    expect(open.promoted, isFalse);
+    expect(open.step, isNull);
+
+    final promotion = MistakePromotion.fromJson({
+      'note': {
+        'path': 'school/vault/knowledge/x.md',
+        'title': 'x',
+        'created': '2026-11-01T10:00:00.000Z',
+      },
+      'already': true,
+    });
+    expect(promotion.already, isTrue);
+    expect(promotion.note.title, 'x');
+  });
 }
