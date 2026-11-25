@@ -820,3 +820,44 @@ class SessionMemory {
     updated: _string(json['updated']),
   );
 }
+
+/// The whole `session.open` detail the Flutter shell renders.
+class SessionDetail {
+  const SessionDetail({
+    required this.id,
+    required this.name,
+    required this.created,
+    required this.archived,
+    required this.prompt,
+    required this.sources,
+    required this.steps,
+    this.memory,
+  });
+
+  final String id;
+
+  final String name;
+
+  final String created;
+
+  final bool archived;
+
+  final String prompt;
+
+  final List<SessionSource> sources;
+
+  final SessionSteps steps;
+
+  final SessionMemory? memory;
+
+  factory SessionDetail.fromJson(Map<String, dynamic> json) => SessionDetail(
+    id: _string(json['id']),
+    name: _string(json['name']),
+    created: _string(json['created']),
+    archived: _bool(json['archived']),
+    prompt: _string(json['prompt']),
+    sources: _models(json['sources'], SessionSource.fromJson),
+    steps: SessionSteps.fromJson(_map(json['steps'])),
+    memory: _modelOrNull(json['memory'], SessionMemory.fromJson),
+  );
+}

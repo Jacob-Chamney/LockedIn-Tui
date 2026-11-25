@@ -34,7 +34,8 @@ export 'core_models.g.dart'
         AgentProfileView,
         SessionSource,
         SessionSteps,
-        SessionMemory;
+        SessionMemory,
+        SessionDetail;
 
 String _string(Object? value) => value is String ? value : '';
 int _int(Object? value) => value is num ? value.toInt() : 0;
@@ -486,52 +487,6 @@ class CoverageReport {
 }
 
 /// `session.open` – one lock-in session, read by the core from its folder.
-class SessionDetail {
-  const SessionDetail({
-    required this.id,
-    required this.name,
-    required this.created,
-    required this.archived,
-    required this.prompt,
-    required this.sources,
-    required this.steps,
-    this.memory,
-  });
-
-  final String id;
-  final String name;
-  final String created;
-  final bool archived;
-  final String prompt;
-  final List<SessionSource> sources;
-  final SessionSteps steps;
-
-  /// The stored memory note, or null when the core omitted the block.
-  ///
-  /// Memory is history, not a source: it is labelled session memory and never
-  /// joins [sources].
-  final SessionMemory? memory;
-
-  factory SessionDetail.fromJson(Map<String, dynamic> json) => SessionDetail(
-    id: _string(json['id']),
-    name: _string(json['name']),
-    created: _string(json['created']),
-    archived: _bool(json['archived']),
-    prompt: _string(json['prompt']),
-    sources: _maps(json['sources']).map(SessionSource.fromJson).toList(),
-    steps: SessionSteps.fromJson(
-      json['steps'] is Map
-          ? Map<String, dynamic>.from(json['steps'] as Map)
-          : const <String, dynamic>{},
-    ),
-    memory: json['memory'] is Map
-        ? SessionMemory.fromJson(
-            Map<String, dynamic>.from(json['memory'] as Map),
-          )
-        : null,
-  );
-}
-
 /// `session.create` — the id and name the core wrote.
 ///
 /// The core owns the transaction (copy sources, extract an instructions file,
