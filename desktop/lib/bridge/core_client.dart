@@ -4655,6 +4655,33 @@ class CoreStore extends ChangeNotifier {
     return result;
   }
 
+  /// Mark one completed swarm task verified (`work.swarm.verify`).
+  ///
+  /// Verification is a person's decision, not a worker's claim: it only applies
+  /// to a `done` task. The core rewrites the run's report and records the
+  /// decision in the activity log. A refusal rethrows for the page's message.
+  Future<void> verifySwarmTask(
+    String projectId,
+    String runId,
+    String taskId, {
+    bool verified = true,
+  }) async {
+    final json = await _connection.call('work.swarm.verify', {
+      'projectId': projectId.trim(),
+      'runId': runId.trim(),
+      'taskId': taskId.trim(),
+      'verified': verified,
+    });
+    final raw = json['board'];
+    if (raw is Map) {
+      final board = SwarmBoardView.fromJson(Map<String, dynamic>.from(raw));
+      _applySwarmBoard(board);
+      if (activeSwarmId == board.runId) activeSwarm = board;
+      swarmError = null;
+      notifyListeners();
+    }
+  }
+
   /// Replace or append one board in [swarmRuns], keeping the active board live.
   void _applySwarmBoard(SwarmBoardView board) {
     final runs = [...swarmRuns];

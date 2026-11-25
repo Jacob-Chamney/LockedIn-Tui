@@ -22,7 +22,9 @@ void main() {
       'agentId': 'reader',
       'status': 'pending',
       'requires': ['task-1'],
+      'verified': true,
     });
     expect(row.requires, ['task-1']);
+    expect(row.verified, isTrue);
   });
 }

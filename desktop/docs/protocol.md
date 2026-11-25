@@ -8,7 +8,7 @@ to stderr.
 
 ```json
 → {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol":1,"client":"flutter"}}
-← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","session.deck.state","session.deck.grade","session.deck.reset","session.figure.list","session.figure.extract","session.figure.read","session.figure.annotate","session.figure.remove","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","keybinds.get","keybinds.set","chat.snapshot","chat.send","chat.cancel","session.chat.snapshot","session.chat.send","session.chat.cancel","session.chat.context","session.chat.compact","session.chat.uncompact","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","work.list","work.open","work.create","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","teach.state","teach.measure","teach.step","teach.check","teach.practice","teach.practice.result","teach.side.snapshot","teach.side.send","teach.side.clear","research.start","research.list","research.read","research.cancel","prompts.list","prompts.set","update.info","update.check","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read","knowledge.graph"]}}
+← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","session.deck.state","session.deck.grade","session.deck.reset","session.figure.list","session.figure.extract","session.figure.read","session.figure.annotate","session.figure.remove","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","keybinds.get","keybinds.set","chat.snapshot","chat.send","chat.cancel","session.chat.snapshot","session.chat.send","session.chat.cancel","session.chat.context","session.chat.compact","session.chat.uncompact","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","work.list","work.open","work.create","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","work.swarm.verify","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","teach.state","teach.measure","teach.step","teach.check","teach.practice","teach.practice.result","teach.side.snapshot","teach.side.send","teach.side.clear","research.start","research.list","research.read","research.cancel","prompts.list","prompts.set","update.info","update.check","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read","knowledge.graph"]}}
 ```
 
 - `protocol` is an integer. A mismatch is a blocking shell error, not a retry.
@@ -128,6 +128,7 @@ Implemented today (`src/server/protocol.ts`, capability names in the handshake):
 | `work.swarm.cancel` | `{projectId, runId}` | `{board}` |
 | `work.swarm.remove` | `{projectId, runId}` | `{removed, reportPath}` |
 | `work.swarm.retry` | `{projectId, runId, taskId}` | `{runId, board}` + `work.swarm.updated` events |
+| `work.swarm.verify` | `{projectId, runId, taskId, verified?}` | `{task, board}` |
 | `activity.list` | `{kind?, project?, limit?}` | `{records, skipped, empty}` |
 | `mcp.list` | — | `{servers: PluginRow[], policy: PluginPolicy}` |
 | `mcp.refresh` | — | `{servers: PluginRow[]}` |
@@ -1356,6 +1357,12 @@ after a restart.
   carries `requires: string[]` (`["task-1"]`), so the shell can show what it
   waited for.
 
+  A board task carries `verified: boolean`. `status: "done"` means the worker
+  answered; `verified: true` means a person reviewed it. They are deliberately
+  separate — an agent claiming completion is not the same as a finished task.
+  The optional `verified` flag on a plan task is not accepted; it is a review
+  decision, not a plan field.
+
   The reply is sent **as soon as the run is registered**, so the shell can cancel
   or poll while the workers are still going: `board` is the board at that moment
   (`live: true`, the first tasks `running`), and `work.swarm.updated` carries
@@ -1386,6 +1393,16 @@ after a restart.
   (`cancel the swarm before removing its record`), and an unknown run returns
   `{removed: false, reportPath: null}` — a restart forgets records, so a missing
   one is not an error.
+
+- `work.swarm.verify` `{projectId, runId, taskId, verified?}` → `{task, board}`.
+  Marks one **done** task verified (or clears it with `verified: false`). A
+  pending, running, failed, blocked or cancelled task is refused: verification
+  is a review of a completed result. The run's report is rewritten atomically
+  (a verified line replaces `[done]`), and the decision is appended to the
+  activity log as a `swarm` record with `event: "verified"` and
+  `status: "verified" | "unverified"`. Verification is process state, like the
+  board: a restart forgets it and the report keeps its last bytes. The reply is
+  the task and the whole board, so the shell replaces its snapshot.
 
 - `work.swarm.retry` `{projectId, runId, taskId}` → `{runId, board}`. Starts a
   **new, single-agent read-only run** for one failed or blocked task and returns

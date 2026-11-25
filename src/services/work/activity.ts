@@ -163,7 +163,7 @@ const SWARM_FIELDS: readonly FieldSpec[] = [
     name: "event",
     kind: "enum",
     required: true,
-    values: ["started", "task", "finished", "cancelled", "failed"],
+    values: ["started", "task", "finished", "cancelled", "failed", "verified"],
   },
   { name: "task", kind: "text", required: false },
   { name: "status", kind: "text", required: false },

@@ -80,6 +80,11 @@ export type SwarmTask = {
   status: SwarmTaskStatus
   /** Task ids this task waits for before it may start. */
   requires: string[]
+  /**
+   * The learner has reviewed a completed task. Distinct from `status: "done"`:
+   * done means the worker answered, verified means a person accepted it.
+   */
+  verified: boolean
   /** One line, already truncated and stripped of newlines. */
   summary?: string
   /** A failure reason, metadata only. */
@@ -136,7 +141,7 @@ export type SwarmActivityEvent = {
   kind: "swarm"
   project: string
   run: string
-  event: "started" | "task" | "finished" | "cancelled" | "failed"
+  event: "started" | "task" | "finished" | "cancelled" | "failed" | "verified"
   task?: string
   status?: string
   at: string
@@ -210,6 +215,14 @@ export type RetryInput = {
   taskId: string
 }
 
+export type VerifyInput = {
+  projectId: string
+  runId: string
+  taskId: string
+  /** Defaults to true; false clears a previous verification. */
+  verified?: boolean
+}
+
 export type SwarmService = {
   run(input: RunInput): Promise<Result<RunOutcome, SwarmError>>
   /** Cooperative: aborts running workers and cancels the rest. */
@@ -220,6 +233,10 @@ export type SwarmService = {
   reopen(projectId: string, runId: string): Result<SwarmBoard, SwarmError>
   /** Explicit retry as a new, single-agent read-only run. */
   retry(input: RetryInput): Promise<Result<RunOutcome, SwarmError>>
+  /** Mark one completed task verified (or clear it). */
+  verify(
+    input: VerifyInput,
+  ): Promise<Result<{ task: SwarmTask; board: SwarmBoard }, SwarmError>>
   /** Every known run for a project, newest last. */
   runs(projectId: string): SwarmBoard[]
   /** Live board rows, or `null` for an unknown run. */
@@ -309,7 +326,7 @@ export function renderReport(run: SwarmRun, agents: ReadonlyMap<string, AgentPro
 
   for (const task of run.tasks) {
     const name = agents.get(task.agentId)?.name ?? task.agentId
-    const label = TASK_STATUS_LABEL[task.status]
+    const label = task.verified ? "verified" : TASK_STATUS_LABEL[task.status]
     const detail = task.summary || task.error || ""
     lines.push(detail ? `- [${label}] ${name} — ${detail}` : `- [${label}] ${name}`)
   }
@@ -362,6 +379,8 @@ export function createSwarmService(deps: SwarmDeps): SwarmService {
   const now = deps.now ?? (() => new Date())
   const runs = new Map<string, SwarmRun>()
   const controllers = new Map<string, AbortController>()
+  /** The profiles behind each run, for the report rewrite on verify. */
+  const runAgents = new Map<string, Map<string, AgentProfile>>()
 
   const keyOf = (projectId: string, runId: string): string => `${projectId}\u0000${runId}`
 
@@ -513,6 +532,7 @@ export function createSwarmService(deps: SwarmDeps): SwarmService {
         assignment: entry.assignment,
         status: "pending",
         requires,
+        verified: false,
       })
     }
 
@@ -726,6 +746,7 @@ export function createSwarmService(deps: SwarmDeps): SwarmService {
     }
     runs.set(keyOf(projectId, id), run)
 
+    runAgents.set(keyOf(projectId, id), prepared.agents)
     const controller = startController(keyOf(projectId, id))
     emit({
       kind: "swarm",
@@ -864,6 +885,64 @@ export function createSwarmService(deps: SwarmDeps): SwarmService {
           taskId: task.id,
         }),
       )
+    },
+
+    async verify(input) {
+      const project = assertProjectId(input.projectId)
+      if (!project.ok) return project
+      const key = keyOf(project.value, input.runId)
+      const run = runs.get(key)
+      if (!run) {
+        return err({
+          kind: "not-found",
+          id: input.runId,
+          message: `no swarm run ${input.runId} in this project`,
+        })
+      }
+      const task = run.tasks.find((entry) => entry.id === input.taskId)
+      if (!task) {
+        return err({
+          kind: "not-found",
+          id: input.taskId,
+          message: `no task ${input.taskId} in run ${input.runId}`,
+        })
+      }
+      if (task.status !== "done") {
+        return err(
+          inputError(
+            "task",
+            `only a completed task can be verified; ${task.id} is ${task.status}`,
+          ),
+        )
+      }
+
+      const next = input.verified ?? true
+      task.verified = next
+      touch(task, run.id)
+      emit({
+        kind: "swarm",
+        project: run.projectId,
+        run: run.id,
+        event: "verified",
+        task: task.id,
+        status: next ? "verified" : "unverified",
+        at: now().toISOString(),
+      })
+
+      // The report is the durable record: rewrite it when one exists. A write
+      // failure is not a verification failure; the board stays authoritative.
+      if (run.reportPath !== null) {
+        try {
+          await writeFileAtomic(
+            run.reportPath,
+            renderReport(run, runAgents.get(key) ?? new Map()),
+          )
+        } catch {
+          // Keep the board state; the next verify or a re-read can rewrite it.
+        }
+      }
+
+      return ok({ task: cloneTask(task), board: toBoard(run) })
     },
 
     runs(projectId) {

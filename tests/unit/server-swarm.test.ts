@@ -371,6 +371,37 @@ describe("work.swarm.run", () => {
     expect(board.tasks[1]?.requires).toEqual(["task-1"]);
   });
 
+  test("a done task is verified by a separate call", async () => {
+    const server = coreWith(
+      fakeServices({
+        swarmRunner: async () => ({ status: "done" as const, summary: "read" }),
+      }),
+    );
+    const started = await runSwarm(server, {
+      projectId,
+      objective: "Verify",
+      plan: [{ title: "One", assignment: "read one" }],
+    });
+    await settledBoard(server, projectId, started.runId);
+
+    const verified = await resultOf(server, "work.swarm.verify", {
+      projectId,
+      runId: started.runId,
+      taskId: "task-1",
+    });
+    expect((verified.task as Record<string, unknown>).verified).toBe(true);
+    const board = verified.board as SwarmBoard;
+    expect(board.tasks[0]?.verified).toBe(true);
+
+    const cleared = await resultOf(server, "work.swarm.verify", {
+      projectId,
+      runId: started.runId,
+      taskId: "task-1",
+      verified: false,
+    });
+    expect((cleared.task as Record<string, unknown>).verified).toBe(false);
+  });
+
   test("a two-task plan runs each worker read-only and writes one report", async () => {
     const { captured, createChat } = fakeChats([
       { kind: "done", text: "The modules are src/ and docs/.\nSecond line." },
