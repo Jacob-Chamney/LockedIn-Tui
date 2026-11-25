@@ -9,6 +9,14 @@ import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
 
+/// The one line beside the Templates row when its read failed.
+///
+/// `userMessage` is the same mapper every surface uses: an RPC, timeout or dead
+/// core becomes a sentence, a short one-line message survives, and a stack trace
+/// or a multi-line provider blob is replaced rather than printed.
+String templateReadFailure(Object error) =>
+    'the templates could not be read — ${userMessage(error)}';
+
 /// Saves one agent profile through the shell's `work.agent.save`.
 ///
 /// The dialog sends a profile, never a path: the core rewrites the project's
@@ -321,7 +329,7 @@ class _AgentDialogState extends State<_AgentDialog> {
     }
     if (_templatesLoading) return 'reading templates…';
     final error = _templatesError;
-    if (error != null) return 'the templates could not be read — $error';
+    if (error != null) return templateReadFailure(error);
     if (_templates.isEmpty) return 'no templates';
     final builtIns = _templates.where((row) => row.builtin).length;
     final project = _templates.length - builtIns;
