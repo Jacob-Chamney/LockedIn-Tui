@@ -2635,6 +2635,7 @@ export type KnowledgeTreeNode = {
   updated: string;
 };
 
+/** One topic heading plus its notes; a topic with no notes is kept. */
 export type KnowledgeTopicGroup = {
   topic: string;
   notes: KnowledgeTreeNode[];

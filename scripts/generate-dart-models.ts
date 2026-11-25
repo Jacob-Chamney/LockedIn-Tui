@@ -34,24 +34,31 @@ export const MODELS_PATH = "desktop/lib/bridge/core_models.g.dart";
  */
 export type ModelSpec = {
   name: string;
+  /** The Dart class name; defaults to [name]. */
+  dart?: string;
   lowercase?: readonly string[];
   numericStrings?: readonly string[];
 };
 
 export const MODEL_SPECS: readonly ModelSpec[] = [
   { name: "KnowledgeHit", lowercase: ["kind", "side"], numericStrings: ["score"] },
+  { name: "KnowledgeTreeNode", dart: "KnowledgeNote" },
+  { name: "KnowledgeTopicGroup", dart: "KnowledgeGroup" },
 ];
 
-export type DartFieldType = "string" | "double" | "bool" | "strings";
+export type DartFieldType = "string" | "double" | "bool" | "strings" | "models";
 
 export type DartField = {
   name: string;
   type: DartFieldType;
+  /** The Dart class of the element, for `models`. */
+  model?: string;
   doc: string;
 };
 
 export type DartModel = {
   name: string;
+  dartName: string;
   doc: string;
   fields: DartField[];
   lowercase: readonly string[];
@@ -66,36 +73,52 @@ function docOf(checker: ts.TypeChecker, symbol: ts.Symbol | undefined): string {
     .trim();
 }
 
+type MappedType = { type: DartFieldType; model?: string };
+
+function symbolName(type: ts.Type): string | undefined {
+  return type.aliasSymbol?.getName() ?? type.getSymbol()?.getName();
+}
+
 function mapType(
   checker: ts.TypeChecker,
   type: ts.Type,
   where: string,
-): DartFieldType {
-  if ((type.flags & ts.TypeFlags.String) !== 0) return "string";
-  if ((type.flags & ts.TypeFlags.Number) !== 0) return "double";
-  if ((type.flags & ts.TypeFlags.Boolean) !== 0) return "bool";
+  models: ReadonlyMap<string, string>,
+): MappedType {
+  if ((type.flags & ts.TypeFlags.String) !== 0) return { type: "string" };
+  if ((type.flags & ts.TypeFlags.Number) !== 0) return { type: "double" };
+  if ((type.flags & ts.TypeFlags.Boolean) !== 0) return { type: "bool" };
   if (type.isUnion()) {
     const members = type.types;
     if (
       members.length > 0 &&
       members.every((member) => (member.flags & ts.TypeFlags.StringLiteral) !== 0)
     ) {
-      return "string";
+      return { type: "string" };
     }
     throw new Error(`${where}: unsupported union ${checker.typeToString(type)}`);
   }
   if (checker.isArrayType(type)) {
     const [element] = checker.getTypeArguments(type as ts.TypeReference);
     if (element !== undefined) {
-      if ((element.flags & ts.TypeFlags.String) !== 0) return "strings";
+      if ((element.flags & ts.TypeFlags.String) !== 0) return { type: "strings" };
       if (
         element.isUnion() &&
         element.types.every((member) => (member.flags & ts.TypeFlags.StringLiteral) !== 0)
       ) {
-        return "strings";
+        return { type: "strings" };
       }
+      const model = symbolName(element);
+      const dart = model === undefined ? undefined : models.get(model);
+      if (dart !== undefined) return { type: "models", model: dart };
     }
-    throw new Error(`${where}: only string[] arrays are supported`);
+    throw new Error(`${where}: only string[] and generated-model[] arrays are supported`);
+  }
+  const name = symbolName(type);
+  if (name !== undefined && models.has(name)) {
+    throw new Error(
+      `${where}: a single ${name} field is not supported yet; use an array of it`,
+    );
   }
   throw new Error(`${where}: unsupported type ${checker.typeToString(type)}`);
 }
@@ -114,6 +137,9 @@ export function extractModels(root: string): DartModel[] {
 
   const declarations = new Map<string, ts.TypeAliasDeclaration | ts.InterfaceDeclaration>();
   const wanted = MODEL_SPECS.map((spec) => spec.name);
+  const modelsByTsName = new Map(
+    MODEL_SPECS.map((spec) => [spec.name, spec.dart ?? spec.name] as const),
+  );
   ts.forEachChild(source, (node) => {
     if (
       (ts.isTypeAliasDeclaration(node) || ts.isInterfaceDeclaration(node)) &&
@@ -132,15 +158,18 @@ export function extractModels(root: string): DartModel[] {
     const type = checker.getTypeAtLocation(node);
     const fields = type.getProperties().map((property) => {
       const fieldType = checker.getTypeOfSymbolAtLocation(property, node);
+      const mapped = mapType(checker, fieldType, `${name}.${property.name}`, modelsByTsName);
       return {
         name: property.name,
-        type: mapType(checker, fieldType, `${name}.${property.name}`),
+        type: mapped.type,
+        ...(mapped.model === undefined ? {} : { model: mapped.model }),
         doc: docOf(checker, property),
       } satisfies DartField;
     });
     if (fields.length === 0) throw new Error(`${name} has no fields`);
     return {
       name,
+      dartName: spec.dart ?? name,
       doc: docOf(
         checker,
         (node as unknown as { symbol?: ts.Symbol }).symbol ??
@@ -168,6 +197,8 @@ function dartType(field: DartField): string {
       return "bool";
     case "strings":
       return "List<String>";
+    case "models":
+      return `List<${field.model}>`;
   }
 }
 
@@ -186,6 +217,8 @@ function parser(field: DartField, model: DartModel): string {
       return `_bool(${read})`;
     case "strings":
       return `_strings(${read})`;
+    case "models":
+      return `_models(${read}, ${field.model}.fromJson)`;
   }
 }
 
@@ -215,6 +248,19 @@ export function renderModels(models: readonly DartModel[]): string {
       "    value is List ? value.whereType<String>().toList(growable: false) : const [];",
     );
   }
+  if (has("models")) {
+    helperLines.push(
+      "",
+      "/// Parse a list of objects, skipping entries that are not maps.",
+      "List<T> _models<T>(Object? value, T Function(Map<String, dynamic>) parse) {",
+      "  if (value is! List) return const [];",
+      "  return value",
+      "      .whereType<Map>()",
+      "      .map((map) => parse(Map<String, dynamic>.from(map)))",
+      "      .toList(growable: false);",
+      "}",
+    );
+  }
   if (needsNumericString) {
     helperLines.push(
       "",
@@ -241,8 +287,8 @@ export function renderModels(models: readonly DartModel[]): string {
   ];
   for (const model of models) {
     lines.push(...docLines(model.doc));
-    lines.push(`class ${model.name} {`);
-    lines.push(`  const ${model.name}({`);
+    lines.push(`class ${model.dartName} {`);
+    lines.push(`  const ${model.dartName}({`);
     for (const field of model.fields) lines.push(`    required this.${field.name},`);
     lines.push("  });", "");
     for (const field of model.fields) {
@@ -250,7 +296,7 @@ export function renderModels(models: readonly DartModel[]): string {
       lines.push(`  final ${dartType(field)} ${field.name};`, "");
     }
     lines.push(
-      `  factory ${model.name}.fromJson(Map<String, dynamic> json) => ${model.name}(`,
+      `  factory ${model.dartName}.fromJson(Map<String, dynamic> json) => ${model.dartName}(`,
     );
     for (const field of model.fields) {
       lines.push(`    ${field.name}: ${parser(field, model)},`);

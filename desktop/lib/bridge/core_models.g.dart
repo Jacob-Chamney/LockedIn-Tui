@@ -9,6 +9,15 @@
 
 String _string(Object? value) => value is String ? value : '';
 
+/// Parse a list of objects, skipping entries that are not maps.
+List<T> _models<T>(Object? value, T Function(Map<String, dynamic>) parse) {
+  if (value is! List) return const [];
+  return value
+      .whereType<Map>()
+      .map((map) => parse(Map<String, dynamic>.from(map)))
+      .toList(growable: false);
+}
+
 /// A number from a number or a numeric string; anything else is zero.
 double _numberOrString(Object? value) {
   if (value is num) return value.toDouble();
@@ -60,5 +69,43 @@ class KnowledgeHit {
     path: _string(json['path']),
     updated: _string(json['updated']),
     score: _numberOrString(json['score']),
+  );
+}
+
+/// One note row in a topic group. `path` is workspace-relative.
+class KnowledgeNote {
+  const KnowledgeNote({
+    required this.path,
+    required this.title,
+    required this.updated,
+  });
+
+  final String path;
+
+  final String title;
+
+  final String updated;
+
+  factory KnowledgeNote.fromJson(Map<String, dynamic> json) => KnowledgeNote(
+    path: _string(json['path']),
+    title: _string(json['title']),
+    updated: _string(json['updated']),
+  );
+}
+
+/// One topic heading plus its notes; a topic with no notes is kept.
+class KnowledgeGroup {
+  const KnowledgeGroup({
+    required this.topic,
+    required this.notes,
+  });
+
+  final String topic;
+
+  final List<KnowledgeNote> notes;
+
+  factory KnowledgeGroup.fromJson(Map<String, dynamic> json) => KnowledgeGroup(
+    topic: _string(json['topic']),
+    notes: _models(json['notes'], KnowledgeNote.fromJson),
   );
 }

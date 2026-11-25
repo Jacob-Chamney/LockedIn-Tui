@@ -9,7 +9,7 @@ library;
 // generator. `export` keeps every existing `models.dart` import working.
 import 'core_models.g.dart';
 
-export 'core_models.g.dart' show KnowledgeHit;
+export 'core_models.g.dart' show KnowledgeHit, KnowledgeNote, KnowledgeGroup;
 
 String _string(Object? value) => value is String ? value : '';
 int _int(Object? value) => value is num ? value.toInt() : 0;
@@ -3939,51 +3939,13 @@ extension KnowledgeHitView on KnowledgeHit {
   }
 }
 
-/// One note under a topic in the Knowledge tree (`knowledge.tree`).
-///
-/// [path] is workspace-relative; the reader that opens it (`KnowledgeReader`)
-/// receives the same id from the tree.
-class KnowledgeNote {
-  const KnowledgeNote({
-    required this.path,
-    required this.title,
-    required this.updated,
-  });
-
-  final String path;
-  final String title;
-
-  /// ISO-8601 instant, rendered as its date part.
-  final String updated;
-
+/// View helpers for the generated Knowledge tree models.
+extension KnowledgeNoteView on KnowledgeNote {
   /// The title to show, falling back to the path when the core sent none.
   String get displayTitle {
     final text = title.trim();
     return text.isEmpty ? path : text;
   }
-
-  factory KnowledgeNote.fromJson(Map<String, dynamic> json) => KnowledgeNote(
-    path: _string(json['path']),
-    title: _string(json['title']),
-    updated: _string(json['updated']),
-  );
-}
-
-/// One topic heading plus its notes (`knowledge.tree.groups`).
-///
-/// A topic with no notes is kept: the core owns the tree shape, and an empty
-/// topic still tells the user where a vault sits. Parsing is tolerant, because
-/// one malformed row must not blank the whole tree.
-class KnowledgeGroup {
-  const KnowledgeGroup({required this.topic, required this.notes});
-
-  final String topic;
-  final List<KnowledgeNote> notes;
-
-  factory KnowledgeGroup.fromJson(Map<String, dynamic> json) => KnowledgeGroup(
-    topic: _string(json['topic']),
-    notes: _maps(json['notes']).map(KnowledgeNote.fromJson).toList(),
-  );
 }
 
 /// One Knowledge item's body (`knowledge.read`): the row the id names plus the

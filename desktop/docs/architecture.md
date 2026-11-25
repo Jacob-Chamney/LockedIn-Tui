@@ -118,13 +118,15 @@ Two generated files keep the Flutter bridge tied to the core:
   `CoreMethod.sessionList` rather than `'session.list'`, so a renamed capability
   changes the constant and a stale call site stops compiling instead of failing
   at runtime with `-32601`.
-- **`desktop/lib/bridge/core_models.g.dart`** — the model-decoder pilot.
+- **`desktop/lib/bridge/core_models.g.dart`** — the model decoders.
   `scripts/generate-dart-models.ts` reads the allowlisted exported types
-  (`KnowledgeHit`) with the TypeScript compiler API and emits a tolerant
-  `fromJson` (a missing or mistyped field becomes `''`, `0`, `false` or an empty
-  list). `models.dart` exports the generated class and keeps the presentation
-  getters in an extension. Adding a model means adding it to `MODEL_SPECS`; the
-  generator refuses a field it cannot map.
+  (`KnowledgeHit`, `KnowledgeNote`, `KnowledgeGroup`) with the TypeScript
+  compiler API and emits a tolerant `fromJson` (a missing or mistyped field
+  becomes `''`, `0`, `false`, an empty list, or the parsed nested model list).
+  `models.dart` exports the generated classes and keeps the presentation getters
+  in extensions. Adding a model means adding it to `MODEL_SPECS`; the generator
+  refuses a field it cannot map (single nested model fields are not supported
+  yet; arrays of models are).
 
 Both files are marked `dart format off` because the generator owns their bytes.
 `tests/unit/generated-bindings.test.ts` and `tests/unit/generated-models.test.ts`

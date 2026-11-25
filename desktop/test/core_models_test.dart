@@ -47,4 +47,19 @@ void main() {
     final hit = KnowledgeHit.fromJson({'path': 'school/vault/a.md'});
     expect(hit.displayTitle, 'school/vault/a.md');
   });
+
+  test('the Knowledge tree parses nested notes and skips a non-map', () {
+    final group = KnowledgeGroup.fromJson({
+      'topic': 'Physics',
+      'notes': [
+        {'path': 'school/vault/a.md', 'title': 'A', 'updated': '2026-11-01'},
+        'not-a-map',
+        {'path': 'school/vault/b.md'},
+      ],
+    });
+    expect(group.topic, 'Physics');
+    expect(group.notes, hasLength(2));
+    expect(group.notes.first.displayTitle, 'A');
+    expect(group.notes.last.displayTitle, 'school/vault/b.md');
+  });
 }
