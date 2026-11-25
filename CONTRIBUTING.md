@@ -1,13 +1,20 @@
 # Contributing
 
-LockedIn-Tui is a keyboard-first workspace built with Bun, TypeScript,
-Solid and OpenTUI.
+LockedIn is a keyboard-first **desktop** workspace. The shell is Flutter (Dart)
+and the engine is Bun + TypeScript. They talk over newline-delimited JSON-RPC on
+stdio. The terminal frontend has been removed; do not reintroduce OpenTUI or
+`src/ui`.
 
 ## Documentation
 
-User documentation lives in the [Wiki](https://github.com/Jacob-Chamney/LockedIn-Tui/wiki).
-Keep install, keyboard and provider guidance there; the repository README stays
-focused on building and running the source.
+- The [README](README.md) is the product and build overview.
+- The [Wiki](https://github.com/Jacob-Chamney/LockedIn-Tui/wiki) is the user
+  guide: install, keyboard, providers, workspace, plugins and FAQ.
+- `desktop/docs/protocol.md` is the wire contract. A protocol change updates it
+  and its drift test in the same pull request.
+
+Keep one authoritative description. If the product changes, update the README,
+the Wiki and `desktop/docs/` together rather than leaving a second, stale story.
 
 ## Before you start
 
@@ -22,11 +29,12 @@ focused on building and running the source.
    - If you have write access, branch in this repository.
    - Otherwise fork the repository and branch in your fork.
 2. Make the change and add or update tests.
-3. Run the full gate:
+3. Run the gates:
 
    ```sh
    bun install --frozen-lockfile
-   bun run check
+   scripts/desktop-check.sh     # format, analyze, Flutter tests, core tests
+   bun run check                # bounds, typecheck, core tests
    ```
 
 4. Commit with a sign-off:
@@ -43,13 +51,39 @@ The sign-off certifies the Developer Certificate of Origin:
    protected and the gate must pass before merge.
 
 **Every change to `main` lands through a pull request**, including maintainer
-and automation changes. The protection rule requires the Linux, Windows and
-first-frame checks, so a local pass is not a substitute for CI.
+and automation changes. Protection requires the check and desktop jobs on Linux
+and Windows, so a local pass is not a substitute for CI.
 
 `main` is the integration branch. A merged contribution is not a release; it is
 included in the next UTC-dated release. Releases are tags cut from `main`
 (`2026.11.12`), not separate branches. There is no `next` or release branch to
 target.
+
+## Architecture rules
+
+- `src/domain` imports nothing outside itself.
+- `src/services`, `src/storage`, `src/stats`, `src/llm`, `src/mcp`,
+  `src/security` and `src/archive` never import `src/app` or `desktop/`.
+- `src/server` is an adapter: JSON-RPC, boot, command/event mapping. It must not
+  import `desktop/` or a UI.
+- `desktop/` owns layout, focus and transient dialogs. It does not read files,
+  hold secrets or re-derive totals.
+- Provider keys live only in the OS keychain.
+- Writes are explicit, path-confined and atomic. A failed or rejected write
+  leaves the previous bytes in place.
+- `scripts/check-bounds.ts` enforces the import direction; a cycle or an upward
+  import fails the gate.
+
+## Code expectations
+
+- TypeScript is strict; Dart is formatted and analyzed.
+- A feature includes its failure, cancelled and empty states.
+- Tests must fail if the behaviour is removed. No network in unit tests.
+- A protocol change adds a contract test and updates
+  `desktop/docs/protocol.md`; the capability list is checked against the
+  handshake example.
+- A UI change that alters a screen shown in the README or Wiki updates the
+  matching image or description in the same pull request.
 
 ## Changelog and credit
 
@@ -59,24 +93,10 @@ from merged pull requests. One PR should normally produce one entry.
 - Use a clear, user-facing PR title; it becomes the changelog line.
 - Add or extend the `Unreleased` section of `CHANGELOG.md` for any user-visible
   behaviour, including fixes and breaking changes.
-- Keep the change focused. Unrelated refactors belong in another PR.
 - Preserve authorship. Squash or rebase merges keep the PR author as the commit
   author; add `Co-authored-by: Name <email>` trailers for paired work. Do not
   rewrite or drop another contributor's attribution.
 - Name contributors in the release notes when a PR is largely theirs.
-
-Release notes are assembled from the merged PR titles and `CHANGELOG.md`; they
-are not reconstructed later from memory.
-
-## Code expectations
-
-- TypeScript is strict. Domain and service modules never import UI or app code.
-- New UI components compose the shared panels, lists and windows rather than
-  copying their chrome.
-- A feature includes its failure, cancelled and empty states.
-- Tests must fail if the behaviour is removed. No network in unit tests.
-- When a UI change alters a screen shown in the README, refresh the matching
-  image in `assets/screenshots/` in the same pull request.
 
 ## Licence
 
