@@ -11,7 +11,7 @@ stdio adapter.
 | Domain/services/storage/stats | `src/domain`, `src/services`, `src/storage`, `src/stats` | rules, files, providers, keychain, stats | import UI |
 | Core adapter | `src/server/` | JSON-RPC, boot, command/event mapping | import `src/ui/` or `src/app/App.tsx` |
 | Flutter shell | `desktop/lib/` | layout, focus, theme, native dialogs | read files, hold secrets, re-derive totals |
-| Contract | `desktop/lib/bridge/protocol.dart`, `src/server/protocol.ts` | framing, version, methods | contain domain rules |
+| Contract | `desktop/lib/bridge/protocol.dart`, `desktop/lib/bridge/core_methods.g.dart`, `src/server/protocol.ts` | framing, version, methods | contain domain rules |
 
 The dependency direction is one-way: `desktop → src/server → src/{domain,services,storage,stats}`.
 No cycles.
@@ -108,6 +108,16 @@ Qt is not used. Flutter owns the window and native integration:
   never logs or stores it.
 - Window sizing/position: `window_manager` or native runner args; keep the
   minimum at 800×600.
+
+## Generated method catalogue
+
+`desktop/lib/bridge/core_methods.g.dart` is generated from `CAPABILITIES` by
+`scripts/generate-dart-bindings.ts`. The client calls `CoreMethod.sessionList`
+rather than `'session.list'`, so a renamed capability changes the constant and
+a stale call site stops compiling instead of failing at runtime with `-32601`.
+The file is marked `dart format off` because the generator owns its bytes;
+`tests/unit/generated-bindings.test.ts` fails when it is stale, and the client
+must not regress to raw method literals.
 
 ## Testing
 

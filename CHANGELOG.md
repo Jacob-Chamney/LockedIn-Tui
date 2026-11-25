@@ -21,6 +21,10 @@ requests merge.
 
 ## Unreleased
 
+- Wire method names in the Flutter client are generated from the core's
+  capability list (`CoreMethod`), so a renamed method is a compile error rather
+  than a runtime `-32601`; a unit test fails if the generated file is stale.
+
 - The packaged desktop bundle has a startup gate: `scripts/desktop-perf.sh`
   measures cold first paint under Xvfb against a 2000 ms budget, CI runs it
   after the release build, and a unit test keeps the doc row and the fixture
