@@ -2156,6 +2156,23 @@ export type SessionMemoryView = {
   updated: string;
 };
 
+/** The `work.open` project detail the Flutter shell renders. */
+export type WorkProjectDetailView = {
+  id: string;
+  name: string;
+  root: string;
+  rootMissing: boolean;
+  mode: string;
+  swarmName: string;
+  archived: boolean;
+  instructions: string;
+  defaultAgent: string | null;
+  agents: AgentProfile[];
+  tasks: number;
+  hasGit: boolean;
+  lastOpened: string;
+};
+
 /** The whole `session.open` detail the Flutter shell renders. */
 export type SessionDetailView = {
   id: string;
@@ -6123,23 +6140,22 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       );
     }
 
-    return success(id, {
-      project: {
-        id: meta.value.id,
-        name: meta.value.name,
-        root: home.root,
-        rootMissing: home.rootMissing,
-        mode: meta.value.mode,
-        swarmName: meta.value.swarm_name,
-        archived: meta.value.archived,
-        instructions: meta.value.instructions,
-        defaultAgent: home.defaultAgentId ?? null,
-        agents: home.agents,
-        tasks: home.tasks,
-        hasGit: home.hasGit,
-        lastOpened: home.lastOpened,
-      },
-    });
+    const detail: WorkProjectDetailView = {
+      id: meta.value.id,
+      name: meta.value.name,
+      root: home.root,
+      rootMissing: home.rootMissing,
+      mode: meta.value.mode,
+      swarmName: meta.value.swarm_name,
+      archived: meta.value.archived,
+      instructions: meta.value.instructions,
+      defaultAgent: home.defaultAgentId ?? null,
+      agents: home.agents,
+      tasks: home.tasks,
+      hasGit: home.hasGit,
+      lastOpened: home.lastOpened,
+    };
+    return success(id, { project: detail });
   };
 
   /**

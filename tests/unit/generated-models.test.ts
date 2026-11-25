@@ -54,6 +54,7 @@ describe("generated Dart models", () => {
       "SessionStepsView",
       "SessionMemoryView",
       "SessionDetailView",
+      "WorkProjectDetailView",
     ]);
     expect(read(MODELS_PATH)).toBe(renderModels(models));
   });
@@ -341,6 +342,32 @@ describe("generated Dart models", () => {
     expect(generated).toContain("final List<SessionSource> sources;");
     expect(generated).toContain("steps: SessionSteps.fromJson(_map(json['steps']))");
     expect(generated).toContain("memory: _modelOrNull(json['memory'], SessionMemory.fromJson)");
+  });
+
+  test("the work project detail composes the agent profile list", () => {
+    const models = extractModels(ROOT);
+    const detail = models.find((model) => model.name === "WorkProjectDetailView");
+    expect(detail?.dartName).toBe("WorkProjectDetail");
+    expect(
+      detail?.fields.map((field) => [field.name, field.type, field.nullable, field.model]),
+    ).toEqual([
+      ["id", "string", false, undefined],
+      ["name", "string", false, undefined],
+      ["root", "string", false, undefined],
+      ["rootMissing", "bool", false, undefined],
+      ["mode", "string", false, undefined],
+      ["swarmName", "string", false, undefined],
+      ["archived", "bool", false, undefined],
+      ["instructions", "string", false, undefined],
+      ["defaultAgent", "string", true, undefined],
+      ["agents", "models", false, "AgentProfileView"],
+      ["tasks", "int", false, undefined],
+      ["hasGit", "bool", false, undefined],
+      ["lastOpened", "string", false, undefined],
+    ]);
+    const generated = read(MODELS_PATH);
+    expect(generated).toContain("final List<AgentProfileView> agents;");
+    expect(generated).toContain("defaultAgent: _stringOrNull(json['defaultAgent'])");
   });
 
   test("the source is the exported protocol type", () => {

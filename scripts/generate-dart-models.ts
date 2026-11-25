@@ -95,6 +95,11 @@ export const MODEL_SPECS: readonly ModelSpec[] = [
   },
   { name: "SessionMemoryView", dart: "SessionMemory" },
   { name: "SessionDetailView", dart: "SessionDetail" },
+  {
+    name: "WorkProjectDetailView",
+    dart: "WorkProjectDetail",
+    ints: ["tasks"],
+  },
 ];
 
 export type DartFieldType =
