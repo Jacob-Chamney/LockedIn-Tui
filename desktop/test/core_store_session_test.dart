@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lockedin_desktop/bridge/core_client.dart';
 import 'package:lockedin_desktop/bridge/models.dart';
+import 'package:lockedin_desktop/bridge/protocol.dart';
 
 import 'fake_core.dart';
 
@@ -220,5 +221,113 @@ void main() {
     expect(partial.sources.single.kind, '');
     expect(partial.steps.total, 3);
     expect(partial.steps.exists, isFalse);
+  });
+
+  test('opening a session reads its mistake ledger', () async {
+    final core = FakeCore();
+    core.mistakeEntries.addAll([
+      {
+        'index': 0,
+        'text': 'Energy is conserved per object.',
+        'step': 'Derive the energy balance',
+        'note': null,
+      },
+      {
+        'index': 1,
+        'text': 'A derivative is a fraction.',
+        'note': {
+          'path': 'school/vault/knowledge/a-derivative-is-a-fraction.md',
+          'title': 'A derivative is a fraction.',
+          'created': '2026-11-01T10:00:00.000Z',
+        },
+      },
+    ]);
+    final store = CoreStore(connection: core);
+    addTearDown(store.dispose);
+    await store.start();
+
+    await store.openSession(FakeCore.sessionId);
+    await settle();
+
+    expect(store.mistakes, hasLength(2));
+    expect(store.mistakes.first.step, 'Derive the energy balance');
+    expect(store.mistakes.first.promoted, isFalse);
+    expect(store.mistakes.last.promoted, isTrue);
+    expect(
+      store.mistakes.last.note?.path,
+      'school/vault/knowledge/a-derivative-is-a-fraction.md',
+    );
+    expect(store.mistakesError, isNull);
+    expect(core.calls, contains('session.mistake.list'));
+  });
+
+  test(
+    'recording and promoting replace the rows; promoting twice writes once',
+    () async {
+      final core = FakeCore();
+      final store = CoreStore(connection: core);
+      addTearDown(store.dispose);
+      await store.start();
+      await store.openSession(FakeCore.sessionId);
+      await settle();
+
+      await store.recordMistake(
+        FakeCore.sessionId,
+        'Energy is conserved per object.',
+        step: 'Derive the energy balance',
+      );
+      expect(store.mistakes, hasLength(1));
+      expect(store.mistakes.single.text, 'Energy is conserved per object.');
+
+      final first = await store.promoteMistake(FakeCore.sessionId, 0);
+      expect(first.already, isFalse);
+      expect(first.note.path, startsWith('school/vault/knowledge/'));
+      expect(store.mistakes.single.promoted, isTrue);
+      expect(store.mistakes.single.note?.path, first.note.path);
+
+      final again = await store.promoteMistake(FakeCore.sessionId, 0);
+      expect(again.already, isTrue);
+      expect(again.note.path, first.note.path);
+      expect(core.mistakeEntries, hasLength(1));
+    },
+  );
+
+  test('a refused ledger read keeps the rows and reports once', () async {
+    final core = FakeCore();
+    core.mistakeEntries.add({
+      'index': 0,
+      'text': 'A derivative is a fraction.',
+      'note': null,
+    });
+    final store = CoreStore(connection: core);
+    addTearDown(store.dispose);
+    await store.start();
+    await store.openSession(FakeCore.sessionId);
+    await settle();
+    final before = store.mistakes;
+
+    core.mistakeFailure = 'the ledger could not be read';
+    await store.loadMistakes(FakeCore.sessionId);
+
+    expect(store.mistakesError, 'the ledger could not be read');
+    expect(store.mistakes, before);
+    expect(store.error, isNull);
+  });
+
+  test('a refusal while recording throws and leaves the rows alone', () async {
+    final core = FakeCore();
+    final store = CoreStore(connection: core);
+    addTearDown(store.dispose);
+    await store.start();
+    await store.openSession(FakeCore.sessionId);
+    await settle();
+
+    core.mistakeFailure = 'the ledger is read-only';
+    await expectLater(
+      store.recordMistake(FakeCore.sessionId, 'a mistake'),
+      throwsA(isA<RpcException>()),
+    );
+    expect(store.mistakes, isEmpty);
+    expect(store.error, isNull);
   });
 }

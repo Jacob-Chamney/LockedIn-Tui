@@ -60,6 +60,12 @@ class SessionDetailView extends StatefulWidget {
     this.onExtractFigure,
     this.onLoadFigure,
     this.onRemoveFigure,
+    this.mistakes = const [],
+    this.mistakesLoading = false,
+    this.mistakesError,
+    this.onRetryMistakes,
+    this.onRecordMistake,
+    this.onPromoteMistake,
   });
 
   /// The core's `session.open` projection, or null while it is unavailable.
@@ -97,6 +103,30 @@ class SessionDetailView extends StatefulWidget {
 
   /// Remove one figure.
   final Future<void> Function(String figureId)? onRemoveFigure;
+
+  /// The session's misconception ledger (`session.mistake.list`).
+  ///
+  /// These are the learner's own recorded mistakes — **process history, never
+  /// sources**. A row with a [SessionMistake.note] has been promoted into a
+  /// school knowledge note; the rest can be promoted from this card.
+  final List<SessionMistake> mistakes;
+
+  /// True while the ledger is being read for the open session.
+  final bool mistakesLoading;
+
+  /// The last ledger read failure, or null. Page-local: it never replaces
+  /// [error] and never clears [mistakes].
+  final String? mistakesError;
+
+  /// Re-read the ledger after a failure.
+  final VoidCallback? onRetryMistakes;
+
+  /// Record one mistake. Null keeps the card read-only.
+  final Future<void> Function(String text, {String? step})? onRecordMistake;
+
+  /// Promote one entry into a labelled note. Null keeps the rows read-only.
+  final Future<MistakePromotion> Function(int index, {String? correction})?
+  onPromoteMistake;
 
   /// True while the shell is opening or refreshing the session.
   final bool loading;
@@ -285,6 +315,21 @@ class _SessionDetailViewState extends State<SessionDetailView> {
       widget.documentText != null ||
       _documentError != null;
 
+  /// The mistake form: the entry text and the step it was recorded against.
+  final _mistakeText = TextEditingController();
+  final _mistakeStep = TextEditingController();
+
+  /// The promotion dialog's correction. It lives with the page for the same
+  /// reason `_attemptController` does: the dialog's exit animation still reads
+  /// it after the route is popped.
+  final _correctionController = TextEditingController();
+
+  /// True between a ledger write and its answer, so one press writes once.
+  var _mistakeBusy = false;
+
+  /// The last inline result of recording or promoting, never a modal.
+  String? _mistakeNotice;
+
   /// The figure form: a page, an optional crop, and a caption.
   final _figurePage = TextEditingController(text: '1');
   final _figureCaption = TextEditingController();
@@ -323,6 +368,9 @@ class _SessionDetailViewState extends State<SessionDetailView> {
     _documentScroll.dispose();
     _pageScroll.dispose();
     _attemptController.dispose();
+    _mistakeText.dispose();
+    _mistakeStep.dispose();
+    _correctionController.dispose();
     super.dispose();
   }
 
@@ -1046,6 +1094,8 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                 ],
                 const SizedBox(height: Space.md),
                 _memoryCard(detail),
+                const SizedBox(height: Space.md),
+                _mistakesCard(),
                 if (_coverageWired) ...[
                   const SizedBox(height: Space.md),
                   _coverageCard(),
@@ -1560,6 +1610,173 @@ class _SessionDetailViewState extends State<SessionDetailView> {
               fontFamily: 'monospace',
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// The misconception ledger, shown after session memory.
+  ///
+  /// Labelled as the learner's own record: promotion writes a **school
+  /// knowledge note**, never a source of this session. The card is the only
+  /// place mistakes are recorded, so a session with no ledger still has a next
+  /// action instead of an empty panel.
+  Widget _mistakesCard() {
+    final entries = widget.mistakes;
+    final canRecord = widget.onRecordMistake != null;
+    return _card(
+      key: const ValueKey('session-mistakes-card'),
+      label: 'MISTAKES',
+      trailing: _countChip('${entries.length} recorded'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'your record · not a source',
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: 10.5,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          if (widget.mistakesLoading && entries.isEmpty)
+            Text(
+              'reading the ledger…',
+              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            )
+          else if (widget.mistakesError != null) ...[
+            Text(
+              widget.mistakesError!,
+              key: const ValueKey('session-mistakes-error'),
+              style: TextStyle(color: LockedInColors.error, fontSize: 11),
+            ),
+            if (widget.onRetryMistakes != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  key: const ValueKey('session-mistakes-retry'),
+                  onPressed: widget.onRetryMistakes,
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: const Text('Retry'),
+                ),
+              ),
+          ] else if (entries.isEmpty)
+            Text(
+              'no mistakes recorded yet · add one below',
+              key: const ValueKey('session-mistakes-empty'),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: 11,
+                height: 1.25,
+              ),
+            )
+          else
+            for (final entry in entries) _mistakeRow(entry),
+          if (canRecord) ...[
+            const SizedBox(height: 10),
+            TextField(
+              key: const ValueKey('mistake-text-field'),
+              controller: _mistakeText,
+              enabled: !_mistakeBusy,
+              decoration: const InputDecoration(
+                labelText: 'record a mistake',
+                hintText: 'one line: what did you get wrong?',
+              ),
+              onSubmitted: (_) => _recordMistake(),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: const ValueKey('mistake-step-field'),
+                    controller: _mistakeStep,
+                    enabled: !_mistakeBusy,
+                    decoration: const InputDecoration(
+                      labelText: 'step (optional)',
+                      hintText: 'the assignment step it belongs to',
+                    ),
+                    onSubmitted: (_) => _recordMistake(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  key: const ValueKey('mistake-record-button'),
+                  onPressed: _mistakeBusy ? null : _recordMistake,
+                  child: const Text('Add'),
+                ),
+              ],
+            ),
+          ],
+          if (_mistakeNotice != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _mistakeNotice!,
+              key: const ValueKey('mistake-notice'),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: 11,
+                height: 1.3,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _mistakeRow(SessionMistake entry) {
+    final note = entry.note;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${entry.index + 1}. ${entry.text}',
+                  style: TextStyle(
+                    color: LockedInColors.foreground,
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+                if (entry.step != null)
+                  Text(
+                    'step: ${entry.step}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: LockedInColors.muted,
+                      fontSize: 10.5,
+                    ),
+                  ),
+                if (note != null)
+                  Text(
+                    'promoted → ${note.path.split('/').last}',
+                    key: ValueKey('mistake-promoted-${entry.index}'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: LockedInColors.success,
+                      fontSize: 10.5,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (note == null && widget.onPromoteMistake != null)
+            TextButton(
+              key: ValueKey('mistake-promote-${entry.index}'),
+              onPressed: _mistakeBusy
+                  ? null
+                  : () => _promoteMistake(entry.index),
+              child: const Text('Promote'),
+            ),
         ],
       ),
     );
@@ -2388,6 +2605,118 @@ class _SessionDetailViewState extends State<SessionDetailView> {
         ],
       ),
     );
+  }
+
+  /// Record the text in the form. A refused write keeps the text, so the
+  /// learner can shorten it instead of retyping.
+  Future<void> _recordMistake() async {
+    final record = widget.onRecordMistake;
+    if (record == null || _mistakeBusy) return;
+    final text = _mistakeText.text.trim();
+    if (text.isEmpty) {
+      setState(() => _mistakeNotice = 'write the mistake first');
+      return;
+    }
+    final step = _mistakeStep.text.trim();
+    setState(() {
+      _mistakeBusy = true;
+      _mistakeNotice = null;
+    });
+    try {
+      await record(text, step: step.isEmpty ? null : step);
+      _mistakeText.clear();
+      _mistakeStep.clear();
+      if (mounted) setState(() => _mistakeNotice = 'recorded');
+    } catch (failure) {
+      if (mounted) setState(() => _mistakeNotice = userMessage(failure));
+    } finally {
+      if (mounted) setState(() => _mistakeBusy = false);
+    }
+  }
+
+  /// Ask for the corrected understanding, then promote. An empty correction is
+  /// allowed: the note then says it is not written yet rather than pretending
+  /// the mistake is settled.
+  Future<void> _promoteMistake(int index) async {
+    final promote = widget.onPromoteMistake;
+    if (promote == null || _mistakeBusy) return;
+    final correction = await _askCorrection(index);
+    if (correction == null || !mounted) return;
+    setState(() {
+      _mistakeBusy = true;
+      _mistakeNotice = null;
+    });
+    try {
+      final outcome = await promote(
+        index,
+        correction: correction.trim().isEmpty ? null : correction.trim(),
+      );
+      final name = outcome.note.path.split('/').last;
+      if (mounted) {
+        setState(
+          () => _mistakeNotice = outcome.already
+              ? 'already promoted to $name'
+              : 'promoted to $name',
+        );
+      }
+    } catch (failure) {
+      if (mounted) setState(() => _mistakeNotice = userMessage(failure));
+    } finally {
+      if (mounted) setState(() => _mistakeBusy = false);
+    }
+  }
+
+  Future<String?> _askCorrection(int index) async {
+    final controller = _correctionController..clear();
+    final answer = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('promote mistake ${index + 1}'),
+        content: SizedBox(
+          width: 520,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This writes a knowledge note in the school vault, labelled '
+                'with the session and step it came from. It is your own record, '
+                'not a source. The corrected understanding is optional.',
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: 12,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: ValueKey('mistake-correction-$index'),
+                controller: controller,
+                autofocus: true,
+                minLines: 2,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  hintText: 'what is right, in your own words',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            key: const ValueKey('mistake-promote-cancel'),
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: ValueKey('mistake-promote-confirm-$index'),
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+            child: const Text('Promote'),
+          ),
+        ],
+      ),
+    );
+    return answer;
   }
 
   Widget _card({

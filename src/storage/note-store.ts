@@ -98,6 +98,15 @@ export type NoteWrite = {
   path: string
   note: Note
   body?: string
+  /**
+   * Extra frontmatter for a new note — provenance a `Note` has no field for
+   * (the mistake it came from, its session, its step).
+   *
+   * The note's own keys win over these, and a key already in the file wins over
+   * both, so an update can never rewrite recorded provenance. On a new file the
+   * merged record is what `serializeDocument` writes.
+   */
+  frontmatter?: Frontmatter
 }
 
 export type NoteHit = {
@@ -457,7 +466,10 @@ export function openNoteStore(
         }
 
         const body = input.body ?? input.note.body
-        const merged = noteToFrontmatterPreserving(input.note, existingData)
+        const merged = {
+          ...(input.frontmatter ?? {}),
+          ...noteToFrontmatterPreserving(input.note, existingData),
+        }
         const patch = changedKeys(existingData, merged)
 
         // Refuse a silent shape change (scalar -> list, list -> scalar). This

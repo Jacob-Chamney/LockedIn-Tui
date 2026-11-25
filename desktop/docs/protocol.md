@@ -8,7 +8,7 @@ to stderr.
 
 ```json
 → {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol":1,"client":"flutter"}}
-← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","session.deck.state","session.deck.grade","session.deck.reset","session.figure.list","session.figure.extract","session.figure.read","session.figure.annotate","session.figure.remove","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","keybinds.get","keybinds.set","chat.snapshot","chat.send","chat.cancel","session.chat.snapshot","session.chat.send","session.chat.cancel","session.chat.context","session.chat.compact","session.chat.uncompact","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","work.list","work.open","work.create","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","work.swarm.verify","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","teach.state","teach.measure","teach.step","teach.check","teach.practice","teach.practice.result","teach.side.snapshot","teach.side.send","teach.side.clear","research.start","research.list","research.read","research.cancel","prompts.list","prompts.set","update.info","update.check","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read","knowledge.graph"]}}
+← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","session.deck.state","session.deck.grade","session.deck.reset","session.figure.list","session.figure.extract","session.figure.read","session.figure.annotate","session.figure.remove","session.mistake.list","session.mistake.record","session.mistake.promote","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","keybinds.get","keybinds.set","chat.snapshot","chat.send","chat.cancel","session.chat.snapshot","session.chat.send","session.chat.cancel","session.chat.context","session.chat.compact","session.chat.uncompact","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","work.list","work.open","work.create","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","work.swarm.verify","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","teach.state","teach.measure","teach.step","teach.check","teach.practice","teach.practice.result","teach.side.snapshot","teach.side.send","teach.side.clear","research.start","research.list","research.read","research.cancel","prompts.list","prompts.set","update.info","update.check","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read","knowledge.graph"]}}
 ```
 
 - `protocol` is an integer. A mismatch is a blocking shell error, not a retry.
@@ -79,6 +79,9 @@ Implemented today (`src/server/protocol.ts`, capability names in the handshake):
 | `session.export` | `{id}` | `{action: "export", path}` |
 | `session.output.build` | `{id, kind}` | `{kind, markdown, answers?, files}` |
 | `session.output.read` | `{id, kind, part?}` | `{markdown, exists}` |
+| `session.mistake.list` | `{id}` | `{entries: MistakeRow[]}` |
+| `session.mistake.record` | `{id, text, step?}` | `{entries: MistakeRow[]}` |
+| `session.mistake.promote` | `{id, index, correction?, title?}` | `{note, already}` |
 | `archive.list` | — | `{rows: ArchiveListRow[]}` |
 | `archive.restore` | `{id, side}` | `{action: "restore", side, id}` |
 | `archive.remove` | `{id, side}` | `{action: "delete", side, id}` |
@@ -529,6 +532,57 @@ Implemented today (`src/server/protocol.ts`, capability names in the handshake):
   `data: {kind: "output", id, message}` with `build the study guide first`;
   an out-of-range section is the same shape and the file is untouched. The
   shell replaces what it renders from `markdown` and never re-reads the file.
+
+- `session.mistake.*`: a lock-in session's misconception ledger and its
+  graduation into a knowledge note (`docs/product.md` §4.3 `:mistake`). The
+  ledger is **process history, never a source**: it never becomes a source row
+  and never enters source coverage. All three methods name the session by folder
+  id, never a path.
+
+  ```json
+  {"entries":[
+    {"index":0,"text":"Energy is conserved per object.","step":"Derive the energy balance","note":null},
+    {"index":1,"text":"A derivative is a fraction.","step":null,"note":{"path":"school/vault/knowledge/a-derivative-is-a-fraction.md","title":"A derivative is a fraction.","created":"2026-11-01T10:00:00.000Z"}}
+  ]}
+  ```
+
+  - `session.mistake.list` `{id}` → `{entries}`. One row per `- text` bullet in
+    the session's `misconceptions.md`, in file order; `index` is the bullet's
+    0-based ordinal and is the key `promote` takes. `step` is the two-space
+    `step:` line under the bullet, or absent. `note` is the knowledge note the
+    entry graduated into, or `null` while it is still only a ledger entry. A
+    session with no ledger is `{entries: []}` — the card's empty state with a
+    next action, not an error.
+  - `session.mistake.record` `{id, text, step?}` → `{entries}`. Normalises the
+    text to one line, refuses a blank entry (`a mistake needs some text`) and a
+    text over **500 characters** (the message names the length), appends the
+    bullet to `misconceptions.md`, and returns the whole ledger. `step` is
+    optional and is stored under the bullet.
+  - `session.mistake.promote` `{id, index, correction?, title?}` → `{note,
+    already}`. Writes a **school knowledge note** at
+    `school/vault/knowledge/<slug>.md` through the note store (atomic replace,
+    index refreshed) and returns its workspace-relative `path`, `title` and
+    `created`. The frontmatter records the provenance — `origin:
+    "session-mistake"`, `session`, `premise_index`, `status: "open" |
+    "corrected"`, `topics: ["Session mistakes"]`, `promoted_from`, and `step`
+    when the entry named one — and the body says in words that the note is the
+    learner's own record, **not one of the session's sources**. `correction` is
+    the learner's right answer: with it the note is `corrected`; without it the
+    note says the correction is not written yet and stays `open`. `title`
+    defaults to the mistake text cut on a word boundary at 80 characters.
+    Promoting the same entry twice returns the existing note with `already:
+    true` and writes nothing, so a double click cannot duplicate it. Because the
+    note is an ordinary vault note, `knowledge.search`, `knowledge.tree` and
+    `knowledge.read` find and open it immediately, with `side: "school"`.
+
+  A blank or non-string `id` (or a missing/non-string `text`, a non-string
+  `step`, an `index` that is not a non-negative whole number, or a non-string
+  `correction`/`title`) is `-32602`. An unknown session is the shared session
+  shape `data: {kind: "session", id, message}`. Every later failure — a ledger
+  or note write that fails, an index beyond the ledger, a blank text, an
+  over-long entry — is one `-32000`, `retryable: false`, with
+  `data: {kind: "mistake", id, message}`, and nothing is written. No model is
+  called and no network is contacted.
 
 - `archive.list`: the **read-only** archive picker (`docs/product.md` §9). It
   lists what is already archived on both sides of the wall and takes no

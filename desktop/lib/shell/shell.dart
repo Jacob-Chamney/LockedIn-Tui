@@ -1893,6 +1893,23 @@ class _ShellState extends State<Shell> {
         onRetryCoverage: sessionId == null
             ? null
             : () => unawaited(store.readCoverage(sessionId)),
+        mistakes: store.mistakes,
+        mistakesLoading: store.mistakesLoading,
+        mistakesError: store.mistakesError,
+        onRetryMistakes: sessionId == null
+            ? null
+            : () => unawaited(store.loadMistakes(sessionId)),
+        onRecordMistake: sessionId == null
+            ? null
+            : (text, {step}) =>
+                  store.recordMistake(sessionId, text, step: step),
+        onPromoteMistake: sessionId == null
+            ? null
+            : (index, {correction}) => store.promoteMistake(
+                sessionId,
+                index,
+                correction: correction,
+              ),
         onBack: store.closeSession,
         onOpenChat: () => setState(() => _sessionChatOpen = true),
         onOpenSettings: () => setState(() {

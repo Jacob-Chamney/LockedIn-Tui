@@ -332,6 +332,80 @@ class SessionMemory {
   }
 }
 
+/// The school note a mistake was promoted into (`session.mistake.promote`).
+///
+/// [path] is workspace-relative, so it is the same address `knowledge.read`
+/// takes in a `note:<side>:<path>` id. [title] is the note's own title and
+/// [created] the instant the promotion wrote it.
+class MistakeNote {
+  const MistakeNote({
+    required this.path,
+    required this.title,
+    required this.created,
+  });
+
+  final String path;
+  final String title;
+  final String created;
+
+  factory MistakeNote.fromJson(Object? value) {
+    final json = value is Map
+        ? Map<String, dynamic>.from(value)
+        : const <String, dynamic>{};
+    return MistakeNote(
+      path: _string(json['path']),
+      title: _string(json['title']),
+      created: _string(json['created']),
+    );
+  }
+}
+
+/// One entry in a session's misconception ledger (`session.mistake.list`).
+///
+/// This is **process history, never a source**: it records what the learner got
+/// wrong, not what a session's copied files say. [note] is the knowledge note it
+/// graduated into, or null while it is still only a ledger entry. [step] is the
+/// assignment step it was recorded against, when named.
+class SessionMistake {
+  const SessionMistake({
+    required this.index,
+    required this.text,
+    this.step,
+    this.note,
+  });
+
+  final int index;
+  final String text;
+  final String? step;
+  final MistakeNote? note;
+
+  bool get promoted => note != null;
+
+  factory SessionMistake.fromJson(Map<String, dynamic> json) => SessionMistake(
+    index: json['index'] is int ? json['index'] as int : 0,
+    text: _string(json['text']),
+    step: _nonEmpty(json['step']),
+    note: json['note'] == null ? null : MistakeNote.fromJson(json['note']),
+  );
+}
+
+/// The reply to `session.mistake.promote`.
+///
+/// [already] is true when this entry had already been promoted, in which case
+/// [note] is the existing note and nothing was written.
+class MistakePromotion {
+  const MistakePromotion({required this.note, required this.already});
+
+  final MistakeNote note;
+  final bool already;
+
+  factory MistakePromotion.fromJson(Map<String, dynamic> json) =>
+      MistakePromotion(
+        note: MistakeNote.fromJson(json['note']),
+        already: json['already'] == true,
+      );
+}
+
 /// One source's entry in a session's source coverage (`session.coverage`).
 ///
 /// This is a **lexical** fact, not a citation: [count] is the number of

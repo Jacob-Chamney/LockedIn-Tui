@@ -9,7 +9,7 @@
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { removeTemp } from "../helpers/cleanup";
-import { chmodSync, existsSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { chmod, cp, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -240,6 +240,59 @@ describe("note store", () => {
       "concepts/entropy.md",
       "concepts/written.md",
     ])
+  })
+
+  test("extra frontmatter lands on a new note and existing provenance wins later", async () => {
+    const { store } = await seeded("provenance")
+    mkdirSync(join(store.vault, "knowledge"), { recursive: true })
+
+    unwrap(
+      await store.write({
+        path: "knowledge/from-a-mistake.md",
+        note: note({
+          id: "from-a-mistake",
+          type: "knowledge",
+          title: "From a mistake",
+          body: "# From a mistake\n\nYour own record.\n",
+          tags: ["mistake"],
+        }),
+        frontmatter: {
+          origin: "session-mistake",
+          session: "2026-11-01-0900-physics",
+          premise_index: 2,
+          topics: ["Session mistakes"],
+        },
+      }),
+    )
+
+    const absolute = join(store.vault, "knowledge/from-a-mistake.md")
+    const bytes = readFileSync(absolute, "utf8")
+    expect(bytes).toContain("origin: session-mistake")
+    expect(bytes).toContain("session: 2026-11-01-0900-physics")
+    expect(bytes).toContain("premise_index: 2")
+    const reread = unwrap(await store.read("knowledge/from-a-mistake.md"))
+    expect(reread.data.premise_index).toBe(2)
+    expect(reread.note.type).toBe("knowledge")
+
+    // A later save cannot rewrite the recorded provenance: the file's own key
+    // wins over the extra map.
+    unwrap(
+      await store.write({
+        path: "knowledge/from-a-mistake.md",
+        note: note({
+          id: "from-a-mistake",
+          type: "knowledge",
+          title: "From a mistake, edited",
+          body: "# From a mistake, edited\n",
+          tags: ["mistake"],
+        }),
+        frontmatter: { origin: "something-else" },
+      }),
+    )
+    const after = readFileSync(absolute, "utf8")
+    expect(after).toContain("origin: session-mistake")
+    expect(after).not.toContain("origin: something-else")
+    expect(after).toContain("From a mistake, edited")
   })
 
   test("a failed write leaves the old file and index entry intact", async () => {
