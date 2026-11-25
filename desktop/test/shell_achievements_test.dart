@@ -182,4 +182,31 @@ void main() {
     expect(find.text('ACHIEVEMENTS'), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('opening achievements never takes you to Stats', (tester) async {
+    // The bug: achievements was a layer *over Stats*, so asking for it selected
+    // Stats first — opening it from Work landed on the Stats dashboard.
+    await pumpShell(tester);
+    await openSurface(tester, 6); // work
+    expect(find.text('WORK'), findsWidgets);
+
+    // From Work the action is the leader chord, not a bare `a` (Work's page
+    // owns that key); this is the path a person takes from anywhere.
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyI);
+    await tester.pumpAndSettle();
+
+    expect(find.text('ACHIEVEMENTS'), findsWidgets);
+    // No Stats dashboard underneath: no tokens figure, no range chips.
+    expect(find.text('TOKENS'), findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    // Back on the surface it was opened from.
+    expect(find.text('WORK'), findsWidgets);
+    expect(find.text('TOKENS'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }

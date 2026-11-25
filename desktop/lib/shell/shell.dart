@@ -320,6 +320,11 @@ class _ShellState extends State<Shell> {
   /// leaving Stats collapses it.
   bool _achievementsOpen = false;
 
+  /// The Achievements layer's key handler. The shell requests focus on open:
+  /// the page's `autofocus` loses to the shell root, which already holds the
+  /// keyboard, so `r` used to fall through to the registry's refresh.
+  final _achievementsFocus = FocusNode(debugLabel: 'achievements');
+
   /// `Space e` as the registry spells it, for the rail's tooltips.
   String _sidebarToggleLabel(KeymapRegistry keymap) {
     final row = keymap.rowFor('sidebar');
@@ -630,7 +635,7 @@ class _ShellState extends State<Shell> {
       if (surface != Surface.work) _workActivityOpen = false;
       if (surface != Surface.skills) _skillChatOpen = false;
       // The inventory is a Stats layer, so it closes whenever Stats is left.
-      if (surface != Surface.stats) _achievementsOpen = false;
+      _achievementsOpen = false;
     });
     final store = CoreScope.of(context);
     if (surface == Surface.settings) {
@@ -872,22 +877,34 @@ class _ShellState extends State<Shell> {
     _dispatchAction(row.id);
   }
 
-  /// Open the Achievements layer over Stats.
+  /// Open the Achievements layer **in place**.
   ///
-  /// The layer belongs to Stats, so entering from anywhere else first selects
-  /// Stats — its dashboard stays loaded underneath and `Esc` returns there. The
-  /// read is a snapshot (and the core may record award dates), so it is fetched
-  /// on open rather than kept live.
+  /// It used to select Stats first, because the layer was built over the Stats
+  /// page — so asking for achievements silently took you to Stats, and `Esc`
+  /// left you there rather than where you started. The layer now sits above
+  /// whatever surface you are on and `Esc` returns to it.
   void _openAchievements() {
     final store = CoreScope.of(context);
-    if (_surface != Surface.stats) _select(Surface.stats);
-    setState(() => _achievementsOpen = true);
+    setState(() {
+      _achievementsOpen = true;
+      _pageEpoch += 1;
+    });
+    // The keyboard follows the layer, so `r`/`j`/`k` act on it and not on the
+    // surface underneath.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _achievementsOpen) _achievementsFocus.requestFocus();
+    });
     unawaited(store.refreshAchievements());
   }
 
   void _closeAchievements() {
     if (!_achievementsOpen) return;
-    setState(() => _achievementsOpen = false);
+    setState(() {
+      _achievementsOpen = false;
+      _pageEpoch += 1;
+    });
+    // Hand the keyboard back to the surface that was underneath.
+    _returnToPage();
   }
 
   /// Run one action from the registry, from its key or from the overlay.
@@ -1015,7 +1032,7 @@ class _ShellState extends State<Shell> {
       _closeLeader();
       return;
     }
-    if (_surface == Surface.stats && _achievementsOpen) {
+    if (_achievementsOpen) {
       _closeAchievements();
       return;
     }
@@ -1216,6 +1233,7 @@ class _ShellState extends State<Shell> {
                         onSelect: _pickSidebarSurface,
                         counts: _sidebarCounts(store),
                         achievements: _achievementsCount(store),
+                        achievementsActive: _achievementsOpen,
                         onAchievements: _pickSidebarAchievements,
                         recent: _recentSessions(store),
                         onRecent: (id) =>
@@ -1240,6 +1258,11 @@ class _ShellState extends State<Shell> {
                           },
                           child: Focus(
                             focusNode: _pageProbe,
+                            // The probe answers "is the keyboard in the page"
+                            // by being an ancestor; it must never *hold* focus,
+                            // or it swallows autofocus when a page is swapped
+                            // in (opening Achievements left `r` dead).
+                            canRequestFocus: false,
                             child: KeyedSubtree(
                               key: ValueKey('page-$_pageEpoch'),
                               child: _body(store, keymap),
@@ -1316,7 +1339,7 @@ class _ShellState extends State<Shell> {
   /// says `SESSIONS` while a detail or transcript is on screen.
   String _statusLabel(CoreStore store) {
     if (_commandOpen) return 'COMMAND';
-    if (_surface == Surface.stats && _achievementsOpen) return 'ACHIEVEMENTS';
+    if (_achievementsOpen) return 'ACHIEVEMENTS';
     if (_surface == Surface.sessions) {
       if (_wizardOpen) return 'NEW LOCK-IN';
       if (store.activeSession != null) {
@@ -1375,7 +1398,7 @@ class _ShellState extends State<Shell> {
     if (_surface == Surface.sources) {
       return 'a add · r refresh · Esc back';
     }
-    if (_surface == Surface.stats && _achievementsOpen) {
+    if (_achievementsOpen) {
       return 'hjkl / arrows move · Enter detail · r reload · Esc back';
     }
     if (_surface == Surface.knowledge && store.knowledgeDocumentOpen) {
@@ -1436,6 +1459,21 @@ class _ShellState extends State<Shell> {
   }
 
   Widget _body(CoreStore store, KeymapRegistry keymap) {
+    // Achievements is a layer over whatever surface you are on, not a detour
+    // through Stats.
+    if (_achievementsOpen) {
+      return AchievementsPage(
+        rows: store.achievements,
+        earned: store.achievementsEarned,
+        total: store.achievementsTotal,
+        warning: store.achievementsWarning,
+        loading: store.achievementsLoading,
+        error: store.achievementsError,
+        focusNode: _achievementsFocus,
+        onRefresh: () => unawaited(store.refreshAchievements()),
+        onBack: _closeAchievements,
+      );
+    }
     final page = switch (_surface) {
       Surface.chat => ChatPage(
         chat: store.chat,
@@ -1464,30 +1502,18 @@ class _ShellState extends State<Shell> {
           if (_insert != insert) setState(() => _insert = insert);
         },
       ),
-      Surface.stats =>
-        _achievementsOpen
-            ? AchievementsPage(
-                rows: store.achievements,
-                earned: store.achievementsEarned,
-                total: store.achievementsTotal,
-                warning: store.achievementsWarning,
-                loading: store.achievementsLoading,
-                error: store.achievementsError,
-                onRefresh: () => unawaited(store.refreshAchievements()),
-                onBack: _closeAchievements,
-              )
-            : StatsPage(
-                summary: store.stats,
-                loading: store.status == CoreStatus.connecting,
-                error: store.error,
-                onRetry: () => unawaited(store.selectStats()),
-                range: store.stats?.range ?? 'all',
-                scope: store.stats?.scope ?? 'all',
-                onRange: (value) => store.selectStats(range: value),
-                onScope: (value) => store.selectStats(scope: value),
-                onExport: store.exportStats,
-                onAchievements: _openAchievements,
-              ),
+      Surface.stats => StatsPage(
+        summary: store.stats,
+        loading: store.status == CoreStatus.connecting,
+        error: store.error,
+        onRetry: () => unawaited(store.selectStats()),
+        range: store.stats?.range ?? 'all',
+        scope: store.stats?.scope ?? 'all',
+        onRange: (value) => store.selectStats(range: value),
+        onScope: (value) => store.selectStats(scope: value),
+        onExport: store.exportStats,
+        onAchievements: _openAchievements,
+      ),
       Surface.sessions => _sessions(store),
       Surface.skills => _skills(store),
       Surface.work => _work(store),
@@ -2711,6 +2737,7 @@ class _Sidebar extends StatelessWidget {
     required this.onSelect,
     this.counts = const {},
     this.achievements = '',
+    this.achievementsActive = false,
     this.onAchievements,
     this.recent = const [],
     this.onRecent,
@@ -2745,6 +2772,9 @@ class _Sidebar extends StatelessWidget {
 
   /// `earned/total` for the Achievements row, or empty before it is read.
   final String achievements;
+
+  /// True while the Achievements layer is open.
+  final bool achievementsActive;
 
   /// Open the Achievements layer. Null when the shell cannot.
   final VoidCallback? onAchievements;
@@ -2792,7 +2822,9 @@ class _Sidebar extends StatelessWidget {
 
   bool _selected(_SidebarEntry entry) => switch (entry) {
     _SurfaceEntry(:final surface) => active == surface,
-    _AchievementsEntry() => false,
+    // The layer is open or it is not; before, this row could never be active
+    // because it was not a surface.
+    _AchievementsEntry() => achievementsActive,
   };
 
   @override

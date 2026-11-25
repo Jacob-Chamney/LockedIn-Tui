@@ -196,8 +196,11 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
 
-    // The repeat used to leave Stats for Chat as well.
-    expect(find.text('TOKENS'), findsOneWidget);
+    // The repeat used to close a second layer as well. Achievements is a layer
+    // over the surface it was opened from (Chat here), so one Esc lands on the
+    // chat and a second would leave the surface.
+    expect(find.text('ACHIEVEMENTS'), findsNothing);
+    expect(find.byKey(const ValueKey('chat-composer')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
