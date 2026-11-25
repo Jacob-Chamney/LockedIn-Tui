@@ -1874,8 +1874,22 @@ function imageMediaType(path: string): string {
   return IMAGE_MEDIA_TYPES[leaf.slice(dot + 1).toLowerCase()] ?? "application/octet-stream"
 }
 
-function chatSnapshot(state: ChatState, usage: ChatUsage): Record<string, unknown> {
+/**
+ * One chat projection.
+ *
+ * `seq` is the stream's own monotonic counter: every snapshot and every state
+ * event on that chat carries the same series, so a shell that receives an
+ * older frame after a newer one (a reconnect, a coalesced flush racing a
+ * request) can drop exactly the stale frame instead of overwriting the
+ * transcript. A stream starts at 0 and increments once per emitted frame.
+ */
+function chatSnapshot(
+  state: ChatState,
+  usage: ChatUsage,
+  seq: number,
+): Record<string, unknown> {
   return {
+    seq,
     status: state.status,
     model: state.model,
     streamed: state.streamed,
@@ -3604,14 +3618,18 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     return (record) => log.append(record).then(() => undefined);
   };
 
+  /** The Chill stream's frame counter (see `chatSnapshot`). */
+  let chatSeq = 0;
+
   const emitChat = (): void => {
     if (chatState === null || chatUnsubscribe === null) return;
     const controller = (chatController as ChatController | null);
     if (controller === null) return;
+    chatSeq += 1;
     options.notify?.({
       jsonrpc: "2.0",
       method: "chat.state",
-      params: chatSnapshot(chatState, controller.usage()),
+      params: chatSnapshot(chatState, controller.usage(), chatSeq),
     });
   };
 
@@ -3647,6 +3665,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     state: ChatState;
     timer: ReturnType<typeof setTimeout> | null;
     unsubscribe: () => void;
+    /** This stream's frame counter (see `chatSnapshot`). */
+    seq: number;
   };
 
   /**
@@ -3660,12 +3680,13 @@ export function createCoreServer(options: CoreOptions): CoreServer {
   const sessionChats = new Map<string, Promise<SessionChat | null>>();
 
   const emitSessionState = (runtime: SessionChat): void => {
+    runtime.seq += 1;
     options.notify?.({
       jsonrpc: "2.0",
       method: "session.chat.state",
       params: {
         sessionId: runtime.sessionId,
-        ...chatSnapshot(runtime.state, runtime.controller.usage()),
+        ...chatSnapshot(runtime.state, runtime.controller.usage(), runtime.seq),
       },
     });
   };
@@ -3713,6 +3734,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         state: controller.state(),
         timer: null,
         unsubscribe: () => {},
+        seq: 0,
       };
       runtime.unsubscribe = controller.subscribe((state) => {
         runtime.state = state;
@@ -5325,7 +5347,10 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     if (!runtime) {
       return failure(id, -32601, "Session chat is not available in this build", undefined, false);
     }
-    return success(id, chatSnapshot(runtime.controller.state(), runtime.controller.usage()));
+    return success(
+      id,
+      chatSnapshot(runtime.controller.state(), runtime.controller.usage(), runtime.seq),
+    );
   };
 
   /** Read a transcript as plain records, for context accounting. */
@@ -5540,7 +5565,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     if (!current.ok) return bootFailureResponse(id, current.error);
     const controller = await ensureChat(current.value);
     if (!controller) return failure(id, -32601, "Chat is not available in this build", undefined, false);
-    return success(id, chatSnapshot(controller.state(), controller.usage()));
+    return success(id, chatSnapshot(controller.state(), controller.usage(), chatSeq));
   };
 
   const workspaceInfo = async (id: RpcId): Promise<JsonRpcResponse> => {
@@ -7058,6 +7083,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     state: ChatState;
     timer: ReturnType<typeof setTimeout> | null;
     unsubscribe: () => void;
+    /** This stream's frame counter (see `chatSnapshot`). */
+    seq: number;
   };
 
   /**
@@ -7087,13 +7114,14 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     failure(id, BOOT_FAILED, message, { kind: "chat", projectId, chatId, message }, false);
 
   const emitProjectState = (runtime: ProjectChat): void => {
+    runtime.seq += 1;
     options.notify?.({
       jsonrpc: "2.0",
       method: "work.chat.state",
       params: {
         projectId: runtime.projectId,
         chatId: runtime.chatId,
-        ...chatSnapshot(runtime.state, runtime.controller.usage()),
+        ...chatSnapshot(runtime.state, runtime.controller.usage(), runtime.seq),
       },
     });
   };
@@ -7148,6 +7176,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         state: controller.state(),
         timer: null,
         unsubscribe: () => {},
+        seq: 0,
       };
       runtime.unsubscribe = controller.subscribe((state) => {
         runtime.state = state;
@@ -7300,7 +7329,11 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     }
     return success(id, {
       chatId,
-      snapshot: chatSnapshot(runtime.controller.state(), runtime.controller.usage()),
+      snapshot: chatSnapshot(
+        runtime.controller.state(),
+        runtime.controller.usage(),
+        runtime.seq,
+      ),
     });
   };
 
@@ -9422,6 +9455,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     state: ChatState;
     timer: ReturnType<typeof setTimeout> | null;
     unsubscribe: () => void;
+    /** This stream's frame counter (see `chatSnapshot`). */
+    seq: number;
   };
 
   /**
@@ -9444,13 +9479,14 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     failure(id, BOOT_FAILED, message, { kind: "chat", goalId, chatId, message }, false);
 
   const emitSkillState = (runtime: SkillChat): void => {
+    runtime.seq += 1;
     options.notify?.({
       jsonrpc: "2.0",
       method: "skill.chat.state",
       params: {
         goalId: runtime.goalId,
         chatId: runtime.chatId,
-        ...chatSnapshot(runtime.state, runtime.controller.usage()),
+        ...chatSnapshot(runtime.state, runtime.controller.usage(), runtime.seq),
       },
     });
   };
@@ -9496,6 +9532,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         state: controller.state(),
         timer: null,
         unsubscribe: () => {},
+        seq: 0,
       };
       runtime.unsubscribe = controller.subscribe((state) => {
         runtime.state = state;
@@ -9656,7 +9693,11 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     }
     return success(id, {
       chatId: ref.chatId,
-      snapshot: chatSnapshot(runtime.controller.state(), runtime.controller.usage()),
+      snapshot: chatSnapshot(
+        runtime.controller.state(),
+        runtime.controller.usage(),
+        runtime.seq,
+      ),
     });
   };
 
@@ -9694,7 +9735,11 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     }
     return success(id, {
       chatId: opened.value.id,
-      snapshot: chatSnapshot(runtime.controller.state(), runtime.controller.usage()),
+      snapshot: chatSnapshot(
+        runtime.controller.state(),
+        runtime.controller.usage(),
+        runtime.seq,
+      ),
     });
   };
 

@@ -21,6 +21,10 @@ requests merge.
 
 ## Unreleased
 
+- Chat state frames and snapshots carry a per-stream `seq`; the shell drops a
+  stale frame instead of overwriting a newer transcript (reconnect and
+  coalesced-flush safety).
+
 - Work swarm tasks distinguish **done** from **verified**: a person can verify
   a completed task, the run report is rewritten and the decision is recorded in
   the activity log.

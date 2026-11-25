@@ -2766,6 +2766,21 @@ path only: a session chat turn that reaches `session.chat.done` with
   `projectId` and `chatId`), then `work.chat.done` or `work.chat.error`.
 - Skill chats follow it too, with `skill.chat.state` / `skill.chat.done` /
   `skill.chat.error` carrying `goalId` and `chatId`.
+- Every chat state frame (`chat.state`, `session.chat.state`, `work.chat.state`,
+  `skill.chat.state`) and every chat snapshot carries `seq`: one monotonic
+  counter per chat stream. A freshly built stream starts at 0 and increments
+  once per emitted frame, and the counter survives a coalesced flush, so two
+  frames never share a number.
+- The shell keeps the highest `seq` it applied per stream (`chat`,
+  `session:<id>`, `work:<projectId>:<chatId>`, `skill:<goalId>:<chatId>`) and
+  drops a state frame at or below it. That is what makes a reconnect, a
+  delayed snapshot reply or a flush racing a request safe: the older frame
+  cannot overwrite a newer transcript.
+- A snapshot is whole state, so it may repeat the last sequence and sets the
+  baseline; an older snapshot is ignored. A model change rebuilds the core's
+  controllers and restarts each per-controller counter, so the shell clears
+  its maxima after `settings.patch` and on a new process.
+- A core that omits `seq` is accepted unchanged, so this stays additive.
 - A reconnect/snapshot may replace a lagging stream; never append after a
   snapshot for the same turn.
 

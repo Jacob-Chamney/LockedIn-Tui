@@ -2245,7 +2245,11 @@ class FakeCore implements CoreConnection {
         '- Active days: 18\n';
   }
 
+  /// When set, snapshots carry this `seq` (the real core always numbers them).
+  int? snapshotSeq;
+
   Map<String, dynamic> _chat() => {
+    if (snapshotSeq != null) 'seq': snapshotSeq,
     'status': 'idle',
     'model': _chatModel.isEmpty ? null : _chatModel,
     'streamed': '',
@@ -2256,6 +2260,7 @@ class FakeCore implements CoreConnection {
   };
 
   Map<String, dynamic> _sessionChat(String id) => {
+    if (snapshotSeq != null) 'seq': snapshotSeq,
     'status': 'idle',
     'model': _chatModel.isEmpty ? null : _chatModel,
     'streamed': '',

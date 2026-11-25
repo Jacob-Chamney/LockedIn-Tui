@@ -1032,6 +1032,37 @@ class CoreStore extends ChangeNotifier {
   final Map<String, ChatSnapshot> _sessionChats = {};
   final Map<String, String> _sessionChatErrors = {};
 
+  /// The highest state `seq` seen per chat stream.
+  ///
+  /// The core numbers every snapshot and every state event on one stream with
+  /// the same counter (`seq` in `chatSnapshot`). A frame at or below the last
+  /// one accepted is stale — a coalesced flush racing a request, or a snapshot
+  /// delivered after a newer event — and is dropped rather than allowed to
+  /// overwrite the transcript. A stream without `seq` (an older core) is
+  /// accepted as before.
+  final Map<String, int> _chatSeqs = {};
+  static const String _chillChatKey = 'chat';
+
+  /// True when a state event is newer than the last frame accepted for its
+  /// stream. Equal is stale: the core increments once per emitted frame.
+  bool _acceptChatEvent(String key, Object? seq) {
+    if (seq is! int) return true;
+    final last = _chatSeqs[key];
+    if (last != null && seq <= last) return false;
+    _chatSeqs[key] = seq;
+    return true;
+  }
+
+  /// True when a snapshot is not older than the last event accepted. A
+  /// snapshot is a whole state, so an equal sequence is still applied.
+  bool _acceptChatSnapshot(String key, Object? seq) {
+    if (seq is! int) return true;
+    final last = _chatSeqs[key];
+    if (last != null && seq < last) return false;
+    _chatSeqs[key] = seq;
+    return true;
+  }
+
   /// Project chat transcripts, keyed `<projectId>:<chatId>`.
   ///
   /// A project may hold several chats (`chats/chat-<n>.jsonl`), so unlike a
@@ -2611,6 +2642,10 @@ class CoreStore extends ChangeNotifier {
   Future<void> saveSettings(Map<String, dynamic> patch) async {
     final json = await _connection.call('settings.patch', {'patch': patch});
     settings = SettingsView.fromJson(json);
+    // A model change drops every core chat controller, so the next snapshot
+    // starts a fresh per-stream counter. Forget the old maxima or the new
+    // stream's first frames would look stale.
+    _chatSeqs.clear();
     notifyListeners();
     await refreshWorkspace();
     await refreshChat();
@@ -2620,8 +2655,10 @@ class CoreStore extends ChangeNotifier {
   Future<void> refreshChat() async {
     try {
       final json = await _connection.call('chat.snapshot');
-      chat = ChatSnapshot.fromJson(json);
-      chatError = null;
+      if (_acceptChatSnapshot(_chillChatKey, json['seq'])) {
+        chat = ChatSnapshot.fromJson(json);
+        chatError = null;
+      }
       notifyListeners();
     } catch (failure) {
       // Every other read keeps the previous value on failure; this one used to
@@ -2719,7 +2756,9 @@ class CoreStore extends ChangeNotifier {
       });
       // The transcript is keyed by session, so it is kept whichever session
       // is open now.
-      _sessionChats[sessionId] = ChatSnapshot.fromJson(snapshot);
+      if (_acceptChatSnapshot('session:$sessionId', snapshot['seq'])) {
+        _sessionChats[sessionId] = ChatSnapshot.fromJson(snapshot);
+      }
     } catch (failure) {
       if (ticket == _sessionOpenTicket) error = _messageOf(failure);
     }
@@ -4391,10 +4430,13 @@ class CoreStore extends ChangeNotifier {
     }
 
     final raw = json['snapshot'];
-    final snapshot = ChatSnapshot.fromJson(
-      raw is Map ? Map<String, dynamic>.from(raw) : const <String, dynamic>{},
-    );
-    _workChats[_workChatKey(projectId, resolved)] = snapshot;
+    final rawSnapshot = raw is Map
+        ? Map<String, dynamic>.from(raw)
+        : const <String, dynamic>{};
+    final workKey = _workChatKey(projectId, resolved);
+    if (_acceptChatSnapshot('work:$workKey', rawSnapshot['seq'])) {
+      _workChats[workKey] = ChatSnapshot.fromJson(rawSnapshot);
+    }
     _workChatErrors.remove(_workChatKey(projectId, resolved));
     if (activeProjectId != owner) return false;
     activeWorkChatId = resolved;
@@ -5375,10 +5417,13 @@ class CoreStore extends ChangeNotifier {
     }
 
     final raw = json['snapshot'];
-    final snapshot = ChatSnapshot.fromJson(
-      raw is Map ? Map<String, dynamic>.from(raw) : const <String, dynamic>{},
-    );
-    _skillChats[_skillChatKey(goalId, resolved)] = snapshot;
+    final rawSnapshot = raw is Map
+        ? Map<String, dynamic>.from(raw)
+        : const <String, dynamic>{};
+    final skillKey = _skillChatKey(goalId, resolved);
+    if (_acceptChatSnapshot('skill:$skillKey', rawSnapshot['seq'])) {
+      _skillChats[skillKey] = ChatSnapshot.fromJson(rawSnapshot);
+    }
     _skillChatErrors.remove(_skillChatKey(goalId, resolved));
     if (activeSkillId != owner) return false;
     activeSkillChatId = resolved;
@@ -5420,10 +5465,13 @@ class CoreStore extends ChangeNotifier {
     }
 
     final raw = json['snapshot'];
-    final snapshot = ChatSnapshot.fromJson(
-      raw is Map ? Map<String, dynamic>.from(raw) : const <String, dynamic>{},
-    );
-    _skillChats[_skillChatKey(goalId, rawChatId)] = snapshot;
+    final rawSnapshot = raw is Map
+        ? Map<String, dynamic>.from(raw)
+        : const <String, dynamic>{};
+    final skillKey = _skillChatKey(goalId, rawChatId);
+    if (_acceptChatSnapshot('skill:$skillKey', rawSnapshot['seq'])) {
+      _skillChats[skillKey] = ChatSnapshot.fromJson(rawSnapshot);
+    }
     _skillChatErrors.remove(_skillChatKey(goalId, rawChatId));
     if (activeSkillId != owner) return false;
     activeSkillChatId = rawChatId;
@@ -5740,6 +5788,7 @@ class CoreStore extends ChangeNotifier {
     _clearDocument();
     _sessionChats.clear();
     _sessionChatErrors.clear();
+    _chatSeqs.clear();
     _sessionOpenTicket += 1;
     _projectOpenTicket += 1;
     _skillOpenTicket += 1;
@@ -5817,7 +5866,9 @@ class CoreStore extends ChangeNotifier {
     if (method == 'session.chat.state' && params is Map) {
       final snapshot = Map<String, dynamic>.from(params);
       final sessionId = snapshot.remove('sessionId');
-      if (sessionId is String && sessionId.isNotEmpty) {
+      if (sessionId is String &&
+          sessionId.isNotEmpty &&
+          _acceptChatEvent('session:$sessionId', snapshot['seq'])) {
         final state = ChatSnapshot.fromJson(snapshot);
         _sessionChats[sessionId] = state;
         // Only a new turn clears the last failure. The core flushes its final
@@ -5939,7 +5990,11 @@ class CoreStore extends ChangeNotifier {
       if (projectId is String &&
           projectId.isNotEmpty &&
           chatId is String &&
-          chatId.isNotEmpty) {
+          chatId.isNotEmpty &&
+          _acceptChatEvent(
+            'work:${_workChatKey(projectId, chatId)}',
+            snapshot['seq'],
+          )) {
         final key = _workChatKey(projectId, chatId);
         final state = ChatSnapshot.fromJson(snapshot);
         _workChats[key] = state;
@@ -5986,7 +6041,11 @@ class CoreStore extends ChangeNotifier {
       if (goalId is String &&
           goalId.isNotEmpty &&
           chatId is String &&
-          chatId.isNotEmpty) {
+          chatId.isNotEmpty &&
+          _acceptChatEvent(
+            'skill:${_skillChatKey(goalId, chatId)}',
+            snapshot['seq'],
+          )) {
         final key = _skillChatKey(goalId, chatId);
         final state = ChatSnapshot.fromJson(snapshot);
         _skillChats[key] = state;
@@ -6029,6 +6088,7 @@ class CoreStore extends ChangeNotifier {
     // Chill events only ever replace the Chill transcript; a session transcript
     // lives in its own map, so `chat.state` cannot clobber it.
     if (method == 'chat.state' && params is Map) {
+      if (!_acceptChatEvent(_chillChatKey, params['seq'])) return;
       chat = ChatSnapshot.fromJson(Map<String, dynamic>.from(params));
       notifyListeners();
       return;
