@@ -138,7 +138,7 @@ APP_PID=$!
 
 deadline=$((SECONDS + 60))
 while [ "$SECONDS" -lt "$deadline" ]; do
-  WID="$(DISPLAY="$DISPLAY_NUM" xdotool search --onlyvisible --name '^lockedin_desktop$' 2>/dev/null | head -1 || true)"
+  WID="$(DISPLAY="$DISPLAY_NUM" xdotool search --onlyvisible --name '^LockedIn$' 2>/dev/null | head -1 || true)"
   if [ -n "$WID" ]; then
     sleep 0.5
     break

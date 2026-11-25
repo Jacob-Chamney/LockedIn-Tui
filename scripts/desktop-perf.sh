@@ -154,7 +154,7 @@ run_once() {
   local wid=""
   local deadline=$((SECONDS + 60))
   while [ "$SECONDS" -lt "$deadline" ]; do
-    wid="$(DISPLAY="$DISPLAY_NUM" xdotool search --onlyvisible --name '^lockedin_desktop$' 2>/dev/null | head -1 || true)"
+    wid="$(DISPLAY="$DISPLAY_NUM" xdotool search --onlyvisible --name '^LockedIn$' 2>/dev/null | head -1 || true)"
     [ -n "$wid" ] && break
     kill -0 "$app_pid" 2>/dev/null || break
     sleep 0.02

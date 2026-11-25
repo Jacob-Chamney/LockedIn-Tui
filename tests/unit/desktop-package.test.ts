@@ -8,6 +8,7 @@ const WINDOWS_PACKAGE_SCRIPT = join(ROOT, "scripts", "desktop-package.ps1")
 const BUILD_SCRIPT = join(ROOT, "scripts", "desktop-build.sh")
 const WORKFLOW = join(ROOT, ".github", "workflows", "desktop.yml")
 const SMOKE_SCRIPT = join(ROOT, "scripts", "desktop-smoke.sh")
+const PERF_SCRIPT = join(ROOT, "scripts", "desktop-perf.sh")
 const INSTALL_SCRIPT = join(ROOT, "scripts", "desktop-install.sh")
 
 test("a self-hosted Windows workflow exists for repositories without minutes", async () => {
@@ -221,4 +222,18 @@ test("the Linux CI job installs and uninstalls with the user installer", async (
   expect(workflow).toContain("scripts/desktop-install.sh --prefix")
   expect(workflow).toContain("--uninstall")
   expect(workflow).toContain("share/applications/lockedin.desktop")
+})
+
+test("the launch probes search the title the runner sets", async () => {
+  // Both probes look the window up by title. The title was `lockedin_desktop`;
+  // renaming it without updating the probes made the perf job report "the app
+  // window never appeared" for a bundle that launched fine.
+  const runner = await readFile(
+    join(ROOT, "desktop", "linux", "runner", "my_application.cc"),
+    "utf8",
+  )
+  expect(runner).toContain('gtk_window_set_title(window, "LockedIn")')
+  for (const script of [SMOKE_SCRIPT, PERF_SCRIPT]) {
+    expect(await readFile(script, "utf8")).toContain("--name '^LockedIn$'")
+  }
 })
