@@ -1859,6 +1859,7 @@ class SwarmTaskRow {
     required this.status,
     this.summary,
     this.error,
+    this.requires = const [],
   });
 
   /// Stable for the life of the run (`task-1`, `task-2`, …).
@@ -1877,6 +1878,9 @@ class SwarmTaskRow {
   /// A failure reason, metadata only. Null when the task did not fail.
   final String? error;
 
+  /// Task ids this task waited for.
+  final List<String> requires;
+
   /// True when `work.swarm.retry` may start a fresh read-only run for this
   /// task. A running, pending, cancelled or done task is never retried.
   bool get retryable => status == 'failed' || status == 'blocked';
@@ -1888,6 +1892,9 @@ class SwarmTaskRow {
     status: _string(json['status']),
     summary: _nonEmpty(json['summary']),
     error: _nonEmpty(json['error']),
+    requires: json['requires'] is List
+        ? (json['requires'] as List).whereType<String>().toList(growable: false)
+        : const [],
   );
 }
 
@@ -2017,6 +2024,7 @@ class SwarmPlanEntry {
     required this.title,
     required this.assignment,
     this.agentId,
+    this.requires = const [],
   });
 
   final String title;
@@ -2025,11 +2033,15 @@ class SwarmPlanEntry {
   /// A profile id from `work.open`, or null for the project default.
   final String? agentId;
 
+  /// Earlier task numbers (1-based) this task waits for.
+  final List<int> requires;
+
   Map<String, dynamic> toJson() => {
     'title': title.trim(),
     if (agentId != null && agentId!.trim().isNotEmpty)
       'agentId': agentId!.trim(),
     'assignment': assignment.trim(),
+    if (requires.isNotEmpty) 'requires': requires,
   };
 }
 

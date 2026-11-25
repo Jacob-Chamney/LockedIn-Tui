@@ -1322,8 +1322,8 @@ notification (the decision is final whether or not anyone listens), so the shell
 can drop the row immediately instead of polling.
 
 `work.swarm.*` is a project's swarm board (`docs/product.md` §8.4): a
-coordinator's plan of independent tasks, each run by **one read-only worker**,
-and one Markdown report per run.
+coordinator's plan of tasks, each run by **one read-only worker**, and one
+Markdown report per run. Tasks are independent unless they declare `requires`.
 
 A worker is always the `forSwarm` copy of a project agent: `allowWrite: false`,
 `allowCommand: false`, and a tool list narrowed to `list_files`, `read_file` and
@@ -1342,12 +1342,19 @@ forgets every run record; reports survive on disk, and `work.swarm.runs` is empt
 after a restart.
 
 - `work.swarm.run` `{projectId, objective, plan, parallel?}` → `{runId, board}`.
-  `plan` is a non-empty array of `{title, agentId?, assignment}`; an omitted
-  `agentId` means the project's default agent. `parallel` is an optional whole
-  number from **1 to 4** (the hard cap) and absent means 1, so a plan is
-  sequential unless the coordinator asks otherwise. The service trims the
-  objective and caps it at 500 characters, a title at 120 and an assignment at
-  4 000, and a plan at 24 tasks.
+  `plan` is a non-empty array of `{title, agentId?, assignment, requires?}`; an
+  omitted `agentId` means the project's default agent, and an omitted `requires`
+  means the task is ready immediately. `requires` is a list of **earlier task
+  numbers** (1-based): task 2 that waits for task 1 is `requires: [1]`. Only
+  earlier tasks are legal, so the graph is acyclic by construction; a forward or
+  self reference is an `invalid-input` refusal and no worker starts.
+  `parallel` is an optional whole number from **1 to 4** (the hard cap) and
+  absent means 1. The scheduler starts a task only when every prerequisite is
+  `done`; when a prerequisite fails, its dependents become `blocked` and the run
+  fails. The service trims the objective and caps it at 500 characters, a title
+  at 120 and an assignment at 4 000, and a plan at 24 tasks. Each board task
+  carries `requires: string[]` (`["task-1"]`), so the shell can show what it
+  waited for.
 
   The reply is sent **as soon as the run is registered**, so the shell can cancel
   or poll while the workers are still going: `board` is the board at that moment

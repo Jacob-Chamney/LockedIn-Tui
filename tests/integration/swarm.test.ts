@@ -142,6 +142,91 @@ describe("plan and workers", () => {
     expect(report).toContain("- [done] Reader — finished task-3")
   })
 
+  test("a task waits for an earlier task and starts after it settles", async () => {
+    const gate = deferred()
+    const trace: string[] = []
+    const { service: swarm } = service(async (request) => {
+      trace.push(`start ${request.taskId}`)
+      if (request.taskId === "task-1") await gate.promise
+      trace.push(`end ${request.taskId}`)
+      return { status: "done", summary: `finished ${request.taskId}` }
+    })
+
+    const pending = swarm.run({
+      projectId,
+      objective: "Dependent work",
+      parallel: 2,
+      plan: [
+        { title: "One", assignment: "do one", agentId: reader.id },
+        { title: "Two", assignment: "do two", agentId: reader.id, requires: [1] },
+      ],
+    })
+
+    await Bun.sleep(10)
+    expect(trace).toEqual(["start task-1"])
+    gate.resolve()
+    const outcome = unwrap(await pending)
+    expect(trace).toEqual([
+      "start task-1",
+      "end task-1",
+      "start task-2",
+      "end task-2",
+    ])
+    expect(outcome.run.status).toBe("done")
+    expect(outcome.run.tasks[1]?.requires).toEqual(["task-1"])
+  })
+
+  test("a failed prerequisite blocks its dependents and fails the run", async () => {
+    const { runner } = ordered({ "task-1": { status: "failed", summary: "could not read" } })
+    const { service: swarm } = service(runner)
+    const outcome = unwrap(
+      await swarm.run({
+        projectId,
+        objective: "Dependent work",
+        parallel: 2,
+        plan: [
+          { title: "One", assignment: "do one", agentId: reader.id },
+          { title: "Two", assignment: "do two", agentId: reader.id, requires: [1] },
+          { title: "Independent", assignment: "do three", agentId: reader.id },
+        ],
+      }),
+    )
+
+    const [first, second, third] = outcome.run.tasks
+    expect(first?.status).toBe("failed")
+    expect(second?.status).toBe("blocked")
+    expect(second?.error).toContain("prerequisite")
+    expect(third?.status).toBe("done")
+    expect(outcome.run.status).toBe("failed")
+    const report = await runReport(projectId, outcome.run.id)
+    expect(report).toContain("[blocked]")
+  })
+
+  test("a forward or self reference is refused before any worker starts", async () => {
+    let calls = 0
+    const { service: swarm } = service(async () => {
+      calls++
+      return { status: "done", summary: "should not run" }
+    })
+
+    for (const requires of [[2], [1]]) {
+      const error = refusal(
+        await swarm.run({
+          projectId,
+          objective: "Bad graph",
+          plan: [
+            { title: "One", assignment: "do one", agentId: reader.id, requires },
+            { title: "Two", assignment: "do two", agentId: reader.id },
+          ],
+        }),
+      )
+      expect(error.kind).toBe("invalid-input")
+      expect(error.message).toContain("does not come before")
+    }
+    expect(calls).toBe(0)
+    expect(swarm.runs(projectId)).toEqual([])
+  })
+
   test("every worker is read-only even when its stored profile allows writes and commands", async () => {
     const seen: WorkerRequest[] = []
     const { service: swarm } = service(async (request) => {

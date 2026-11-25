@@ -210,28 +210,47 @@ class _SwarmRunDialogState extends State<_SwarmRunDialog> {
       final line = lines[index].trim();
       if (line.isEmpty) continue;
       final parts = [for (final part in line.split('|')) part.trim()];
-      if (parts.length < 2 || parts.length > 3) {
-        return 'line ${index + 1}: use title | assignment, with an optional '
-            'agent id';
+      if (parts.length < 2 || parts.length > 4) {
+        return 'line ${index + 1}: use title | assignment, with optional '
+            'agent and after columns';
       }
       if (parts[0].isEmpty) return 'line ${index + 1}: the title is empty';
       if (parts[1].isEmpty) {
         return 'line ${index + 1}: the assignment is empty';
       }
       String? agentId;
-      if (parts.length == 3) {
-        if (parts[2].isEmpty) {
-          return 'line ${index + 1}: the agent id is empty; leave the third '
-              'column out to use the default agent';
-        }
+      if (parts.length >= 3 && parts[2].isNotEmpty && parts[2] != '-') {
         if (widget.agentIds.isNotEmpty && !widget.agentIds.contains(parts[2])) {
           return 'line ${index + 1}: unknown agent “${parts[2]}”; this project '
               'has ${widget.agentIds.join(', ')}';
         }
         agentId = parts[2];
       }
+      final requires = <int>[];
+      if (parts.length == 4) {
+        final spec = parts[3].replaceFirst(
+          RegExp(r'^after\s*:?\s*', caseSensitive: false),
+          '',
+        );
+        if (spec.isEmpty) {
+          return 'line ${index + 1}: after needs one or more task numbers';
+        }
+        for (final token in spec.split(RegExp(r'[,\s]+'))) {
+          if (token.isEmpty) continue;
+          final value = int.tryParse(token);
+          if (value == null || value < 1 || value > index) {
+            return 'line ${index + 1}: “$token” is not an earlier task';
+          }
+          if (!requires.contains(value)) requires.add(value);
+        }
+      }
       entries.add(
-        SwarmPlanEntry(title: parts[0], assignment: parts[1], agentId: agentId),
+        SwarmPlanEntry(
+          title: parts[0],
+          assignment: parts[1],
+          agentId: agentId,
+          requires: requires,
+        ),
       );
     }
     if (entries.isEmpty) return 'a swarm run needs at least one task';
@@ -325,13 +344,13 @@ class _SwarmRunDialogState extends State<_SwarmRunDialog> {
                     hintText:
                         'Read the pagination code | read src/pages.ts | '
                         'reviewer-9ab12c\nCheck the API tests | check the '
-                        'offset handling',
+                        'offset handling | - | after 1',
                   ),
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'one task per line: title | assignment, with an optional '
-                  'agent id as a third column',
+                  'one task per line: title | assignment | agent | after 1,2 '
+                  '— the last two columns are optional',
                   style: TextStyle(
                     color: LockedInColors.muted,
                     fontSize: 11,

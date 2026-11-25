@@ -78,6 +78,8 @@ export type SwarmTask = {
   /** Kept for the worker only; never written to the report. */
   assignment: string
   status: SwarmTaskStatus
+  /** Task ids this task waits for before it may start. */
+  requires: string[]
   /** One line, already truncated and stripped of newlines. */
   summary?: string
   /** A failure reason, metadata only. */
@@ -89,6 +91,14 @@ export type SwarmPlanTask = {
   title: string
   agentId?: string
   assignment: string
+  /**
+   * Earlier tasks this one waits for, as 1-based task numbers.
+   *
+   * Only earlier tasks are legal, which makes the graph acyclic by
+   * construction. The scheduler releases a task when every prerequisite is
+   * `done`; a failed prerequisite blocks its dependents.
+   */
+  requires?: number[]
 }
 
 export type SwarmRun = {
@@ -309,7 +319,7 @@ export function renderReport(run: SwarmRun, agents: ReadonlyMap<string, AgentPro
 }
 
 function cloneTask(task: SwarmTask): SwarmTask {
-  return { ...task }
+  return { ...task, requires: [...task.requires] }
 }
 
 function toBoard(run: SwarmRun): SwarmBoard {
@@ -471,6 +481,27 @@ export function createSwarmService(deps: SwarmDeps): SwarmService {
         })
       }
 
+      // Requirements are 1-based task numbers and may only name a task that
+      // comes earlier; a forward or self reference is a plan error.
+      const requires: string[] = []
+      if (entry.requires !== undefined) {
+        if (!Array.isArray(entry.requires)) {
+          return err(inputError("plan", `task ${index + 1} requires must be a list of task numbers`))
+        }
+        for (const value of entry.requires) {
+          if (!Number.isInteger(value) || value < 1 || value > index) {
+            return err(
+              inputError(
+                "plan",
+                `task ${index + 1} requires task ${String(value)}, which does not come before it`,
+              ),
+            )
+          }
+          const id = `task-${value}`
+          if (!requires.includes(id)) requires.push(id)
+        }
+      }
+
       // The only profile that crosses the swarm boundary.
       const worker = forSwarm(stored)
       agents.set(worker.id, stored)
@@ -481,6 +512,7 @@ export function createSwarmService(deps: SwarmDeps): SwarmService {
         agentId: worker.id,
         assignment: entry.assignment,
         status: "pending",
+        requires,
       })
     }
 
@@ -563,22 +595,50 @@ export function createSwarmService(deps: SwarmDeps): SwarmService {
     })
   }
 
-  /** Sequential at width 1; at most `MAX_PARALLEL` lanes otherwise. */
+  /**
+   * A dependency-aware pool.
+   *
+   * A lane takes only a task whose prerequisites are `done`. When nothing is
+   * ready it waits for a completion rather than spinning; when every lane is
+   * idle and tasks remain, the run is blocked and `finish()` marks the
+   * dependents. Width 1 is still strictly sequential.
+   */
   async function schedule(
     run: SwarmRun,
     agents: Map<string, AgentProfile>,
     signal: AbortSignal,
   ): Promise<void> {
-    let cursor = 0
     const width = Math.min(run.parallel, run.tasks.length)
+    const done = new Set<string>()
+    const waiters: Array<() => void> = []
+    let active = 0
+
+    const wake = () => {
+      for (const resolve of waiters.splice(0)) resolve()
+    }
+    const waitForChange = () => new Promise<void>((resolve) => waiters.push(resolve))
 
     const lane = async (): Promise<void> => {
       for (;;) {
         if (run.status === "cancelled") return
-        const index = cursor++
-        const task = run.tasks[index]
-        if (!task) return
-        if (task.status === "pending") await runTask(run, task, agents, signal)
+        const task = run.tasks.find(
+          (entry) => entry.status === "pending" && entry.requires.every((id) => done.has(id)),
+        )
+        if (task === undefined) {
+          // No ready task: wait for a running one, or stop when the pool is
+          // empty so `finish()` can block the dependents of a failure.
+          if (active === 0) return
+          await waitForChange()
+          continue
+        }
+        active += 1
+        try {
+          await runTask(run, task, agents, signal)
+        } finally {
+          active -= 1
+        }
+        if ((task.status as SwarmTaskStatus) === "done") done.add(task.id)
+        wake()
       }
     }
 
@@ -587,10 +647,26 @@ export function createSwarmService(deps: SwarmDeps): SwarmService {
 
   async function finish(run: SwarmRun, agents: Map<string, AgentProfile>): Promise<void> {
     if (run.status !== "cancelled") {
-      const failed = run.tasks.some(
+      // A task whose prerequisite failed cannot run. Mark it blocked (and its
+      // own dependents with it) before the remaining pending tasks become
+      // cancelled.
+      const failed = new Set<string>()
+      for (const task of run.tasks) {
+        if (task.status === "failed" || task.status === "blocked") failed.add(task.id)
+      }
+      for (const task of run.tasks) {
+        if (isTerminal(task.status)) continue
+        if (task.requires.some((id) => failed.has(id))) {
+          task.status = "blocked"
+          task.error = "a prerequisite did not complete"
+          failed.add(task.id)
+          touch(task, run.id)
+        }
+      }
+      const anyFailed = run.tasks.some(
         (task) => task.status === "failed" || task.status === "blocked",
       )
-      run.status = failed ? "failed" : "done"
+      run.status = anyFailed ? "failed" : "done"
     }
     for (const task of run.tasks) {
       if (!isTerminal(task.status)) task.status = "cancelled"

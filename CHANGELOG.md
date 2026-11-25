@@ -21,6 +21,10 @@ requests merge.
 
 ## Unreleased
 
+- Work swarms accept task dependencies (`requires`): a task starts only when
+  its prerequisites finish, a failed prerequisite blocks its dependents, and the
+  board shows what each task waited for.
+
 ### Added
 
 - The desktop app: a Flutter shell (`desktop/`) over the same Bun core, talking
