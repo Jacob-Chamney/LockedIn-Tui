@@ -56,7 +56,7 @@ change our product:
 | **One reasoning step at a time** | Each teaching beat adds exactly one connection to something already held. |
 | **A check after every step** | The step is verified immediately; a miss is repaired before anything is built on it. |
 | **The minimal tree** | The plan is the smallest dependency set from held to goal — not a topic list, not coverage. |
-| **Plan is a map, not the road** | The learner sees a coarse structural map; the lesson is not chopped into "Part 3". |
+| **Plan is a map, not the road** | The learner sees a coarse structural map; the lesson is not chopped into "Part 3". The map is a tree: the first step is open and a branch stays locked, with the blocking step named, until everything it builds on is held. |
 | **Presentation is clarity** | No meta-narration, no labelled segments, no restating the structure. Prose carries the reasoning. |
 | **Knowledge is a graph** | Held propositions and the reasoning links between them persist across sessions. |
 | **Practice retrieves without naming** | Problems that require the knowledge to come to mind, not questions that name the concept. |
