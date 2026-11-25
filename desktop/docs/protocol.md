@@ -1388,7 +1388,29 @@ tool name. A run can therefore read the project and change nothing: it cannot
 write a file, start a process, ask for approval or widen a profile. Each worker
 gets its own in-memory transcript, so no `chat.jsonl` is created; the report
 under `work/projects/<id>/reports/<run-id>.md` is the only file a run leaves
-behind. A work-mode controller may also carry the configured `web-search` plugin's
+behind.
+
+The report is the **durable** record, and it carries each task's id so a
+restart can still verify one task:
+
+```md
+## Plan
+
+- task-1 · Check the API — Reviewer
+- task-2 · Check the offsets — Reviewer
+
+## Task results
+
+- [done] task-1 · Reviewer — read the routes
+- [verified] task-2 · Reviewer — read offsets
+```
+
+A report written before ids existed (`- [done] Reviewer — …`, no `task-N`) is
+still read: the missing id is the line's 1-based position, which is exactly the
+id the service assigns because tasks are created in plan order. The parser never
+requires an id, so old and new reports coexist.
+
+A work-mode controller may also carry the configured `web-search` plugin's
 **read-only** tools, exactly as a project chat does; the plugin runtime never
 offers a write tool in this mode and no approval surface exists on this path.
 
@@ -1454,9 +1476,13 @@ after a restart.
   is a review of a completed result. The run's report is rewritten atomically
   (a verified line replaces `[done]`), and the decision is appended to the
   activity log as a `swarm` record with `event: "verified"` and
-  `status: "verified" | "unverified"`. Verification is process state, like the
-  board: a restart forgets it and the report keeps its last bytes. The reply is
-  the task and the whole board, so the shell replaces its snapshot.
+  `status: "verified" | "unverified"`. When the run is no longer in memory — a
+  restart — the same request still verifies the task: the report's one line is
+  rewritten atomically, the activity log records the decision, and an
+  already-verified task is a no-op success. The reply is the task and the whole
+  board while the run is live; a report-only verification has no board to
+  return, so callers treat `review.mark` (which returns the queue) as the
+  durable path.
 
 - `work.swarm.retry` `{projectId, runId, taskId}` → `{runId, board}`. Starts a
   **new, single-agent read-only run** for one failed or blocked task and returns
@@ -2190,12 +2216,13 @@ nothing else.
     `label` is the note title, `context` the session name, `reason`
     `"uncorrected"`, `origin` `"session-mistake"`, and `count` the note's stored
     `misses`. A note with `status: corrected` or `status: reviewed` never enters.
-  - A **task** row is Work process state, supplied by the swarm service rather
-    than read from disk: a core restart forgets every run, so `review.queue`
-    returns no task rows until a run happens again (the report keeps its last
-    bytes; the queue never invents a run from it). `reason` is `"unverified"`,
+  - A **task** row is derived from the run's **report**, with the live board
+    taking precedence for a run this process still knows. A core restart forgets
+    every board, but the report keeps the task ids and statuses, so a done,
+    unverified task is still listed after a restart. `reason` is `"unverified"`,
     `origin` `"swarm"` and `count` is `0`. Work tasks sort after memory, so the
-    learning queue keeps its shape under `all`.
+    learning queue keeps its shape under `all`. A report that cannot be read is
+    skipped, exactly like a broken session.
 
 - `diagnostics` are **not** request failures. A session or goal folder whose
   metadata cannot be read becomes one entry `{kind: "review", path, message,
@@ -2217,7 +2244,7 @@ verdict for one item and returns the rebuilt queue.
   | `card:<sessionId>:<card-N>` | set `K: yes` / `M: no` on that card | set `M: yes` / `K: no` on that card |
   | `stage:<goalId>:<stageId>` | complete the stage through the curriculum transition; the next pending stage is promoted | no-op success: there is no stage miss store yet, so nothing is written and the stage nudge is not persisted |
   | `mistake:<sessionId>:<index>` | set the promoted note's frontmatter `status: reviewed` (and `reviewed_at`); the note and its body stay, so it leaves the queue without claiming a correction | increment `misses` and set `last_missed`; the note stays `open` and stays in the queue |
-  | `task:<projectId>:<runId>:<taskId>` | verify the task through `work.swarm.verify`: the board flips to `verified`, the report line becomes `[verified]` and the activity log records the decision | refused: a completed task has no miss signal |
+  | `task:<projectId>:<runId>:<taskId>` | verify the task: with a live board `work.swarm.verify` flips it, and after a restart the report's line is rewritten in place; either way the activity log records the decision | refused: a completed task has no miss signal |
   | `memory:<sessionId>:<noteId>` | refused | refused |
 
   Steps and cards live on the school side and are resolved by session folder id

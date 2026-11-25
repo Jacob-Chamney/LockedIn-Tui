@@ -138,8 +138,8 @@ describe("plan and workers", () => {
     expect(report).toContain("status: done")
     expect(report).toContain("agents: 3")
     expect(report).toContain("## Task results")
-    expect(report).toContain("- [done] Reader — finished task-1")
-    expect(report).toContain("- [done] Reader — finished task-3")
+    expect(report).toContain("- [done] task-1 · Reader — finished task-1")
+    expect(report).toContain("- [done] task-3 · Reader — finished task-3")
   })
 
   test("a task waits for an earlier task and starts after it settles", async () => {
@@ -386,7 +386,7 @@ describe("lifecycle", () => {
 
     const report = await runReport(projectId, outcome.run.id)
     expect(report).toContain("status: cancelled")
-    expect(report).toContain("- [cancelled] Reader")
+    expect(report).toContain("- [cancelled] task-1 · Reader")
     // The late worker summary is discarded, not recorded.
     expect(report).not.toContain("late task-1")
   })
@@ -411,7 +411,7 @@ describe("lifecycle", () => {
 
     const report = await runReport(projectId, outcome.run.id)
     expect(report).toContain("status: failed")
-    expect(report).toContain("- [failed] Reader — could not read the folder")
+    expect(report).toContain("- [failed] task-2 · Reader — could not read the folder")
   })
 
   test("retry creates a new single-agent read-only run and leaves the original report byte-identical", async () => {
@@ -560,7 +560,7 @@ describe("verification", () => {
     expect(verified.board.tasks[0]?.verified).toBe(true)
     expect(events).toContain("verified:verified")
     expect(await runReport(projectId, outcome.run.id)).toContain(
-      "- [verified] Reader — finished task-1",
+      "- [verified] task-1 · Reader — finished task-1",
     )
 
     const cleared = unwrap(

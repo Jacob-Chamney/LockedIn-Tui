@@ -319,7 +319,9 @@ export function renderReport(run: SwarmRun, agents: ReadonlyMap<string, AgentPro
 
   for (const task of run.tasks) {
     const name = agents.get(task.agentId)?.name ?? task.agentId
-    lines.push(`- ${task.title} — ${name}`)
+    // The id is part of the durable format: a report is the only record a
+    // restart keeps, and `review.mark` needs to name one task in it.
+    lines.push(`- ${task.id} · ${task.title} — ${name}`)
   }
 
   lines.push("", "## Task results", "")
@@ -328,7 +330,11 @@ export function renderReport(run: SwarmRun, agents: ReadonlyMap<string, AgentPro
     const name = agents.get(task.agentId)?.name ?? task.agentId
     const label = task.verified ? "verified" : TASK_STATUS_LABEL[task.status]
     const detail = task.summary || task.error || ""
-    lines.push(detail ? `- [${label}] ${name} — ${detail}` : `- [${label}] ${name}`)
+    lines.push(
+      detail
+        ? `- [${label}] ${task.id} · ${name} — ${detail}`
+        : `- [${label}] ${task.id} · ${name}`,
+    )
   }
 
   lines.push("")

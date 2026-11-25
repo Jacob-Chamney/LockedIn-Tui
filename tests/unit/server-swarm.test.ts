@@ -467,7 +467,7 @@ describe("work.swarm.run", () => {
     expect(report).toContain(`run: ${started.runId}`);
     expect(report).toContain('objective: "Understand the project layout"');
     expect(report).toContain("status: done");
-    expect(report).toContain("- [done] Lead — The modules are src/ and docs/. Second line.");
+    expect(report).toContain("- [done] task-1 · Lead — The modules are src/ and docs/. Second line.");
 
     // The board changed and completion announced itself, coalesced.
     await until(

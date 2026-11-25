@@ -21,6 +21,10 @@ requests merge.
 
 ## Unreleased
 
+- Swarm reports carry task ids (`task-1`), so a done-but-unverified task stays
+  in Review after a core restart and can be verified from the report alone. Old
+  reports without ids are read by position and verified in place.
+
 - Review now includes promoted mistakes with no correction yet and Work tasks
   that are done but unverified. `k` marks a mistake reviewed or verifies a task;
   `m` records a mistake miss and is refused for a task; the `work` side joins
