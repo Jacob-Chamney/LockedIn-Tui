@@ -362,23 +362,6 @@ describe("no provider", () => {
   })
 })
 
-describe("the entry point", () => {
-  test("index.tsx boots and hands the controller to App", async () => {
-    const source = await readFile(join(import.meta.dir, "..", "..", "src", "index.tsx"), "utf8")
-    expect(source).toContain("await boot(")
-    expect(source).toContain("bootFailureLine")
-    expect(source).toContain("controller={controller}")
-    expect(source).toContain("usageStore={usageStore}")
-    // A failed boot must not render an empty app: it prints and sets an exit code.
-    expect(source).toContain("process.exitCode = 1")
-  })
-
-  test("App is rendered with the booted dependencies, never bare", async () => {
-    const source = await readFile(join(import.meta.dir, "..", "..", "src", "index.tsx"), "utf8")
-    expect(source).not.toMatch(/<App\s*\/>/)
-  })
-})
-
 describe("a machine that only has the old LockedIn", () => {
   test("boot moves to ~/LockedIn-Tui instead of refusing to start", async () => {
     const home = join(base, "home")

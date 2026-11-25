@@ -41,7 +41,7 @@ import {
   type WorkspaceError,
 } from "../storage/workspace";
 import type { Config } from "../storage/config-schema";
-import type { SettingsView } from "../ui/settings";
+import type { SettingsView } from "../types/settings";
 /** File the chill history lives in, inside the data directory. */
 export const CHILL_HISTORY_FILE = "chill.json"
 

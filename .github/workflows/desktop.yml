@@ -4,14 +4,14 @@ on:
   pull_request:
     paths:
       - "desktop/**"
-      - "src/server/**"
+      - "src/**"
       - "scripts/desktop-*"
       - ".github/workflows/desktop.yml"
   push:
-    branches: [feat/flutter-desktop]
+    branches: [main, dev]
     paths:
       - "desktop/**"
-      - "src/server/**"
+      - "src/**"
       - "scripts/desktop-*"
       - ".github/workflows/desktop.yml"
 

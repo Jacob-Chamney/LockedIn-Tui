@@ -38,7 +38,7 @@ import {
 } from "../../src/services/work/swarm";
 import type { ChatToolSource } from "../../src/app/actions/projects";
 import { createWorkspace, type Workspace } from "../../src/storage/workspace";
-import type { ChatState } from "../../src/ui/chat/model";
+import type { ChatState } from "../../src/app/chat-model";
 import {
   BOOT_FAILED,
   createCoreServer,

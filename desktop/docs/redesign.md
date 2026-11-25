@@ -1,3 +1,7 @@
+> **2026-11-25 — this is the desktop shell.** The TUI frontend has been removed.
+> "Advanced TUI" describes the visual language (hairlines, mono chrome, one
+> accent), not a second frontend.
+
 # Redesign — "advanced TUI" visual system + a real learning harness
 
 Status: proposed (2026-11-23). Supersedes the look, not the behaviour rules in

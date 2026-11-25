@@ -18,9 +18,9 @@ import {
   type ResponseStyle,
   type TutorPolicy,
 } from "../llm/response-style";
-import type { ToolMode } from "../ui/chat/model";
+import type { ToolMode } from "./chat-model";
 import type { AppError, Usage } from "../llm/events";
-import { MAX_ATTACHMENTS, cancel as cancelState, initialChat, loadMore as loadMoreState, pastedText, type Attachment, type ChatState, type Message } from "../ui/chat/model";
+import { MAX_ATTACHMENTS, cancel as cancelState, initialChat, loadMore as loadMoreState, pastedText, type Attachment, type ChatState, type Message } from "./chat-model";
 export type HistoryRecord = { role: "user" | "assistant"; content: string; at: string }
 
 /** `chill.json` — text only, nothing derived, no reasoning. */

@@ -10,8 +10,6 @@ import { existsSync } from "node:fs"
 import { join, resolve } from "node:path"
 
 const ROOT = resolve(import.meta.dir, "..")
-/** `--ci` applies the documented host tolerance used by the release gate. */
-const CI = process.argv.includes("--ci")
 
 function run(label: string, args: string[]): void {
   console.log(`== ${label}`)
@@ -36,15 +34,6 @@ run("typecheck", ["run", "typecheck"])
 // `bun run check` and a contributor's `bun run test` run the identical command.
 // It runs every test file in parallel worker processes (docs/testing.md §1.2).
 run("tests", ["run", "test"])
-// Startup gate. Skips with exit 0 when there is no built artifact, so CI and a
-// fresh clone stay green; it only ever fails a regression it could measure.
-run("perf", [
-  "run",
-  "scripts/perf.ts",
-  // The same estimator everywhere: nine samples, fastest. A dev machine under
-  // load and a two-core CI runner both produce inflated medians, and a real
-  // regression raises every sample, so the fastest one is the stable estimate.
-  "--runs=9",
-  "--aggregate=best",
-  ...(CI ? ["--host-factor=1.9"] : []),
-])
+// The desktop startup budget is measured on the packaged Flutter bundle by the
+// desktop workflow, not here: the core is a sidecar with no first frame of its
+// own. `scripts/desktop-check.sh` is the frontend gate.

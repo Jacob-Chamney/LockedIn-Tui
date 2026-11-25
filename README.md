@@ -1,148 +1,81 @@
-# LockedIn-Tui
+# LockedIn
 
-[![CI](https://github.com/Jacob-Chamney/LockedIn-Tui/actions/workflows/ci.yml/badge.svg)](https://github.com/Jacob-Chamney/LockedIn-Tui/actions/workflows/ci.yml)
-[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+A keyboard-first desktop workspace for learning and focused work. The shell is
+Flutter; the engine is Bun + TypeScript. Your workspace is plain Markdown on
+your machine.
 
-A keyboard-first terminal workspace for learning and focused work. It runs
-inside your terminal, uses the terminal's own GPU rendering, and keeps your
-workspace on your machine.
+There is one frontend: the desktop app. The terminal frontend this project
+started from has been removed.
 
-[Documentation](https://github.com/Jacob-Chamney/LockedIn-Tui/wiki) · [Releases](https://github.com/Jacob-Chamney/LockedIn-Tui/releases) · [Changelog](CHANGELOG.md)
+## What it does
 
-## Features
+- **Chill** — ask anything. Tool-free, read-only, streaming, local history.
+- **Teaching** — measure what you hold, plan the shortest route, teach one
+  reasoning step with a check, repair a miss, then practise. Steps can cite the
+  sources they came from or are labelled `agent explanation`.
+- **Lock-in** — keep a real assignment moving: sources copied into the session,
+  an ordered step list, one step in front of you, no teaching prose.
+- **Outputs** — study guides, flashcards with spaced review, and per-session
+  documents (contract, contradictions, attempt check).
+- **Work** — register a local project, talk to a read-only agent, review writes
+  per hunk, approve commands separately, run a read-only swarm.
+- **Review** — the actionable queue: due/missed cards, open steps and stages;
+  session memory is labelled history, not work.
+- **Knowledge** — search and read notes, session memory, sources, goals,
+  projects, archive entries, and the learning graph that links them.
+- **Archive, Stats, Achievements** — local or private GitHub archive with
+  consent and a privacy check; usage and cost; a progress map.
 
-### Chat and lock-in sessions
+Keys are the primary input: every action has a binding, the leader overlay shows
+the real bindings, and the app is usable at 800×600. Themes are semantic tokens,
+so a colour never changes meaning.
 
-![Chat with a model provider](assets/screenshots/chat.png)
+## Build from source
 
-Chat with your configured model, with Markdown, syntax highlighting and
-per-conversation usage. A lock-in session binds the conversation to a goal and
-its sources so the work stays on the material you chose.
+Prerequisites: **Bun 1.4.4**, **Flutter 3.50 (stable)**, and on Linux the GTK
+development packages (`libgtk-3-dev libblkid-dev liblzma-dev`). Document
+extraction uses `poppler-utils` (`pdftotext`, `pdftoppm`); tests that need it
+skip with an install hint when it is absent.
 
-### Skill sessions and reader
+```bash
+bun install
+source scripts/desktop-env.sh   # puts the pinned Flutter SDK on PATH
+cd desktop && flutter pub get && cd ..
 
-![Skill session reader](assets/screenshots/course.png)
-
-Turn a goal into chapters, lessons and practical work. The reader tracks
-completion, and generated study material is built from the sources you added.
-
-### Knowledge reference
-
-![Knowledge reference](assets/screenshots/knowledge.png)
-
-Keep notes, topics and references in one navigable tree, searchable from the
-keyboard and available beside your sessions.
-
-### Achievements
-
-<p align="center"><img src="assets/screenshots/achievements.png" alt="Achievement map" width="640"></p>
-
-A map of milestones that unlocks as you use the workspace, with a detail panel
-and sharing for completed achievements.
-
-### Lock-in sessions
-
-![Lock-in session manager](assets/screenshots/manager-sessions.png)
-
-Find, archive, export or delete lock-in sessions from one keyboard-driven list.
-
-Also included: work projects and agents, archive and source indexing, usage
-budgets, themes, MCP plugins, and terminal image support where the terminal
-allows it.
-
-## Install
-
-> **The first dated release (`2026.11.12`) is being prepared.** Until it is
-> published, `latest` still points at the previous 1.x release. Use the source
-> instructions below to run this tree.
-
-Install the latest release:
-
-```sh
-curl -fsSL https://github.com/Jacob-Chamney/LockedIn-Tui/releases/latest/download/install.sh | sh
+scripts/desktop-check.sh        # format, analyze, widget tests, core tests
+scripts/desktop-build.sh linux  # Flutter shell + compiled Bun core sidecar
+scripts/desktop-package.sh      # tarball under dist/
+scripts/desktop-install.sh      # per-user Linux install
 ```
 
-The installer detects the platform, verifies the artifact against the release
-`SHA256SUMS`, and installs to `~/.local/bin/lockedin`. It never uses `sudo` and
-never edits your shell profile.
+Windows uses `scripts/desktop-build.sh windows`, `desktop-package.ps1` and
+`desktop-installer.ps1`. The release workflows build both platforms.
 
-Supported platforms: Linux x64/arm64 (glibc and musl), macOS arm64/x64 and
-Windows x64.
-
-### Manual install
-
-Download the asset for your platform, mark it executable and run it:
-
-```sh
-chmod +x lockedin-2026.11.12-bun-linux-x64
-./lockedin-2026.11.12-bun-linux-x64 --workspace ~/LockedIn
-```
-
-## Run from source
-
-Requirements: [Bun](https://bun.sh) **1.4.4** and Git.
-
-```sh
-bun install --frozen-lockfile
-bun run start
-```
-
-The first run creates a workspace at `~/LockedIn`. Use `--workspace <path>` or
-`LOCKEDIN_WORKSPACE` to choose another folder.
-
-```sh
-bun run start --workspace ~/Learning
-```
-
-## Desktop app
-
-`desktop/` is a Flutter shell over the same Bun core: the same workspace, the
-same config, the same keys in the OS keychain, talking over stdio JSON-RPC. It
-needs Flutter 3.50 stable to build, and a packaged build needs neither Flutter
-nor Bun to run.
-
-```sh
-scripts/desktop-dev.sh                 # build the core, then `flutter run -d linux`
-scripts/desktop-build.sh linux         # release bundle with the compiled core
-scripts/desktop-package.sh --no-build  # dist/lockedin-desktop-linux-x64.tar.gz
-scripts/desktop-smoke.sh               # launch it headless and prove it paints
-scripts/desktop-install.sh             # per-user install (~/.local) + launcher
-```
-
-Windows uses `scripts/desktop-build.sh windows`, `scripts/desktop-package.ps1`
-and `scripts/desktop-installer.ps1` (a per-user NSIS setup, unsigned for now).
-[`desktop/docs/running.md`](desktop/docs/running.md) covers the first run, the
-environment variables and what to look at while testing.
-
-## Development
-
-`bun run check` is the full gate: boundary checks, typecheck, the test suite and
-the startup budget.
-
-```sh
-bun run check
-```
-
-Layout:
+## Architecture
 
 ```
-src/        application code
-tests/      unit, contract, integration, invariant, UI and end-to-end tests
-scripts/    build, check and performance tooling
-assets/     screenshots used by the README
-licenses/   third-party licence texts
+desktop/ (Flutter, Dart)  ── stdio JSON-RPC ──▶  src/server/ (Bun, TypeScript)
+  shell, theme, features                          boot, services, events
 ```
 
-## Security
+- `src/domain`, `src/services`, `src/storage`, `src/stats`, `src/llm`, `src/mcp`,
+  `src/security` hold the rules and the files. They never import the shell.
+- `src/server/` is a thin JSON-RPC adapter over those services. stdout is
+  protocol only; logs go to stderr.
+- `desktop/lib/bridge/protocol.dart` mirrors the wire contract in
+  `desktop/docs/protocol.md`.
+- The shell owns window geometry, focus and transient dialogs. It does not read
+  files, hold secrets or re-derive totals. Provider keys live in the OS keychain.
+- Sources are copied into a session; the school/skills wall and the work-project
+  root are enforced by path-scoped services, not by prompt text.
 
-Report vulnerabilities privately through the repository's Security tab. See
-[SECURITY.md](SECURITY.md). Do not open a public issue for a security problem.
+## Data
 
-## Contributing
-
-Contributions are accepted under the Developer Certificate of Origin. See
-[CONTRIBUTING.md](CONTRIBUTING.md) and sign commits with `git commit -s`.
+The workspace is a directory of Markdown and JSON that you can read and edit
+without the app. The search index is a rebuildable cache. App data (stats,
+usage, logs) lives outside the workspace in the platform data directory.
+Accounts, sync and telemetry are not part of the product.
 
 ## Licence
 
-AGPL-3.0-only. See [LICENSE](LICENSE) and [TRADEMARK.md](TRADEMARK.md).
+AGPL-3.0-only. See `LICENSE` and `THIRD-PARTY-NOTICES.md`.

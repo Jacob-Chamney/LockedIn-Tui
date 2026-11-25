@@ -276,7 +276,7 @@ import {
   type PluginPolicy,
   type PluginPolicyCell,
 } from "../storage/config-schema";
-import type { SettingsView } from "../ui/settings";
+import type { SettingsView } from "../types/settings";
 
 export const SERVER_PROTOCOL_VERSION = 1;
 

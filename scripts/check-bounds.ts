@@ -10,8 +10,8 @@ import { readdirSync, readFileSync, statSync } from "node:fs"
 import { basename, join, normalize } from "node:path"
 
 const ROOT = "src"
-const LOWER = ["domain", "services", "storage", "llm", "archive", "plugins", "security"]
-const UI_OR_APP = ["ui", "app"]
+const LOWER = ["domain", "services", "storage", "llm", "archive", "mcp", "security", "stats"]
+const UI_OR_APP = ["app"]
 
 function files(dir: string): string[] {
   const out: string[] = []
@@ -26,7 +26,6 @@ function files(dir: string): string[] {
 function layerOf(path: string): string | null {
   const normal = path.replaceAll("\\", "/")
   for (const layer of LOWER) if (normal.startsWith(`${ROOT}/${layer}/`)) return layer
-  if (normal.startsWith(`${ROOT}/ui/`)) return "ui"
   if (normal.startsWith(`${ROOT}/app/`)) return "app"
   return null
 }
@@ -56,19 +55,6 @@ for (const file of files(ROOT)) {
     if (LOWER.includes(from) && UI_OR_APP.includes(to)) {
       problems.push(`${file}: ${from} imports ${to} (${spec})`)
     }
-  }
-}
-
-// Feature folders name their files for their role: a component is a panel or a
-// view, a pure module is a model or a key table, and index re-exports.
-for (const file of files("src/ui/features")) {
-  const name = basename(file)
-  if (name === "index.ts") continue
-  if (name.endsWith(".tsx") && !/-(panel|view)\.tsx$/.test(name)) {
-    problems.push(`${file}: components in ui/features must end -panel.tsx or -view.tsx`)
-  }
-  if (name.endsWith(".ts") && !/-(model|keys)\.ts$/.test(name)) {
-    problems.push(`${file}: pure modules in ui/features must end -model.ts or -keys.ts`)
   }
 }
 

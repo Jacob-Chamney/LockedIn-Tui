@@ -3,8 +3,6 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "jsx": "preserve",
-    "jsxImportSource": "@opentui/solid",
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
@@ -13,19 +11,10 @@
     ],
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "baseUrl": ".",
-    "paths": {
-      "@lockedin/sdk": [
-        "./sdk/index.ts"
-      ]
-    }
+    "baseUrl": "."
   },
   "include": [
     "src/**/*.ts",
-    "src/**/*.tsx",
-    "tests/**/*.ts",
-    "tests/**/*.tsx",
-    "swarm/**/*.ts",
-    "sdk/**/*.ts"
+    "tests/**/*.ts"
   ]
 }
