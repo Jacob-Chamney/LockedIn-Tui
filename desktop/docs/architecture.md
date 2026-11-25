@@ -135,8 +135,10 @@ Two generated files keep the Flutter bridge tied to the core:
   keeps the presentation getters (`streaming`, `hasModel`, `tokens`, `isAgent`,
   `node()`, `cropped`, `readOnly`, `isEmpty`), the `toSaveJson` payload and the
   `learningGraphEmpty` sentinel as hand-written glue. Adding a model means
-  adding it to `MODEL_SPECS`; the generator refuses a shape it cannot map (a
-  field whose type differs across union members is the one unsupported case).
+  adding it to `MODEL_SPECS`. A union field whose members disagree on its type
+  becomes `Object?` and keeps the raw JSON value, because a flattened class
+  cannot narrow it without guessing one member; every other shape it cannot
+  map is still refused by field name.
 
 Both files are marked `dart format off` because the generator owns their bytes.
 `tests/unit/generated-bindings.test.ts` and `tests/unit/generated-models.test.ts`

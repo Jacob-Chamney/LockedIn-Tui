@@ -29,8 +29,9 @@ requests merge.
   and the agent template row (29 models), with nested models, model arrays,
   `Record` maps
   (of scalars and of models), optional/`null` fields, nullable and recursive
-  nested models, flattened object unions and an omit list for the stream
-  counter, with the same tolerant parsing as before. Adding a model is a
+  nested models, flattened object unions (a field whose members disagree on its
+  type becomes `Object?` and keeps the raw value) and an omit list for the
+  stream counter, with the same tolerant parsing as before. Adding a model is a
   one-line allowlist entry; a stale generated file fails the check.
 
 - Wire method names in the Flutter client are generated from the core's
