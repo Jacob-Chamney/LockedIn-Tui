@@ -33,6 +33,7 @@ import '../features/work/work_chat.dart';
 import '../features/work/work_page.dart';
 import '../keymap/registry.dart';
 import '../theme/palette.dart';
+import '../theme/numerals.dart';
 import '../theme/breakpoints.dart';
 import '../theme/tokens.dart';
 import 'command_line.dart';
@@ -1393,9 +1394,11 @@ class _ShellState extends State<Shell> {
       final chat = store.chat;
       final blocked = chat?.blocked;
       if (blocked != null) return '${blocked.reason} · $leaderHint';
-      if (chat?.streaming ?? false) return 'Esc stops · $leaderHint';
       if (!store.configured) return 'no model · $leaderHint';
-      return 'Enter send · Shift+Enter newline · $leaderHint';
+      // The composer strip owns the input keys (send, newline, attach, Esc).
+      // Repeating them here was the review's duplicated-hint finding: the same
+      // line appeared twice on one screen. The bar keeps the global chord.
+      return leaderHint;
     }
     // Archive's own page names restore/delete; the status bar must not hide
     // them behind a different name for `r`.
@@ -1423,7 +1426,7 @@ class _ShellState extends State<Shell> {
           return 'Ctrl+S save · Esc back';
         }
         return _sessionChatOpen
-            ? 'Enter send · Shift+Enter newline · Esc normal'
+            ? leaderHint
             : '↑↓ move · Space toggle · c chat · \\ leader · Esc back';
       }
     }
@@ -1445,14 +1448,14 @@ class _ShellState extends State<Shell> {
       // The project page's own keys: the statusline is where a keyboard user
       // looks first, and `Esc back` alone hid all of them.
       return _workChatOpen
-          ? 'Enter send · Shift+Enter newline · Esc normal'
+          ? leaderHint
           : 'c chat · p approvals · w swarm · l activity · r refresh · Esc back';
     }
     if (_surface == Surface.skills) {
       if (_goalWizardOpen) return 'Tab next · Enter continue · Esc back';
       if (store.activeSkill != null) {
         if (_skillChatOpen) {
-          return 'Enter send · Shift+Enter newline · Esc normal';
+          return leaderHint;
         }
         if (store.skillLessonOpen) return 'b build · R rebuild · Esc back';
         if (store.skillChapterOpen) return 'Esc back';
@@ -3481,10 +3484,13 @@ class _StatusBar extends StatelessWidget {
           const SizedBox(width: Space.xs),
           Text(
             _usageLabel(),
-            style: micro.copyWith(
-              color: LockedInColors.muted,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0,
+            key: const ValueKey('status-usage'),
+            style: tabular(
+              micro.copyWith(
+                color: LockedInColors.muted,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0,
+              ),
             ),
           ),
           const _BarDivider(),

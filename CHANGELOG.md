@@ -21,6 +21,11 @@ requests merge.
 
 ## Unreleased
 
+- Numeric columns (the status bar's tokens/cost, Stats' KPI figures and model
+  rows, a session row's date and counts) use tabular figures, so they line up
+  while they change. The chat status bar no longer repeats the composer's
+  send/newline keys; it keeps the global leader chord.
+
 - Layout thresholds live in one `Breakpoints` scale (rail, reading column,
   data column, two-column split, trailing column, search snippet, hint, stacked
   label). Every page compares against a named concept, and a source guard fails
