@@ -2733,18 +2733,194 @@ class TeachingStepBody {
     required this.stepId,
     required this.prose,
     required this.question,
+    this.citations = const [],
   });
 
   final String stepId;
   final String prose;
   final String question;
 
+  /// The sources this step quoted. Empty means the step is the model's own
+  /// explanation, shown as `agent explanation`.
+  final List<TeachingCitation> citations;
+
+  bool get isAgentExplanation => citations.isEmpty;
+
   static TeachingStepBody fromJson(Map<String, dynamic> json) =>
       TeachingStepBody(
         stepId: json['stepId'] is String ? json['stepId'] as String : '',
         prose: json['prose'] is String ? json['prose'] as String : '',
         question: json['question'] is String ? json['question'] as String : '',
+        citations: json['citations'] is List
+            ? (json['citations'] as List)
+                  .whereType<Map>()
+                  .map(
+                    (row) => TeachingCitation.fromJson(
+                      Map<String, dynamic>.from(row),
+                    ),
+                  )
+                  .where((citation) => citation.name.isNotEmpty)
+                  .toList(growable: false)
+            : const [],
       );
+}
+
+/// One source a step quotes, with the words that prove it.
+class TeachingCitation {
+  const TeachingCitation({required this.name, required this.quote});
+
+  final String name;
+  final String quote;
+
+  static TeachingCitation fromJson(Map<String, dynamic> json) =>
+      TeachingCitation(
+        name: json['name'] is String ? json['name'] as String : '',
+        quote: json['quote'] is String ? json['quote'] as String : '',
+      );
+}
+
+/// One prompt note (`prompts.list`).
+class PromptNoteView {
+  const PromptNoteView({
+    required this.id,
+    required this.label,
+    required this.description,
+    required this.note,
+    required this.custom,
+  });
+
+  final String id;
+  final String label;
+  final String description;
+  final String note;
+  final bool custom;
+
+  static PromptNoteView fromJson(Map<String, dynamic> json) => PromptNoteView(
+    id: json['id'] is String ? json['id'] as String : '',
+    label: json['label'] is String ? json['label'] as String : '',
+    description: json['description'] is String
+        ? json['description'] as String
+        : '',
+    note: json['note'] is String ? json['note'] as String : '',
+    custom: json['custom'] == true,
+  );
+}
+
+/// The source-grounded learning graph (`knowledge.graph`).
+class LearningGraph {
+  const LearningGraph({
+    required this.nodes,
+    required this.edges,
+    required this.counts,
+    required this.diagnostics,
+    required this.truncated,
+  });
+
+  static const empty = LearningGraph(
+    nodes: [],
+    edges: [],
+    counts: {},
+    diagnostics: [],
+    truncated: false,
+  );
+
+  final List<LearningNode> nodes;
+  final List<LearningEdge> edges;
+  final Map<String, int> counts;
+  final List<String> diagnostics;
+  final bool truncated;
+
+  LearningNode? node(String id) {
+    for (final node in nodes) {
+      if (node.id == id) return node;
+    }
+    return null;
+  }
+
+  static LearningGraph fromJson(Map<String, dynamic> json) => LearningGraph(
+    nodes: json['nodes'] is List
+        ? (json['nodes'] as List)
+              .whereType<Map>()
+              .map(
+                (row) => LearningNode.fromJson(Map<String, dynamic>.from(row)),
+              )
+              .where((node) => node.id.isNotEmpty)
+              .toList(growable: false)
+        : const [],
+    edges: json['edges'] is List
+        ? (json['edges'] as List)
+              .whereType<Map>()
+              .map(
+                (row) => LearningEdge.fromJson(Map<String, dynamic>.from(row)),
+              )
+              .toList(growable: false)
+        : const [],
+    counts: json['counts'] is Map
+        ? {
+            for (final entry in (json['counts'] as Map).entries)
+              if (entry.key is String && entry.value is int)
+                entry.key as String: entry.value as int,
+          }
+        : const {},
+    diagnostics: json['diagnostics'] is List
+        ? (json['diagnostics'] as List).whereType<String>().toList(
+            growable: false,
+          )
+        : const [],
+    truncated: json['truncated'] == true,
+  );
+}
+
+class LearningNode {
+  const LearningNode({
+    required this.id,
+    required this.kind,
+    required this.label,
+    required this.detail,
+    required this.side,
+    required this.context,
+    required this.grounded,
+  });
+
+  final String id;
+  final String kind;
+  final String label;
+  final String detail;
+  final String side;
+  final String context;
+  final String grounded;
+
+  bool get isAgent => grounded == 'agent';
+
+  static LearningNode fromJson(Map<String, dynamic> json) => LearningNode(
+    id: json['id'] is String ? json['id'] as String : '',
+    kind: json['kind'] is String ? json['kind'] as String : '',
+    label: json['label'] is String ? json['label'] as String : '',
+    detail: json['detail'] is String ? json['detail'] as String : '',
+    side: json['side'] is String ? json['side'] as String : '',
+    context: json['context'] is String ? json['context'] as String : '',
+    grounded: json['grounded'] is String
+        ? json['grounded'] as String
+        : 'record',
+  );
+}
+
+class LearningEdge {
+  const LearningEdge({
+    required this.from,
+    required this.to,
+    required this.kind,
+  });
+
+  final String from;
+  final String to;
+  final String kind;
+
+  static LearningEdge fromJson(Map<String, dynamic> json) => LearningEdge(
+    from: json['from'] is String ? json['from'] as String : '',
+    to: json['to'] is String ? json['to'] as String : '',
+    kind: json['kind'] is String ? json['kind'] as String : '',
+  );
 }
 
 /// One figure cropped from a session's own PDF (`session.figure.*`).
@@ -3031,6 +3207,7 @@ class TeachingCheckRecord {
     required this.correction,
     this.thinking,
     this.confidence,
+    this.citations = const [],
   });
 
   final String stepId;
@@ -3043,6 +3220,9 @@ class TeachingCheckRecord {
   /// Self-reported 1–5 confidence, when they gave one.
   final int? confidence;
 
+  /// The citations the step carried when it was checked.
+  final List<TeachingCitation> citations;
+
   static TeachingCheckRecord fromJson(
     Map<String, dynamic> json,
   ) => TeachingCheckRecord(
@@ -3053,6 +3233,15 @@ class TeachingCheckRecord {
         : '',
     thinking: json['thinking'] is String ? json['thinking'] as String : null,
     confidence: json['confidence'] is int ? json['confidence'] as int : null,
+    citations: json['citations'] is List
+        ? (json['citations'] as List)
+              .whereType<Map>()
+              .map(
+                (row) =>
+                    TeachingCitation.fromJson(Map<String, dynamic>.from(row)),
+              )
+              .toList(growable: false)
+        : const [],
   );
 }
 

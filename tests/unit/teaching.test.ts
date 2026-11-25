@@ -213,6 +213,57 @@ describe("parseStep", () => {
   });
 });
 
+describe("step citations", () => {
+  const cited = JSON.stringify({
+    prose: "A register is a named slot inside the processor. A call writes its return address to the stack.",
+    question: "Where does the call keep its return address?",
+    citations: [{ name: "intel.md", quote: "registers hold working state across calls" }],
+  });
+
+  test("a citation names a source and keeps its quote", () => {
+    const result = parseStep(cited, "step-1", ["intel.md", "notes.pdf"]);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.step.citations).toEqual([
+      { name: "intel.md", quote: "registers hold working state across calls" },
+    ]);
+  });
+
+  test("a citation outside the goal's sources is refused", () => {
+    const result = parseStep(cited, "step-1", ["notes.pdf"]);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toContain("intel.md");
+    expect(result.error.message).toContain("not a source");
+  });
+
+  test("a citation with no sources at all is refused", () => {
+    const result = parseStep(cited, "step-1", []);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toContain("no sources");
+  });
+
+  test("no citations is the agent-explanation case, not an error", () => {
+    const result = parseStep(JSON.stringify({ prose: "A register is a slot. It holds work.", question: "what?" }), "step-1", ["intel.md"]);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.step.citations).toEqual([]);
+  });
+
+  test("the prompt lists the sources and asks for the citation shape", () => {
+    const prompt = stepPrompt({
+      goal: "read disassembly",
+      held: ["registers hold state"],
+      plan: [{ id: "step-1", title: "A register is a slot", requires: [] }],
+      stepIndex: 0,
+      sources: [{ name: "intel.md", excerpt: "registers hold working state" }],
+    });
+    expect(prompt).toContain("intel.md");
+    expect(prompt).toContain("citations");
+    expect(prompt).toContain("never invent a source");
+  });
+});
+
 describe("parseCheck", () => {
   test("accepts the three verdicts", () => {
     for (const verdict of ["correct", "partial", "incorrect"] as const) {
@@ -262,7 +313,7 @@ describe("prompt shaping", () => {
 
   test("the check prompt carries the answer and the correction budget", () => {
     const prompt = checkPrompt({
-      step: { stepId: "step-1", prose: "x", question: "which register holds the return value?" },
+      step: { stepId: "step-1", prose: "x", question: "which register holds the return value?", citations: [] },
       answer: "the stack pointer",
     });
     expect(prompt).toContain("the stack pointer");
@@ -271,7 +322,7 @@ describe("prompt shaping", () => {
 
   test("the check prompt carries the reasoning and the confidence without treating them as evidence", () => {
     const prompt = checkPrompt({
-      step: { stepId: "step-1", prose: "x", question: "which register?" },
+      step: { stepId: "step-1", prose: "x", question: "which register?", citations: [] },
       answer: "eax",
       thinking: "the return value has to survive the call",
       confidence: 4,
@@ -283,7 +334,7 @@ describe("prompt shaping", () => {
 
   test("an empty thinking field is absent, not an empty line", () => {
     const prompt = checkPrompt({
-      step: { stepId: "step-1", prose: "x", question: "which register?" },
+      step: { stepId: "step-1", prose: "x", question: "which register?", citations: [] },
       answer: "eax",
       thinking: "   ",
     });

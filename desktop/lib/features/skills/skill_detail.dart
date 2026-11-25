@@ -1574,6 +1574,32 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                 ),
               ),
             ),
+            const SizedBox(height: Space.xxs),
+            // A step either quotes its source or says it is the model's own
+            // explanation. There is no third, unlabelled state.
+            if (step.citations.isEmpty)
+              Text(
+                'agent explanation',
+                key: const ValueKey('teach-agent-explanation'),
+                style: LockedInType.micro.copyWith(
+                  color: LockedInColors.muted,
+                  letterSpacing: 0,
+                ),
+              )
+            else
+              for (final citation in step.citations)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    'source · ${citation.name}: “${citation.quote}”',
+                    key: ValueKey('teach-citation-${citation.name}'),
+                    style: LockedInType.micro.copyWith(
+                      color: LockedInColors.secondary,
+                      letterSpacing: 0,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
             const SizedBox(height: Space.sm),
             Container(
               padding: const EdgeInsets.fromLTRB(

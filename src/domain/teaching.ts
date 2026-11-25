@@ -42,6 +42,10 @@ export const TEACHING_LIMITS = {
   /** Self-reported confidence, 1 (guessing) to 5 (certain). */
   confidenceMin: 1,
   confidenceMax: 5,
+  /** A step may cite at most this many sources. */
+  citations: 3,
+  /** The quote that proves the citation is short enough to be a quote. */
+  citationQuoteChars: 240,
 } as const
 
 export type TeachingStep = {
@@ -72,10 +76,21 @@ export type TeachingState = {
   plan: TeachingStep[]
 }
 
+/** One source a step's prose came from, with the words that prove it. */
+export type TeachingCitation = {
+  name: string
+  quote: string
+}
+
 export type TeachingStepBody = {
   stepId: string
   prose: string
   question: string
+  /**
+   * Where the prose came from. Empty means the step is the model's own
+   * explanation, which the UI labels `agent explanation` — never a source.
+   */
+  citations: TeachingCitation[]
 }
 
 export type TeachingProblem = {
@@ -259,6 +274,8 @@ export function parseMeasure(
 export function parseStep(
   raw: string,
   stepId: string,
+  /** The goal's source names; a citation outside this set is refused. */
+  sourceNames?: readonly string[],
 ): { ok: true; step: TeachingStepBody } | { ok: false; error: TeachingError } {
   const object = extractJsonObject(raw)
   if (object === null) {
@@ -293,7 +310,46 @@ export function parseStep(
   if (question === "") {
     return { ok: false, error: { kind: "malformed", message: "the step has no check question" } }
   }
-  return { ok: true, step: { stepId, prose, question } }
+  const citations: TeachingCitation[] = []
+  if (parsed.citations !== undefined) {
+    if (!Array.isArray(parsed.citations)) {
+      return { ok: false, error: { kind: "malformed", message: "the step citations must be a list" } }
+    }
+    if (parsed.citations.length > 0 && sourceNames !== undefined && sourceNames.length === 0) {
+      return {
+        ok: false,
+        error: { kind: "malformed", message: "the step cites a source, but this goal has no sources" },
+      }
+    }
+    const allowed = new Set(
+      (sourceNames ?? []).flatMap((name) => {
+        const clean = name.trim().toLowerCase()
+        const stem = clean.replace(/\.[a-z0-9]+$/, "")
+        return stem === "" ? [clean] : [clean, stem]
+      }),
+    )
+    for (const entry of parsed.citations.slice(0, TEACHING_LIMITS.citations)) {
+      if (!isRecord(entry)) continue
+      const name = oneLine(entry.name, 200)
+      const quote = oneLine(entry.quote, TEACHING_LIMITS.citationQuoteChars)
+      if (name === "" || quote === "") continue
+      if (sourceNames !== undefined) {
+        const key = name.toLowerCase()
+        const stem = key.replace(/\.[a-z0-9]+$/, "")
+        if (!allowed.has(key) && !allowed.has(stem)) {
+          return {
+            ok: false,
+            error: {
+              kind: "malformed",
+              message: `the step cites "${name}", which is not a source of this goal`,
+            },
+          }
+        }
+      }
+      citations.push({ name, quote })
+    }
+  }
+  return { ok: true, step: { stepId, prose, question, citations } }
 }
 
 /** A check reply: one verdict and one correction. */
@@ -376,6 +432,8 @@ export function stepPrompt(input: {
   held: string[]
   plan: TeachingStep[]
   stepIndex: number
+  /** The goal's citable sources, so the step can be grounded. */
+  sources?: readonly { name: string; excerpt: string }[]
 }): string {
   const step = input.plan[input.stepIndex]!
   const done = input.plan.slice(0, input.stepIndex).map((entry) => entry.title)
@@ -387,14 +445,24 @@ export function stepPrompt(input: {
     `The learner already holds: ${input.held.join("; ")}`,
     done.length === 0 ? "" : `Already taught: ${done.join("; ")}`,
     `This step adds exactly one idea: ${step.title}`,
+    ...(input.sources !== undefined && input.sources.length > 0
+      ? [
+          "",
+          "Sources this goal may cite (name — excerpt):",
+          ...input.sources.map((source) => `--- ${source.name}\n${source.excerpt}`),
+        ]
+      : []),
     "",
     "Reply with exactly this shape:",
-    '{"prose":"...","question":"..."}',
+    '{"prose":"...","question":"...","citations":[{"name":"...","quote":"..."}]}',
     "",
     `prose: ${40}-${TEACHING_LIMITS.proseWords} words. Two to four sentences that add the one idea ` +
       "and connect it to what is already held. Do not summarise the plan.",
     `question: one question that shows whether the idea landed, <= ${TEACHING_LIMITS.questionChars} characters. ` +
       "Ask about the idea, not about the wording.",
+    `citations: 0-${TEACHING_LIMITS.citations} entries. When a sentence comes from one of the sources above, ` +
+      "name the source and quote the exact words. When the paragraph is your own explanation, use [] — " +
+      "never invent a source and never cite a file that is not listed.",
   ]
     .filter((line) => line !== "")
     .join("\n")

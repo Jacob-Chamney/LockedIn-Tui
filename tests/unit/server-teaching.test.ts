@@ -337,6 +337,55 @@ describe("teach", () => {
     expect(tooLong.message).toContain("2000");
   });
 
+  test("a step cites its source and the citation survives the check", async () => {
+    let stepPrompt = "";
+    const cited = JSON.stringify({
+      prose:
+        "A register is a named slot inside the processor. A call writes the return address onto the stack.",
+      question: "Where does a call keep the return address?",
+      citations: [{ name: "intel.md", quote: "Registers hold working state across calls." }],
+    });
+    const { server } = fakeCore(async (prompt) => {
+      if (prompt.includes("marking one answer")) return CORRECT;
+      if (prompt.includes("teaching one step")) {
+        stepPrompt = prompt;
+        return cited;
+      }
+      return MEASURE;
+    });
+    await resultOf(server, "teach.measure", { goalId: GOAL_ID });
+    const opened = await resultOf(server, "teach.step", { goalId: GOAL_ID });
+    expect(stepPrompt).toContain("intel.md");
+    expect((opened.step as Record<string, unknown>).citations).toEqual([
+      { name: "intel.md", quote: "Registers hold working state across calls." },
+    ]);
+
+    await resultOf(server, "teach.check", { goalId: GOAL_ID, answer: "on the stack" });
+    const state = await resultOf(server, "teach.state", { goalId: GOAL_ID });
+    const record = state.record as Record<string, unknown>;
+    const check = (record.checks as Record<string, unknown>[])[0]!;
+    expect(check.citations).toEqual([
+      { name: "intel.md", quote: "Registers hold working state across calls." },
+    ]);
+  });
+
+  test("a step that cites a file the goal does not have is refused", async () => {
+    const bad = JSON.stringify({
+      prose: "A register is a slot inside the processor. It holds work.",
+      question: "what holds work?",
+      citations: [{ name: "secret.md", quote: "invented" }],
+    });
+    const { server } = fakeCore(async (prompt) => {
+      if (prompt.includes("teaching one step")) return bad;
+      return MEASURE;
+    });
+    await resultOf(server, "teach.measure", { goalId: GOAL_ID });
+    const error = await errorOf(server, "teach.step", { goalId: GOAL_ID });
+    expect(error.code).toBe(BOOT_FAILED);
+    expect(error.message).toContain("secret.md");
+    expect(error.retryable).toBe(false);
+  });
+
   test("a partial check keeps the step open for a repair", async () => {
     let stepCalls = 0;
     const { server } = fakeCore(async (prompt) => {

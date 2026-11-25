@@ -215,6 +215,9 @@ its data shapes or code.
 | Context + compaction | `src/domain/context.ts`, `session.chat.*` | A meter over the transcript and an explicit compaction that stores one summary beside an unchanged `chat.jsonl`; the next request sends the summary plus the recent messages. |
 | Research briefs | `src/services/teaching/research.ts` | Fetches the learner's named pages under SSRF/content/size guards, then requires `[n]` citations or `(agent explanation)` before anything is written. |
 | PDF figures | `src/services/lockin/figures.ts` | Crops a page or a box out of the session's own PDF with `pdftoppm`, stores the PNG inside the session, and serves it to the shell as base64. |
+| Teaching citations | `src/domain/teaching.ts` | A step may quote a copied source with an exact excerpt; a citation outside the goal's sources is refused. No citation is labelled `agent explanation`. |
+| Learning graph | `src/services/knowledge/learning-graph.ts` | A read-only projection over goals, steps, sources, sessions, tasks, cards, research and figures. Every node is a file and every edge is provable; no model extraction. |
+| Prompt notes | `src/domain/prompts.ts`, `[prompts]` | One standing note per generator, appended below the shape and limits. It cannot change the contract, and `settings.patch` cannot write it. |
 
 The non-negotiables still hold: the wall, chill-is-tool-free, source-bound facts,
 atomic writes, no retry, and colour never being the only signal. Research and

@@ -605,6 +605,7 @@ class _ShellState extends State<Shell> {
     if (surface == Surface.settings) {
       final store = CoreScope.of(context);
       if (store.appVersion == null) unawaited(store.refreshUpdateInfo());
+      unawaited(store.refreshPrompts());
     }
     if (_paletteOpen) _closePalette();
     if (_commandOpen) _closeCommandLine();
@@ -682,6 +683,7 @@ class _ShellState extends State<Shell> {
       // is elsewhere, so it is read on entry. A failure keeps the previous
       // groups and the page shows the core's message with a retry.
       unawaited(store.loadKnowledgeTree());
+      unawaited(store.readLearningGraph());
     }
     // Skills keeps the open goal like Sessions and Work do, but the chapter
     // reader and the staged-lesson reader are layers of that surface: leaving
@@ -1619,6 +1621,9 @@ class _ShellState extends State<Shell> {
         updateChecking: store.updateChecking,
         updateError: store.updateError,
         onCheckUpdate: () => unawaited(store.checkForUpdates()),
+        prompts: store.prompts,
+        promptsError: store.promptsError,
+        onSetPrompt: store.setPrompt,
       ),
     };
 
@@ -1689,6 +1694,10 @@ class _ShellState extends State<Shell> {
       ),
       // `Enter` reads the row through the core and shows it in the layer above.
       onOpen: (id) => unawaited(store.readKnowledge(id)),
+      graph: store.learningGraph ?? LearningGraph.empty,
+      graphLoading: store.learningGraphLoading,
+      graphError: store.learningGraphError,
+      onLoadGraph: () => unawaited(store.readLearningGraph()),
       // Knowledge is a read-only snapshot over the vaults, not a layer: `Esc`
       // goes back to chat, the home surface, instead of inventing a parent.
       onBack: () => _select(Surface.chat),

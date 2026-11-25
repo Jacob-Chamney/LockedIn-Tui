@@ -8,7 +8,7 @@ to stderr.
 
 ```json
 → {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol":1,"client":"flutter"}}
-← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","session.deck.state","session.deck.grade","session.deck.reset","session.figure.list","session.figure.extract","session.figure.read","session.figure.annotate","session.figure.remove","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","keybinds.get","keybinds.set","chat.snapshot","chat.send","chat.cancel","session.chat.snapshot","session.chat.send","session.chat.cancel","session.chat.context","session.chat.compact","session.chat.uncompact","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","work.list","work.open","work.create","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","teach.state","teach.measure","teach.step","teach.check","teach.practice","teach.practice.result","teach.side.snapshot","teach.side.send","teach.side.clear","research.start","research.list","research.read","research.cancel","update.info","update.check","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read"]}}
+← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","session.deck.state","session.deck.grade","session.deck.reset","session.figure.list","session.figure.extract","session.figure.read","session.figure.annotate","session.figure.remove","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","keybinds.get","keybinds.set","chat.snapshot","chat.send","chat.cancel","session.chat.snapshot","session.chat.send","session.chat.cancel","session.chat.context","session.chat.compact","session.chat.uncompact","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","work.list","work.open","work.create","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","teach.state","teach.measure","teach.step","teach.check","teach.practice","teach.practice.result","teach.side.snapshot","teach.side.send","teach.side.clear","research.start","research.list","research.read","research.cancel","prompts.list","prompts.set","update.info","update.check","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read","knowledge.graph"]}}
 ```
 
 - `protocol` is an integer. A mismatch is a blocking shell error, not a retry.
@@ -2287,7 +2287,13 @@ The record lives at `skills/goals/<id>/teaching.json` (atomic replace):
 - `teach.step` `{goalId, again?}` → `{record, step, index, total}` — teaches the
   first step with no passing check. While a step is open the same record is
   returned (no model call) unless `again: true`. `step: null` when every step is
-  passed.
+  passed. A step reply may carry `citations: [{name, quote}]`: each name must be
+  one of the goal's copied sources with a saved excerpt, and each quote is the
+  exact words that prove it (≤240 characters). An unknown name, or a citation
+  when the goal has no sources, is a `{kind:"teaching"}` refusal — the step is
+  not rewritten to drop it. No citations means the prose is the model's own
+  explanation, labelled `agent explanation` in the UI and `grounded: "agent"` in
+  the graph.
 - `teach.check` `{goalId, answer, thinking?, confidence?}` → `{record, verdict,
   correction, passed, nextIndex, total}` — one verdict (`correct` | `partial` |
   `incorrect`) and one correction. `thinking` is the learner's own reasoning
@@ -2453,6 +2459,58 @@ colour set over Crimson survives switching the base to Codex. `theme.custom.set`
 replaces the whole map (an omitted token is cleared), and the shell exports /
 imports the same shape as JSON (`{name, base, tokens}`); an unknown token, a
 value that is not `#RRGGBB` or an unknown base is refused by name.
+
+### Learning graph
+
+`knowledge.graph` derives a read-only graph from the artifacts already on disk;
+it takes no parameters and writes nothing.
+
+```json
+{"graph":{"nodes":[{"id":"goal:read-disassembly","kind":"goal","label":"Read disassembly","detail":"goal","side":"skills","context":"Read disassembly","grounded":"record"}],"edges":[{"from":"source:read-disassembly:sha256:…","to":"goal:read-disassembly","kind":"bound-to"}],"counts":{"goal":1,"step":4,"source":2,"session":3,"task":11,"card":8,"research":1,"figure":2},"diagnostics":[],"truncated":false}}
+```
+
+- Node kinds are `goal`, `step`, `source`, `session`, `task`, `card`,
+  `research`, `figure`; edges are `contains`, `bound-to`, `cites`, `tests`,
+  `answers`, `cropped-from`. `grounded` is `source` (a copied source), `agent`
+  (the model's explanation, e.g. a teaching step with no citation) or `record`
+  (session/task/card/… state).
+- The derivation is exactly the files the rest of the core reads: goal `meta.json`
+  and `teaching.json`, the copied `sources/`, session metadata and
+  `assignment-steps.md`, `flashcards.md`, `figures/index.json`, and the
+  `research/*.json` sidecars. A folder that cannot be read becomes a
+  `diagnostics` line and is skipped; it never fails the request. The node cap is
+  2 000 (`truncated: true` past it), and two reads of an unchanged workspace are
+  byte-identical.
+- This is not an extraction pipeline: no model call, no invented proposition.
+  Deleting it loses nothing, and a source that is removed from a goal removes
+  its node on the next read.
+- The Knowledge surface opens it with `g`, groups rows by kind and expands one
+  row's relations with `Enter`. **Research and figures are not sources**: they
+  are nodes in their own right and never enter coverage.
+
+### Prompt notes
+
+`prompts.list` / `prompts.set` store one standing note per generator. A note is
+**guidance**, not a replacement for a prompt: it is appended below the shape,
+the length limits and the safety rules, and the parser still refuses a reply
+that breaks them.
+
+```json
+→ {"jsonrpc":"2.0","id":11,"method":"prompts.set","params":{"id":"measure","text":"prefer short sentences"}}
+← {"jsonrpc":"2.0","id":11,"result":{"items":[{"id":"measure","label":"measure and plan","description":"…","note":"prefer short sentences","custom":true}]}}
+```
+
+- Ids are `measure`, `step`, `check`, `practice`, `side`, `research` and
+  `compact`. An unknown id, a non-string text or a note over 2 000 characters is
+  `-32602`; nothing is written. An omitted `text` (or an empty string) clears the
+  note.
+- The note is stored under `[prompts]` in `config.toml`; `settings.patch`
+  refuses a `prompts` key so the generic patch cannot bypass the id and length
+  checks. A build with no config writer is `-32601`.
+- The reply is the whole catalogue after the write, so the shell replaces its
+  snapshot from this one message. No change event is emitted.
+- A note cannot add a source, change the JSON shape, raise a length limit or
+  alter a write/approval rule. A malformed reply is still one refusal.
 
 ### Keybinds
 

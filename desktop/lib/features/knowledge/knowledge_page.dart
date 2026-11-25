@@ -37,6 +37,10 @@ class KnowledgePage extends StatefulWidget {
     this.onRefresh,
     this.onBack,
     this.onOpen,
+    this.graph = LearningGraph.empty,
+    this.graphLoading = false,
+    this.graphError,
+    this.onLoadGraph,
   });
 
   /// The latest `knowledge.search` hits, empty before a search.
@@ -88,6 +92,14 @@ class KnowledgePage extends StatefulWidget {
   /// until it is active again.
   final bool active;
 
+  /// The source-grounded learning graph (`knowledge.graph`), or empty.
+  final LearningGraph graph;
+  final bool graphLoading;
+  final String? graphError;
+
+  /// Load the graph when `g` opens the graph view. Null keeps it read-only.
+  final VoidCallback? onLoadGraph;
+
   @override
   State<KnowledgePage> createState() => _KnowledgePageState();
 }
@@ -113,6 +125,14 @@ class _KnowledgePageState extends State<KnowledgePage> {
   late String _query;
 
   var _selectedIndex = 0;
+
+  /// True while the graph projection is the visible list. It is a mode of the
+  /// same surface, not a second screen: `g` toggles it and the header says
+  /// which projection is on.
+  var _graphMode = false;
+
+  /// Node ids whose relations are expanded.
+  final _graphExpanded = <String>{};
 
   /// The page's own muted line after `Enter`; never a core failure.
   String? _notice;
@@ -173,7 +193,11 @@ class _KnowledgePageState extends State<KnowledgePage> {
     for (final group in widget.groups) ...group.notes,
   ];
 
-  int get _count => _searching ? widget.hits.length : _notes.length;
+  int get _count => _graphMode
+      ? widget.graph.nodes.length
+      : _searching
+      ? widget.hits.length
+      : _notes.length;
 
   int get _selected {
     if (_count == 0) return -1;
@@ -252,12 +276,23 @@ class _KnowledgePageState extends State<KnowledgePage> {
   String? _selectedId() {
     final index = _selected;
     if (index < 0) return null;
+    if (_graphMode) return widget.graph.nodes[index].id;
     if (_searching) return widget.hits[index].id;
     final path = _notes[index].path.trim();
     return path.isEmpty ? null : path;
   }
 
   void _open() {
+    if (_graphMode) {
+      final node = _selected < widget.graph.nodes.length
+          ? widget.graph.nodes[_selected]
+          : null;
+      if (node == null) return;
+      setState(() {
+        if (!_graphExpanded.remove(node.id)) _graphExpanded.add(node.id);
+      });
+      return;
+    }
     final id = _selectedId();
     if (id == null) return;
     final open = widget.onOpen;
@@ -287,6 +322,10 @@ class _KnowledgePageState extends State<KnowledgePage> {
     final key = event.logicalKey;
     final editing = _searchFocus.hasFocus;
     if (key == LogicalKeyboardKey.escape) {
+      if (_graphMode) {
+        setState(() => _graphMode = false);
+        return KeyEventResult.handled;
+      }
       if (editing || _query.trim().isNotEmpty) {
         _clearQuery();
         return KeyEventResult.handled;
@@ -294,8 +333,17 @@ class _KnowledgePageState extends State<KnowledgePage> {
       widget.onBack?.call();
       return KeyEventResult.handled;
     }
+    // `g` is the graph projection of the same surface, not another screen.
+    if (key == LogicalKeyboardKey.keyG && !editing) {
+      setState(() {
+        _graphMode = !_graphMode;
+        _selectedIndex = 0;
+      });
+      if (_graphMode) widget.onLoadGraph?.call();
+      return KeyEventResult.handled;
+    }
     // `/` focuses the field; while it is focused every other bare key is INPUT.
-    if (key == LogicalKeyboardKey.slash && !editing) {
+    if (key == LogicalKeyboardKey.slash && !editing && !_graphMode) {
       _searchFocus.requestFocus();
       return KeyEventResult.handled;
     }
@@ -311,7 +359,9 @@ class _KnowledgePageState extends State<KnowledgePage> {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     // The scope control fires once per press, never on key repeat: a held `s`
     // must not spin through every projection and issue a request per frame.
-    if (key == LogicalKeyboardKey.keyS && widget.onScope != null) {
+    if (key == LogicalKeyboardKey.keyS &&
+        widget.onScope != null &&
+        !_graphMode) {
       widget.onScope!(_nextScope(widget.scope));
       return KeyEventResult.handled;
     }
@@ -320,9 +370,15 @@ class _KnowledgePageState extends State<KnowledgePage> {
       _open();
       return KeyEventResult.handled;
     }
-    if (key == LogicalKeyboardKey.keyR && widget.onRefresh != null) {
-      widget.onRefresh!();
-      return KeyEventResult.handled;
+    if (key == LogicalKeyboardKey.keyR) {
+      if (_graphMode) {
+        widget.onLoadGraph?.call();
+        return KeyEventResult.handled;
+      }
+      if (widget.onRefresh != null) {
+        widget.onRefresh!();
+        return KeyEventResult.handled;
+      }
     }
     return KeyEventResult.ignored;
   }
@@ -343,9 +399,13 @@ class _KnowledgePageState extends State<KnowledgePage> {
               children: [
                 _header(compact: compact),
                 const SizedBox(height: 10),
-                _searchField(),
-                const SizedBox(height: 8),
-                _scopeChips(),
+                if (_graphMode)
+                  _graphHint()
+                else ...[
+                  _searchField(),
+                  const SizedBox(height: 8),
+                  _scopeChips(),
+                ],
                 if (_showsWorkTreeNote) ...[
                   const SizedBox(height: 8),
                   _workTreeNote(),
@@ -371,7 +431,12 @@ class _KnowledgePageState extends State<KnowledgePage> {
     final notes = _notes.length;
     final total = _count;
     final scope = widget.scope.trim().isEmpty ? 'all' : widget.scope;
-    final summary = _searching
+    final summary = _graphMode
+        ? '${widget.graph.nodes.length} '
+              '${widget.graph.nodes.length == 1 ? 'node' : 'nodes'} · '
+              '${widget.graph.edges.length} '
+              '${widget.graph.edges.length == 1 ? 'relation' : 'relations'}'
+        : _searching
         ? '$total ${total == 1 ? 'hit' : 'hits'} · scope $scope'
         : '$notes ${notes == 1 ? 'note' : 'notes'} · '
               '${widget.groups.length} '
@@ -597,7 +662,186 @@ class _KnowledgePageState extends State<KnowledgePage> {
     );
   }
 
+  /// The line that explains the graph projection and its one key.
+  Widget _graphHint() {
+    return Row(
+      key: const ValueKey('knowledge-graph-hint'),
+      children: [
+        Icon(Icons.hub_outlined, size: 13, color: LockedInColors.muted),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            'derived from goals, sessions, sources and cards · read-only · '
+            'Enter expands relations · g returns to notes',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: 11,
+              height: 1.45,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// One row per node, grouped by kind, with its relations when expanded.
+  Widget _graphBody() {
+    if (widget.graphLoading && widget.graph.nodes.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 32),
+        child: Center(child: Text('reading the graph…')),
+      );
+    }
+    if (widget.graphError != null && widget.graph.nodes.isEmpty) {
+      return _ErrorBlock(
+        message: widget.graphError!,
+        onRetry: widget.onLoadGraph,
+      );
+    }
+    if (widget.graph.nodes.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 32),
+        child: Text('no learning artifacts yet · start a goal or a session'),
+      );
+    }
+    final byId = <String, LearningNode>{
+      for (final node in widget.graph.nodes) node.id: node,
+    };
+    final outgoing = <String, List<LearningEdge>>{};
+    final incoming = <String, List<LearningEdge>>{};
+    for (final edge in widget.graph.edges) {
+      outgoing.putIfAbsent(edge.from, () => []).add(edge);
+      incoming.putIfAbsent(edge.to, () => []).add(edge);
+    }
+    final children = <Widget>[];
+    String? lastKind;
+    for (final (index, node) in widget.graph.nodes.indexed) {
+      if (node.kind != lastKind) {
+        children.add(
+          Padding(
+            padding: EdgeInsets.only(top: index == 0 ? 0 : 10, bottom: 4),
+            child: Text(
+              node.kind.toUpperCase(),
+              style: TextStyle(
+                color: LockedInColors.secondary,
+                fontSize: 10,
+                letterSpacing: 1.2,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        );
+        lastKind = node.kind;
+      }
+      final selected = index == _selected;
+      final expanded = _graphExpanded.contains(node.id);
+      children.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: InkWell(
+            key: ValueKey('knowledge-graph-${node.id}'),
+            onTap: () {
+              setState(() => _selectedIndex = index);
+              _open();
+            },
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+              decoration: BoxDecoration(
+                color: selected ? LockedInColors.panel : Colors.transparent,
+                border: Border(
+                  left: BorderSide(
+                    color: selected
+                        ? LockedInColors.primary
+                        : Colors.transparent,
+                    width: Stroke.focus,
+                  ),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          node.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: selected
+                                ? LockedInColors.foreground
+                                : LockedInColors.secondary,
+                            fontSize: 12.5,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                      if (node.isAgent)
+                        Text(
+                          'agent explanation',
+                          style: TextStyle(
+                            color: LockedInColors.muted,
+                            fontSize: 10,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${node.context} · ${node.detail}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  ),
+                  if (expanded) ...[
+                    const SizedBox(height: 4),
+                    for (final edge
+                        in outgoing[node.id] ?? const <LearningEdge>[])
+                      Text(
+                        '→ ${edge.kind} · ${byId[edge.to]?.label ?? edge.to}',
+                        style: TextStyle(
+                          color: LockedInColors.secondary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    for (final edge
+                        in incoming[node.id] ?? const <LearningEdge>[])
+                      Text(
+                        '← ${edge.kind} · ${byId[edge.from]?.label ?? edge.from}',
+                        style: TextStyle(
+                          color: LockedInColors.muted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    if ((outgoing[node.id] ?? const []).isEmpty &&
+                        (incoming[node.id] ?? const []).isEmpty)
+                      Text(
+                        'no relations',
+                        style: TextStyle(
+                          color: LockedInColors.muted,
+                          fontSize: 11,
+                        ),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return ListView(
+      key: const ValueKey('knowledge-graph-list'),
+      controller: _scroll,
+      padding: const EdgeInsets.only(bottom: 8),
+      children: children,
+    );
+  }
+
   Widget _body() {
+    if (_graphMode) return _graphBody();
     final children = <Widget>[];
     if (widget.loading && _count > 0) {
       children.add(

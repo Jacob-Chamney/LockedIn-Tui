@@ -259,6 +259,69 @@ void main() {
     expect(asked, 'why does the call need to save it?');
   });
 
+  testWidgets('a step either cites its source or says agent explanation', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        teaching: TeachingState(
+          goal: _measured.goal,
+          prior: _measured.prior,
+          held: _measured.held,
+          gaps: _measured.gaps,
+          plan: _measured.plan,
+          checks: const [],
+          current: const TeachingStepBody(
+            stepId: 'step-1',
+            prose: 'A register is a named slot inside the processor.',
+            question: 'where does it live?',
+            citations: [
+              TeachingCitation(
+                name: 'intel.md',
+                quote: 'Registers hold working state across calls.',
+              ),
+            ],
+          ),
+        ),
+        onCheck: (_, _, _) {},
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('teach-citation-intel.md')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Registers hold working state'), findsOneWidget);
+    expect(find.byKey(const ValueKey('teach-agent-explanation')), findsNothing);
+  });
+
+  testWidgets('a step with no citation is labelled agent explanation', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        teaching: TeachingState(
+          goal: _measured.goal,
+          prior: _measured.prior,
+          held: _measured.held,
+          gaps: _measured.gaps,
+          plan: _measured.plan,
+          checks: const [],
+          current: _openStep,
+        ),
+        onCheck: (_, _, _) {},
+      ),
+    );
+    expect(
+      find.byKey(const ValueKey('teach-agent-explanation')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('a side answer reads as a thread and closes', (tester) async {
     await pump(
       tester,

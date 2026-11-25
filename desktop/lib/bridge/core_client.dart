@@ -1295,6 +1295,21 @@ class CoreStore extends ChangeNotifier {
   /// The open brief's id.
   String? researchOpenId;
 
+  /// The prompt catalogue with its stored notes.
+  List<PromptNoteView> prompts = const [];
+
+  /// The last prompt-note failure, shown in Settings.
+  String? promptsError;
+
+  /// The learning graph, or null before a read.
+  LearningGraph? learningGraph;
+
+  /// True while the graph is being derived.
+  bool learningGraphLoading = false;
+
+  /// The last graph failure, shown in the Knowledge surface.
+  String? learningGraphError;
+
   /// Figures cropped from the open session's PDFs.
   List<SessionFigure> figures = const [];
 
@@ -3298,6 +3313,74 @@ class CoreStore extends ChangeNotifier {
       await readFigures(id);
     } catch (failure) {
       figureError = _messageOf(failure);
+      notifyListeners();
+    }
+  }
+
+  /// Read the prompt catalogue (`prompts.list`).
+  Future<void> refreshPrompts() async {
+    try {
+      final json = await _connection.call('prompts.list');
+      final rows = json['items'];
+      prompts = rows is List
+          ? rows
+                .whereType<Map>()
+                .map(
+                  (row) =>
+                      PromptNoteView.fromJson(Map<String, dynamic>.from(row)),
+                )
+                .toList(growable: false)
+          : const [];
+      promptsError = null;
+    } catch (failure) {
+      promptsError = _messageOf(failure);
+    }
+    notifyListeners();
+  }
+
+  /// Set or clear one prompt note (`prompts.set`). Empty text clears it.
+  Future<void> setPrompt(String id, String text) async {
+    try {
+      final json = await _connection.call('prompts.set', {
+        'id': id,
+        'text': text,
+      });
+      final rows = json['items'];
+      prompts = rows is List
+          ? rows
+                .whereType<Map>()
+                .map(
+                  (row) =>
+                      PromptNoteView.fromJson(Map<String, dynamic>.from(row)),
+                )
+                .toList(growable: false)
+          : const [];
+      promptsError = null;
+    } catch (failure) {
+      promptsError = _messageOf(failure);
+    }
+    notifyListeners();
+  }
+
+  /// Derive the learning graph (`knowledge.graph`).
+  ///
+  /// Read-only and derived; a broken folder comes back as a diagnostic in the
+  /// graph, not as a failed request.
+  Future<void> readLearningGraph() async {
+    if (learningGraphLoading) return;
+    learningGraphLoading = true;
+    learningGraphError = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call('knowledge.graph');
+      final graph = json['graph'];
+      learningGraph = graph is Map
+          ? LearningGraph.fromJson(Map<String, dynamic>.from(graph))
+          : LearningGraph.empty;
+    } catch (failure) {
+      learningGraphError = _messageOf(failure);
+    } finally {
+      learningGraphLoading = false;
       notifyListeners();
     }
   }

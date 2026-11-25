@@ -216,6 +216,14 @@ import {
   renderFigure as renderPdfFigure,
   validateCrop,
 } from "../services/lockin/figures";
+import { loadLearningGraph } from "../services/knowledge/learning-graph";
+import {
+  PROMPT_DEFINITIONS,
+  isPromptId,
+  normalisePromptNote,
+  withPromptNote,
+  type PromptId,
+} from "../domain/prompts";
 import {
   MAX_SOURCES,
   checkSourceUrl,
@@ -381,6 +389,8 @@ export const CAPABILITIES = [
   "research.list",
   "research.read",
   "research.cancel",
+  "prompts.list",
+  "prompts.set",
   "update.info",
   "update.check",
   "skill.sources.list",
@@ -395,6 +405,7 @@ export const CAPABILITIES = [
   "knowledge.search",
   "knowledge.tree",
   "knowledge.read",
+  "knowledge.graph",
 ] as const;
 
 /** JSON-RPC error code for a boot refusal (server-defined range). */
@@ -602,6 +613,13 @@ export type CoreServices = Pick<Booted, "workspace" | "settings"> & {
    * check, which is an honest refusal rather than a hang.
    */
   updateCheck?: () => Promise<import("../services/update").UpdateCheck>;
+  /** The stored note for one prompt, or "". Supplied by `main.ts`. */
+  promptNote?: (id: import("../domain/prompts").PromptId) => string;
+  /** Persist one note (empty clears it). */
+  savePrompt?: (
+    id: import("../domain/prompts").PromptId,
+    note: string,
+  ) => Promise<Result<void, { message: string }>>;
   /**
    * The fetch used for a learner-named research source.
    *
@@ -5403,7 +5421,9 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     }
     let raw: string;
     try {
-      raw = await generate(compactPrompt(records.slice(0, keep)));
+      raw = await generate(
+        withPromptNote(compactPrompt(records.slice(0, keep)), current.value.promptNote?.("compact")),
+      );
     } catch (error) {
       return contextFailure(id, sessionId, oneLine(messageOf(error)));
     }
@@ -8416,7 +8436,9 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     }));
     let raw: string;
     try {
-      raw = await generate(measurePrompt({ goal: name, prior, sources }));
+      raw = await generate(
+        withPromptNote(measurePrompt({ goal: name, prior, sources }), current.value.promptNote?.("measure")),
+      );
     } catch (error) {
       return teachFailure(id, goalId, oneLine(messageOf(error)));
     }
@@ -8458,6 +8480,9 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     if (!generate) return teachNoModel(id, goalId);
 
     const folder = goalFolderFor(current.value.workspace, goalId);
+    const meta = await readGoalMeta(folder);
+    if (!meta.ok) return teachGoalFailure(id, goalId, meta.error.message);
+    const sourceLines = lessonSourceLines(meta.value.meta) ?? [];
     const loaded = await readTeaching(folder);
     if (!loaded.ok) return teachFailure(id, goalId, loaded.error.message);
     const record = loaded.value;
@@ -8478,17 +8503,18 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     let raw: string;
     try {
       raw = await generate(
-        stepPrompt({
+        withPromptNote(stepPrompt({
           goal: record.state.goal,
           held: record.state.held,
           plan: record.state.plan,
           stepIndex: index,
-        }),
+          sources: sourceLines.map((source) => ({ name: source.name, excerpt: source.excerpt })),
+        }), current.value.promptNote?.("step")),
       );
     } catch (error) {
       return teachFailure(id, goalId, oneLine(messageOf(error)));
     }
-    const parsed = parseStep(raw, plan.id);
+    const parsed = parseStep(raw, plan.id, sourceLines.map((source) => source.name));
     if (!parsed.ok) return teachFailure(id, goalId, parsed.error.message);
 
     const next: TeachingRecord = { ...record, current: parsed.step };
@@ -8555,12 +8581,12 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     let raw: string;
     try {
       raw = await generate(
-        checkPrompt({
+        withPromptNote(checkPrompt({
           step: record.current,
           answer: params.answer,
           ...(thinking === "" ? {} : { thinking }),
           ...(confidence === undefined ? {} : { confidence }),
-        }),
+        }), current.value.promptNote?.("check")),
       );
     } catch (error) {
       return teachFailure(id, goalId, oneLine(messageOf(error)));
@@ -8581,6 +8607,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
           correction: verdict.correction,
           ...(thinking === "" ? {} : { thinking }),
           ...(confidence === undefined ? {} : { confidence }),
+          citations: record.current.citations,
           at: new Date().toISOString(),
         },
       ],
@@ -8640,7 +8667,10 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     let raw: string;
     try {
       raw = await generate(
-        practicePrompt({ goal: record.state.goal, held: record.state.held, taught }),
+        withPromptNote(
+          practicePrompt({ goal: record.state.goal, held: record.state.held, taught }),
+          current.value.promptNote?.("practice"),
+        ),
       );
     } catch (error) {
       return teachFailure(id, goalId, oneLine(messageOf(error)));
@@ -8799,13 +8829,13 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       let raw: string;
       try {
         raw = await generate(
-          sidePrompt({
+          withPromptNote(sidePrompt({
             goal: record.state.goal,
             stepProse: open?.prose ?? step.title,
             stepQuestion: open?.question ?? "(this step is not open)",
             messages: before.value,
             question: text,
-          }),
+          }), current.value.promptNote?.("side")),
         );
       } catch (error) {
         return teachFailure(id, goalId, oneLine(messageOf(error)));
@@ -9107,7 +9137,12 @@ export function createCoreServer(options: CoreOptions): CoreServer {
           notify({ status: "failed", message: "none of the sources could be read" });
           return;
         }
-        const raw = await generate(researchPrompt({ question, sources: fetched }));
+        const raw = await generate(
+          withPromptNote(
+            researchPrompt({ question, sources: fetched }),
+            current.value.promptNote?.("research"),
+          ),
+        );
         if (job.cancelled) {
           researchJobs.delete(key);
           notify({ status: "cancelled" });
@@ -9195,6 +9230,61 @@ export function createCoreServer(options: CoreOptions): CoreServer {
   /* ------------------------------------------------------------------------ */
   /* Updates                                                                  */
   /* ------------------------------------------------------------------------ */
+
+  /* ------------------------------------------------------------------------ */
+  /* Prompt notes                                                             */
+  /* ------------------------------------------------------------------------ */
+
+  const promptItems = (note: (id: PromptId) => string) =>
+    PROMPT_DEFINITIONS.map((definition) => {
+      const text = note(definition.id);
+      return { ...definition, note: text, custom: text.trim() !== "" };
+    });
+
+  const promptsList = async (id: RpcId): Promise<JsonRpcResponse> => {
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    return success(id, { items: promptItems(current.value.promptNote ?? (() => "")) });
+  };
+
+  /**
+   * Set or clear one prompt note.
+   *
+   * The note is guidance appended to that generator; the reply's shape, its
+   * limits and the safety rules are unchanged. An omitted `text` clears it, as
+   * does an empty string.
+   */
+  const promptsSet = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const promptId = params.id;
+    if (!isPromptId(promptId)) {
+      return invalid(
+        id,
+        `prompts.set: unknown prompt ${JSON.stringify(promptId)}; expected one of ${PROMPT_DEFINITIONS.map((entry) => entry.id).join(", ")}`,
+      );
+    }
+    const normalised = normalisePromptNote(params.text ?? null);
+    if (!normalised.ok) return invalid(id, `prompts.set: ${normalised.message}`);
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const save = current.value.savePrompt;
+    if (!save) {
+      return failure(id, -32601, "Prompt editing is not available in this build", { kind: "prompt", id: promptId }, false);
+    }
+    const written = await save(promptId, normalised.note);
+    if (!written.ok) {
+      return failure(
+        id,
+        BOOT_FAILED,
+        oneLine(written.error.message),
+        { kind: "config", message: oneLine(written.error.message) },
+        false,
+      );
+    }
+    return success(id, { items: promptItems(current.value.promptNote ?? (() => "")) });
+  };
 
   /** The running version and the public release repository. No network. */
   const updateInfo = (id: RpcId): JsonRpcResponse =>
@@ -10904,6 +10994,29 @@ export function createCoreServer(options: CoreOptions): CoreServer {
    * match, which beats a body substring; ties go to the most recently updated,
    * then the path. At most {@link KNOWLEDGE_HIT_LIMIT} hits are returned.
    */
+  /**
+   * The source-grounded learning graph (`desktop/docs/redesign.md` §6).
+   *
+   * Read-only and derived: goals, teaching steps with their citations, copied
+   * sources, lock-in sessions and tasks, cards, research and figures. A broken
+   * folder is a diagnostic in the reply; it is never a request failure.
+   */
+  const knowledgeGraphResponse = async (id: RpcId): Promise<JsonRpcResponse> => {
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    try {
+      return success(id, { graph: await loadLearningGraph(current.value.workspace) });
+    } catch (error) {
+      return failure(
+        id,
+        BOOT_FAILED,
+        oneLine(messageOf(error)),
+        { kind: "knowledge-graph", message: oneLine(messageOf(error)) },
+        false,
+      );
+    }
+  };
+
   const knowledgeSearchResponse = async (
     id: RpcId,
     params: Record<string, unknown>,
@@ -11090,6 +11203,11 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         id,
         "settings.patch cannot change Work permissions; use work.permissions.set",
       );
+    }
+    // A prompt note is appended to a specific generator (`prompts.set`), so the
+    // generic patch must not be a second writer with no id or length check.
+    if ("prompts" in patch) {
+      return invalid(id, "settings.patch cannot change prompt notes; use prompts.set");
     }
     // The custom palette has its own validation (`theme.custom.set`): a generic
     // patch would store a token name or colour the editor could never produce.
@@ -11370,6 +11488,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         return knowledgeSearchResponse(id, params);
       case "knowledge.tree":
         return knowledgeTreeResponse(id, params);
+      case "knowledge.graph":
+        return knowledgeGraphResponse(id);
       case "knowledge.read":
         return knowledgeReadResponse(id, params);
       case "skill.list":
@@ -11424,6 +11544,10 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         return researchRead(id, params);
       case "research.cancel":
         return researchCancel(id, params);
+      case "prompts.list":
+        return promptsList(id);
+      case "prompts.set":
+        return promptsSet(id, params);
       case "update.info":
         return updateInfo(id);
       case "update.check":

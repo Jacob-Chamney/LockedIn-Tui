@@ -166,6 +166,13 @@ export type Config = {
     allow_write: boolean
     allow_command: boolean
   }
+  /**
+   * Standing guidance per prompt id (`src/domain/prompts.ts`).
+   *
+   * A note is appended to that generator only; it cannot change the reply's
+   * shape, its limits or a safety rule. Empty string = no note.
+   */
+  prompts: Record<string, string>
 }
 
 /** Exactly `docs/data-model.md` §2. */
@@ -235,6 +242,7 @@ export const DEFAULT_CONFIG: Config = {
     allow_write: false,
     allow_command: false,
   },
+  prompts: {},
 }
 
 export type ConfigIssue = {
@@ -617,6 +625,8 @@ export function validateDocument(document: TomlDocument): Result<Config, ConfigI
 
     () => asBoolean("work.allow_write", get("work.allow_write")),
     () => asBoolean("work.allow_command", get("work.allow_command")),
+
+    () => asStringMap("prompts", get("prompts")),
   ]
 
   for (const step of steps) {

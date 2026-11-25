@@ -56,6 +56,9 @@ class SettingsPage extends StatelessWidget {
     this.updateChecking = false,
     this.updateError,
     this.onCheckUpdate,
+    this.prompts = const <PromptNoteView>[],
+    this.promptsError,
+    this.onSetPrompt,
   });
 
   final SettingsView? settings;
@@ -163,6 +166,13 @@ class SettingsPage extends StatelessWidget {
 
   /// Run one check (`update.check`).
   final VoidCallback? onCheckUpdate;
+
+  /// The prompt catalogue with its notes (`prompts.list`).
+  final List<PromptNoteView> prompts;
+  final String? promptsError;
+
+  /// Set or clear one note (`prompts.set`). Null keeps the group read-only.
+  final Future<void> Function(String id, String text)? onSetPrompt;
 
   bool get _canConnect => onLinkProvider != null && onSaveSettings != null;
 
@@ -287,6 +297,9 @@ class SettingsPage extends StatelessWidget {
       updateChecking: updateChecking,
       updateError: updateError,
       onCheckUpdate: onCheckUpdate,
+      prompts: prompts,
+      promptsError: promptsError,
+      onSetPrompt: onSetPrompt,
     );
   }
 }
@@ -323,6 +336,9 @@ class _SettingsBody extends StatefulWidget {
     this.updateChecking = false,
     this.updateError,
     this.onCheckUpdate,
+    this.prompts = const <PromptNoteView>[],
+    this.promptsError,
+    this.onSetPrompt,
   });
 
   final SettingsView settings;
@@ -383,6 +399,11 @@ class _SettingsBody extends StatefulWidget {
   /// Run one check (`update.check`).
   final VoidCallback? onCheckUpdate;
 
+  /// The prompt catalogue with its notes (`prompts.list`).
+  final List<PromptNoteView> prompts;
+  final String? promptsError;
+  final Future<void> Function(String id, String text)? onSetPrompt;
+
   @override
   State<_SettingsBody> createState() => _SettingsBodyState();
 }
@@ -434,6 +455,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
       update: widget.update,
       updateChecking: widget.updateChecking,
       updateError: widget.updateError,
+      prompts: widget.prompts,
     );
     _rows = [for (final group in _groups) ...group.rows];
     _rowKeys = [for (var i = 0; i < _rows.length; i++) GlobalKey()];
@@ -643,6 +665,11 @@ class _SettingsBodyState extends State<_SettingsBody> {
       unawaited(_toggleWork(row!, work, write));
       return KeyEventResult.handled;
     }
+    if (row?.promptId != null &&
+        (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.space)) {
+      _activate();
+      return KeyEventResult.handled;
+    }
     final editable = widget.onSaveSettings != null && row?.edit != null;
     if (editable && key == LogicalKeyboardKey.enter) {
       _activate();
@@ -820,6 +847,10 @@ class _SettingsBodyState extends State<_SettingsBody> {
   void _activate() {
     if (_rows.isEmpty || _savingId != null) return;
     final row = _rows[_selected];
+    if (row.promptId != null) {
+      unawaited(_editPrompt(row));
+      return;
+    }
     // The theme row opens a picker: the built-ins are a visible choice, not a
     // value that changes each time Enter is pressed.
     if (row.id == 'theme' && widget.onSaveSettings != null) {
@@ -872,6 +903,56 @@ class _SettingsBodyState extends State<_SettingsBody> {
       _toggle(row, edit, save);
     } else {
       _openEditor(edit, save);
+    }
+  }
+
+  /// Edit one prompt note, then write it through the core.
+  ///
+  /// The dialog is the same for every generator: a note is guidance, not a new
+  /// shape, so there is no raw prompt to edit.
+  Future<void> _editPrompt(_SettingRow row) async {
+    final write = widget.onSetPrompt;
+    final promptId = row.promptId;
+    if (write == null || promptId == null) return;
+    final item = widget.prompts.firstWhere(
+      (entry) => entry.id == promptId,
+      orElse: () => PromptNoteView(
+        id: promptId,
+        label: row.label,
+        description: row.hint,
+        note: '',
+        custom: false,
+      ),
+    );
+    final text = await showDialog<String>(
+      context: context,
+      builder: (_) => _PromptNoteDialog(prompt: item),
+    );
+    if (!mounted || text == null) return;
+    setState(() {
+      _savingId = row.id;
+      _rowErrorId = null;
+      _rowError = null;
+      _noticeId = null;
+      _notice = null;
+    });
+    try {
+      await write(promptId, text);
+      if (!mounted) return;
+      setState(() {
+        _noticeId = row.id;
+        _notice = text.trim().isEmpty
+            ? '${row.label}: note cleared'
+            : '${row.label}: note saved';
+      });
+    } catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _rowErrorId = row.id;
+        _rowError = userMessage(failure);
+      });
+    } finally {
+      if (mounted) setState(() => _savingId = null);
     }
   }
 
@@ -2708,6 +2789,7 @@ class _SettingRow {
     this.keybind,
     this.decision,
     this.work,
+    this.promptId,
   });
 
   final String id;
@@ -2734,6 +2816,9 @@ class _SettingRow {
   /// One row of the `WORK` group. Non-null rows own Enter and Space and write
   /// the matching global opt-in; null keeps the row read-only.
   final _WorkCell? work;
+
+  /// One row of the `PROMPTS` group: Enter edits the note, empty clears it.
+  final String? promptId;
 
   /// Null keeps the row read-only. A value editor opens a dialog; a toggle
   /// patch is written on Enter or Space.
@@ -2875,6 +2960,7 @@ List<_SettingGroup> _buildGroups(
   UpdateView? update,
   bool updateChecking = false,
   String? updateError,
+  List<PromptNoteView> prompts = const <PromptNoteView>[],
 }) {
   return [
     _SettingGroup(
@@ -3139,6 +3225,28 @@ List<_SettingGroup> _buildGroups(
           hint: 'Enter check · c copy link',
         ),
       ],
+    ),
+    _SettingGroup(
+      title: 'PROMPTS',
+      rows: prompts.isEmpty
+          ? [
+              _SettingRow(
+                id: 'prompts-empty',
+                label: 'prompt notes',
+                value: 'no note',
+                hint: 'guidance for one generator; shape and limits stay fixed',
+              ),
+            ]
+          : [
+              for (final prompt in prompts)
+                _SettingRow(
+                  id: 'prompt-${prompt.id}',
+                  label: prompt.label,
+                  value: prompt.custom ? 'custom' : 'no note',
+                  hint: prompt.description,
+                  promptId: prompt.id,
+                ),
+            ],
     ),
     _SettingGroup(
       title: 'KEYBINDS',
@@ -3995,6 +4103,97 @@ class _ThemeJsonDialogState extends State<_ThemeJsonDialog> {
                     key: const ValueKey('theme-json-import'),
                     onPressed: _import,
                     child: const Text('import'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Edit one prompt note.
+///
+/// The note is appended below the generator's own contract. The dialog says that
+/// plainly, so the user never expects it to replace the shape or the limits.
+class _PromptNoteDialog extends StatefulWidget {
+  const _PromptNoteDialog({required this.prompt});
+
+  final PromptNoteView prompt;
+
+  @override
+  State<_PromptNoteDialog> createState() => _PromptNoteDialogState();
+}
+
+class _PromptNoteDialogState extends State<_PromptNoteDialog> {
+  late final TextEditingController _note = TextEditingController(
+    text: widget.prompt.note,
+  );
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: LockedInColors.surface,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Prompt note · ${widget.prompt.label}',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${widget.prompt.description} The note is guidance. The reply '
+                'shape, its length limits and the safety rules still apply.',
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: 11,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                key: const ValueKey('prompt-note-input'),
+                controller: _note,
+                minLines: 6,
+                maxLines: 12,
+                maxLength: 2000,
+                style: TextStyle(
+                  color: LockedInColors.foreground,
+                  fontSize: 12.5,
+                  height: 1.45,
+                ),
+                decoration: const InputDecoration(
+                  hintText:
+                      'e.g. prefer short sentences and one concrete example',
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('cancel'),
+                  ),
+                  const SizedBox(width: 6),
+                  FilledButton(
+                    key: const ValueKey('prompt-note-save'),
+                    onPressed: () => Navigator.of(context).pop(_note.text),
+                    child: const Text('save'),
                   ),
                 ],
               ),

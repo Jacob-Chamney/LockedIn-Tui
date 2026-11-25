@@ -17,6 +17,7 @@ import { join } from "node:path";
 import type { Result } from "../../domain/markdown";
 import type {
   TeachingCheck,
+  TeachingCitation,
   TeachingProblem,
   TeachingState,
   TeachingStepBody,
@@ -33,6 +34,8 @@ export type TeachingCheckRecord = {
   thinking?: string
   /** Self-reported 1–5 confidence, when they gave one. */
   confidence?: number
+  /** The citations the step carried when it was checked. */
+  citations?: TeachingCitation[]
   at: string
 }
 
