@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 import { boot } from "../../src/app/boot";
 import { SESSION_FILES } from "../../src/domain/session";
@@ -22,7 +23,7 @@ import {
 import type { ChatRequest, ChatService } from "../../src/llm/chat";
 import { removeTemp } from "../helpers/cleanup";
 
-const TEMP_BASE = existsSync("/tmp/opencode") ? "/tmp/opencode" : "/tmp";
+const TEMP_BASE = existsSync("/tmp/opencode") ? "/tmp/opencode" : tmpdir();
 const NOW = () => new Date("2026-11-01T12:00:00Z");
 
 let base: string;
@@ -141,7 +142,7 @@ describe("session-bound chat", () => {
     const result = (response as unknown as { result: { session: { sources: Array<{ name: string; storedPath: string }> } } }).result;
     expect(result.session.sources).toHaveLength(1);
     expect(result.session.sources[0]).toMatchObject({ name: "notes.md" });
-    expect(result.session.sources[0]?.storedPath).toContain("sources/");
+    expect(result.session.sources[0]?.storedPath.replaceAll("\\", "/")).toContain("sources/");
   });
 
   test("sends a source-bound turn, streams state and persists chat.jsonl", async () => {
