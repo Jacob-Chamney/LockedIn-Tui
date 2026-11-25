@@ -24,6 +24,7 @@ export const MODEL_SOURCES = [
   "src/server/protocol.ts",
   "src/stats/types.ts",
   "src/services/knowledge/learning-graph.ts",
+  "src/types/settings.ts",
 ];
 export const MODELS_PATH = "desktop/lib/bridge/core_models.g.dart";
 
@@ -59,6 +60,10 @@ export const MODEL_SPECS: readonly ModelSpec[] = [
   { name: "LearningNode", defaults: { grounded: "record" } },
   { name: "LearningEdge" },
   { name: "LearningGraph" },
+  {
+    name: "SettingsView",
+    ints: ["maxToolCalls", "maxTokensPerRequest", "historyLimit"],
+  },
 ];
 
 export type DartFieldType =
@@ -129,7 +134,11 @@ function mapType(
   models: ReadonlyMap<string, string>,
   isInt: boolean,
 ): MappedType {
-  if ((type.flags & ts.TypeFlags.String) !== 0) return { type: "string" };
+  if (
+    (type.flags & (ts.TypeFlags.String | ts.TypeFlags.StringLiteral)) !== 0
+  ) {
+    return { type: "string" };
+  }
   if ((type.flags & ts.TypeFlags.Number) !== 0) {
     return { type: isInt ? "int" : "double" };
   }
@@ -180,9 +189,96 @@ function mapType(
   throw new Error(`${where}: unsupported type ${checker.typeToString(type)}`);
 }
 
+/**
+ * Merge a union of object types into one Dart class.
+ *
+ * The wire uses unions for alternative reply shapes (a flattened `update`
+ * view). A Dart sealed hierarchy is more precise, but the shell only reads
+ * fields, so the generator flattens: a field every member shares keeps its
+ * type and requiredness; a field only some members carry becomes nullable. A
+ * field that maps to different types across members is refused.
+ */
+function flattenUnion(
+  checker: ts.TypeChecker,
+  type: ts.UnionType,
+  name: string,
+  models: ReadonlyMap<string, string>,
+  spec: ModelSpec,
+): DartField[] {
+  const order: string[] = [];
+  const byName = new Map<
+    string,
+    { mapped: MappedType; count: number; optional: boolean; doc: string }
+  >();
+  const members = type.types.filter((member) => !isNullish(member));
+  if (members.length !== type.types.length) {
+    throw new Error(`${name}: a nullable union is not supported`);
+  }
+  for (const member of members) {
+    if ((member.flags & ts.TypeFlags.Object) === 0) {
+      throw new Error(`${name}: a union of object types is required`);
+    }
+    for (const property of member.getProperties()) {
+      const raw = checker.getTypeOfSymbolAtLocation(
+        property,
+        property.valueDeclaration ?? property.declarations?.[0] ?? (undefined as never),
+      );
+      const nonNull = raw.isUnion()
+        ? raw.types.filter((entry) => !isNullish(entry))
+        : [];
+      const base = nonNull.length === 1 ? nonNull[0]! : raw;
+      const mapped = mapType(
+        checker,
+        base,
+        `${name}.${property.name}`,
+        models,
+        (spec.ints ?? []).includes(property.name),
+      );
+      const existing = byName.get(property.name);
+      if (existing === undefined) {
+        order.push(property.name);
+        byName.set(property.name, {
+          mapped,
+          count: 1,
+          optional: (property.flags & ts.SymbolFlags.Optional) !== 0,
+          doc: docOf(checker, property),
+        });
+      } else {
+        if (
+          existing.mapped.type !== mapped.type ||
+          existing.mapped.model !== mapped.model
+        ) {
+          throw new Error(
+            `${name}.${property.name}: union members disagree on the field type`,
+          );
+        }
+        existing.count += 1;
+        existing.optional ||= (property.flags & ts.SymbolFlags.Optional) !== 0;
+      }
+    }
+  }
+  return order.map((fieldName) => {
+    const entry = byName.get(fieldName)!;
+    return {
+      name: fieldName,
+      type: entry.mapped.type,
+      ...(entry.mapped.model === undefined ? {} : { model: entry.mapped.model }),
+      nullable: entry.optional || entry.count < members.length,
+      doc: entry.doc,
+    } satisfies DartField;
+  });
+}
+
 /** The allowlisted models, in source order of the allowlist. */
-export function extractModels(root: string): DartModel[] {
-  const program = ts.createProgram(MODEL_SOURCES.map((source) => join(root, source)), {
+export type ExtractOptions = {
+  sources?: readonly string[];
+  specs?: readonly ModelSpec[];
+};
+
+export function extractModels(root: string, options: ExtractOptions = {}): DartModel[] {
+  const sources = options.sources ?? MODEL_SOURCES;
+  const specs = options.specs ?? MODEL_SPECS;
+  const program = ts.createProgram(sources.map((source) => join(root, source)), {
     strict: true,
     noEmit: true,
     skipLibCheck: true,
@@ -190,8 +286,8 @@ export function extractModels(root: string): DartModel[] {
   const checker = program.getTypeChecker();
 
   const declarations = new Map<string, ts.TypeAliasDeclaration | ts.InterfaceDeclaration>();
-  const wanted = MODEL_SPECS.map((spec) => spec.name);
-  for (const source of MODEL_SOURCES) {
+  const wanted = specs.map((spec) => spec.name);
+  for (const source of sources) {
     const file = program.getSourceFile(join(root, source));
     if (file === undefined) throw new Error(`cannot read ${source}`);
     ts.forEachChild(file, (node) => {
@@ -205,45 +301,46 @@ export function extractModels(root: string): DartModel[] {
   }
 
   const modelsByTsName = new Map(
-    MODEL_SPECS.map((spec) => [spec.name, spec.dart ?? spec.name] as const),
+    specs.map((spec) => [spec.name, spec.dart ?? spec.name] as const),
   );
 
-  return MODEL_SPECS.map((spec) => {
+  return specs.map((spec) => {
     const name = spec.name;
     const node = declarations.get(name);
     if (node === undefined) {
-      throw new Error(`exported type ${name} not found in ${MODEL_SOURCES.join(", ")}`);
+      throw new Error(`exported type ${name} not found in ${sources.join(", ")}`);
     }
     const type = checker.getTypeAtLocation(node);
-    const fields = type.getProperties().map((property) => {
-      const raw = checker.getTypeOfSymbolAtLocation(property, node);
-      const optional = (property.flags & ts.SymbolFlags.Optional) !== 0;
-      // `T | null` and `T | undefined` are the nullable spelling; the one
-      // remaining member decides the Dart type.
-      const nonNull = raw.isUnion() ? raw.types.filter((member) => !isNullish(member)) : [];
-      const nullable = optional || (raw.isUnion() && nonNull.length < raw.types.length);
-      if (nullable && nonNull.length !== 1) {
-        throw new Error(`${name}.${property.name}: ambiguous nullable union`);
-      }
-      const base = nullable && nonNull.length === 1 ? nonNull[0]! : raw;
-      const mapped = mapType(
-        checker,
-        base,
-        `${name}.${property.name}`,
-        modelsByTsName,
-        (spec.ints ?? []).includes(property.name),
-      );
-      if (nullable && mapped.type === "model") {
-        throw new Error(`${name}.${property.name}: a nullable nested model is not supported yet`);
-      }
-      return {
-        name: property.name,
-        type: mapped.type,
-        ...(mapped.model === undefined ? {} : { model: mapped.model }),
-        nullable,
-        doc: docOf(checker, property),
-      } satisfies DartField;
-    });
+    const fields = type.isUnion()
+      ? flattenUnion(checker, type, name, modelsByTsName, spec)
+      : type.getProperties().map((property) => {
+        const raw = checker.getTypeOfSymbolAtLocation(property, node);
+        const optional = (property.flags & ts.SymbolFlags.Optional) !== 0;
+        // `T | null` and `T | undefined` are the nullable spelling; the one
+        // remaining member decides the Dart type.
+        const nonNull = raw.isUnion()
+          ? raw.types.filter((member) => !isNullish(member))
+          : [];
+        const nullable = optional || (raw.isUnion() && nonNull.length < raw.types.length);
+        if (nullable && nonNull.length !== 1) {
+          throw new Error(`${name}.${property.name}: ambiguous nullable union`);
+        }
+        const base = nullable && nonNull.length === 1 ? nonNull[0]! : raw;
+        const mapped = mapType(
+          checker,
+          base,
+          `${name}.${property.name}`,
+          modelsByTsName,
+          (spec.ints ?? []).includes(property.name),
+        );
+        return {
+          name: property.name,
+          type: mapped.type,
+          ...(mapped.model === undefined ? {} : { model: mapped.model }),
+          nullable,
+          doc: docOf(checker, property),
+        } satisfies DartField;
+      });
     if (fields.length === 0) throw new Error(`${name} has no fields`);
     return {
       name,
@@ -305,6 +402,8 @@ function parser(field: DartField, model: DartModel): string {
         return `_doubleOrNull(${read})`;
       case "bool":
         return `_boolOrNull(${read})`;
+      case "model":
+        return `_modelOrNull(${read}, ${field.model}.fromJson)`;
       default:
         throw new Error(`${model.name}.${field.name}: a nullable ${field.type} is not supported`);
     }
@@ -351,6 +450,8 @@ function helperFor(field: DartField): string[] {
         return ["doubleOrNull"];
       case "bool":
         return ["boolOrNull"];
+      case "model":
+        return ["modelOrNull"];
       default:
         return [];
     }
@@ -442,6 +543,10 @@ const HELPERS: Readonly<Record<string, readonly string[]>> = {
     "    value is num ? value.toDouble() : null;",
   ],
   boolOrNull: ["bool? _boolOrNull(Object? value) => value is bool ? value : null;"],
+  modelOrNull: [
+    "T? _modelOrNull<T>(Object? value, T Function(Map<String, dynamic>) parse) =>",
+    "    value is Map ? parse(Map<String, dynamic>.from(value)) : null;",
+  ],
 };
 
 export function renderModels(models: readonly DartModel[]): string {
@@ -483,6 +588,7 @@ export function renderModels(models: readonly DartModel[]): string {
     "intOrNull",
     "doubleOrNull",
     "boolOrNull",
+    "modelOrNull",
   ];
   for (const helper of order) {
     if (!needed.has(helper)) continue;

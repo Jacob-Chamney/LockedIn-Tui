@@ -1,7 +1,7 @@
 // GENERATED FILE — do not edit by hand.
 // dart format off
 //
-// Generated from the exported types in: src/server/protocol.ts, src/stats/types.ts, src/services/knowledge/learning-graph.ts.
+// Generated from the exported types in: src/server/protocol.ts, src/stats/types.ts, src/services/knowledge/learning-graph.ts, src/types/settings.ts.
 // Regenerate: `bun run scripts/generate-dart-models.ts`.
 //
 // The shell reads these models from the wire; every field is tolerant of a
@@ -13,6 +13,8 @@ String _stringOrDefault(Object? value, String fallback) =>
     value is String ? value : fallback;
 
 int _int(Object? value) => value is num ? value.toInt() : 0;
+
+double _double(Object? value) => value is num ? value.toDouble() : 0;
 
 bool _bool(Object? value) => value is bool ? value : false;
 
@@ -414,5 +416,101 @@ class LearningGraph {
     counts: _intMap(json['counts']),
     diagnostics: _strings(json['diagnostics']),
     truncated: _bool(json['truncated']),
+  );
+}
+
+/// The settings snapshot the core returns and the shell renders.
+///
+/// It lives here, not in a frontend, because both the TUI (removed) and the
+/// desktop shell consume the same projection from `src/server`.
+class SettingsView {
+  const SettingsView({
+    required this.username,
+    required this.theme,
+    required this.chatModel,
+    required this.baseUrl,
+    required this.maxToolCalls,
+    required this.maxTokensPerRequest,
+    required this.budgetUsd,
+    required this.period,
+    required this.warnAt,
+    required this.pauseAtLimit,
+    required this.dataDir,
+    required this.archiveBackend,
+    required this.archiveFolder,
+    required this.historyLimit,
+    required this.responseStyle,
+    required this.tutorPolicy,
+    required this.pluginServers,
+    required this.hideHints,
+    required this.pluginDirs,
+    required this.disabledPlugins,
+  });
+
+  final String username;
+
+  final String theme;
+
+  final String chatModel;
+
+  final String baseUrl;
+
+  final int maxToolCalls;
+
+  final int maxTokensPerRequest;
+
+  final double budgetUsd;
+
+  final String period;
+
+  final double warnAt;
+
+  final bool pauseAtLimit;
+
+  final String dataDir;
+
+  final String archiveBackend;
+
+  final String archiveFolder;
+
+  final int historyLimit;
+
+  final String responseStyle;
+
+  final String tutorPolicy;
+
+  /// MCP server names from config, for the Plugins surface.
+  final List<String> pluginServers;
+
+  /// `ui.hide_hints`: the chat's own hint rows are hidden.
+  final bool hideHints;
+
+  /// `ui.plugins.dirs`: folders that contain plugin directories.
+  final List<String> pluginDirs;
+
+  /// `ui.plugins.disabled`: discovered plugin ids that are not mounted.
+  final List<String> disabledPlugins;
+
+  factory SettingsView.fromJson(Map<String, dynamic> json) => SettingsView(
+    username: _string(json['username']),
+    theme: _string(json['theme']),
+    chatModel: _string(json['chatModel']),
+    baseUrl: _string(json['baseUrl']),
+    maxToolCalls: _int(json['maxToolCalls']),
+    maxTokensPerRequest: _int(json['maxTokensPerRequest']),
+    budgetUsd: _double(json['budgetUsd']),
+    period: _string(json['period']),
+    warnAt: _double(json['warnAt']),
+    pauseAtLimit: _bool(json['pauseAtLimit']),
+    dataDir: _string(json['dataDir']),
+    archiveBackend: _string(json['archiveBackend']),
+    archiveFolder: _string(json['archiveFolder']),
+    historyLimit: _int(json['historyLimit']),
+    responseStyle: _string(json['responseStyle']),
+    tutorPolicy: _string(json['tutorPolicy']),
+    pluginServers: _strings(json['pluginServers']),
+    hideHints: _bool(json['hideHints']),
+    pluginDirs: _strings(json['pluginDirs']),
+    disabledPlugins: _strings(json['disabledPlugins']),
   );
 }

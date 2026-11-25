@@ -113,4 +113,25 @@ void main() {
     expect(graph.node('goal:g')?.label, 'Read');
     expect(graph.node('missing'), isNull);
   });
+
+  test('the settings view decodes and tolerates missing values', () {
+    final view = SettingsView.fromJson({
+      'username': 'me',
+      'maxToolCalls': 8,
+      'budgetUsd': 5,
+      'pauseAtLimit': true,
+      'pluginServers': ['notes', 2],
+    });
+    expect(view.username, 'me');
+    expect(view.maxToolCalls, 8);
+    expect(view.budgetUsd, 5.0);
+    expect(view.pauseAtLimit, isTrue);
+    expect(view.pluginServers, ['notes']);
+    // Every absent field is its empty value, not an exception.
+    expect(view.theme, '');
+    expect(view.historyLimit, 0);
+    expect(view.warnAt, 0.0);
+    expect(view.hideHints, isFalse);
+    expect(view.disabledPlugins, isEmpty);
+  });
 }

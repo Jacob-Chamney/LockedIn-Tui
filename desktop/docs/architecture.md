@@ -121,15 +121,17 @@ Two generated files keep the Flutter bridge tied to the core:
 - **`desktop/lib/bridge/core_models.g.dart`** — the model decoders.
   `scripts/generate-dart-models.ts` reads the allowlisted exported types with
   the TypeScript compiler API and emits a tolerant `fromJson`. It covers the
-  Knowledge search/tree models and the whole Stats + learning-graph surface
-  (13 models): strings, `int`/`double` (the `ints` list), booleans, string
-  arrays, nested models and arrays of them, `Record<string, string|number>`
-  maps, and optional/`| null` fields as nullable Dart fields. `models.dart`
-  exports the generated classes and keeps the presentation getters
-  (`tokens`, `isAgent`, `node()`) and the `learningGraphEmpty` sentinel as
-  hand-written glue. Adding a model means adding it to `MODEL_SPECS`; the
-  generator refuses a shape it cannot map (a nullable nested model is the one
-  unsupported case).
+  Knowledge search/tree models, the whole Stats + learning-graph surface and
+  the settings view (14 models): strings, `int`/`double` (the `ints` list),
+  booleans, string arrays, nested models and arrays of them (nullable too),
+  `Record<string, string|number>` maps, optional/`| null` fields as nullable
+  Dart fields, and a union of object shapes flattened into one class (a field
+  every member shares stays required; a member-only field becomes nullable).
+  `models.dart` exports the generated classes and keeps the presentation
+  getters (`tokens`, `isAgent`, `node()`) and the `learningGraphEmpty` sentinel
+  as hand-written glue. Adding a model means adding it to `MODEL_SPECS`; the
+  generator refuses a shape it cannot map (a field whose type differs across
+  union members is the one unsupported case).
 
 Both files are marked `dart format off` because the generator owns their bytes.
 `tests/unit/generated-bindings.test.ts` and `tests/unit/generated-models.test.ts`
