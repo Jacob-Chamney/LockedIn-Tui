@@ -44,6 +44,10 @@ describe("generated Dart models", () => {
       "LearningGraph",
       "SettingsView",
       "SessionFigure",
+      "ChatMessageWire",
+      "ChatUsageWire",
+      "ChatBlockedWire",
+      "ChatErrorWire",
     ]);
     expect(read(MODELS_PATH)).toBe(renderModels(models));
   });
@@ -204,6 +208,39 @@ describe("generated Dart models", () => {
       ["note", "string", false],
       ["file", "string", false],
       ["createdAt", "string", false],
+    ]);
+  });
+
+  test("the chat leaf models keep their nullable fields and ints", () => {
+    const models = extractModels(ROOT);
+    const byName = new Map(models.map((model) => [model.name, model]));
+    const message = byName.get("ChatMessageWire");
+    expect(message?.dartName).toBe("ChatMessageView");
+    expect(
+      message?.fields.map((field) => [field.name, field.type, field.nullable]),
+    ).toEqual([
+      ["id", "string", false],
+      ["role", "string", false],
+      ["text", "string", false],
+      ["outcome", "string", true],
+    ]);
+    const usage = byName.get("ChatUsageWire");
+    expect(usage?.dartName).toBe("ChatUsageView");
+    expect(
+      usage?.fields.map((field) => [field.name, field.type, field.nullable]),
+    ).toEqual([
+      ["tokens", "int", false],
+      ["costMicroUsd", "int", true],
+      ["durationMs", "int", true],
+    ]);
+    expect(byName.get("ChatBlockedWire")?.fields.map((field) => field.name)).toEqual([
+      "reason",
+      "fix",
+    ]);
+    expect(byName.get("ChatErrorWire")?.fields.map((field) => field.name)).toEqual([
+      "failed",
+      "kept",
+      "next",
     ]);
   });
 

@@ -567,3 +567,85 @@ class SessionFigure {
     createdAt: _string(json['createdAt']),
   );
 }
+
+/// One message in a chat snapshot (`chat.state`, `session.chat.state`, …).
+class ChatMessageView {
+  const ChatMessageView({
+    required this.id,
+    required this.role,
+    required this.text,
+    this.outcome,
+  });
+
+  final String id;
+
+  final String role;
+
+  final String text;
+
+  final String? outcome;
+
+  factory ChatMessageView.fromJson(Map<String, dynamic> json) => ChatMessageView(
+    id: _string(json['id']),
+    role: _string(json['role']),
+    text: _string(json['text']),
+    outcome: _stringOrNull(json['outcome']),
+  );
+}
+
+/// The usage figures a chat snapshot carries.
+class ChatUsageView {
+  const ChatUsageView({
+    required this.tokens,
+    this.costMicroUsd,
+    this.durationMs,
+  });
+
+  final int tokens;
+
+  final int? costMicroUsd;
+
+  final int? durationMs;
+
+  factory ChatUsageView.fromJson(Map<String, dynamic> json) => ChatUsageView(
+    tokens: _int(json['tokens']),
+    costMicroUsd: _intOrNull(json['costMicroUsd']),
+    durationMs: _intOrNull(json['durationMs']),
+  );
+}
+
+class ChatBlocked {
+  const ChatBlocked({
+    required this.reason,
+    required this.fix,
+  });
+
+  final String reason;
+
+  final String fix;
+
+  factory ChatBlocked.fromJson(Map<String, dynamic> json) => ChatBlocked(
+    reason: _string(json['reason']),
+    fix: _string(json['fix']),
+  );
+}
+
+class ChatFailure {
+  const ChatFailure({
+    required this.failed,
+    required this.kept,
+    required this.next,
+  });
+
+  final String failed;
+
+  final String kept;
+
+  final String next;
+
+  factory ChatFailure.fromJson(Map<String, dynamic> json) => ChatFailure(
+    failed: _string(json['failed']),
+    kept: _string(json['kept']),
+    next: _string(json['next']),
+  );
+}
