@@ -30,7 +30,8 @@ export 'core_models.g.dart'
         ChatUsageView,
         ChatBlocked,
         ChatFailure,
-        ChatSnapshot;
+        ChatSnapshot,
+        AgentProfileView;
 
 String _string(Object? value) => value is String ? value : '';
 int _int(Object? value) => value is num ? value.toInt() : 0;
@@ -1028,33 +1029,8 @@ class ProjectRow {
 ///
 /// The Work detail edits this profile through `work.agent.save`; the shell
 /// never grants a capability itself, it only sends the flags the user chose.
-class AgentProfileView {
-  const AgentProfileView({
-    required this.id,
-    required this.name,
-    required this.role,
-    required this.instructions,
-    required this.model,
-    required this.maxToolCalls,
-    required this.allowedTools,
-    required this.allowWrite,
-    required this.allowCommand,
-    required this.template,
-  });
-
-  final String id;
-  final String name;
-  final String role;
-  final String instructions;
-
-  /// Empty means the project default model.
-  final String model;
-  final int maxToolCalls;
-  final List<String> allowedTools;
-  final bool allowWrite;
-  final bool allowCommand;
-  final String template;
-
+/// Computed views and the save payload for the generated [AgentProfileView].
+extension AgentProfileViewActions on AgentProfileView {
   /// True when this profile cannot write files or run commands.
   bool get readOnly => !allowWrite && !allowCommand;
 
@@ -1077,20 +1053,6 @@ class AgentProfileView {
     'allowCommand': allowCommand,
     'template': template.trim(),
   };
-
-  factory AgentProfileView.fromJson(Map<String, dynamic> json) =>
-      AgentProfileView(
-        id: _string(json['id']),
-        name: _string(json['name']),
-        role: _string(json['role']),
-        instructions: _string(json['instructions']),
-        model: _string(json['model']),
-        maxToolCalls: _int(json['maxToolCalls']),
-        allowedTools: _strings(json['allowedTools']),
-        allowWrite: _bool(json['allowWrite']),
-        allowCommand: _bool(json['allowCommand']),
-        template: _string(json['template']),
-      );
 }
 
 /// `work.templates.list` — one row a template picker can offer.

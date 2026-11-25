@@ -49,6 +49,7 @@ describe("generated Dart models", () => {
       "ChatBlockedWire",
       "ChatErrorWire",
       "ChatSnapshotView",
+      "AgentProfile",
     ]);
     expect(read(MODELS_PATH)).toBe(renderModels(models));
   });
@@ -263,6 +264,24 @@ describe("generated Dart models", () => {
     const generated = read(MODELS_PATH);
     expect(generated).toContain("class ChatSnapshot");
     expect(generated).not.toContain("final int seq;");
+  });
+
+  test("the agent profile keeps its int, list and capability flags", () => {
+    const models = extractModels(ROOT);
+    const agent = models.find((model) => model.name === "AgentProfile");
+    expect(agent?.dartName).toBe("AgentProfileView");
+    expect(agent?.fields.map((field) => [field.name, field.type])).toEqual([
+      ["id", "string"],
+      ["name", "string"],
+      ["role", "string"],
+      ["instructions", "string"],
+      ["model", "string"],
+      ["maxToolCalls", "int"],
+      ["allowedTools", "strings"],
+      ["allowWrite", "bool"],
+      ["allowCommand", "bool"],
+      ["template", "string"],
+    ]);
   });
 
   test("the source is the exported protocol type", () => {
