@@ -21,6 +21,15 @@ requests merge.
 
 ## Unreleased
 
+### Changed
+
+- The teaching plan is now a **learning tree**. The first step is open, a branch
+  stays locked until every step it builds on is held, and a locked row names
+  what still blocks it (`after …`) as well as saying `locked`. Passing a
+  prerequisite unlocks the branch immediately.
+
+### Added
+
 - Dart model decoders are generated from the core's TypeScript wire types: the
   Knowledge search/tree models, the full Stats + learning-graph surface, the
   settings view, the session figure, the whole chat cluster including
