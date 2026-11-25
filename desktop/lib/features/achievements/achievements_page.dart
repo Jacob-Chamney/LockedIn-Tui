@@ -35,6 +35,7 @@ class AchievementsPage extends StatefulWidget {
     this.loading = false,
     this.error,
     this.onRefresh,
+    this.focusNode,
     this.onBack,
   });
 
@@ -58,6 +59,10 @@ class AchievementsPage extends StatefulWidget {
 
   /// `r` and the Retry button ask the shell for a fresh read.
   final VoidCallback? onRefresh;
+
+  /// The node the page's key handler listens on. The shell owns it so it can
+  /// hand the page the keyboard the moment the layer opens.
+  final FocusNode? focusNode;
 
   /// `Esc` closes the layer, back to Stats.
   final VoidCallback? onBack;
@@ -236,6 +241,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
         final compact = constraints.maxWidth < 720;
         _narrow = compact;
         return Focus(
+          focusNode: widget.focusNode,
           autofocus: true,
           onKeyEvent: _onKey,
           child: Padding(
