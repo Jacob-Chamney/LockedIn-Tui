@@ -87,19 +87,20 @@ void main() {
   };
 
   for (final entry in managers.entries) {
-    testWidgets('${entry.key} caps its list at 900 on a 1400 window', (
-      tester,
-    ) async {
-      await pump(tester, entry.value);
-      expect(find.byType(ContentColumn), findsOneWidget);
-      expect(columnWidth(tester), 900);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('${entry.key} fills 800x600 without overflow', (tester) async {
-      await pump(tester, entry.value, size: const Size(800, 600));
-      expect(columnWidth(tester), 800);
-      expect(tester.takeException(), isNull);
-    });
+    // 600 is the new boundary: the header used to shorten at 620, and every
+    // list now keeps its full header down to `Breakpoints.hint`.
+    for (final size in const [
+      Size(1400, 900),
+      Size(800, 600),
+      Size(600, 700),
+    ]) {
+      final label = '${size.width.toInt()}x${size.height.toInt()}';
+      testWidgets('${entry.key} fits $label without overflow', (tester) async {
+        await pump(tester, entry.value, size: size);
+        expect(find.byType(ContentColumn), findsOneWidget);
+        expect(columnWidth(tester), size.width < 900 ? size.width : 900);
+        expect(tester.takeException(), isNull);
+      });
+    }
   }
 }

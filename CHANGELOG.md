@@ -21,6 +21,11 @@ requests merge.
 
 ## Unreleased
 
+- Layout thresholds live in one `Breakpoints` scale (rail, reading column,
+  data column, two-column split, trailing column, search snippet, hint, stacked
+  label). Every page compares against a named concept, and a source guard fails
+  if a width is compared against a bare number again.
+
 - Every list manager (sessions, skills, review, archive, knowledge, work,
   achievements) shares the detail views' content column, so a wide window no
   longer stretches a row's sentence and its trailing control to opposite edges.

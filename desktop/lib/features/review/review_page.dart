@@ -9,6 +9,7 @@ import '../keys.dart';
 import '../../bridge/models.dart';
 import '../shared/cards.dart';
 import '../../theme/palette.dart';
+import '../../theme/breakpoints.dart';
 import '../shared/content_column.dart';
 import '../../theme/tokens.dart';
 import '../shared/format.dart';
@@ -290,7 +291,7 @@ class _ReviewPageState extends State<ReviewPage> {
     return ContentColumn(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 620;
+          final compact = constraints.maxWidth < Breakpoints.hint;
           return Focus(
             autofocus: true,
             onKeyEvent: _onKey,

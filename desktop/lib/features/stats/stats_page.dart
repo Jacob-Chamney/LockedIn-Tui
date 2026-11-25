@@ -8,6 +8,7 @@ import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
 import '../shared/cards.dart';
 import '../../theme/palette.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/tokens.dart';
 import '../keys.dart';
 import '../chat/transcript_scroll.dart';
@@ -277,7 +278,7 @@ class _Dashboard extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 980;
+        final wide = constraints.maxWidth >= Breakpoints.columns;
         final columns = wide ? 4 : 2;
         final gap = 12.0;
         // The content column is capped below, so the cards are sized from the
@@ -285,7 +286,7 @@ class _Dashboard extends StatelessWidget {
         // made four cards wider than the column and wrapped the fourth onto a
         // row of its own on any window wider than 1220 px. The half pixel keeps
         // a rounding error from wrapping the last card.
-        const contentMax = 1180.0;
+        const contentMax = Breakpoints.contentWide;
         final contentWidth = math.min(constraints.maxWidth - 40, contentMax);
         final cardWidth = (contentWidth - gap * (columns - 1)) / columns - 0.5;
         return SingleChildScrollView(

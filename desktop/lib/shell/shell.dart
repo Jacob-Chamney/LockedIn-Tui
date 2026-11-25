@@ -33,6 +33,7 @@ import '../features/work/work_chat.dart';
 import '../features/work/work_page.dart';
 import '../keymap/registry.dart';
 import '../theme/palette.dart';
+import '../theme/breakpoints.dart';
 import '../theme/tokens.dart';
 import 'command_line.dart';
 import 'leader.dart';
@@ -1185,7 +1186,7 @@ class _ShellState extends State<Shell> {
     final width = MediaQuery.sizeOf(context).width;
     // Below 900 px the rail is icons whatever the mode says: the labels do not
     // fit, and a narrow window still needs its navigation.
-    _narrow = width < 900;
+    _narrow = width < Breakpoints.rail;
     final compact = _narrow || _sidebarMode == SidebarMode.icons;
     final store = CoreScope.of(context);
     final keymap = _keymap(store);

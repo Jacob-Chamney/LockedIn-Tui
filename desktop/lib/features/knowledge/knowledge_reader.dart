@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../theme/palette.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/tokens.dart';
 import '../chat/document_search.dart';
 import '../chat/markdown.dart';
@@ -350,7 +351,7 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
   Widget _headerAt(double width) {
     final theme = Theme.of(context);
     final hit = widget.document?.hit;
-    final compact = width < 700;
+    final compact = width < Breakpoints.column;
     final title = hit?.displayTitle ?? _idLabel(widget.documentId);
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 8, 14, 8),

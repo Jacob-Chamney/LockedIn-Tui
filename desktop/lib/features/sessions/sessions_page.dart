@@ -9,6 +9,7 @@ import '../../bridge/errors.dart';
 import '../../shell/chrome.dart';
 import '../shared/cards.dart';
 import '../../theme/palette.dart';
+import '../../theme/breakpoints.dart';
 import '../shared/content_column.dart';
 import '../../theme/tokens.dart';
 
@@ -457,8 +458,8 @@ class _SessionsPageState extends State<SessionsPage> {
     return ContentColumn(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final showDate = constraints.maxWidth >= 700;
-          final compact = constraints.maxWidth < 560;
+          final showDate = constraints.maxWidth >= Breakpoints.column;
+          final compact = constraints.maxWidth < Breakpoints.hint;
           return Focus(
             focusNode: _pageFocus,
             autofocus: true,

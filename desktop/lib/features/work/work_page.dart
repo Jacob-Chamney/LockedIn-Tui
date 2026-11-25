@@ -5,6 +5,7 @@ import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
+import '../../theme/breakpoints.dart';
 import '../shared/content_column.dart';
 import '../../theme/tokens.dart';
 import 'agent_dialog.dart';
@@ -179,7 +180,7 @@ class _WorkPageState extends State<WorkPage> {
     return ContentColumn(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final showMode = constraints.maxWidth >= 520;
+          final showMode = constraints.maxWidth >= Breakpoints.stack;
           return Focus(
             focusNode: _pageFocus,
             autofocus: true,
@@ -189,7 +190,7 @@ class _WorkPageState extends State<WorkPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _header(compact: constraints.maxWidth < 560),
+                  _header(compact: constraints.maxWidth < Breakpoints.hint),
                   const SizedBox(height: 10),
                   TextField(
                     key: _searchFieldKey,

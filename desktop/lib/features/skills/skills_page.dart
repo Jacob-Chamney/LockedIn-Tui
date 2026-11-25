@@ -7,6 +7,7 @@ import '../keys.dart';
 import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
+import '../../theme/breakpoints.dart';
 import '../shared/content_column.dart';
 import '../../theme/tokens.dart';
 import '../shared/cards.dart';
@@ -369,8 +370,8 @@ class _SkillsPageState extends State<SkillsPage> {
     return ContentColumn(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final showChapters = constraints.maxWidth >= 700;
-          final showOpened = constraints.maxWidth >= 620;
+          final showChapters = constraints.maxWidth >= Breakpoints.column;
+          final showOpened = constraints.maxWidth >= Breakpoints.column;
           return Focus(
             focusNode: _pageFocus,
             autofocus: true,
@@ -380,7 +381,7 @@ class _SkillsPageState extends State<SkillsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _header(compact: constraints.maxWidth < 560),
+                  _header(compact: constraints.maxWidth < Breakpoints.hint),
                   const SizedBox(height: 10),
                   TextField(
                     key: _searchFieldKey,

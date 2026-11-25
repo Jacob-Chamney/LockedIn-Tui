@@ -13,6 +13,7 @@ import '../../keymap/binding.dart';
 import '../../keymap/registry.dart';
 import '../../shell/chrome.dart';
 import '../../theme/palette.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/tokens.dart';
 import 'theme_picker.dart';
 import 'keybinds_section.dart';
@@ -180,7 +181,7 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final narrow = constraints.maxWidth < 520;
+        final narrow = constraints.maxWidth < Breakpoints.stack;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
