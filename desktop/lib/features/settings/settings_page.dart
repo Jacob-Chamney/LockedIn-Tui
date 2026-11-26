@@ -18,6 +18,7 @@ import '../../theme/tokens.dart';
 import 'connect_model_dialog.dart';
 import 'settings_widgets.dart';
 import 'setting_editor.dart';
+import 'settings_models.dart';
 import 'settings_dialogs.dart';
 import 'theme_picker.dart';
 import 'keybinds_section.dart';
@@ -417,9 +418,9 @@ class _SettingsBodyState extends State<_SettingsBody> {
   final _scroll = ScrollController();
   final _search = TextEditingController();
   final _searchFocus = FocusNode(debugLabel: 'settings-search');
-  late List<_SettingGroup> _allGroups;
-  late List<_SettingGroup> _groups;
-  late List<_SettingRow> _rows;
+  late List<SettingGroup> _allGroups;
+  late List<SettingGroup> _groups;
+  late List<SettingRow> _rows;
   late List<GlobalKey> _rowKeys;
   final _groupKeys = <String, GlobalKey>{};
   String _query = '';
@@ -483,7 +484,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
                   )
                   .toList()
                   .isNotEmpty)
-                _SettingGroup(
+                SettingGroup(
                   title: group.title,
                   rows: group.rows
                       .where(
@@ -721,7 +722,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
     if (decision != null && key == LogicalKeyboardKey.enter) {
       // The `model` row is not editable in any build: Enter restates the core's
       // reason instead of opening a picker the core would refuse.
-      if (decision.kind == _DecisionKind.model) {
+      if (decision.kind == DecisionKind.model) {
         _explainDecisionModel(row!);
         return KeyEventResult.handled;
       }
@@ -811,7 +812,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
     unawaited(_writeKeybind(keybind, binding.format()));
   }
 
-  _SettingRow? _rowById(String id) {
+  SettingRow? _rowById(String id) {
     for (final row in _rows) {
       if (row.id == id) return row;
     }
@@ -819,7 +820,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
   }
 
   /// Write one binding, or clear it with a null [binding].
-  Future<void> _writeKeybind(_KeybindCell cell, String? binding) async {
+  Future<void> _writeKeybind(KeybindCell cell, String? binding) async {
     final write = widget.onSetKeybind;
     if (write == null) return;
     if (_savingId != null) return;
@@ -945,7 +946,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
     }
     final decision = row.decision;
     if (decision != null) {
-      if (decision.kind == _DecisionKind.model) {
+      if (decision.kind == DecisionKind.model) {
         _explainDecisionModel(row);
         return;
       }
@@ -975,7 +976,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
   ///
   /// The dialog is the same for every generator: a note is guidance, not a new
   /// shape, so there is no raw prompt to edit.
-  Future<void> _editPrompt(_SettingRow row) async {
+  Future<void> _editPrompt(SettingRow row) async {
     final write = widget.onSetPrompt;
     final promptId = row.promptId;
     if (write == null || promptId == null) return;
@@ -1229,7 +1230,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
   /// cells move `explicit ↔ off`. The row keeps its stored value until the core
   /// accepts the write; a refusal leaves it unchanged with the message inline,
   /// and pressing Enter or Space again retries the same next value.
-  Future<void> _advancePolicy(_SettingRow row) async {
+  Future<void> _advancePolicy(SettingRow row) async {
     final cell = row.policy;
     final write = widget.onSetMcpPolicy;
     if (cell == null || write == null) return;
@@ -1266,8 +1267,8 @@ class _SettingsBodyState extends State<_SettingsBody> {
   /// core's own sentence inline. The shell re-renders `on`/`off` from the new
   /// `decision.get` view the store projects after the write.
   Future<void> _toggleDecision(
-    _SettingRow row,
-    _DecisionCell cell,
+    SettingRow row,
+    DecisionCell cell,
     Future<void> Function({bool? enabled, String? model}) write,
   ) async {
     if (_savingId != null) return;
@@ -1300,8 +1301,8 @@ class _SettingsBodyState extends State<_SettingsBody> {
   /// own sentence inline. The shell re-renders the two flags from the view the
   /// store projects after the write.
   Future<void> _toggleWork(
-    _SettingRow row,
-    _WorkCell cell,
+    SettingRow row,
+    WorkCell cell,
     Future<void> Function({bool? allowWrite, bool? allowCommand}) write,
   ) async {
     if (_savingId != null) return;
@@ -1312,8 +1313,8 @@ class _SettingsBodyState extends State<_SettingsBody> {
     });
     try {
       await write(
-        allowWrite: cell.kind == _WorkKind.write ? !cell.allowed : null,
-        allowCommand: cell.kind == _WorkKind.command ? !cell.allowed : null,
+        allowWrite: cell.kind == WorkKind.write ? !cell.allowed : null,
+        allowCommand: cell.kind == WorkKind.command ? !cell.allowed : null,
       );
       if (!mounted) return;
       setState(() => _savingId = null);
@@ -1332,7 +1333,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
   ///
   /// This is deliberately not an editor: no local model runtime is bundled, so
   /// the core refuses a non-empty model and a picker here would be a dead end.
-  void _explainDecisionModel(_SettingRow row) {
+  void _explainDecisionModel(SettingRow row) {
     final reason = row.decision?.reason ?? '';
     setState(() {
       _noticeId = row.id;
@@ -1343,7 +1344,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
   }
 
   Future<void> _toggle(
-    _SettingRow row,
+    SettingRow row,
     SettingEdit edit,
     Future<void> Function(Map<String, dynamic> patch) save,
   ) async {
@@ -1557,7 +1558,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
     return widgets;
   }
 
-  Widget _buildRow(_SettingRow row, int index) {
+  Widget _buildRow(SettingRow row, int index) {
     final selected = index == _selected;
     final error = _rowErrorId == row.id ? _rowError : null;
     final notice = _noticeId == row.id ? _notice : null;
@@ -1712,10 +1713,10 @@ class _SettingsBodyState extends State<_SettingsBody> {
   /// lands on when the badge says `no model connected`. `Enter` (and the
   /// chevron) opens the same dialog the button below them opens, so linking a
   /// model never needs a pointer.
-  bool _isConnectRow(_SettingRow row) =>
+  bool _isConnectRow(SettingRow row) =>
       row.id == 'chat-model' || row.id == 'providers';
 
-  bool _rowHasControl(_SettingRow row) =>
+  bool _rowHasControl(SettingRow row) =>
       _isConnectRow(row) ||
       row.edit != null ||
       row.policy != null ||
@@ -1726,7 +1727,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
   /// True when this build can actually run the row's control. A read-only page
   /// keeps the chevron but disables it, so the pointer never promises more than
   /// the keyboard can do.
-  bool _canRun(_SettingRow row) {
+  bool _canRun(SettingRow row) {
     if (_isConnectRow(row)) return widget.onConnect != null;
     if (row.policy != null) return widget.onSetMcpPolicy != null;
     if (row.decision != null) return widget.onSetDecision != null;
@@ -1735,7 +1736,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
     return row.edit != null && widget.onSaveSettings != null;
   }
 
-  Widget _wideRow(_SettingRow row) {
+  Widget _wideRow(SettingRow row) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1746,14 +1747,14 @@ class _SettingsBodyState extends State<_SettingsBody> {
     );
   }
 
-  Widget _stackedRow(_SettingRow row) {
+  Widget _stackedRow(SettingRow row) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [_rowLabel(row), const SizedBox(height: 4), _valueWidget(row)],
     );
   }
 
-  Widget _valueWidget(_SettingRow row, {TextAlign? textAlign}) {
+  Widget _valueWidget(SettingRow row, {TextAlign? textAlign}) {
     if (_savingId == row.id) {
       return Row(
         mainAxisSize: MainAxisSize.min,
@@ -1787,11 +1788,11 @@ class _SettingsBodyState extends State<_SettingsBody> {
       textAlign: textAlign,
       maxLines: widget.narrow ? 3 : 2,
       overflow: TextOverflow.ellipsis,
-      style: _valueStyle(row.value),
+      style: valueStyle(row.value),
     );
   }
 
-  Widget _keybindValue(_SettingRow row) {
+  Widget _keybindValue(SettingRow row) {
     final cell = row.keybind!;
     return KeybindValue(
       binding: cell.binding,
@@ -1800,7 +1801,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
     );
   }
 
-  Widget _rowLabel(_SettingRow row) {
+  Widget _rowLabel(SettingRow row) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1827,140 +1828,6 @@ class _SettingsBodyState extends State<_SettingsBody> {
   }
 }
 
-class _SettingRow {
-  const _SettingRow({
-    required this.id,
-    required this.label,
-    required this.value,
-    required this.hint,
-    this.edit,
-    this.note,
-    this.policy,
-    this.keybind,
-    this.decision,
-    this.work,
-    this.promptId,
-  });
-
-  final String id;
-  final String label;
-  final String value;
-  final String hint;
-
-  /// An inline message under the row, in the error tone. Used for a failed MCP
-  /// server, whose message must not be truncated to fit a value column.
-  final String? note;
-
-  /// One editable policy cell. Non-null rows cycle their value on Enter or
-  /// Space; null keeps the row read-only.
-  final _PolicyCell? policy;
-
-  /// One rebindable row. Non-null rows capture the next chord on Enter; null
-  /// keeps the row a read-only projection.
-  final _KeybindCell? keybind;
-
-  /// One row of the `DECISION LAYER` group. Non-null rows own Enter and Space:
-  /// the `enabled` row toggles, the `model` row restates the core's reason.
-  final _DecisionCell? decision;
-
-  /// One row of the `WORK` group. Non-null rows own Enter and Space and write
-  /// the matching global opt-in; null keeps the row read-only.
-  final _WorkCell? work;
-
-  /// One row of the `PROMPTS` group: Enter edits the note, empty clears it.
-  final String? promptId;
-
-  /// Null keeps the row read-only. A value editor opens a dialog; a toggle
-  /// patch is written on Enter or Space.
-  final SettingEdit? edit;
-}
-
-enum _DecisionKind { enabled, model }
-
-/// One row of the `DECISION LAYER` group.
-///
-/// [enabled] is the stored toggle state ([kind] `enabled`); [reason] is the
-/// core's own sentence explaining why no local model can run here ([kind]
-/// `model`). The model row carries no writer: this build has no local model
-/// runtime, so an editor would promise a control the core refuses.
-class _DecisionCell {
-  const _DecisionCell({
-    required this.kind,
-    this.enabled = false,
-    this.reason = '',
-  });
-
-  final _DecisionKind kind;
-  final bool enabled;
-  final String reason;
-}
-
-/// One row of the `WORK` group: which global opt-in it writes, and the stored
-/// value it renders.
-class _WorkCell {
-  const _WorkCell({required this.kind, required this.allowed});
-
-  final _WorkKind kind;
-
-  /// The stored flag. False means the core refuses that approval until the user
-  /// turns it on here; it is never inferred from the agent profile.
-  final bool allowed;
-}
-
-enum _WorkKind { write, command }
-
-/// One row of the `KEYBINDS` group: the action and the binding in force.
-class _KeybindCell {
-  const _KeybindCell({
-    required this.actionId,
-    required this.binding,
-    required this.custom,
-    required this.fixed,
-  });
-
-  final String actionId;
-  final Binding binding;
-
-  /// True when a stored override is in force, so `r`/`R` have something to reset.
-  final bool custom;
-
-  /// True when the override belongs in `ui.fixed_keybinds`.
-  final bool fixed;
-}
-
-/// One cell of the MCP policy matrix as the page renders it.
-///
-/// [value] is the stored cell (`on`, `explicit` or `off`) or empty when the core
-/// stored none; an empty value prints `default` and is never invented.
-class _PolicyCell {
-  const _PolicyCell({
-    required this.command,
-    required this.server,
-    required this.value,
-  });
-
-  final String command;
-  final String server;
-  final String value;
-}
-
-class _SettingGroup {
-  const _SettingGroup({required this.title, required this.rows});
-
-  final String title;
-  final List<_SettingRow> rows;
-}
-
-TextStyle _valueStyle(String value) {
-  return TextStyle(
-    color: value == 'not set'
-        ? LockedInColors.muted
-        : LockedInColors.foreground,
-    fontSize: TypeScale.body,
-    height: 1.5,
-  );
-}
-
 /// What the updates row prints, in the order the states become true.
 String _updateRowValue(UpdateView? state, bool checking, String? error) {
   if (checking) return 'checking…';
@@ -1973,7 +1840,7 @@ String _updateRowValue(UpdateView? state, bool checking, String? error) {
       : 'not available';
 }
 
-List<_SettingGroup> _buildGroups(
+List<SettingGroup> _buildGroups(
   SettingsView settings, {
   List<McpServerView> mcpServers = const <McpServerView>[],
   PluginPolicy mcpPolicy = PluginPolicy.empty,
@@ -1988,10 +1855,10 @@ List<_SettingGroup> _buildGroups(
   List<PromptNoteView> prompts = const <PromptNoteView>[],
 }) {
   return [
-    _SettingGroup(
+    SettingGroup(
       title: 'USER',
       rows: [
-        _SettingRow(
+        SettingRow(
           id: 'username',
           label: 'username',
           value: _text(settings.username),
@@ -2006,7 +1873,7 @@ List<_SettingGroup> _buildGroups(
             },
           ),
         ),
-        _SettingRow(
+        SettingRow(
           id: 'theme',
           label: 'theme',
           value: _text(settings.theme),
@@ -2022,22 +1889,22 @@ List<_SettingGroup> _buildGroups(
         ),
       ],
     ),
-    _SettingGroup(
+    SettingGroup(
       title: 'MODELS',
       rows: [
-        _SettingRow(
+        SettingRow(
           id: 'chat-model',
           label: 'chat model',
           value: _text(settings.chatModel),
           hint: 'Enter connect · explicit choice, never auto-selected',
         ),
-        _SettingRow(
+        SettingRow(
           id: 'providers',
           label: 'providers',
           value: _providers(settings),
           hint: 'Enter link a key · keys live in the OS keychain',
         ),
-        _SettingRow(
+        SettingRow(
           id: 'base-url',
           label: 'base URL',
           value: _text(settings.baseUrl),
@@ -2053,7 +1920,7 @@ List<_SettingGroup> _buildGroups(
             },
           ),
         ),
-        _SettingRow(
+        SettingRow(
           id: 'max-tool-calls',
           label: 'max tool calls',
           value: _positive(settings.maxToolCalls),
@@ -2072,7 +1939,7 @@ List<_SettingGroup> _buildGroups(
             },
           ),
         ),
-        _SettingRow(
+        SettingRow(
           id: 'max-tokens',
           label: 'max tokens per request',
           value: settings.maxTokensPerRequest <= 0
@@ -2099,10 +1966,10 @@ List<_SettingGroup> _buildGroups(
         ),
       ],
     ),
-    _SettingGroup(
+    SettingGroup(
       title: 'USAGE',
       rows: [
-        _SettingRow(
+        SettingRow(
           id: 'budget',
           label: 'budget',
           value: _budget(settings.budgetUsd),
@@ -2118,7 +1985,7 @@ List<_SettingGroup> _buildGroups(
             },
           ),
         ),
-        _SettingRow(
+        SettingRow(
           id: 'period',
           label: 'period',
           value: _text(settings.period),
@@ -2132,7 +1999,7 @@ List<_SettingGroup> _buildGroups(
             },
           ),
         ),
-        _SettingRow(
+        SettingRow(
           id: 'warn-at',
           label: 'warn at',
           value: '${(settings.warnAt * 100).round()}%',
@@ -2148,7 +2015,7 @@ List<_SettingGroup> _buildGroups(
             },
           ),
         ),
-        _SettingRow(
+        SettingRow(
           id: 'pause-at-limit',
           label: 'pause at limit',
           value: settings.pauseAtLimit ? 'yes' : 'no',
@@ -2164,28 +2031,28 @@ List<_SettingGroup> _buildGroups(
         ),
       ],
     ),
-    _SettingGroup(
+    SettingGroup(
       title: 'STORAGE',
       rows: [
-        _SettingRow(
+        SettingRow(
           id: 'data-folder',
           label: 'data folder',
           value: _text(settings.dataDir),
           hint: 'app data stays outside the workspace',
         ),
-        _SettingRow(
+        SettingRow(
           id: 'archive-backend',
           label: 'archive backend',
           value: _text(settings.archiveBackend),
           hint: 'folder or private GitHub',
         ),
-        _SettingRow(
+        SettingRow(
           id: 'archive-folder',
           label: 'archive folder',
           value: _text(settings.archiveFolder),
           hint: 'local archive destination',
         ),
-        _SettingRow(
+        SettingRow(
           id: 'history-limit',
           label: 'history limit',
           value: settings.historyLimit <= 0
@@ -2206,10 +2073,10 @@ List<_SettingGroup> _buildGroups(
         ),
       ],
     ),
-    _SettingGroup(
+    SettingGroup(
       title: 'PLUGINS',
       rows: [
-        _SettingRow(
+        SettingRow(
           id: 'mcp-servers',
           label: 'MCP servers',
           value: settings.pluginServers.isEmpty
@@ -2222,7 +2089,7 @@ List<_SettingGroup> _buildGroups(
           ..._policyCellRows(mcpServers, mcpPolicy)
         else
           for (final command in _policyCommands) _policyRow(command, mcpPolicy),
-        _SettingRow(
+        SettingRow(
           id: 'ui-plugins',
           label: 'UI plugins',
           value: _uiPlugins(settings),
@@ -2230,12 +2097,12 @@ List<_SettingGroup> _buildGroups(
         ),
       ],
     ),
-    _SettingGroup(title: 'DECISION LAYER', rows: _decisionRows(decision)),
-    _SettingGroup(title: 'WORK', rows: _workRows(workPermissions)),
-    _SettingGroup(
+    SettingGroup(title: 'DECISION LAYER', rows: _decisionRows(decision)),
+    SettingGroup(title: 'WORK', rows: _workRows(workPermissions)),
+    SettingGroup(
       title: 'ABOUT',
       rows: [
-        _SettingRow(
+        SettingRow(
           id: 'app-version',
           label: 'version',
           value: appVersion?.trim().isNotEmpty == true
@@ -2243,7 +2110,7 @@ List<_SettingGroup> _buildGroups(
               : 'not read',
           hint: 'the running build',
         ),
-        _SettingRow(
+        SettingRow(
           id: 'updates',
           label: 'updates',
           value: _updateRowValue(update, updateChecking, updateError),
@@ -2251,11 +2118,11 @@ List<_SettingGroup> _buildGroups(
         ),
       ],
     ),
-    _SettingGroup(
+    SettingGroup(
       title: 'PROMPTS',
       rows: prompts.isEmpty
           ? [
-              _SettingRow(
+              SettingRow(
                 id: 'prompts-empty',
                 label: 'prompt notes',
                 value: 'no note',
@@ -2264,7 +2131,7 @@ List<_SettingGroup> _buildGroups(
             ]
           : [
               for (final prompt in prompts)
-                _SettingRow(
+                SettingRow(
                   id: 'prompt-${prompt.id}',
                   label: prompt.label,
                   value: prompt.custom ? 'custom' : 'no note',
@@ -2273,19 +2140,19 @@ List<_SettingGroup> _buildGroups(
                 ),
             ],
     ),
-    _SettingGroup(
+    SettingGroup(
       title: 'KEYBINDS',
       rows: [
         // Generated from the one registry: the leader overlay, the shell's
         // dispatch and this editor read the same rows, so an override here is
         // the binding that runs.
         for (final entry in keybindSettingRows(keymap ?? KeymapRegistry()))
-          _SettingRow(
+          SettingRow(
             id: entry.id,
             label: entry.label,
             value: entry.binding.display,
             hint: entry.hint,
-            keybind: _KeybindCell(
+            keybind: KeybindCell(
               actionId: entry.actionId,
               binding: entry.binding,
               custom: entry.custom,
@@ -2307,39 +2174,36 @@ const _decisionUnread = 'not read yet';
 /// shipped in this build` and the core's own reason instead of offering a picker
 /// that could only fail. When a future build reports `rulesOnly: false` the
 /// "not shipped" note is simply absent — no new control is invented for it.
-List<_SettingRow> _decisionRows(DecisionView? view) {
+List<SettingRow> _decisionRows(DecisionView? view) {
   if (view == null) {
     return const [
-      _SettingRow(
+      SettingRow(
         id: 'decision-enabled',
         label: 'enabled',
         value: _decisionUnread,
         hint: 'read from the core when Settings opens',
-        decision: _DecisionCell(kind: _DecisionKind.enabled),
+        decision: DecisionCell(kind: DecisionKind.enabled),
       ),
     ];
   }
   final rulesOnly = view.rulesOnly;
   final reason = view.localModelReason.trim();
   return [
-    _SettingRow(
+    SettingRow(
       id: 'decision-enabled',
       label: 'enabled',
       value: view.enabled ? 'on' : 'off',
       hint: 'Enter or Space toggles · rules only',
-      decision: _DecisionCell(
-        kind: _DecisionKind.enabled,
-        enabled: view.enabled,
-      ),
+      decision: DecisionCell(kind: DecisionKind.enabled, enabled: view.enabled),
     ),
-    _SettingRow(
+    SettingRow(
       id: 'decision-model',
       label: 'model',
       value: rulesOnly ? 'not shipped in this build' : _text(view.model),
       hint: rulesOnly
           ? (reason.isEmpty ? 'no local model runtime is bundled' : reason)
           : 'no local model editor in this build',
-      decision: _DecisionCell(kind: _DecisionKind.model, reason: reason),
+      decision: DecisionCell(kind: DecisionKind.model, reason: reason),
     ),
   ];
 }
@@ -2350,26 +2214,23 @@ List<_SettingRow> _decisionRows(DecisionView? view) {
 /// row says `not read yet` until `work.permissions.get` answers. Turning one on
 /// here does not approve anything; every write and command still needs its own
 /// approval, and the agent profile must allow it too.
-List<_SettingRow> _workRows(WorkPermissions? view) {
+List<SettingRow> _workRows(WorkPermissions? view) {
   String value(bool allowed) => allowed ? 'allowed' : 'switched off';
   return [
-    _SettingRow(
+    SettingRow(
       id: 'work-allow-write',
       label: 'allow writes',
       value: view == null ? 'not loaded yet' : value(view.allowWrite),
       hint: 'Enter or Space toggles · per-write approval is still required',
-      work: _WorkCell(
-        kind: _WorkKind.write,
-        allowed: view?.allowWrite ?? false,
-      ),
+      work: WorkCell(kind: WorkKind.write, allowed: view?.allowWrite ?? false),
     ),
-    _SettingRow(
+    SettingRow(
       id: 'work-allow-command',
       label: 'allow commands',
       value: view == null ? 'not loaded yet' : value(view.allowCommand),
       hint: 'Enter or Space toggles · per-command approval is still required',
-      work: _WorkCell(
-        kind: _WorkKind.command,
+      work: WorkCell(
+        kind: WorkKind.command,
         allowed: view?.allowCommand ?? false,
       ),
     ),
@@ -2469,8 +2330,8 @@ const _policyCommands = <String>[
 /// core never sends a command, argument, environment value or path, so none can
 /// leak here. A failed connect keeps its message on a full-width line under the
 /// row rather than in a clipped value column.
-_SettingRow _mcpServerRow(McpServerView server) {
-  return _SettingRow(
+SettingRow _mcpServerRow(McpServerView server) {
+  return SettingRow(
     id: 'mcp-server-${server.name}',
     label: server.name,
     value: _mcpServerState(server),
@@ -2501,9 +2362,9 @@ String _mcpTools(McpServerView server) {
 ///
 /// This is the read-only projection used when the shell has no
 /// `mcp.policy.set` writer; the editable matrix renders [_policyCellRows].
-_SettingRow _policyRow(String command, PluginPolicy policy) {
+SettingRow _policyRow(String command, PluginPolicy policy) {
   final row = policy.rowFor(command);
-  return _SettingRow(
+  return SettingRow(
     id: 'mcp-policy-$command',
     label: command,
     value: row.isEmpty
@@ -2524,22 +2385,22 @@ const _noPluginCommands = <String>{'flashcards', 'study-guide'};
 /// Only configured servers get a row: a stored cell for a server that is no
 /// longer configured is not rendered, so the page never offers a write the core
 /// would refuse. An absent cell prints `default` and stays absent until written.
-List<_SettingRow> _policyCellRows(
+List<SettingRow> _policyCellRows(
   List<McpServerView> servers,
   PluginPolicy policy,
 ) {
-  final rows = <_SettingRow>[];
+  final rows = <SettingRow>[];
   for (final command in _policyCommands) {
     final cells = policy.rowFor(command);
     for (final server in servers) {
       final value = cells[server.name] ?? '';
       rows.add(
-        _SettingRow(
+        SettingRow(
           id: 'mcp-policy-$command-${server.name}',
           label: '$command · ${server.name}',
           value: value.isEmpty ? 'default' : value,
           hint: 'Enter or Space cycles',
-          policy: _PolicyCell(
+          policy: PolicyCell(
             command: command,
             server: server.name,
             value: value,
