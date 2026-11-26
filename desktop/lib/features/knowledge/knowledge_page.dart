@@ -6,10 +6,12 @@ import 'package:material_ui/material_ui.dart';
 import '../keys.dart';
 import '../../bridge/models.dart';
 import '../shared/cards.dart';
+import '../../shell/chrome.dart';
 import '../../theme/palette.dart';
 import '../../theme/breakpoints.dart';
 import '../shared/content_column.dart';
 import '../../theme/tokens.dart';
+import 'learning_graph_view.dart';
 import '../shared/format.dart';
 
 /// The Knowledge surface: the unified, read-only index over both vaults.
@@ -925,11 +927,28 @@ class _KnowledgePageState extends State<KnowledgePage> {
         ),
       );
     }
-    return ListView(
-      key: const ValueKey('knowledge-graph-list'),
-      controller: _scroll,
-      padding: const EdgeInsets.only(bottom: 8),
-      children: children,
+    return Column(
+      children: [
+        SizedBox(
+          height: 240,
+          child: LearningGraphCanvas(
+            graph: widget.graph,
+            selectedIndex: _selected.clamp(0, widget.graph.nodes.length - 1),
+            onSelect: (index) => setState(() {
+              _selectedIndex = index;
+            }),
+          ),
+        ),
+        const Rule(),
+        Expanded(
+          child: ListView(
+            key: const ValueKey('knowledge-graph-list'),
+            controller: _scroll,
+            padding: const EdgeInsets.only(bottom: 8),
+            children: children,
+          ),
+        ),
+      ],
     );
   }
 

@@ -76,6 +76,10 @@ void main() {
 
     expect(loaded, 1);
     expect(find.byKey(const ValueKey('knowledge-graph-list')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('knowledge-graph-canvas')),
+      findsOneWidget,
+    );
     expect(find.textContaining('3 nodes'), findsOneWidget);
     expect(find.text('agent explanation'), findsOneWidget);
     expect(

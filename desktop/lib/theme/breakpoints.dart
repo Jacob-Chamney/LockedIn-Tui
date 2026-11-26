@@ -8,14 +8,20 @@ abstract final class Breakpoints {
   /// Below this window width the rail collapses to icons.
   static const double rail = 900;
 
+  /// A wide window opens with the rail expanded; a laptop-sized one starts
+  /// shrunk so the first frame keeps a wide composer.
+  static const double railWide = 1200;
+
   /// The reading column shared by detail views and list managers.
   static const double content = 900;
 
   /// The wider data column: Stats' cards and charts use the extra room.
   static const double contentWide = 1180;
 
-  /// A chat keeps a 340 px context pane beside it at this width.
-  static const double split = 1100;
+  /// A chat keeps a 340 px context pane beside it at this width. This is the
+  /// same floor as a two-column detail, so the rail can be open on a laptop and
+  /// the pane still leaves 640 px for the transcript.
+  static const double split = 980;
 
   /// Below this width a four-up KPI row becomes two, and a two-column detail
   /// becomes one.

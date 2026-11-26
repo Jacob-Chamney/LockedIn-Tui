@@ -275,6 +275,21 @@ class _ShellState extends State<Shell> {
   /// navigation, and the toggle is a switch — there is no hidden state.
   SidebarMode _sidebarMode = SidebarMode.icons;
 
+  /// The first frame chooses the rail for the window: wide windows show the
+  /// destination labels, narrow ones start as icons. A later toggle is the
+  /// user's and is never overridden.
+  var _sidebarSized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_sidebarSized) return;
+    _sidebarSized = true;
+    if (MediaQuery.sizeOf(context).width >= Breakpoints.railWide) {
+      _sidebarMode = SidebarMode.expanded;
+    }
+  }
+
   /// True while the rail owns the keyboard. `Space e` expands *and* focuses it;
   /// `Esc` gives the keyboard back and leaves it expanded, and activating a row
   /// returns to the page.

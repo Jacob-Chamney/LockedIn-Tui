@@ -70,12 +70,16 @@ Future<void> pressCtrlK(WidgetTester tester) async {
 }
 
 Future<void> expandSidebar(WidgetTester tester) async {
-  await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
-  await tester.pumpAndSettle();
-  await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
-  await tester.pumpAndSettle();
-  await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-  await tester.pumpAndSettle();
+  // A wide window (>= Breakpoints.railWide) starts expanded; pressing the
+  // toggle there would shrink it. Only expand when the labels are hidden.
+  if (find.text('LEARN').evaluate().isEmpty) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+  }
 }
 
 /// How many times one protocol method was called on the fake core.

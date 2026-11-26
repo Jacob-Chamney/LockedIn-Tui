@@ -32,7 +32,7 @@ void main() {
   testWidgets('Esc leaves the Chill composer for NORMAL, then Space leads', (
     tester,
   ) async {
-    await pumpShell(tester);
+    await pumpShell(tester, size: const Size(1000, 700));
 
     await tester.tap(find.byKey(const ValueKey('chat-composer')));
     await tester.pumpAndSettle();
@@ -70,7 +70,7 @@ void main() {
   testWidgets('a palette action does not wipe a half-filled wizard', (
     tester,
   ) async {
-    await pumpShell(tester);
+    await pumpShell(tester, size: const Size(1000, 700));
     await leader(tester, LogicalKeyboardKey.keyL);
     expect(find.text('NEW LOCK-IN'), findsOneWidget);
 
@@ -103,7 +103,7 @@ void main() {
   testWidgets('expanding the rail with the button leaves the page the keys', (
     tester,
   ) async {
-    await pumpShell(tester);
+    await pumpShell(tester, size: const Size(1000, 700));
 
     await tester.tap(find.byKey(const ValueKey('sidebar-toggle')));
     await tester.pumpAndSettle();
@@ -121,7 +121,7 @@ void main() {
   testWidgets('a click in the page releases a keyboard-focused rail', (
     tester,
   ) async {
-    await pumpShell(tester);
+    await pumpShell(tester, size: const Size(1000, 700));
     await leader(tester, LogicalKeyboardKey.keyE);
     expect(find.byKey(_cursor), findsOneWidget);
 
@@ -137,7 +137,7 @@ void main() {
   testWidgets('an overlay opened from the rail gives the rail back its keys', (
     tester,
   ) async {
-    await pumpShell(tester);
+    await pumpShell(tester, size: const Size(1000, 700));
     await leader(tester, LogicalKeyboardKey.keyE);
     await press(tester, LogicalKeyboardKey.keyJ);
     expect(
@@ -165,7 +165,7 @@ void main() {
   testWidgets('an overlay opened from another overlay owns the keyboard', (
     tester,
   ) async {
-    await pumpShell(tester);
+    await pumpShell(tester, size: const Size(1000, 700));
     await pressCtrl(tester, LogicalKeyboardKey.keyK);
     await tester.enterText(
       find.byKey(const ValueKey('palette-search')),
@@ -185,7 +185,7 @@ void main() {
   });
 
   testWidgets('a held Esc closes one layer, not two', (tester) async {
-    await pumpShell(tester);
+    await pumpShell(tester, size: const Size(1000, 700));
     await leader(tester, LogicalKeyboardKey.keyI);
     expect(find.text('ACHIEVEMENTS'), findsWidgets);
 
