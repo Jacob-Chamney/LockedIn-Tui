@@ -1,7 +1,7 @@
 // GENERATED FILE — do not edit by hand.
 // dart format off
 //
-// Generated from the exported types in: src/server/protocol.ts, src/server/knowledge.ts, src/server/chat-wire.ts, src/server/chat-memory.ts, src/stats/types.ts, src/services/knowledge/learning-graph.ts, src/types/settings.ts, src/services/lockin/figures.ts, src/services/work/agents.ts, src/domain/source.ts.
+// Generated from the exported types in: src/server/protocol.ts, src/server/knowledge.ts, src/server/chat-wire.ts, src/server/chat-memory.ts, src/server/views.ts, src/stats/types.ts, src/services/knowledge/learning-graph.ts, src/types/settings.ts, src/services/lockin/figures.ts, src/services/work/agents.ts, src/domain/source.ts.
 // Regenerate: `bun run scripts/generate-dart-models.ts`.
 //
 // The shell reads these models from the wire; every field is tolerant of a
