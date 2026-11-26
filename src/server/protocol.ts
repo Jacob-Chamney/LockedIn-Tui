@@ -58,7 +58,6 @@ import {
   projectTools,
   type ChatToolSource,
   type LoadedProject,
-  type ProjectAgent,
 } from "../app/actions/projects";
 import { loadSessionHome, loadSessionRows } from "../app/actions/sessions";
 import {
@@ -70,7 +69,7 @@ import {
   loadSkillChats,
   skillTools,
 } from "../app/actions/skills";
-import { computeCoverage, type CoverageReport } from "../domain/coverage";
+import { computeCoverage } from "../domain/coverage";
 import {
   MAX_TITLE_CHARS,
   validateCurriculum,
@@ -83,6 +82,19 @@ import {
   difficultyLabel,
 } from "../domain/achievements";
 import { err, ok, type Result } from "../domain/markdown";
+import {
+  instructionsRow,
+  nextProjectChatId,
+  projectAgentRows,
+  sourceRows,
+  templateSummary,
+  type AgentTemplateRowView,
+  type SessionCoverageRow,
+  type SessionDetailView,
+  type WorkProjectDetailView,
+  type WorkProjectRowView,
+} from "./views";
+export * from "./views";
 import { parseAgentSave, takenAgentIds } from "./agent-input";
 import {
   LINK_MODEL_COPY,
@@ -95,7 +107,6 @@ import {
   extractMemoryPoints,
   finalAnswerText,
   memoryRow,
-  type SessionMemoryView,
 } from "./chat-memory";
 import {
   chatSnapshot,
@@ -196,7 +207,6 @@ import {
 export * from "./knowledge";
 import type { ToolSpec } from "../llm/tools";
 import { MAX_IMAGES } from "../llm/chat";
-import type { Source } from "../domain/source";
 import { parseProgress } from "../domain/progress";
 import type {
   SwarmTaskEntry,
@@ -205,7 +215,6 @@ import {
   MAX_SESSION_NAME,
   SESSION_FILES,
   sessionFromMeta,
-  type InstructionsSource,
 } from "../domain/session";
 import { listProviders } from "../llm/catalogue";
 import {
@@ -847,17 +856,6 @@ export type CoreServer = {
 };
 
 /**
- * The one-line description of an agent template, for a picker row.
- *
- * It is derived from the template's own instructions, never authored twice: the
- * row can only describe what instantiating the template would fill in.
- */
-function templateSummary(instructions: string): string {
-  const text = oneLine(instructions);
-  return text.length > 160 ? `${text.slice(0, 159)}…` : text;
-}
-
-/**
  * Normalise a session folder a **remote** backend just restored.
  *
  * The GitHub adapter copies files down; it does not know the session's metadata
@@ -1134,156 +1132,6 @@ async function markStage(
 }
 
 type ChatController = NonNullable<CoreServices["controller"]>;
-
-/** The one source shape `session.open` and `source.list` both return. */
-function sourceRows(session: OpenResult["session"]): Source[] {
-  return session.sources.map((source) => ({
-    name: source.name,
-    originalPath: source.originalPath,
-    storedPath: source.storedPath,
-    hash: source.hash,
-    kind: source.kind,
-  }));
-}
-
-/**
- * One session's coverage report, as `review.queue` carries it.
- *
- * `report` is `computeCoverage` unchanged (`src/domain/coverage.ts`): the
- * session id and name are only an address, so the shell never re-derives a
- * count, a document list or a gap.
- */
-export type SessionCoverageRow = {
-  sessionId: string
-  name: string
-  report: CoverageReport
-};
-
-/**
- * The provenance shape for the session's instruction file.
- *
- * `instructionsSource` is the copied original, not a second prompt: `name`,
- * `storedPath`, `hash` and `kind` come from the `sources/` copy, and
- * `extractedAt`/`characters`/`pages` record the last extraction. The shell
- * never gets `originalPath`, because it only needs the copy the session owns.
- */
-function instructionsRow(source: InstructionsSource): Record<string, unknown> {
-  return {
-    name: source.name,
-    storedPath: source.storedPath,
-    hash: source.hash,
-    kind: source.kind,
-    extractedAt: source.extractedAt,
-    ...(source.characters === undefined ? {} : { characters: source.characters }),
-    ...(source.pages === undefined ? {} : { pages: source.pages }),
-  };
-}
-
-/** One project row, shared by `work.list` rows and `work.open` agents. */
-function projectAgentRows(agents: ProjectAgent[]): WorkProjectAgentView[] {
-  return agents.map((agent) => ({
-    id: agent.id,
-    name: agent.name,
-    task: agent.task,
-    model: agent.model,
-    permissions: agent.permissions,
-  }));
-}
-
-/**
- * The media type for one image path the shell attached.
- *
- * Only the extension is consulted: the core does not open the file to sniff
- * bytes, and an unknown extension is handed on as `application/octet-stream`
- * so the LLM layer can refuse it with its own typed error rather than a
- * provider rejecting a base64 blob.
- */
-/** The steps half of a `session.open` projection. */
-export type SessionStepsView = {
-  done: number;
-  total: number;
-  exists: boolean;
-  markdown: string;
-};
-
-/** One row of the `work.templates.list` template picker. */
-export type AgentTemplateRowView = {
-  id: string;
-  name: string;
-  role: string;
-  summary: string;
-  source: string;
-  instructions: string;
-  maxToolCalls: number;
-  allowedTools: string[];
-};
-
-/** One agent row in the `work.list` project row. */
-export type WorkProjectAgentView = {
-  id: string;
-  name: string;
-  task: string;
-  model: string;
-  permissions: string;
-};
-
-/** One registered Work project as `work.list` returns it. */
-export type WorkProjectRowView = {
-  id: string;
-  name: string;
-  folder: string;
-  mode: string;
-  swarmName: string;
-  archived: boolean;
-  agents: WorkProjectAgentView[];
-};
-
-/** The `work.open` project detail the Flutter shell renders. */
-export type WorkProjectDetailView = {
-  id: string;
-  name: string;
-  root: string;
-  rootMissing: boolean;
-  mode: string;
-  swarmName: string;
-  archived: boolean;
-  instructions: string;
-  defaultAgent: string | null;
-  agents: AgentProfile[];
-  tasks: number;
-  hasGit: boolean;
-  lastOpened: string;
-};
-
-/** The whole `session.open` detail the Flutter shell renders. */
-export type SessionDetailView = {
-  id: string;
-  name: string;
-  created: string;
-  archived: boolean;
-  prompt: string;
-  sources: Source[];
-  steps: SessionStepsView;
-  memory?: SessionMemoryView;
-};
-
-/**
- * The next free `chat-<n>` id for a project.
- *
- * `src/services/work/chat.ts` keeps its own copy private; the protocol needs the
- * same rule for `work.chat.open` when the user has not chosen a chat yet, and
- * duplicating five lines here is cheaper than widening that module's surface for
- * this packet. The ids are always `chat-<n>` (`CHAT_ID`), so the two cannot
- * disagree on what a valid id looks like.
- */
-function nextProjectChatId(existing: readonly string[]): string {
-  let highest = 0;
-  for (const id of existing) {
-    const match = CHAT_ID.exec(id);
-    if (match) highest = Math.max(highest, Number(match[1]));
-  }
-  return `chat-${highest + 1}`;
-}
 
 /* -------------------------------------------------------------------------- */
 /* Keybinds — the storage half of the rebindable keymap registry               */
