@@ -1,44 +1,20 @@
-import type { BootFailure } from "../app/boot";
-import type { Result } from "../domain/markdown";
-import type { OpenResult } from "../services/lockin/manager";
 import {
   importSessionInstructionsFile,
   loadSessionInstructions,
   reExtractSessionInstructions,
   saveSessionInstructions,
 } from "../app/actions/lockin";
-import type { Workspace } from "../storage/workspace";
 import {
   bootFailureResponse,
   invalid,
   oneLine,
   success,
-  type JsonRpcFailure,
   type JsonRpcResponse,
   type RpcId,
 } from "./rpc";
+import type { SessionHandlerContext, SessionServices } from "./session-context";
 import { instructionsFailure } from "./session-documents";
 import { instructionsRow } from "./views";
-
-/** What a session handler needs from the core, and nothing more. */
-export type SessionServices = { workspace: Workspace };
-
-/**
- * The two doors a session handler uses: boot once, and resolve one id.
- *
- * They are passed in rather than imported so this module can be tested with a
- * real workspace and no process, which is the whole point of moving the
- * handlers out of the closure.
- */
-export type SessionHandlerContext<C extends SessionServices> = {
-  services: () => Promise<Result<C, BootFailure>>;
-  resolveSession: (
-    id: RpcId,
-    current: C,
-    raw: unknown,
-    field?: "id" | "sessionId",
-  ) => Promise<{ error: JsonRpcFailure } | { opened: OpenResult }>;
-};
 
 /**
  * The session settings pane: read `prompt.md`, replace its text, import a file
