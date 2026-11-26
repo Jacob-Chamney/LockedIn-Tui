@@ -16,6 +16,7 @@ import '../../theme/palette.dart';
 import '../../theme/breakpoints.dart';
 import '../../theme/tokens.dart';
 import 'connect_model_dialog.dart';
+import 'settings_widgets.dart';
 import 'setting_editor.dart';
 import 'settings_dialogs.dart';
 import 'theme_picker.dart';
@@ -239,7 +240,7 @@ class SettingsPage extends StatelessWidget {
 
   Widget _body(BuildContext context, bool narrow) {
     if (loading) {
-      return const _StateMessage(
+      return const StateMessage(
         icon: Icons.hourglass_empty,
         title: 'loading settings…',
         body: 'Reading the workspace configuration from the core.',
@@ -247,7 +248,7 @@ class SettingsPage extends StatelessWidget {
     }
     final failure = error;
     if (failure != null && failure.isNotEmpty) {
-      return _StateMessage(
+      return StateMessage(
         icon: Icons.error_outline,
         tone: LockedInColors.error,
         title: 'Settings could not load',
@@ -257,7 +258,7 @@ class SettingsPage extends StatelessWidget {
     }
     final snapshot = settings;
     if (snapshot == null) {
-      return _StateMessage(
+      return StateMessage(
         icon: Icons.link_off,
         tone: LockedInColors.warning,
         title: 'Settings unavailable',
@@ -1505,7 +1506,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
       widgets.add(
         KeyedSubtree(
           key: _groupKeys[group.title],
-          child: _GroupHeader(title: group.title),
+          child: GroupHeader(title: group.title),
         ),
       );
       for (final row in group.rows) {
@@ -1514,21 +1515,21 @@ class _SettingsBodyState extends State<_SettingsBody> {
       }
       if (group.title == 'MODELS') {
         if (widget.settings.chatModel.trim().isEmpty) {
-          widgets.add(const _ModelHint());
+          widgets.add(const ModelHint());
         }
         final connect = widget.onConnect;
         if (connect != null) {
-          widgets.add(_ConnectModelAction(onPressed: connect));
+          widgets.add(ConnectModelAction(onPressed: connect));
         }
       }
       if (group.title == 'PLUGINS') {
         final failure = widget.mcpError ?? _mcpFailure;
-        if (_refreshingMcp) widgets.add(const _PluginsRefreshing());
+        if (_refreshingMcp) widgets.add(const PluginsRefreshing());
         if (failure != null && failure.isNotEmpty) {
-          widgets.add(_PluginsFailure(message: failure));
+          widgets.add(PluginsFailure(message: failure));
         }
-        if (widget.mcpServers.isEmpty) widgets.add(const _PluginsEmpty());
-        widgets.add(const _PluginsNote());
+        if (widget.mcpServers.isEmpty) widgets.add(const PluginsEmpty());
+        widgets.add(const PluginsNote());
       }
       if (group.title == 'KEYBINDS') {
         widgets.add(KeybindFooter(editable: widget.onSetKeybind != null));
@@ -1536,20 +1537,20 @@ class _SettingsBodyState extends State<_SettingsBody> {
       if (group.title == 'DECISION LAYER') {
         final failure = widget.decisionError;
         if (widget.decisionLoading && widget.decision == null) {
-          widgets.add(const _DecisionLoading());
+          widgets.add(const DecisionLoading());
         } else if (failure != null && failure.isNotEmpty) {
-          widgets.add(_DecisionFailure(message: failure));
+          widgets.add(DecisionFailure(message: failure));
         }
-        widgets.add(const _DecisionRulesNote());
+        widgets.add(const DecisionRulesNote());
       }
       if (group.title == 'WORK') {
         final failure = widget.workPermissionsError;
         if (widget.workPermissionsLoading && widget.workPermissions == null) {
-          widgets.add(const _WorkLoading());
+          widgets.add(const WorkLoading());
         } else if (failure != null && failure.isNotEmpty) {
-          widgets.add(_WorkFailure(message: failure));
+          widgets.add(WorkFailure(message: failure));
         }
-        widgets.add(const _WorkNote());
+        widgets.add(const WorkNote());
       }
       widgets.add(const SizedBox(height: 10));
     }
@@ -1826,459 +1827,6 @@ class _SettingsBodyState extends State<_SettingsBody> {
   }
 }
 
-class _GroupHeader extends StatelessWidget {
-  const _GroupHeader({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-      child: Row(
-        children: [
-          Container(width: 3, height: 14, color: LockedInColors.primary),
-          const SizedBox(width: 7),
-          Text(
-            title,
-            style: TextStyle(
-              color: LockedInColors.secondary,
-              fontSize: TypeScale.label,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.8,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StateMessage extends StatelessWidget {
-  const _StateMessage({
-    required this.icon,
-    required this.title,
-    required this.body,
-    this.tone,
-    this.action,
-  });
-
-  final IconData icon;
-  final String title;
-  final String body;
-  final Color? tone;
-  final VoidCallback? action;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 24, color: tone ?? LockedInColors.muted),
-              const SizedBox(height: 10),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                body,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: LockedInColors.muted,
-                  fontSize: TypeScale.body,
-                  height: 1.5,
-                ),
-              ),
-              if (action != null) ...[
-                const SizedBox(height: 16),
-                FilledButton(onPressed: action, child: const Text('Retry')),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ModelHint extends StatelessWidget {
-  const _ModelHint();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(12, 4, 12, 0),
-      child: Row(
-        children: [
-          Icon(Icons.link_off, size: 14, color: LockedInColors.warning),
-          SizedBox(width: 6),
-          Text(
-            'not connected',
-            key: ValueKey('settings-model-not-connected'),
-            style: TextStyle(
-              color: LockedInColors.muted,
-              fontSize: TypeScale.label,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ConnectModelAction extends StatelessWidget {
-  const _ConnectModelAction({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 2),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: FilledButton.icon(
-          key: const ValueKey('settings-connect-model'),
-          onPressed: onPressed,
-          icon: const Icon(Icons.link, size: 16),
-          label: const Text('connect a model'),
-          style: FilledButton.styleFrom(
-            backgroundColor: LockedInColors.primary,
-            foregroundColor: Theme.of(context).colorScheme.onPrimary,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(Radii.control)),
-            ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: Space.md,
-              vertical: Space.xs + 2,
-            ),
-            textStyle: LockedInType.label,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The one sentence the Plugins section must always carry: plugin output is an
-/// external explanation, and it is still sent to the model.
-class _PluginsNote extends StatelessWidget {
-  const _PluginsNote();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.info_outline, size: 13, color: LockedInColors.muted),
-          SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              'Plugin output is external explanation and is still sent to the '
-              'model.',
-              key: ValueKey('settings-plugins-note'),
-              style: TextStyle(
-                color: LockedInColors.muted,
-                fontSize: TypeScale.label,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The one standing note under the `DECISION LAYER` group.
-///
-/// `enabled` records only whether the optional ranking layer may run; the cheap
-/// rules are always on, and the layer never decides anything with a consequence.
-class _DecisionRulesNote extends StatelessWidget {
-  const _DecisionRulesNote();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.info_outline, size: 13, color: LockedInColors.muted),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              'The rules are always on. The layer never decides a write, an '
-              'archive, or which side of the school/skills wall a request '
-              'belongs to.',
-              key: const ValueKey('settings-decision-rules'),
-              style: TextStyle(
-                color: LockedInColors.muted,
-                fontSize: TypeScale.label,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// `decision.get` is in flight and nothing has been read yet.
-class _DecisionLoading extends StatelessWidget {
-  const _DecisionLoading();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-      child: Text(
-        'loading the decision layer…',
-        key: const ValueKey('settings-decision-loading'),
-        style: TextStyle(
-          color: LockedInColors.muted,
-          fontSize: TypeScale.label,
-          height: 1.4,
-        ),
-      ),
-    );
-  }
-}
-
-/// A failed decision-layer read. The last view, if any, stays on screen.
-class _DecisionFailure extends StatelessWidget {
-  const _DecisionFailure({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.warning_amber_outlined,
-            size: 13,
-            color: LockedInColors.warning,
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              'the decision layer could not load: $message',
-              key: const ValueKey('settings-decision-error'),
-              style: TextStyle(
-                color: LockedInColors.warning,
-                fontSize: TypeScale.label,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The standing note under the `WORK` group.
-///
-/// The two flags are the **outer** gate only: an approval still needs its own
-/// per-action confirmation, and the agent profile's flag must also be on. The
-/// core enforces both, so the page never implies a toggle approves anything.
-class _WorkNote extends StatelessWidget {
-  const _WorkNote();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.info_outline, size: 13, color: LockedInColors.muted),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              'Every write and command still needs its own approval, and the '
-              'project’s agent profile must allow it too. The core enforces '
-              'both; there is no “remember this session”.',
-              key: const ValueKey('settings-work-note'),
-              style: TextStyle(
-                color: LockedInColors.muted,
-                fontSize: TypeScale.label,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// `work.permissions.get` is in flight and nothing has been read yet.
-class _WorkLoading extends StatelessWidget {
-  const _WorkLoading();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-      child: Text(
-        'loading Work permissions…',
-        key: const ValueKey('settings-work-loading'),
-        style: TextStyle(
-          color: LockedInColors.muted,
-          fontSize: TypeScale.label,
-          height: 1.4,
-        ),
-      ),
-    );
-  }
-}
-
-/// A failed Work-permissions read. The last view, if any, stays on screen.
-class _WorkFailure extends StatelessWidget {
-  const _WorkFailure({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.warning_amber_outlined,
-            size: 13,
-            color: LockedInColors.warning,
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              'Work permissions could not load: $message',
-              key: const ValueKey('settings-work-error'),
-              style: TextStyle(
-                color: LockedInColors.warning,
-                fontSize: TypeScale.label,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// No configured servers: say so, and name the only place one can be added.
-class _PluginsEmpty extends StatelessWidget {
-  const _PluginsEmpty();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(12, 6, 12, 0),
-      child: Column(
-        key: ValueKey('settings-mcp-empty'),
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'no MCP servers configured',
-            style: TextStyle(
-              color: LockedInColors.muted,
-              fontSize: TypeScale.label,
-              height: 1.4,
-            ),
-          ),
-          Text(
-            'add a server in config.toml',
-            style: TextStyle(
-              color: LockedInColors.muted,
-              fontSize: TypeScale.label,
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A failed read or reconnect. The server rows above stay visible.
-class _PluginsFailure extends StatelessWidget {
-  const _PluginsFailure({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.warning_amber_outlined,
-            size: 13,
-            color: LockedInColors.warning,
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              'plugins could not load: $message',
-              key: const ValueKey('settings-mcp-error'),
-              style: TextStyle(
-                color: LockedInColors.warning,
-                fontSize: TypeScale.label,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PluginsRefreshing extends StatelessWidget {
-  const _PluginsRefreshing();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(12, 6, 12, 0),
-      child: Text(
-        'refreshing plugins…',
-        key: ValueKey('settings-mcp-refreshing'),
-        style: TextStyle(
-          color: LockedInColors.muted,
-          fontSize: TypeScale.label,
-          height: 1.4,
-        ),
-      ),
-    );
-  }
-}
-
-/// Edits one scalar setting and commits it through the core.
-///
-/// Validation is local and happens before the callback: an out-of-range value
-/// never reaches [onSave]. A core rejection keeps the dialog open with the
 class _SettingRow {
   const _SettingRow({
     required this.id,
