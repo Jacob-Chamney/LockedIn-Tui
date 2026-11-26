@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../bridge/models.dart';
+import '../../shell/chrome.dart';
 import '../../theme/palette.dart';
 import '../../theme/tokens.dart';
 
@@ -212,3 +214,117 @@ class PlanRow extends StatelessWidget {
 ///
 /// The answer is collapsed until asked for, because reading it first turns
 /// practice into recognition — the thing the method is trying to avoid.
+
+class PracticeRow extends StatefulWidget {
+  const PracticeRow({
+    super.key,
+    required this.problem,
+    required this.solved,
+    required this.missed,
+    required this.onVerdict,
+  });
+
+  final TeachingProblem problem;
+  final bool solved;
+  final bool missed;
+  final ValueChanged<String>? onVerdict;
+
+  @override
+  State<PracticeRow> createState() => PracticeRowState();
+}
+
+class PracticeRowState extends State<PracticeRow> {
+  var _revealed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = widget.solved
+        ? LockedInColors.success
+        : widget.missed
+        ? LockedInColors.warning
+        : LockedInColors.muted;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        Space.sm,
+        Space.xs,
+        Space.sm,
+        Space.xs,
+      ),
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(color: tone, width: Stroke.focus),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            widget.problem.prompt,
+            style: LockedInType.proseSmall.copyWith(
+              color: LockedInColors.foreground,
+            ),
+          ),
+          const SizedBox(height: Space.xs),
+          Row(
+            children: [
+              TextButton(
+                key: ValueKey('practice-reveal-${widget.problem.id}'),
+                onPressed: () => setState(() => _revealed = !_revealed),
+                child: Text(_revealed ? 'hide key' : 'show key'),
+              ),
+              const Spacer(),
+              if (widget.solved)
+                StatusTag(
+                  glyph: '✓',
+                  label: 'solved',
+                  tone: LockedInColors.success,
+                )
+              else if (widget.missed)
+                StatusTag(
+                  glyph: '!',
+                  label: 'revisit',
+                  tone: LockedInColors.warning,
+                )
+              else ...[
+                TextButton(
+                  key: ValueKey('practice-missed-${widget.problem.id}'),
+                  onPressed: widget.onVerdict == null
+                      ? null
+                      : () => widget.onVerdict!('missed'),
+                  child: const Text('missed'),
+                ),
+                const SizedBox(width: Space.xxs),
+                FilledButton(
+                  key: ValueKey('practice-solved-${widget.problem.id}'),
+                  onPressed: widget.onVerdict == null
+                      ? null
+                      : () => widget.onVerdict!('solved'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: LockedInColors.success,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  ),
+                  child: const Text('solved'),
+                ),
+              ],
+            ],
+          ),
+          if (_revealed) ...[
+            const SizedBox(height: Space.xxs),
+            Text(
+              widget.problem.answer,
+              key: ValueKey('practice-answer-${widget.problem.id}'),
+              style: LockedInType.proseSmall.copyWith(
+                color: LockedInColors.secondary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The four phases of a teaching session (`desktop/docs/redesign.md` §2.1).
+enum Phase { measure, plan, teach, practice }
+
+/// One phase in the rail: number, name, and how far into it the session is.

@@ -16,6 +16,7 @@ import '../../theme/tokens.dart';
 import '../chat/markdown.dart';
 import '../chat/transcript_scroll.dart';
 import '../shared/cards.dart';
+import 'teaching_rows.dart';
 
 /// Returns the files the user chose, or an empty list when they cancelled.
 typedef SkillSourcePicker = Future<List<String>> Function();
@@ -290,7 +291,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   String? _notice;
 
   /// Which phase the rail marks as current (the one last navigated to).
-  _Phase _phase = _Phase.teach;
+  Phase _phase = Phase.teach;
 
   /// The context tab under the learning surface. Sources is the default: the
   /// material every lesson and check is built from. Goal metadata, chats and
@@ -870,11 +871,10 @@ class _SkillDetailViewState extends State<SkillDetailView> {
     // pointer. They are bare digits, not leader chords: the rail is the page's
     // own map and this page has no other digit action.
     final phaseKey = switch (key) {
-      LogicalKeyboardKey.digit1 || LogicalKeyboardKey.numpad1 => _Phase.measure,
-      LogicalKeyboardKey.digit2 || LogicalKeyboardKey.numpad2 => _Phase.plan,
-      LogicalKeyboardKey.digit3 || LogicalKeyboardKey.numpad3 => _Phase.teach,
-      LogicalKeyboardKey.digit4 ||
-      LogicalKeyboardKey.numpad4 => _Phase.practice,
+      LogicalKeyboardKey.digit1 || LogicalKeyboardKey.numpad1 => Phase.measure,
+      LogicalKeyboardKey.digit2 || LogicalKeyboardKey.numpad2 => Phase.plan,
+      LogicalKeyboardKey.digit3 || LogicalKeyboardKey.numpad3 => Phase.teach,
+      LogicalKeyboardKey.digit4 || LogicalKeyboardKey.numpad4 => Phase.practice,
       _ => null,
     };
     if (phaseKey != null) {
@@ -1149,14 +1149,14 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                   const SizedBox(height: Space.sm),
                 ],
                 KeyedSubtree(
-                  key: _sectionKey(_Phase.teach),
+                  key: _sectionKey(Phase.teach),
                   child: _teachingCard(),
                 ),
                 const SizedBox(height: Space.md),
                 // Practice is part of the harness, not context: it follows the
                 // learning surface.
                 KeyedSubtree(
-                  key: _sectionKey(_Phase.practice),
+                  key: _sectionKey(Phase.practice),
                   child: _practiceCard(),
                 ),
                 const SizedBox(height: Space.md),
@@ -2002,7 +2002,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             )
           else ...[
             for (final problem in practice.problems) ...[
-              _PracticeRow(
+              PracticeRow(
                 key: ValueKey('practice-${problem.id}'),
                 problem: problem,
                 solved: practice.solved.contains(problem.id),
@@ -2042,23 +2042,23 @@ class _SkillDetailViewState extends State<SkillDetailView> {
     style: LockedInType.proseSmall.copyWith(color: LockedInColors.muted),
   );
 
-  GlobalKey _sectionKey(_Phase phase) => switch (phase) {
+  GlobalKey _sectionKey(Phase phase) => switch (phase) {
     // Measure, the tree and the step all live in the teaching card. The tree
     // has its own key so `2 plan` lands on it rather than the card's top, and
     // a curriculum goal falls back to its stage list when there is no tree.
-    _Phase.measure => _teachKey,
-    _Phase.plan =>
+    Phase.measure => _teachKey,
+    Phase.plan =>
       (widget.teaching?.measured ?? false)
           ? _planKey
           : _stages.isEmpty
           ? _teachKey
           : _stagesKey,
-    _Phase.teach => _teachKey,
-    _Phase.practice => _practiceKey,
+    Phase.teach => _teachKey,
+    Phase.practice => _practiceKey,
   };
 
   /// Scroll one phase's section into view and mark it current.
-  void _gotoPhase(_Phase phase) {
+  void _gotoPhase(Phase phase) {
     setState(() => _phase = phase);
     final target = _sectionKey(phase).currentContext;
     if (target != null) {
@@ -2071,7 +2071,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
     }
     // `teach` starts at the first stage that is not held: the only useful
     // default when the user asks to be taught something.
-    if (phase == _Phase.teach) {
+    if (phase == Phase.teach) {
       final next = _stages.indexWhere((stage) => !stage.done);
       if (next >= 0) setState(() => _selectedStage = next);
     }
@@ -2091,9 +2091,9 @@ class _SkillDetailViewState extends State<SkillDetailView> {
     final teaching = widget.teaching;
     final measured = teaching?.measured ?? false;
     final practice = teaching?.practice;
-    final rows = <(_Phase, String, String)>[
+    final rows = <(Phase, String, String)>[
       (
-        _Phase.measure,
+        Phase.measure,
         'measure',
         teaching == null
             ? 'not measured'
@@ -2101,7 +2101,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                   '${teaching.gaps.length == 1 ? '' : 's'}',
       ),
       (
-        _Phase.plan,
+        Phase.plan,
         'plan',
         measured
             ? '${teaching!.passedCount}/${teaching.plan.length} held'
@@ -2113,7 +2113,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             : '$done/${stages.length} held',
       ),
       (
-        _Phase.teach,
+        Phase.teach,
         'teach',
         measured
             ? teaching!.current != null
@@ -2128,7 +2128,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             : 'stage ${stageIndex + 1}',
       ),
       (
-        _Phase.practice,
+        Phase.practice,
         'practice',
         practice != null && practice.problems.isNotEmpty
             ? '${practice.solved.length} solved · ${practice.missed.length} to revisit'
@@ -2157,7 +2157,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
               child: SectionLabel('session'),
             ),
           for (final (index, row) in rows.indexed) ...[
-            _PhaseRow(
+            PhaseRow(
               key: ValueKey('teach-phase-${row.$1.name}'),
               number: index + 1,
               label: row.$2,
@@ -3392,121 +3392,8 @@ class _PlanRow extends StatelessWidget {
 ///
 /// The answer is collapsed until asked for, because reading it first turns
 /// practice into recognition — the thing the method is trying to avoid.
-class _PracticeRow extends StatefulWidget {
-  const _PracticeRow({
-    super.key,
-    required this.problem,
-    required this.solved,
-    required this.missed,
-    required this.onVerdict,
-  });
-
-  final TeachingProblem problem;
-  final bool solved;
-  final bool missed;
-  final ValueChanged<String>? onVerdict;
-
-  @override
-  State<_PracticeRow> createState() => _PracticeRowState();
-}
-
-class _PracticeRowState extends State<_PracticeRow> {
-  var _revealed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final tone = widget.solved
-        ? LockedInColors.success
-        : widget.missed
-        ? LockedInColors.warning
-        : LockedInColors.muted;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        Space.sm,
-        Space.xs,
-        Space.sm,
-        Space.xs,
-      ),
-      decoration: BoxDecoration(
-        border: Border(
-          left: BorderSide(color: tone, width: Stroke.focus),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            widget.problem.prompt,
-            style: LockedInType.proseSmall.copyWith(
-              color: LockedInColors.foreground,
-            ),
-          ),
-          const SizedBox(height: Space.xs),
-          Row(
-            children: [
-              TextButton(
-                key: ValueKey('practice-reveal-${widget.problem.id}'),
-                onPressed: () => setState(() => _revealed = !_revealed),
-                child: Text(_revealed ? 'hide key' : 'show key'),
-              ),
-              const Spacer(),
-              if (widget.solved)
-                StatusTag(
-                  glyph: '✓',
-                  label: 'solved',
-                  tone: LockedInColors.success,
-                )
-              else if (widget.missed)
-                StatusTag(
-                  glyph: '!',
-                  label: 'revisit',
-                  tone: LockedInColors.warning,
-                )
-              else ...[
-                TextButton(
-                  key: ValueKey('practice-missed-${widget.problem.id}'),
-                  onPressed: widget.onVerdict == null
-                      ? null
-                      : () => widget.onVerdict!('missed'),
-                  child: const Text('missed'),
-                ),
-                const SizedBox(width: Space.xxs),
-                FilledButton(
-                  key: ValueKey('practice-solved-${widget.problem.id}'),
-                  onPressed: widget.onVerdict == null
-                      ? null
-                      : () => widget.onVerdict!('solved'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: LockedInColors.success,
-                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  ),
-                  child: const Text('solved'),
-                ),
-              ],
-            ],
-          ),
-          if (_revealed) ...[
-            const SizedBox(height: Space.xxs),
-            Text(
-              widget.problem.answer,
-              key: ValueKey('practice-answer-${widget.problem.id}'),
-              style: LockedInType.proseSmall.copyWith(
-                color: LockedInColors.secondary,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// The four phases of a teaching session (`desktop/docs/redesign.md` §2.1).
-enum _Phase { measure, plan, teach, practice }
-
-/// One phase in the rail: number, name, and how far into it the session is.
-class _PhaseRow extends StatelessWidget {
-  const _PhaseRow({
+class PhaseRow extends StatelessWidget {
+  const PhaseRow({
     super.key,
     required this.number,
     required this.label,
