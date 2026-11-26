@@ -74,7 +74,7 @@ void main() {
     // The statusline names the project page's own keys, not just the way out.
     expect(
       tester.widget<Text>(find.byKey(const ValueKey('status-hint'))).data,
-      'c chat · p approvals · w swarm · l activity · r refresh · Esc back',
+      'c chat · i instructions · p approvals · w swarm · l activity · r refresh · Esc back',
     );
     expect(find.text('Prefer small diffs.'), findsOneWidget);
     expect(find.text('/home/me/Projects/my-app'), findsOneWidget);

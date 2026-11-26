@@ -5812,6 +5812,23 @@ class CoreStore extends ChangeNotifier {
     return saved is String && saved.isNotEmpty ? saved : agent.id;
   }
 
+  /// Replace a project's standing instructions (`work.instructions.save`).
+  ///
+  /// Only the project's metadata is written; nothing inside the registered
+  /// folder is read or changed. The open project and list are re-read so the
+  /// page renders what the core stored. Failure rethrows for the edit dialog's
+  /// inline message and keeps the previous text.
+  Future<void> saveProjectInstructions(
+    String projectId,
+    String instructions,
+  ) async {
+    await _connection.call(CoreMethod.workInstructionsSave, {
+      'projectId': projectId,
+      'instructions': instructions,
+    });
+    await _reloadProjectAfterAgentChange(projectId);
+  }
+
   /// Delete one agent profile (`work.agent.delete`).
   ///
   /// Deleting the default leaves the project with no default; the re-read below

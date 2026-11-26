@@ -1453,7 +1453,7 @@ class _ShellState extends State<Shell> {
       // looks first, and `Esc back` alone hid all of them.
       return _workChatOpen
           ? leaderHint
-          : 'c chat · p approvals · w swarm · l activity · r refresh · Esc back';
+          : 'c chat · i instructions · p approvals · w swarm · l activity · r refresh · Esc back';
     }
     if (_surface == Surface.skills) {
       if (_goalWizardOpen) return 'Tab next · Enter continue · Esc back';
@@ -2538,6 +2538,9 @@ class _ShellState extends State<Shell> {
       onSetDefaultAgent: projectId == null
           ? null
           : (agentId) => store.setDefaultAgent(projectId, agentId),
+      onSaveInstructions: projectId == null
+          ? null
+          : (text) => store.saveProjectInstructions(projectId, text),
     );
   }
 

@@ -277,6 +277,13 @@ describe("skill.stages.save progress", () => {
     });
 
     const loaded = unwrap(await readMeta(goalFolder(goalId)));
+    // The readable mirror is part of the contract: a stage edit that leaves it
+    // stale makes curriculum.md lie about the curriculum.
+    const mirror = await readFile(join(goalFolder(goalId), "curriculum.md"), "utf8");
+    expect(mirror).toContain("## 1. Control flow");
+    expect(mirror).toContain("## 2. Conventions");
+    expect(mirror).toContain("## 3. Calling conventions");
+    expect(mirror).toContain("> 0 of 3 stages done");
     expect(loaded.goal.stages.map((stage) => stage.id)).toEqual(["stage-2", "stage-3", "stage-4"]);
     expect(loaded.goal.stages.map((stage) => stage.status)).toEqual([
       "active",

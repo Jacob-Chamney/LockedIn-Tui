@@ -52,6 +52,7 @@ import {
   createProject,
   loadAgentTemplates,
   loadProjects,
+  setProjectInstructions,
   loadWorkHome,
   makeAgentId,
   makeProjectId,
@@ -160,6 +161,7 @@ import { openChat as openSkillChat } from "../services/skills/chats";
 import { archiveGoal, exportGoal } from "../services/skills/archive";
 import { deleteGoal } from "../services/skills/delete";
 import { courseFolder, type GeneratedChapter } from "../services/skills/course";
+import { CURRICULUM_FILE, renderCurriculum } from "../services/skills/create";
 import {
   LESSONS_DIR,
   buildLesson,
@@ -363,6 +365,7 @@ export const CAPABILITIES = [
   "work.agent.save",
   "work.agent.delete",
   "work.defaultAgent",
+  "work.instructions.save",
   "work.changes",
   "work.write.propose",
   "work.write.decide",
@@ -6197,9 +6200,9 @@ export function createCoreServer(options: CoreOptions): CoreServer {
    *
    * This is metadata only — `createProject` resolves the user's path (and may
    * create the leaf they named), then writes `work/projects/<id>/meta.json`.
-   * The root is never moved, copied or deleted. Project instructions and agent
-   * profiles are edited by later packets, so they are refused rather than
-   * silently dropped.
+   * The root is never moved, copied or deleted. Optional `instructions` are
+   * saved with the registration; agent profiles are added with
+   * `work.agent.save`.
    */
   const workCreate = async (
     id: RpcId,
@@ -6217,20 +6220,19 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     if (mode !== "chat" && mode !== "swarm") {
       return invalid(id, 'work.create requires mode "chat" or "swarm"');
     }
-    const instructions = params.instructions;
-    if (instructions !== undefined) {
-      return invalid(
-        id,
-        "work.create does not accept instructions yet; create the project and edit its instructions in a later packet",
-      );
+    const rawInstructions = params.instructions;
+    if (rawInstructions !== undefined && typeof rawInstructions !== "string") {
+      return invalid(id, "work.create: instructions must be a string");
     }
+    const instructions =
+      typeof rawInstructions === "string" ? rawInstructions : undefined;
 
     const name = rawName.trim();
     const folder = rawFolder.trim();
     const current = await services();
     if (!current.ok) return bootFailureResponse(id, current.error);
-    // The id is derived from the name against the ids already taken, exactly as
-    // the TUI does, so the shell can open the project without a second lookup.
+    // The id is derived from the name against the ids already taken, so the
+    // shell can open the project without a second lookup.
     const taken = (await listProjects(current.value.workspace)).map((row) => row.id);
     const created = await createProject({
       workspace: current.value.workspace,
@@ -6238,12 +6240,54 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       name,
       folder,
       mode,
+      instructions,
     });
     if (!created.ok) {
       const message = oneLine(created.error.message);
       return failure(id, BOOT_FAILED, message, { kind: "project-create", message }, false);
     }
     return success(id, { id: created.value.id, name });
+  };
+
+  /**
+   * Replace a project's standing instructions (`work.instructions.save`).
+   *
+   * The value is metadata only: only `work/projects/<id>/meta.json` is
+   * written, and nothing inside the registered root is read or changed. The
+   * save is the same 20,000-character rule registration applies, so create and
+   * edit cannot disagree. A failure preserves the previous text.
+   */
+  const workInstructionsSave = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const rawProjectId = params.projectId;
+    if (typeof rawProjectId !== "string" || rawProjectId.trim() === "") {
+      return invalid(id, "work.instructions.save requires a project id");
+    }
+    const projectId = rawProjectId.trim();
+    const rawInstructions = params.instructions;
+    if (typeof rawInstructions !== "string") {
+      return invalid(id, "work.instructions.save: instructions must be a string");
+    }
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const saved = await setProjectInstructions({
+      workspace: current.value.workspace,
+      id: projectId,
+      instructions: rawInstructions,
+    });
+    if (!saved.ok) {
+      const message = oneLine(saved.error.message);
+      return failure(
+        id,
+        BOOT_FAILED,
+        message,
+        { kind: "project", projectId, message },
+        false,
+      );
+    }
+    return success(id, { instructions: saved.value.instructions });
   };
 
   /**
@@ -10662,6 +10706,28 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     const written = await writeGoalMeta(folder, loaded.value.meta, validated.value);
     if (!written.ok) return stageFailure(id, goalId, oneLine(written.error.message));
 
+    // `meta.json` is authoritative, but the readable mirror is part of the
+    // contract (`docs/data-model.md` §5.2): a stage edit that left it stale made
+    // the Markdown lie about the curriculum. Both writes are atomic; a mirror
+    // failure is reported once and a retry rewrites both.
+    try {
+      await replaceAtomic(
+        join(folder, CURRICULUM_FILE),
+        renderCurriculum({
+          name: loaded.value.goal.name,
+          stages: validated.value,
+        }),
+      );
+    } catch (error) {
+      return stageFailure(
+        id,
+        goalId,
+        `the stages were saved but curriculum.md could not be rewritten (${oneLine(
+          error instanceof Error ? error.message : String(error),
+        )}); save again`,
+      );
+    }
+
     return success(id, { stages: skillStageRows(validated.value) });
   };
 
@@ -12145,6 +12211,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         return workOpen(id, params);
       case "work.create":
         return workCreate(id, params);
+      case "work.instructions.save":
+        return workInstructionsSave(id, params);
       case "work.templates.list":
         return workTemplatesList(id, params);
       case "work.agent.save":

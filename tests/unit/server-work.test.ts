@@ -7,7 +7,7 @@
  * covered by `tests/integration/server-data.test.ts`.
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -44,6 +44,7 @@ function fakeServices(): CoreServices {
     workspace: {
       root: join(base, "workspace"),
       paths: {
+        root: join(base, "workspace"),
         workProjects,
         schoolSessions: join(base, "workspace", "school", "sessions"),
       },
@@ -185,15 +186,39 @@ describe("work.create", () => {
     expect(mode.message).toContain("swarm");
   });
 
-  test("refuses instructions it cannot persist instead of dropping them", async () => {
+  test("saves instructions with the project and edits them later", async () => {
+    await mkdir(workProjects, { recursive: true });
     const { server } = fakeCore();
-    const error = await errorOf(server, "work.create", {
+    const created = await resultOf(server, "work.create", {
       name: "My app",
       folder: join(base, "app"),
       mode: "chat",
       instructions: "Prefer small diffs.",
     });
-    expect(error.code).toBe(-32602);
-    expect(error.message).toContain("instructions");
+    const opened = await resultOf(server, "work.open", { id: created.id });
+    expect((opened.project as Record<string, unknown>).instructions).toBe(
+      "Prefer small diffs.",
+    );
+
+    const saved = await resultOf(server, "work.instructions.save", {
+      projectId: created.id,
+      instructions: "Prefer even smaller diffs.",
+    });
+    expect(saved.instructions).toBe("Prefer even smaller diffs.");
+    const after = await resultOf(server, "work.open", { id: created.id });
+    expect((after.project as Record<string, unknown>).instructions).toBe(
+      "Prefer even smaller diffs.",
+    );
+
+    const bad = await errorOf(server, "work.instructions.save", {
+      projectId: created.id,
+      instructions: 4,
+    });
+    expect(bad.code).toBe(-32602);
+    const unknown = await errorOf(server, "work.instructions.save", {
+      projectId: "missing",
+      instructions: "text",
+    });
+    expect(unknown.code).toBe(BOOT_FAILED);
   });
 });

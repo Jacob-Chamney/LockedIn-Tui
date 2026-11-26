@@ -23,6 +23,13 @@ requests merge.
 
 ### Fixed
 
+- Work projects can set instructions when they are created and edit them later:
+  `work.instructions.save` writes only the project metadata, and the detail page
+  has an `edit` control plus the `i` key. The old live error that promised a
+  "later packet" is gone.
+- `skill.stages.save` rewrites `curriculum.md` atomically, so the readable
+  mirror always matches `meta.json`.
+
 - The model badge sits at the right edge of the top bar; it used to float a
   third of the bar away because a `Spacer` and two loose flex children split the
   free space.

@@ -35,6 +35,7 @@ import {
   remove,
   resolveProjectRoot,
   setArchived,
+  setInstructions,
   setMode,
   type WorkMode,
 } from "../../services/work/register"
@@ -119,6 +120,8 @@ export async function createProject(input: {
   name: string
   folder: string
   mode: WorkMode
+  /** Optional standing instructions, saved with the registration. */
+  instructions?: string
 }): Promise<Result<{ id: string; folder: string }, ProjectError>> {
   // The wizard's "New project" may name a folder that does not exist yet. The
   // low-level register still requires an existing folder; this action is the
@@ -144,6 +147,7 @@ export async function createProject(input: {
     name: input.name,
     id: input.id,
     mode: input.mode,
+    instructions: input.instructions,
   })
   if (!created.ok) {
     // The wizard may have created this leaf and its missing parents just for a
@@ -152,6 +156,16 @@ export async function createProject(input: {
     return { ok: false, error: { message: created.error.message } }
   }
   return { ok: true, value: { id: created.value.meta.id, folder: created.value.meta.root } }
+}
+
+export async function setProjectInstructions(input: {
+  workspace: Workspace
+  id: string
+  instructions: string
+}): Promise<Result<{ instructions: string }, ProjectError>> {
+  const saved = await setInstructions(input)
+  if (!saved.ok) return { ok: false, error: { message: saved.error.message } }
+  return { ok: true, value: saved.value }
 }
 
 export async function setProjectMode(input: {

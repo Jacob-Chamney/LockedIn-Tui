@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -382,6 +384,7 @@ class WorkDetailView extends StatefulWidget {
     this.onSaveAgent,
     this.onDeleteAgent,
     this.onSetDefaultAgent,
+    this.onSaveInstructions,
   });
 
   final WorkProjectDetail project;
@@ -477,6 +480,10 @@ class WorkDetailView extends StatefulWidget {
 
   /// Set (or clear, with null) the project's default agent.
   final Future<void> Function(String? agentId)? onSetDefaultAgent;
+
+  /// Replace the project's standing instructions. Null keeps the card
+  /// read-only and drops the `i` key.
+  final Future<void> Function(String instructions)? onSaveInstructions;
 
   @override
   State<WorkDetailView> createState() => _WorkDetailViewState();
@@ -655,6 +662,12 @@ class _WorkDetailViewState extends State<WorkDetailView> {
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.escape && widget.onBack != null) {
       widget.onBack!();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyI &&
+        widget.onSaveInstructions != null &&
+        event is KeyDownEvent) {
+      unawaited(_editInstructions());
       return KeyEventResult.handled;
     }
     // `c` opens the project chat even when there are no agents to edit.
@@ -1310,8 +1323,16 @@ class _WorkDetailViewState extends State<WorkDetailView> {
 
   Widget _instructionsCard() {
     final instructions = widget.project.instructions.trim();
+    final editable = widget.onSaveInstructions != null;
     return SectionCard(
       label: 'INSTRUCTIONS',
+      trailing: editable
+          ? TextButton(
+              key: const ValueKey('work-edit-instructions'),
+              onPressed: () => unawaited(_editInstructions()),
+              child: const Text('edit'),
+            )
+          : null,
       child: instructions.isEmpty
           ? _EmptyNote(
               tone: LockedInColors.muted,
@@ -1328,6 +1349,23 @@ class _WorkDetailViewState extends State<WorkDetailView> {
                 height: 1.5,
               ),
             ),
+    );
+  }
+
+  /// Edit the project's standing instructions.
+  ///
+  /// The value lives in `work/projects/<id>/meta.json`; nothing inside the
+  /// registered folder is touched. A refusal stays in the dialog with the
+  /// core's own sentence and keeps the previous text.
+  Future<void> _editInstructions() async {
+    final save = widget.onSaveInstructions;
+    if (save == null) return;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _InstructionsEditor(
+        initial: widget.project.instructions,
+        onSave: save,
+      ),
     );
   }
 
@@ -2157,6 +2195,110 @@ class _ErrorState extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// The project-instructions editor. It owns its controller, so the dialog's
+/// closing animation and the field's lifetime cannot overlap.
+class _InstructionsEditor extends StatefulWidget {
+  const _InstructionsEditor({required this.initial, required this.onSave});
+
+  final String initial;
+  final Future<void> Function(String instructions) onSave;
+
+  @override
+  State<_InstructionsEditor> createState() => _InstructionsEditorState();
+}
+
+class _InstructionsEditorState extends State<_InstructionsEditor> {
+  late final TextEditingController _text = TextEditingController(
+    text: widget.initial,
+  );
+  var _saving = false;
+  String? _failure;
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _saving = true;
+      _failure = null;
+    });
+    try {
+      await widget.onSave(_text.text);
+      if (mounted) Navigator.of(context).pop();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _failure = userMessage(error);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      scrollable: true,
+      title: const Text('project instructions'),
+      content: SizedBox(
+        width: 520,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Every project chat reads this. It is stored in the project '
+              'metadata, never written into the folder.',
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: 12,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              key: const ValueKey('work-instructions-field'),
+              controller: _text,
+              autofocus: true,
+              minLines: 4,
+              maxLines: 8,
+              style: TextStyle(
+                color: LockedInColors.foreground,
+                fontSize: 13.5,
+                height: 1.5,
+              ),
+              decoration: const InputDecoration(
+                hintText: 'prefer small diffs; cite file paths',
+              ),
+            ),
+            if (_failure != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _failure!,
+                key: const ValueKey('work-instructions-error'),
+                style: TextStyle(color: LockedInColors.error, fontSize: 12),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const ValueKey('work-instructions-save'),
+          onPressed: _saving ? null : _save,
+          child: Text(_saving ? 'saving…' : 'Save'),
+        ),
+      ],
     );
   }
 }
