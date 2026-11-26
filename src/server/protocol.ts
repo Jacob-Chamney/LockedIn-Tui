@@ -45,7 +45,6 @@ import {
   stepFailureMessage,
   toggleSessionStep,
   markGuideSection,
-  type SessionDocumentKind,
 } from "../app/actions/lockin";
 import {
   createProject,
@@ -82,6 +81,14 @@ import {
   difficultyLabel,
 } from "../domain/achievements";
 import { err, ok, type Result } from "../domain/markdown";
+import {
+  generationFailure,
+  instructionsFailure,
+  parseDocumentRequest,
+  outputFailure,
+  parseOutputReadRequest,
+  readOutputFile,
+} from "./session-documents";
 import { deckFailure, deckStateReply, readDeckFile } from "./deck-state";
 import {
   markCard,
@@ -173,14 +180,10 @@ import {
 } from "./review";
 import {
   FLASHCARDS_PROMPT,
-  SESSION_OUTPUT_DEFAULT_PART,
   SESSION_OUTPUT_FILES,
   SESSION_OUTPUT_KINDS,
-  SESSION_OUTPUT_PARTS,
-  SESSION_OUTPUT_PARTS_FOR,
   STUDY_GUIDE_PROMPT,
   isSessionOutputKind,
-  isSessionOutputPart,
   parseDeckCards,
   parseGuideSections,
   renderFlashcards,
@@ -916,25 +919,6 @@ function isActivityKind(value: unknown): value is ActivityKind {
   return typeof value === "string" && (ACTIVITY_KINDS as readonly string[]).includes(value);
 }
 
-/**
- * The three generated session documents (`docs/data-model.md` §4).
- *
- * The names are the `SESSION_FILES` entries the lock-in service writes:
- * `contract.md`, `contradictions.md` and `check.md`. The type comes from the
- * action module, so adding a fourth kind cannot leave this list behind.
- */
-const SESSION_DOCUMENT_KINDS: readonly SessionDocumentKind[] = [
-  "contract",
-  "contradictions",
-  "check",
-];
-
-function isSessionDocumentKind(value: unknown): value is SessionDocumentKind {
-  return (
-    typeof value === "string" && (SESSION_DOCUMENT_KINDS as readonly string[]).includes(value)
-  );
-}
-
 /* -------------------------------------------------------------------------- */
 /* Review marking: the three writable item kinds                               */
 /* -------------------------------------------------------------------------- */
@@ -1644,7 +1628,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     const generate = current.value.generate;
     if (!generate) {
       const message = "link a model in Settings → Providers";
-      return failure(id, BOOT_FAILED, message, { kind: "generation", id: sessionId, message }, false);
+      return generationFailure(id, sessionId, message);
     }
 
     const generated = await regenerateSessionSteps({
@@ -1654,7 +1638,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     });
     if (!generated.ok) {
       const message = oneLine(generated.error.message);
-      return failure(id, BOOT_FAILED, message, { kind: "generation", id: sessionId, message }, false);
+      return generationFailure(id, sessionId, message);
     }
     // `kept`/`lost` describe the checked work the merge compared, so the shell
     // can say "kept 2, dropped 1" without re-reading the old file.
@@ -1691,21 +1675,9 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     if (typeof rawId !== "string" || rawId.trim() === "") {
       return invalid(id, "session.document requires a session id");
     }
-    const rawKind = params.kind;
-    if (!isSessionDocumentKind(rawKind)) {
-      return invalid(
-        id,
-        `session.document: unknown kind ${JSON.stringify(rawKind)}; expected one of ${SESSION_DOCUMENT_KINDS.join(", ")}`,
-      );
-    }
-    const rawAttempt = params.attempt;
-    if (rawAttempt !== undefined && typeof rawAttempt !== "string") {
-      return invalid(id, "session.document: attempt must be a string");
-    }
-    const attempt = typeof rawAttempt === "string" ? rawAttempt.trim() : "";
-    if (rawKind !== "check" && attempt !== "") {
-      return invalid(id, 'session.document: attempt only applies to kind "check"');
-    }
+    const request = parseDocumentRequest(params);
+    if ("error" in request) return invalid(id, request.error);
+    const { kind: rawKind, attempt } = request;
 
     const current = await services();
     if (!current.ok) return bootFailureResponse(id, current.error);
@@ -1718,7 +1690,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     const generate = current.value.generate;
     if (!generate) {
       const message = "link a model in Settings → Providers";
-      return failure(id, BOOT_FAILED, message, { kind: "generation", id: sessionId, message }, false);
+      return generationFailure(id, sessionId, message);
     }
 
     const document = await generateSessionDocument({
@@ -1732,7 +1704,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     });
     if (!document.ok) {
       const message = oneLine(document.error.message);
-      return failure(id, BOOT_FAILED, message, { kind: "generation", id: sessionId, message }, false);
+      return generationFailure(id, sessionId, message);
     }
     return success(id, { text: document.value.text, name: document.value.name });
   };
@@ -1784,7 +1756,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     const generate = current.value.generate;
     if (!generate) {
       const message = "link a model in Settings → Providers";
-      return failure(id, BOOT_FAILED, message, { kind: "generation", id: sessionId, message }, false);
+      return generationFailure(id, sessionId, message);
     }
 
     // Sources plus `prompt.md`, and `assignment-steps.md` when the session has
@@ -1803,7 +1775,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
           ? "this session has no readable sources"
           : "this session has no readable sources: " +
             report.unreadable.map((entry) => `${entry.name} (${entry.kind}): ${entry.message}`).join("; ");
-      return failure(id, BOOT_FAILED, message, { kind: "generation", id: sessionId, message }, false);
+      return generationFailure(id, sessionId, message);
     }
     const context = report.text;
 
@@ -1814,7 +1786,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     } catch (error) {
       // One actionable sentence from the failure policy; there is no retry.
       const message = oneLine(stepFailureMessage(error));
-      return failure(id, BOOT_FAILED, message, { kind: "generation", id: sessionId, message }, false);
+      return generationFailure(id, sessionId, message);
     }
 
     const folder = join(current.value.workspace.paths.root, "school", "outputs", sessionId);
@@ -1824,7 +1796,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       const parsed = parseGuideSections(raw);
       if (!parsed.ok) {
         const message = parsed.message;
-        return failure(id, BOOT_FAILED, message, { kind: "generation", id: sessionId, message }, false);
+        return generationFailure(id, sessionId, message);
       }
       const markdown = renderStudyGuide(name, parsed.sections);
       const answers = renderStudyAnswers(name, parsed.sections);
@@ -1835,7 +1807,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         ]);
       } catch (error) {
         const message = oneLine(messageOf(error));
-        return failure(id, BOOT_FAILED, message, { kind: "generation", id: sessionId, message }, false);
+        return generationFailure(id, sessionId, message);
       }
       return success(id, {
         kind: rawKind,
@@ -1851,7 +1823,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     const parsed = parseDeckCards(raw);
     if (!parsed.ok) {
       const message = parsed.message;
-      return failure(id, BOOT_FAILED, message, { kind: "generation", id: sessionId, message }, false);
+      return generationFailure(id, sessionId, message);
     }
     const markdown = renderFlashcards(name, parsed.cards);
     try {
@@ -1860,7 +1832,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       ]);
     } catch (error) {
       const message = oneLine(messageOf(error));
-      return failure(id, BOOT_FAILED, message, { kind: "generation", id: sessionId, message }, false);
+      return generationFailure(id, sessionId, message);
     }
     return success(id, {
       kind: rawKind,
@@ -1886,28 +1858,9 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     if (typeof rawId !== "string" || rawId.trim() === "") {
       return invalid(id, "session.output.read requires a session id");
     }
-    const rawKind = params.kind;
-    if (!isSessionOutputKind(rawKind)) {
-      return invalid(
-        id,
-        `session.output.read: unknown kind ${JSON.stringify(rawKind)}; expected one of ${SESSION_OUTPUT_KINDS.join(", ")}`,
-      );
-    }
-    const rawPart = params.part;
-    if (rawPart !== undefined && !isSessionOutputPart(rawPart)) {
-      return invalid(
-        id,
-        `session.output.read: unknown part ${JSON.stringify(rawPart)}; expected one of ${SESSION_OUTPUT_PARTS.join(", ")}`,
-      );
-    }
-    const parts = SESSION_OUTPUT_PARTS_FOR[rawKind];
-    if (rawPart !== undefined && !parts.includes(rawPart)) {
-      return invalid(
-        id,
-        `session.output.read: kind "${rawKind}" has ${parts.join(", ")}; ${JSON.stringify(rawPart)} belongs to another kind`,
-      );
-    }
-    const part = rawPart ?? SESSION_OUTPUT_DEFAULT_PART[rawKind];
+    const request = parseOutputReadRequest(params);
+    if ("error" in request) return invalid(id, request.error);
+    const { part } = request;
 
     const current = await services();
     if (!current.ok) return bootFailureResponse(id, current.error);
@@ -1915,29 +1868,11 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     if ("error" in resolved) return resolved.error;
     const sessionId = resolved.opened.session.id;
 
-    const path = join(
-      current.value.workspace.paths.root,
-      "school",
-      "outputs",
-      sessionId,
-      SESSION_OUTPUT_FILES[part],
-    );
-    try {
-      const markdown = await readFile(path, "utf8");
-      return success(id, { markdown, exists: true });
-    } catch (error) {
-      // A **missing** output is the documented empty state, not a failure. An
-      // unreadable one is a failure: reporting it as `exists:false` showed the
-      // reader's "build it" action over a guide that exists, and the build then
-      // replaced it.
-      if ((error as { code?: string }).code === "ENOENT") {
-        return success(id, { markdown: "", exists: false });
-      }
-      const message =
-        `the ${SESSION_OUTPUT_FILES[part]} file cannot be read ` +
-        `(${error instanceof Error ? error.message : String(error)}); fix its permissions`;
-      return failure(id, BOOT_FAILED, message, { kind: "output", id: sessionId, message }, false);
-    }
+    // A **missing** output is the documented empty state, not a failure; an
+    // unreadable one is a failure with a permissions hint.
+    const read = await readOutputFile(current.value.workspace, sessionId, part);
+    if (!read.ok) return outputFailure(id, sessionId, read.message);
+    return success(id, { markdown: read.markdown, exists: read.exists });
   };
 
 
@@ -2079,8 +2014,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       index: rawIndex,
     });
     if (!marked.ok) {
-      const message = oneLine(marked.error.message);
-      return failure(id, BOOT_FAILED, message, { kind: "output", id: sessionId, message }, false);
+      return outputFailure(id, sessionId, oneLine(marked.error.message));
     }
     const markdown = marked.value.markdown;
     return success(id, {
@@ -2107,13 +2041,6 @@ export function createCoreServer(options: CoreOptions): CoreServer {
    * shape instead (`resolveSession`), so the shell can tell "no such session"
    * from "this session's instructions could not be changed".
    */
-  const instructionsFailure = (
-    id: RpcId,
-    sessionId: string,
-    message: string,
-  ): JsonRpcFailure =>
-    failure(id, BOOT_FAILED, message, { kind: "instructions", id: sessionId, message }, false);
-
   /**
    * Read the session's current instructions.
    *
