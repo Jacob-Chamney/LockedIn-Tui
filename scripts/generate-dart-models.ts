@@ -27,6 +27,7 @@ export const MODEL_SOURCES = [
   "src/server/protocol.ts",
   "src/server/knowledge.ts",
   "src/server/chat-wire.ts",
+  "src/server/chat-memory.ts",
   "src/stats/types.ts",
   "src/services/knowledge/learning-graph.ts",
   "src/types/settings.ts",
