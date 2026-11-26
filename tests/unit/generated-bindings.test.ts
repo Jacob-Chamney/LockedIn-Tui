@@ -44,10 +44,12 @@ describe("generated Dart bindings", () => {
   });
 
   test("the shell never calls a method by a raw literal", () => {
-    const client = read("desktop/lib/bridge/core_client.dart");
-    expect(client).not.toContain("_connection.call('");
-    expect(client).toContain("import 'core_methods.g.dart';");
+    // The transport moved out of core_client.dart; the barrel re-exports both.
+    const store = read("desktop/lib/bridge/core_store.dart");
+    const transport = read("desktop/lib/bridge/core_transport.dart");
+    expect(store).not.toContain("_connection.call('");
+    expect(store).toContain("import 'core_methods.g.dart';");
     // The envelope methods are not data capabilities; they stay explicit.
-    expect(client).toContain("call('initialize'");
+    expect(transport).toContain("call('initialize'");
   });
 });
