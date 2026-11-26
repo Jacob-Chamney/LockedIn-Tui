@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lockedin_desktop/shell/leader.dart';
+import 'package:lockedin_desktop/bridge/core_client.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'fake_core.dart';
