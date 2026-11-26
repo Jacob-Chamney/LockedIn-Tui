@@ -651,7 +651,7 @@ class _SkillRowTile extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: selected ? LockedInColors.primary : Colors.transparent,
                   borderRadius: const BorderRadius.horizontal(
-                    right: Radius.circular(2),
+                    right: Radius.circular(Radii.control),
                   ),
                 ),
               ),

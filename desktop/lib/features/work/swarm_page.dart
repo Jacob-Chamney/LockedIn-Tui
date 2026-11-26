@@ -677,14 +677,14 @@ class _SwarmPageState extends State<SwarmPage> {
     final style = swarmStatusStyle(status);
     return Material(
       color: selected ? LockedInColors.panel : LockedInColors.background,
-      borderRadius: BorderRadius.circular(5),
+      borderRadius: BorderRadius.circular(Radii.control),
       child: InkWell(
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.circular(Radii.control),
         onTap: onTap == null || selected ? null : () => onTap(run.runId),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(5),
+            borderRadius: BorderRadius.circular(Radii.control),
             border: Border.all(
               color: selected
                   ? LockedInColors.primary.withValues(alpha: 0.5)
@@ -787,15 +787,15 @@ class _SwarmPageState extends State<SwarmPage> {
       padding: const EdgeInsets.only(bottom: 6),
       child: Material(
         color: selected ? LockedInColors.panel : LockedInColors.surface,
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(Radii.layer),
         child: InkWell(
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(Radii.layer),
           onTap: () => _select(index),
           child: Container(
             key: selected ? _selectedRowKey : null,
             padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(7),
+              borderRadius: BorderRadius.circular(Radii.layer),
               border: Border.all(
                 color: selected
                     ? LockedInColors.primary.withValues(alpha: 0.5)

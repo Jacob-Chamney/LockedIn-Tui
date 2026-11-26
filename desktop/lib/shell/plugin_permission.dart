@@ -8,6 +8,7 @@ import '../bridge/errors.dart';
 
 import '../bridge/models.dart';
 import '../theme/palette.dart';
+import '../theme/tokens.dart';
 
 /// The blocking prompt for one write-capable plugin tool call (`mcp.permission`).
 ///
@@ -172,7 +173,7 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: LockedInColors.surface,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(Radii.layer),
                     border: Border.all(color: LockedInColors.warning),
                   ),
                   child: Column(
@@ -264,7 +265,9 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   color: LockedInColors.background,
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.circular(
+                                    Radii.layer,
+                                  ),
                                   border: Border.all(
                                     color: LockedInColors.line,
                                   ),
@@ -299,7 +302,9 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: LockedInColors.background,
-                                    borderRadius: BorderRadius.circular(6),
+                                    borderRadius: BorderRadius.circular(
+                                      Radii.layer,
+                                    ),
                                     border: Border.all(
                                       color: LockedInColors.error,
                                     ),

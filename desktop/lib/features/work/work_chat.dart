@@ -7,6 +7,7 @@ import '../chat/chat_failure.dart';
 import '../chat/markdown.dart';
 import '../chat/transcript_scroll.dart';
 import '../keys.dart';
+import '../../theme/tokens.dart';
 
 /// One project-scoped chat surface.
 ///
@@ -474,7 +475,7 @@ class _WorkChatViewState extends State<WorkChatView> {
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             decoration: BoxDecoration(
               color: LockedInColors.surface,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(Radii.layer),
               border: Border.all(color: LockedInColors.line),
             ),
             child: Column(
@@ -591,8 +592,8 @@ class _MessageBubble extends StatelessWidget {
               ? LockedInColors.primary.withValues(alpha: 0.16)
               : LockedInColors.panel,
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(10),
-            topRight: const Radius.circular(10),
+            topLeft: const Radius.circular(Radii.layer),
+            topRight: const Radius.circular(Radii.layer),
             bottomLeft: Radius.circular(user ? 10 : 2),
             bottomRight: Radius.circular(user ? 2 : 10),
           ),
@@ -657,7 +658,7 @@ class _StatusChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Row(

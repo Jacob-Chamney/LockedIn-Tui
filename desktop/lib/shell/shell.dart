@@ -3193,9 +3193,9 @@ class _RecentItem extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 2),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         child: InkWell(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(Radii.layer),
           onTap: onTap,
           child: Container(
             height: 32,

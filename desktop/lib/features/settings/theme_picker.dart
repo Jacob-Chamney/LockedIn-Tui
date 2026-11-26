@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 
 /// The theme picker: every built-in palette plus the custom one, each drawn
 /// with its own swatch.
@@ -100,7 +101,7 @@ class _ThemePickerDialogState extends State<ThemePickerDialog> {
       child: Dialog(
         backgroundColor: LockedInColors.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(Radii.layer),
           side: BorderSide(color: LockedInColors.line),
         ),
         child: ConstrainedBox(
@@ -175,15 +176,15 @@ class _ThemeOption extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 4),
       child: Material(
         color: selected ? LockedInColors.panel : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         child: InkWell(
           key: ValueKey('theme-option-$id'),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(Radii.layer),
           onTap: onTap,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(Radii.layer),
               border: Border.all(
                 color: selected ? LockedInColors.primary : Colors.transparent,
               ),
@@ -237,7 +238,7 @@ class _Swatch extends StatelessWidget {
       height: 26,
       decoration: BoxDecoration(
         color: palette.background,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: palette.line),
       ),
       padding: const EdgeInsets.all(4),

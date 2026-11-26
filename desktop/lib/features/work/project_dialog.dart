@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 
 /// Registers one project through the shell's `work.create`.
 ///
@@ -228,7 +229,7 @@ class _ErrorNote extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Row(

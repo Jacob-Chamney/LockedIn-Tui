@@ -8,6 +8,7 @@ import '../../theme/breakpoints.dart';
 import '../shared/content_column.dart';
 import 'star_field.dart';
 import 'star_map.dart';
+import '../../theme/tokens.dart';
 
 /// The category order the inventory is grouped in.
 ///
@@ -287,7 +288,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
           decoration: BoxDecoration(
             color: LockedInColors.panel,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(Radii.control),
             border: Border.all(color: LockedInColors.line),
           ),
           child: Text(
@@ -507,7 +508,7 @@ class _ErrorBlock extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: LockedInColors.error.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.4)),
       ),
       child: Row(

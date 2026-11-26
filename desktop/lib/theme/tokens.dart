@@ -48,6 +48,10 @@ abstract final class Radii {
 
   /// 6 px — floating layers only (palette, leader, dialogs).
   static const double layer = 6;
+
+  /// A fully rounded cap (a status pill). Only for a shape that is meant to be
+  /// a capsule; chrome and controls stay square.
+  static const double pill = 999;
 }
 
 /// Stroke widths.

@@ -1444,7 +1444,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
                         margin: const EdgeInsets.only(top: 2, right: 9),
                         decoration: BoxDecoration(
                           color: LockedInColors.primary,
-                          borderRadius: BorderRadius.circular(2),
+                          borderRadius: BorderRadius.circular(Radii.control),
                         ),
                       )
                     else
@@ -3964,7 +3964,7 @@ class _PreviewChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: colour,
             border: Border.all(color: LockedInColors.muted),
-            borderRadius: BorderRadius.circular(2),
+            borderRadius: BorderRadius.circular(Radii.control),
           ),
         ),
         const SizedBox(width: 4),

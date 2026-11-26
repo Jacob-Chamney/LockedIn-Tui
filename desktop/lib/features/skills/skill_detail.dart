@@ -2499,10 +2499,10 @@ class _SkillDetailViewState extends State<SkillDetailView> {
       padding: const EdgeInsets.only(bottom: 4),
       child: Material(
         color: selected ? LockedInColors.panel : Colors.transparent,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         child: InkWell(
           key: ValueKey('skill-stage-${stage.id}'),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(Radii.layer),
           onTap: (widget.onOpenStage == null && !_editingStages)
               ? null
               : () {
@@ -2518,7 +2518,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             key: selected ? _selectedStageKey : null,
             padding: const EdgeInsets.fromLTRB(0, 8, 10, 8),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(Radii.layer),
               border: Border.all(
                 color: selected
                     ? LockedInColors.primary.withValues(alpha: 0.5)
@@ -2536,7 +2536,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                         ? LockedInColors.primary
                         : Colors.transparent,
                     borderRadius: const BorderRadius.horizontal(
-                      right: Radius.circular(2),
+                      right: Radius.circular(Radii.control),
                     ),
                   ),
                 ),
@@ -2648,9 +2648,9 @@ class _SkillDetailViewState extends State<SkillDetailView> {
       padding: const EdgeInsets.only(bottom: 4),
       child: Material(
         color: selected ? LockedInColors.panel : Colors.transparent,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         child: InkWell(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(Radii.layer),
           onTap: widget.onOpenChapter == null
               ? null
               : () {
@@ -2664,7 +2664,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             key: selected ? _selectedChapterKey : null,
             padding: const EdgeInsets.fromLTRB(0, 8, 10, 8),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(Radii.layer),
               border: Border.all(
                 color: selected
                     ? LockedInColors.primary.withValues(alpha: 0.5)
@@ -2681,7 +2681,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                         ? LockedInColors.primary
                         : Colors.transparent,
                     borderRadius: const BorderRadius.horizontal(
-                      right: Radius.circular(2),
+                      right: Radius.circular(Radii.control),
                     ),
                   ),
                 ),
@@ -3027,7 +3027,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             decoration: BoxDecoration(
               color: LockedInColors.surface,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(Radii.layer),
               border: Border.all(color: LockedInColors.line),
             ),
             child: Column(
@@ -3741,7 +3741,7 @@ class _ErrorBanner extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Row(
@@ -3780,7 +3780,7 @@ class _Notice extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(
           color: LockedInColors.warning.withValues(alpha: 0.5),
         ),
@@ -3819,7 +3819,7 @@ class _SourceNotice extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(
           color: LockedInColors.success.withValues(alpha: 0.5),
         ),

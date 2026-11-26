@@ -9,6 +9,7 @@ import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
 import '../../theme/breakpoints.dart';
 import '../shared/format.dart';
+import '../../theme/tokens.dart';
 
 /// Returns the files the user chose, or an empty list when they cancelled.
 typedef SourcePicker = Future<List<String>> Function();
@@ -517,7 +518,7 @@ class _SourcesPageState extends State<SourcesPage> {
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
         color: LockedInColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Column(
@@ -548,7 +549,7 @@ class _SourcesPageState extends State<SourcesPage> {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Text(
@@ -569,7 +570,7 @@ class _SourcesPageState extends State<SourcesPage> {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: tone.withValues(alpha: 0.5)),
       ),
       child: Row(
@@ -598,7 +599,7 @@ class _SourcesPageState extends State<SourcesPage> {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Row(
@@ -648,7 +649,7 @@ class _SourceRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
             decoration: BoxDecoration(
               color: LockedInColors.panel,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(Radii.control),
               border: Border.all(color: LockedInColors.line),
             ),
             child: Text(

@@ -4,6 +4,7 @@ import '../../theme/palette.dart';
 import 'code_highlight.dart';
 import 'diagram.dart';
 import 'math.dart';
+import '../../theme/tokens.dart';
 
 /// Renders a small, safe subset of Markdown inside a chat bubble.
 ///
@@ -134,7 +135,7 @@ class ChatMarkdown extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Column(
@@ -177,7 +178,7 @@ class ChatMarkdown extends StatelessWidget {
       width: double.infinity,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Column(

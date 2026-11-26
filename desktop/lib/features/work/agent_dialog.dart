@@ -8,6 +8,7 @@ import '../../bridge/core_scope.dart';
 import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 
 /// The one line beside the Templates row when its read failed.
 ///
@@ -687,7 +688,7 @@ class _ErrorNote extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Row(
@@ -940,7 +941,7 @@ class _TemplateRow extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
         decoration: BoxDecoration(
           color: selected ? LockedInColors.panel : null,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(Radii.layer),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1016,7 +1017,7 @@ class _TemplateBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Text(

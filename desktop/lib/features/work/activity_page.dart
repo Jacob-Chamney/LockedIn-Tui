@@ -417,10 +417,10 @@ class _ActivityPageState extends State<ActivityPage> {
       padding: const EdgeInsets.only(bottom: 6),
       child: Material(
         color: selected ? LockedInColors.panel : LockedInColors.surface,
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(Radii.layer),
         child: InkWell(
           key: ValueKey('activity-row-$index'),
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(Radii.layer),
           onTap: () => setState(() {
             _selected = index;
             if (!_expanded.remove(index)) _expanded.add(index);
@@ -429,7 +429,7 @@ class _ActivityPageState extends State<ActivityPage> {
             key: selected ? _selectedRowKey : null,
             padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(7),
+              borderRadius: BorderRadius.circular(Radii.layer),
               border: Border.all(
                 color: selected
                     ? LockedInColors.primary.withValues(alpha: 0.5)

@@ -29,6 +29,10 @@ requests merge.
   "later packet" is gone.
 - `skill.stages.save` rewrites `curriculum.md` atomically, so the readable
   mirror always matches `meta.json`.
+- Every corner radius in the shell comes from `Radii`; raw
+  `BorderRadius.circular(n)` values are gone and a unit test fails on a new one.
+  Pills use `Radii.pill`, controls `Radii.control`, floating layers
+  `Radii.layer`.
 
 - The model badge sits at the right edge of the top bar; it used to float a
   third of the bar away because a `Spacer` and two loose flex children split the

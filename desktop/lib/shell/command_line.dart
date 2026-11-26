@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../keymap/registry.dart';
 import '../theme/palette.dart';
+import '../theme/tokens.dart';
 
 /// One command the `:` line can run.
 ///
@@ -257,7 +258,7 @@ class _CommandLineState extends State<CommandLine> {
               child: Container(
                 decoration: BoxDecoration(
                   color: LockedInColors.surface,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(Radii.layer),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -393,7 +394,7 @@ class _CommandRow extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 2),
         decoration: BoxDecoration(
           color: selected ? LockedInColors.panel : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(Radii.layer),
         ),
         child: Row(
           children: [

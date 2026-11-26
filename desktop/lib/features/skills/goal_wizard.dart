@@ -8,6 +8,7 @@ import '../../bridge/protocol.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
 import '../../theme/breakpoints.dart';
+import '../../theme/tokens.dart';
 
 /// Creates one goal. The shell's implementation calls `CoreStore.createSkill`,
 /// which rethrows the core's [RpcException] so the wizard can show the exact
@@ -304,7 +305,7 @@ class _GoalWizardState extends State<GoalWizard> {
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: current ? LockedInColors.panel : Colors.transparent,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(Radii.pill),
         border: Border.all(
           color: current
               ? LockedInColors.primary.withValues(alpha: 0.6)
@@ -630,7 +631,7 @@ class _GoalWizardState extends State<GoalWizard> {
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
         color: LockedInColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Column(
@@ -661,7 +662,7 @@ class _GoalWizardState extends State<GoalWizard> {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Text(
@@ -682,7 +683,7 @@ class _GoalWizardState extends State<GoalWizard> {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: tone.withValues(alpha: 0.55)),
       ),
       child: Row(

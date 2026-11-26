@@ -13,6 +13,7 @@ import '../chat/document_search.dart';
 import '../chat/markdown.dart';
 import 'deck.dart';
 import 'flip_card.dart';
+import '../../theme/tokens.dart';
 
 /// The session output reader: a study guide or a flashcard deck.
 ///
@@ -934,7 +935,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
                 // the hint turns the card, so the flip is not keyboard-only.
                 InkWell(
                   key: const ValueKey('deck-flip-surface'),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(Radii.control),
                   onTap: () => setState(deck.flip),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1242,7 +1243,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
             for (var index = 0; index < sections.length; index++)
               InkWell(
                 key: ValueKey('guide-section-$index'),
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(Radii.control),
                 onTap: () {
                   setState(() => _sectionCursor = index);
                   unawaited(widget.onMarkSection!.call(index));
@@ -1254,7 +1255,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
                   ),
                   decoration: BoxDecoration(
                     color: LockedInColors.panel,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(Radii.control),
                     border: Border.all(
                       color: index == _sectionCursor
                           ? LockedInColors.primary
@@ -1352,7 +1353,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
       key: ValueKey('deck-choice-$number'),
       padding: const EdgeInsets.only(bottom: 4),
       child: InkWell(
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         onTap: answerable ? () => _answerChoice(index) : null,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1401,7 +1402,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Text(
@@ -1421,7 +1422,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Row(
@@ -1575,7 +1576,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Row(
@@ -1635,7 +1636,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
         color: LockedInColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Column(
@@ -1666,7 +1667,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Text(

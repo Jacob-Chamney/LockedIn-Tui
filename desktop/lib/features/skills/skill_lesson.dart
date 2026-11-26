@@ -7,6 +7,7 @@ import '../../bridge/models.dart';
 import '../../theme/palette.dart';
 import '../chat/markdown.dart';
 import '../shared/cards.dart';
+import '../../theme/tokens.dart';
 
 /// One curriculum stage's lesson, read or built.
 ///
@@ -462,7 +463,7 @@ class _SkillLessonViewState extends State<SkillLessonView> {
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             decoration: BoxDecoration(
               color: LockedInColors.surface,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(Radii.layer),
               border: Border.all(color: LockedInColors.line),
             ),
             child: Column(

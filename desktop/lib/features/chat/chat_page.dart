@@ -899,7 +899,7 @@ class _ChatPageState extends State<ChatPage> {
       padding: const EdgeInsets.fromLTRB(8, 2, 2, 2),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Row(
@@ -1184,7 +1184,7 @@ class _BridgeChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Row(

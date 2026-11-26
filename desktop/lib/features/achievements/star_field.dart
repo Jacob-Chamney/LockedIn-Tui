@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../theme/palette.dart';
 import 'star_map.dart';
+import '../../theme/tokens.dart';
 
 /// The Achievements sky: constellation lines, a fixed dust field and one star
 /// button per achievement.
@@ -343,7 +344,7 @@ class StarDetail extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(3),
+                borderRadius: BorderRadius.circular(Radii.control),
                 child: LinearProgressIndicator(
                   value: progress,
                   minHeight: 5,
@@ -392,7 +393,7 @@ class _Chip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Text(

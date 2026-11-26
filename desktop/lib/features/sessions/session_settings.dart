@@ -8,6 +8,7 @@ import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
 import '../shared/format.dart';
+import '../../theme/tokens.dart';
 
 /// Returns one file path, or null when the user cancelled.
 typedef InstructionsPicker = Future<String?> Function();
@@ -844,7 +845,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
         color: LockedInColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Column(
@@ -875,7 +876,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Text(
@@ -896,7 +897,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: tone.withValues(alpha: 0.5)),
       ),
       child: Row(
@@ -925,7 +926,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Row(
@@ -975,7 +976,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             decoration: BoxDecoration(
               color: LockedInColors.surface,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(Radii.layer),
               border: Border.all(color: LockedInColors.line),
             ),
             child: Column(

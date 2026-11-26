@@ -2138,7 +2138,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Row(
@@ -2378,7 +2378,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Row(
@@ -2488,7 +2488,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
           padding: const EdgeInsets.fromLTRB(0, 7, 10, 7),
           decoration: BoxDecoration(
             color: selected ? LockedInColors.panel : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(Radii.layer),
             border: Border.all(
               color: selected
                   ? LockedInColors.primary.withValues(alpha: 0.5)
@@ -2504,7 +2504,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                 decoration: BoxDecoration(
                   color: selected ? LockedInColors.primary : Colors.transparent,
                   borderRadius: const BorderRadius.horizontal(
-                    right: Radius.circular(2),
+                    right: Radius.circular(Radii.control),
                   ),
                 ),
               ),
@@ -2513,7 +2513,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
               // clicked is the first thing a mouse user tries.
               InkWell(
                 key: ValueKey('step-check-$index'),
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(Radii.control),
                 onTap: widget.onToggleStep == null
                     ? null
                     : () {
@@ -2561,7 +2561,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Row(
@@ -2592,7 +2592,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Row(
@@ -2779,7 +2779,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
       padding: padding ?? const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
         color: LockedInColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Column(
@@ -2810,7 +2810,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Text(
@@ -2829,7 +2829,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Row(
@@ -2873,7 +2873,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             decoration: BoxDecoration(
               color: LockedInColors.surface,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(Radii.layer),
               border: Border.all(color: LockedInColors.line),
             ),
             child: Column(
@@ -3007,7 +3007,7 @@ class _ArchivedBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Row(

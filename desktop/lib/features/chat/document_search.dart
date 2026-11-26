@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../theme/palette.dart';
 import '../../theme/breakpoints.dart';
+import '../../theme/tokens.dart';
 
 /// One case-insensitive match inside a document.
 ///
@@ -303,15 +304,15 @@ class _DocumentSearchBarState extends State<DocumentSearchBar> {
                       vertical: 8,
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(Radii.layer),
                       borderSide: BorderSide(color: LockedInColors.line),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(Radii.layer),
                       borderSide: BorderSide(color: LockedInColors.line),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(Radii.layer),
                       borderSide: BorderSide(color: LockedInColors.primary),
                     ),
                   ),
@@ -382,7 +383,7 @@ class _DocumentSearchBarState extends State<DocumentSearchBar> {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(
           color: LockedInColors.primary.withValues(alpha: 0.5),
         ),
