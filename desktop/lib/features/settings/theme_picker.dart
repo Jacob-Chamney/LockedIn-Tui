@@ -116,7 +116,10 @@ class _ThemePickerDialogState extends State<ThemePickerDialog> {
                 const SizedBox(height: 4),
                 Text(
                   'Enter applies · Esc closes',
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 for (var index = 0; index < _ids.length; index++)
@@ -138,7 +141,7 @@ class _ThemePickerDialogState extends State<ThemePickerDialog> {
                             'on top of every palette. Edit with `e`, export with `x`.',
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 11,
+                    fontSize: TypeScale.label,
                     height: 1.4,
                   ),
                 ),
@@ -211,7 +214,7 @@ class _ThemeOption extends StatelessWidget {
                     'in use',
                     style: TextStyle(
                       color: LockedInColors.primary,
-                      fontSize: 11,
+                      fontSize: TypeScale.label,
                     ),
                   ),
                 ],

@@ -2762,7 +2762,7 @@ class _TopBar extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: LockedInType.label.copyWith(
                 color: LockedInColors.foreground,
-                fontSize: 12.5,
+                fontSize: TypeScale.key,
               ),
             ),
           ),
@@ -2812,7 +2812,7 @@ class _RailToggle extends StatelessWidget {
             '≡',
             style: LockedInType.key.copyWith(
               color: active ? LockedInColors.primary : LockedInColors.muted,
-              fontSize: 15,
+              fontSize: TypeScale.prose,
             ),
           ),
         ),
@@ -2870,7 +2870,7 @@ class _CoreChip extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: LockedInType.label.copyWith(
                     color: configured ? LockedInColors.foreground : tone,
-                    fontSize: 11.5,
+                    fontSize: TypeScale.label,
                   ),
                 ),
               ),
@@ -3056,7 +3056,7 @@ class _Sidebar extends StatelessWidget {
                           group.$1!,
                           style: TextStyle(
                             color: LockedInColors.muted,
-                            fontSize: 10,
+                            fontSize: TypeScale.micro,
                             letterSpacing: 1.4,
                             fontWeight: FontWeight.w600,
                           ),
@@ -3107,7 +3107,7 @@ class _Sidebar extends StatelessWidget {
                         'RECENT',
                         style: TextStyle(
                           color: LockedInColors.muted,
-                          fontSize: 10,
+                          fontSize: TypeScale.micro,
                           letterSpacing: 1.4,
                           fontWeight: FontWeight.w600,
                         ),
@@ -3147,7 +3147,7 @@ class _Sidebar extends StatelessWidget {
                 footer,
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 11,
+                  fontSize: TypeScale.label,
                   height: 1.4,
                 ),
               ),
@@ -3214,7 +3214,10 @@ class _RecentItem extends StatelessWidget {
                     key: ValueKey('recent-session-${row.id}'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+                    style: TextStyle(
+                      color: LockedInColors.muted,
+                      fontSize: TypeScale.label,
+                    ),
                   ),
                 ),
               ],
@@ -3345,7 +3348,7 @@ class _SidebarRow extends StatelessWidget {
                                 glyph,
                                 maxLines: 1,
                                 style: LockedInType.body.copyWith(
-                                  fontSize: 12,
+                                  fontSize: TypeScale.label,
                                   color: selected
                                       ? LockedInColors.primary
                                       : LockedInColors.muted,
@@ -3360,7 +3363,7 @@ class _SidebarRow extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: LockedInType.body.copyWith(
-                                  fontSize: 12.5,
+                                  fontSize: TypeScale.key,
                                   color: selected
                                       ? LockedInColors.foreground
                                       : LockedInColors.muted,
@@ -3385,7 +3388,7 @@ class _SidebarRow extends StatelessWidget {
                                   maxLines: 1,
                                   style: LockedInType.label.copyWith(
                                     color: LockedInColors.muted,
-                                    fontSize: 11,
+                                    fontSize: TypeScale.label,
                                     fontFeatures: const [
                                       FontFeature.tabularFigures(),
                                     ],

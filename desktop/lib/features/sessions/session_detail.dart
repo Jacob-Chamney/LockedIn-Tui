@@ -624,7 +624,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                   'generated session document — not a source.',
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 12.5,
+                    fontSize: TypeScale.key,
                     height: 1.5,
                   ),
                 ),
@@ -936,7 +936,10 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                     _subtitle(detail),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                    style: TextStyle(
+                      color: LockedInColors.muted,
+                      fontSize: TypeScale.label,
+                    ),
                   ),
               ],
             ),
@@ -1192,7 +1195,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
             key: const ValueKey('session-hero-step'),
             style: LockedInType.display.copyWith(
               color: checked ? LockedInColors.muted : LockedInColors.foreground,
-              fontSize: 21,
+              fontSize: TypeScale.display,
               height: 1.35,
               decoration: checked ? TextDecoration.lineThrough : null,
             ),
@@ -1359,7 +1362,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                   controller: _figurePage,
                   enabled: canExtract,
                   keyboardType: TextInputType.number,
-                  style: LockedInType.body.copyWith(fontSize: 12.5),
+                  style: LockedInType.body.copyWith(fontSize: TypeScale.key),
                   decoration: const InputDecoration(hintText: 'page'),
                 ),
               ),
@@ -1369,7 +1372,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                   key: const ValueKey('figure-caption'),
                   controller: _figureCaption,
                   enabled: canExtract,
-                  style: LockedInType.body.copyWith(fontSize: 12.5),
+                  style: LockedInType.body.copyWith(fontSize: TypeScale.key),
                   decoration: const InputDecoration(
                     hintText: 'caption (optional)',
                   ),
@@ -1392,7 +1395,9 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                     controller: controller,
                     enabled: canExtract,
                     keyboardType: TextInputType.number,
-                    style: LockedInType.body.copyWith(fontSize: 12),
+                    style: LockedInType.body.copyWith(
+                      fontSize: TypeScale.label,
+                    ),
                     decoration: InputDecoration(hintText: hint),
                   ),
                 ),
@@ -1451,7 +1456,9 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                               : figure.caption,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: LockedInType.body.copyWith(fontSize: 12.5),
+                          style: LockedInType.body.copyWith(
+                            fontSize: TypeScale.key,
+                          ),
                         ),
                       ),
                       if (widget.onLoadFigure != null &&
@@ -1554,7 +1561,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
               prompt,
               style: TextStyle(
                 color: LockedInColors.foreground,
-                fontSize: 13.5,
+                fontSize: TypeScale.proseSmall,
                 height: 1.5,
               ),
             ),
@@ -1603,7 +1610,10 @@ class _SessionDetailViewState extends State<SessionDetailView> {
               source.name.isEmpty ? 'unnamed source' : source.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: LockedInColors.foreground, fontSize: 13),
+              style: TextStyle(
+                color: LockedInColors.foreground,
+                fontSize: TypeScale.body,
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -1613,7 +1623,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
             shortHash(source.hash),
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 10,
+              fontSize: TypeScale.micro,
               fontFamily: 'monospace',
             ),
           ),
@@ -1642,7 +1652,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
             'your record · not a source',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 10.5,
+              fontSize: TypeScale.micro,
               letterSpacing: 0.4,
             ),
           ),
@@ -1650,13 +1660,19 @@ class _SessionDetailViewState extends State<SessionDetailView> {
           if (widget.mistakesLoading && entries.isEmpty)
             Text(
               'reading the ledger…',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             )
           else if (widget.mistakesError != null) ...[
             Text(
               widget.mistakesError!,
               key: const ValueKey('session-mistakes-error'),
-              style: TextStyle(color: LockedInColors.error, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.error,
+                fontSize: TypeScale.label,
+              ),
             ),
             if (widget.onRetryMistakes != null)
               Align(
@@ -1674,7 +1690,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
               key: const ValueKey('session-mistakes-empty'),
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 11,
+                fontSize: TypeScale.label,
                 height: 1.25,
               ),
             )
@@ -1723,7 +1739,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
               key: const ValueKey('mistake-notice'),
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 11,
+                fontSize: TypeScale.label,
                 height: 1.3,
               ),
             ),
@@ -1748,7 +1764,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                   '${entry.index + 1}. ${entry.text}',
                   style: TextStyle(
                     color: LockedInColors.foreground,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     height: 1.35,
                   ),
                 ),
@@ -1759,7 +1775,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 10.5,
+                      fontSize: TypeScale.micro,
                     ),
                   ),
                 if (note != null)
@@ -1772,7 +1788,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                       color: note.corrected
                           ? LockedInColors.success
                           : LockedInColors.muted,
-                      fontSize: 10.5,
+                      fontSize: TypeScale.micro,
                     ),
                   ),
               ],
@@ -1826,7 +1842,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
             'session memory · not a source',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 10.5,
+              fontSize: TypeScale.micro,
               letterSpacing: 0.4,
             ),
           ),
@@ -1836,7 +1852,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
               'no memory yet · it fills after a completed chat turn',
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 11,
+                fontSize: TypeScale.label,
                 height: 1.25,
               ),
             ),
@@ -1849,7 +1865,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                 'earlier',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 11,
+                  fontSize: TypeScale.label,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1.0,
                 ),
@@ -1861,7 +1877,10 @@ class _SessionDetailViewState extends State<SessionDetailView> {
               const SizedBox(height: 8),
               Text(
                 'updated ${_shortStamp(updated)}',
-                style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: TypeScale.label,
+                ),
               ),
             ],
           ],
@@ -1878,7 +1897,10 @@ class _SessionDetailViewState extends State<SessionDetailView> {
         children: [
           Text(
             '•',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 13),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.body,
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -1886,7 +1908,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
               text,
               style: TextStyle(
                 color: LockedInColors.foreground,
-                fontSize: 13,
+                fontSize: TypeScale.body,
                 height: 1.45,
               ),
             ),
@@ -1903,7 +1925,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
         '· $text',
         style: TextStyle(
           color: LockedInColors.muted,
-          fontSize: 12,
+          fontSize: TypeScale.label,
           height: 1.4,
         ),
       ),
@@ -1950,7 +1972,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
             'which sources the steps, chat, outputs and memory mention',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 10.5,
+              fontSize: TypeScale.micro,
               letterSpacing: 0.4,
             ),
           ),
@@ -1976,7 +1998,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                 'not referenced yet',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 11,
+                  fontSize: TypeScale.label,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1.0,
                 ),
@@ -1989,7 +2011,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                 'mention a source in chat or the steps, or add steps',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 11,
+                  fontSize: TypeScale.label,
                   height: 1.4,
                 ),
               ),
@@ -2000,7 +2022,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
               'no sources yet · add sources so coverage can be measured',
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 11,
+                fontSize: TypeScale.label,
                 height: 1.25,
               ),
             ),
@@ -2009,7 +2031,10 @@ class _SessionDetailViewState extends State<SessionDetailView> {
             const SizedBox(height: 8),
             Text(
               'loading coverage…',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
           if (error != null) ...[
@@ -2022,7 +2047,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
             'that source',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 11,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -2073,7 +2098,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: LockedInColors.foreground,
-                    fontSize: 13,
+                    fontSize: TypeScale.body,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -2081,7 +2106,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                   detail,
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 11,
+                    fontSize: TypeScale.label,
                     height: 1.4,
                   ),
                 ),
@@ -2119,7 +2144,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 12.5,
+                fontSize: TypeScale.key,
                 height: 1.4,
               ),
             ),
@@ -2156,7 +2181,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                     'could not read coverage',
                     style: TextStyle(
                       color: LockedInColors.error,
-                      fontSize: 12.5,
+                      fontSize: TypeScale.key,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -2165,7 +2190,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                     message,
                     style: TextStyle(
                       color: LockedInColors.error,
-                      fontSize: 12,
+                      fontSize: TypeScale.label,
                       height: 1.45,
                     ),
                   ),
@@ -2203,7 +2228,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
             'saved inside the session folder and is never counted as a source.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -2242,7 +2267,10 @@ class _SessionDetailViewState extends State<SessionDetailView> {
             const SizedBox(height: 10),
             Text(
               'generating…',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
           if (widget.onOpenOutput != null) ...[
@@ -2251,7 +2279,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
               'Read the study guide or deck built from this session.',
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),
@@ -2342,7 +2370,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                           'generating…',
                           style: TextStyle(
                             color: LockedInColors.muted,
-                            fontSize: 12,
+                            fontSize: TypeScale.label,
                           ),
                         ),
                       ],
@@ -2358,7 +2386,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                     'coverage.',
                     style: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 11,
+                      fontSize: TypeScale.label,
                       height: 1.45,
                     ),
                   ),
@@ -2396,7 +2424,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                     'could not generate this document',
                     style: TextStyle(
                       color: LockedInColors.error,
-                      fontSize: 12.5,
+                      fontSize: TypeScale.key,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -2405,7 +2433,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                     message,
                     style: TextStyle(
                       color: LockedInColors.error,
-                      fontSize: 12,
+                      fontSize: TypeScale.label,
                       height: 1.45,
                     ),
                   ),
@@ -2452,7 +2480,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
           row.text,
           style: TextStyle(
             color: LockedInColors.foreground,
-            fontSize: 14,
+            fontSize: TypeScale.proseSmall,
             fontWeight: FontWeight.w700,
             height: 1.35,
           ),
@@ -2468,7 +2496,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
           row.text,
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 12.5,
+            fontSize: TypeScale.key,
             height: 1.4,
           ),
         ),
@@ -2530,7 +2558,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                         color: checked
                             ? LockedInColors.success
                             : LockedInColors.muted,
-                        fontSize: 15,
+                        fontSize: TypeScale.prose,
                         height: 1.2,
                       ),
                     ),
@@ -2543,7 +2571,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                   row.text,
                   style: TextStyle(
                     color: LockedInColors.foreground,
-                    fontSize: 13.5,
+                    fontSize: TypeScale.proseSmall,
                     height: 1.45,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                   ),
@@ -2574,7 +2602,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
               message,
               style: TextStyle(
                 color: LockedInColors.error,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),
@@ -2607,7 +2635,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                 message,
                 style: TextStyle(
                   color: LockedInColors.error,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -2730,7 +2758,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                 'not a source. The corrected understanding is optional.',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -2817,7 +2845,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
         text,
         style: TextStyle(
           color: tone ?? LockedInColors.muted,
-          fontSize: 10,
+          fontSize: TypeScale.micro,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -2842,7 +2870,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
               message,
               style: TextStyle(
                 color: LockedInColors.error,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),
@@ -2894,7 +2922,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
                   body,
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 13,
+                    fontSize: TypeScale.body,
                     height: 1.5,
                   ),
                 ),
@@ -2938,7 +2966,10 @@ class _Loading extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             label,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),
@@ -2977,7 +3008,7 @@ class _EmptyNote extends StatelessWidget {
                 title,
                 style: TextStyle(
                   color: tone,
-                  fontSize: 12.5,
+                  fontSize: TypeScale.key,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -2989,7 +3020,7 @@ class _EmptyNote extends StatelessWidget {
           body,
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 12,
+            fontSize: TypeScale.label,
             height: 1.45,
           ),
         ),
@@ -3017,7 +3048,10 @@ class _ArchivedBadge extends StatelessWidget {
           SizedBox(width: 4),
           Text(
             'archived',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 10),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.micro,
+            ),
           ),
         ],
       ),

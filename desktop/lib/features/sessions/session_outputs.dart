@@ -717,7 +717,10 @@ class _SessionOutputViewState extends State<SessionOutputView> {
                   name.isEmpty ? 'session' : name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ],
             ),
@@ -815,7 +818,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
             'written back to the session, so a mark survives a restart.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 11,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -826,7 +829,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
           'session\'s own material and never counts towards source coverage.',
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 11,
+            fontSize: TypeScale.label,
             height: 1.45,
           ),
         ),
@@ -862,7 +865,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
           'Markdown view. Press d to read one card at a time.',
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 11,
+            fontSize: TypeScale.label,
             height: 1.45,
           ),
         ),
@@ -910,7 +913,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
           key: const ValueKey('deck-question'),
           style: TextStyle(
             color: LockedInColors.foreground,
-            fontSize: 16,
+            fontSize: TypeScale.prose,
             height: 1.45,
             fontWeight: FontWeight.w600,
           ),
@@ -952,7 +955,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
                           key: const ValueKey('deck-hint-flip'),
                           style: TextStyle(
                             color: LockedInColors.muted,
-                            fontSize: 12,
+                            fontSize: TypeScale.label,
                           ),
                         ),
                       ],
@@ -964,7 +967,10 @@ class _SessionOutputViewState extends State<SessionOutputView> {
                 Text(
                   '1–4 answer · Enter next',
                   key: const ValueKey('deck-hint-choice'),
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ],
             ],
@@ -991,7 +997,10 @@ class _SessionOutputViewState extends State<SessionOutputView> {
           Text(
             _nextReviewLine(_scheduled(card)!),
             key: const ValueKey('deck-next-review'),
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
           const SizedBox(height: 6),
           Wrap(
@@ -1019,7 +1028,10 @@ class _SessionOutputViewState extends State<SessionOutputView> {
           Text(
             widget.deckScheduleError!,
             key: const ValueKey('deck-schedule-error'),
-            style: TextStyle(color: LockedInColors.error, fontSize: 11),
+            style: TextStyle(
+              color: LockedInColors.error,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
         const SizedBox(height: 16),
@@ -1085,7 +1097,10 @@ class _SessionOutputViewState extends State<SessionOutputView> {
           Text(
             'marking…',
             key: ValueKey('deck-marking'),
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
         if (_markError != null) ...[
@@ -1096,7 +1111,10 @@ class _SessionOutputViewState extends State<SessionOutputView> {
         Text(
           '${deck.knownCount} known · ${deck.missedCount} missed',
           key: const ValueKey('deck-counts'),
-          style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+          style: TextStyle(
+            color: LockedInColors.muted,
+            fontSize: TypeScale.label,
+          ),
         ),
         const SizedBox(height: 6),
         Text(
@@ -1107,7 +1125,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
                     'r reset · M missed only · d markdown',
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 11,
+            fontSize: TypeScale.label,
             height: 1.45,
           ),
         ),
@@ -1117,7 +1135,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
           'session\'s own material and never counts towards source coverage.',
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 11,
+            fontSize: TypeScale.label,
             height: 1.45,
           ),
         ),
@@ -1150,7 +1168,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
                 color: filtered
                     ? LockedInColors.secondary
                     : LockedInColors.success,
-                fontSize: 12.5,
+                fontSize: TypeScale.key,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1160,7 +1178,10 @@ class _SessionOutputViewState extends State<SessionOutputView> {
         Text(
           '${deck.knownCount} known · ${deck.missedCount} missed',
           key: const ValueKey('deck-counts'),
-          style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+          style: TextStyle(
+            color: LockedInColors.muted,
+            fontSize: TypeScale.label,
+          ),
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -1190,7 +1211,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
           'known or the deck is rebuilt.',
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 11,
+            fontSize: TypeScale.label,
             height: 1.45,
           ),
         ),
@@ -1233,7 +1254,10 @@ class _SessionOutputViewState extends State<SessionOutputView> {
         Text(
           '$done of ${sections.length} reviewed · [ ] move · x mark · click a '
           'section',
-          style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+          style: TextStyle(
+            color: LockedInColors.muted,
+            fontSize: TypeScale.label,
+          ),
         ),
         const SizedBox(height: 6),
         Wrap(
@@ -1271,7 +1295,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
                           color: sections[index].checked
                               ? LockedInColors.success
                               : LockedInColors.muted,
-                          fontSize: 12,
+                          fontSize: TypeScale.label,
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -1281,7 +1305,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
                           color: sections[index].checked
                               ? LockedInColors.muted
                               : LockedInColors.foreground,
-                          fontSize: 11.5,
+                          fontSize: TypeScale.label,
                         ),
                       ),
                     ],
@@ -1302,7 +1326,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
         'ANSWER',
         style: TextStyle(
           color: LockedInColors.secondary,
-          fontSize: 10,
+          fontSize: TypeScale.micro,
           letterSpacing: 1.4,
           fontWeight: FontWeight.w600,
         ),
@@ -1313,7 +1337,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
         key: const ValueKey('deck-answer'),
         style: TextStyle(
           color: LockedInColors.foreground,
-          fontSize: 13.5,
+          fontSize: TypeScale.proseSmall,
           height: 1.5,
         ),
       ),
@@ -1365,7 +1389,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
                 key: ValueKey('deck-choice-$number-number'),
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 13,
+                  fontSize: TypeScale.body,
                   height: 1.5,
                 ),
               ),
@@ -1377,7 +1401,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
                 key: ValueKey('deck-choice-$number-mark'),
                 style: TextStyle(
                   color: tone,
-                  fontSize: 13,
+                  fontSize: TypeScale.body,
                   height: 1.5,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1388,7 +1412,11 @@ class _SessionOutputViewState extends State<SessionOutputView> {
               child: Text(
                 choice.text,
                 key: ValueKey('deck-choice-$number-text'),
-                style: TextStyle(color: tone, fontSize: 12.5, height: 1.45),
+                style: TextStyle(
+                  color: tone,
+                  fontSize: TypeScale.key,
+                  height: 1.45,
+                ),
               ),
             ),
           ],
@@ -1409,7 +1437,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
         text,
         style: TextStyle(
           color: tone,
-          fontSize: 10,
+          fontSize: TypeScale.micro,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -1435,7 +1463,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
               message,
               style: TextStyle(
                 color: LockedInColors.error,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),
@@ -1455,7 +1483,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
         'ANSWERS',
         style: TextStyle(
           color: LockedInColors.secondary,
-          fontSize: 10,
+          fontSize: TypeScale.micro,
           letterSpacing: 1.4,
           fontWeight: FontWeight.w600,
         ),
@@ -1466,14 +1494,17 @@ class _SessionOutputViewState extends State<SessionOutputView> {
       else if (_answersLoading)
         Text(
           'reading…',
-          style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+          style: TextStyle(
+            color: LockedInColors.muted,
+            fontSize: TypeScale.label,
+          ),
         )
       else if (answers != null)
         Text(
           'no answers document yet — rebuild the guide to create one',
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 12,
+            fontSize: TypeScale.label,
             height: 1.45,
           ),
         )
@@ -1482,7 +1513,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
           'the answers part is not loaded yet',
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 12,
+            fontSize: TypeScale.label,
             height: 1.45,
           ),
         ),
@@ -1503,7 +1534,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
                 _isDeck ? 'no flashcard deck yet' : 'no study guide yet',
                 style: TextStyle(
                   color: LockedInColors.warning,
-                  fontSize: 12.5,
+                  fontSize: TypeScale.key,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1520,7 +1551,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
                     'output. It is never counted as a source.',
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 12,
+            fontSize: TypeScale.label,
             height: 1.45,
           ),
         ),
@@ -1562,7 +1593,10 @@ class _SessionOutputViewState extends State<SessionOutputView> {
         const SizedBox(width: 10),
         Text(
           _pending ?? 'reading…',
-          style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+          style: TextStyle(
+            color: LockedInColors.muted,
+            fontSize: TypeScale.label,
+          ),
         ),
       ],
     );
@@ -1596,7 +1630,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
                         : 'could not open this output',
                     style: TextStyle(
                       color: LockedInColors.error,
-                      fontSize: 12.5,
+                      fontSize: TypeScale.key,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1605,7 +1639,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
                     message,
                     style: TextStyle(
                       color: LockedInColors.error,
-                      fontSize: 12,
+                      fontSize: TypeScale.label,
                       height: 1.45,
                     ),
                   ),
@@ -1674,7 +1708,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
         text,
         style: TextStyle(
           color: LockedInColors.muted,
-          fontSize: 10,
+          fontSize: TypeScale.micro,
           fontWeight: FontWeight.w600,
         ),
       ),

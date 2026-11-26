@@ -343,7 +343,7 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
                 'session and the original is never moved.',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -482,7 +482,10 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
                       : 'sources → instructions → review',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ],
             ),
@@ -535,7 +538,7 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
             '${index + 1} ${step.label}',
             style: TextStyle(
               color: tone,
-              fontSize: 11,
+              fontSize: TypeScale.label,
               fontWeight: current ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
@@ -647,7 +650,7 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
             'can also continue with instructions only, on the next step.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.5,
             ),
           ),
@@ -703,14 +706,17 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: LockedInColors.foreground,
-                    fontSize: 13,
+                    fontSize: TypeScale.body,
                   ),
                 ),
                 Text(
                   folder,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.micro,
+                  ),
                 ),
               ],
             ),
@@ -805,7 +811,7 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
                       'It is optional when the sources already say what to do.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.5,
             ),
           ),
@@ -842,7 +848,7 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: LockedInColors.foreground,
-                    fontSize: 13,
+                    fontSize: TypeScale.body,
                   ),
                 ),
               ),
@@ -920,7 +926,7 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
                             'steps',
                             style: TextStyle(
                               color: LockedInColors.foreground,
-                              fontSize: 13,
+                              fontSize: TypeScale.body,
                             ),
                           ),
                           Text(
@@ -930,7 +936,7 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
                             maxLines: 2,
                             style: TextStyle(
                               color: LockedInColors.muted,
-                              fontSize: 11,
+                              fontSize: TypeScale.label,
                               height: 1.4,
                             ),
                           ),
@@ -966,7 +972,7 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
                       'are.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.5,
             ),
           ),
@@ -987,7 +993,7 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
               label,
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 11,
+                fontSize: TypeScale.label,
                 letterSpacing: 0.6,
               ),
             ),
@@ -1000,7 +1006,7 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: LockedInColors.foreground,
-                fontSize: 13,
+                fontSize: TypeScale.body,
                 height: 1.4,
               ),
             ),
@@ -1019,7 +1025,7 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
       compact ? 'Esc back' : 'Tab moves · Enter next · Esc back',
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+      style: TextStyle(color: LockedInColors.muted, fontSize: TypeScale.label),
     );
     final buttons = Row(
       mainAxisSize: MainAxisSize.min,
@@ -1117,7 +1123,7 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
         text,
         style: TextStyle(
           color: tone ?? LockedInColors.muted,
-          fontSize: 10,
+          fontSize: TypeScale.micro,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -1146,7 +1152,11 @@ class _NewSessionWizardState extends State<NewSessionWizard> {
           Expanded(
             child: Text(
               message,
-              style: TextStyle(color: tone, fontSize: 12, height: 1.45),
+              style: TextStyle(
+                color: tone,
+                fontSize: TypeScale.label,
+                height: 1.45,
+              ),
             ),
           ),
         ],
@@ -1179,7 +1189,7 @@ class _EmptyNote extends StatelessWidget {
                 title,
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12.5,
+                  fontSize: TypeScale.key,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1191,7 +1201,7 @@ class _EmptyNote extends StatelessWidget {
           body,
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 12,
+            fontSize: TypeScale.label,
             height: 1.45,
           ),
         ),

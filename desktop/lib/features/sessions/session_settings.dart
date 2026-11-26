@@ -408,7 +408,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
                 'the session and extracts its text.',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -514,7 +514,10 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
                   'session settings · prompt.md',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ],
             ),
@@ -526,7 +529,10 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
           const SizedBox(width: 12),
           Text(
             'Ctrl+S save · Esc back',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),
@@ -627,7 +633,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: LockedInColors.foreground,
-                    fontSize: 13.5,
+                    fontSize: TypeScale.proseSmall,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -637,7 +643,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
                 shortHash(source.hash),
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 10,
+                  fontSize: TypeScale.micro,
                   fontFamily: 'monospace',
                 ),
               ),
@@ -649,7 +655,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
               facts.join(' · '),
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 11.5,
+                fontSize: TypeScale.label,
                 height: 1.4,
               ),
             ),
@@ -661,7 +667,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
             'copy\u2019s text.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.5,
             ),
           ),
@@ -705,7 +711,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
             'in prompt.md, next to the session\u2019s sources.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -718,7 +724,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
             maxLines: 14,
             style: TextStyle(
               color: LockedInColors.foreground,
-              fontSize: 13,
+              fontSize: TypeScale.body,
               height: 1.45,
             ),
             decoration: const InputDecoration(
@@ -734,7 +740,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
               'a specific goal.',
               style: TextStyle(
                 color: LockedInColors.warning,
-                fontSize: 11.5,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),
@@ -743,7 +749,10 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
             const SizedBox(height: 8),
             Text(
               'This session is read-only here: the core did not offer a write.',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11.5),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
           const SizedBox(height: 12),
@@ -766,7 +775,10 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
               if (_dirty)
                 Text(
                   'unsaved changes',
-                  style: TextStyle(color: LockedInColors.warning, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.warning,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
             ],
           ),
@@ -788,7 +800,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
             'supported.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.5,
             ),
           ),
@@ -810,7 +822,10 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
             const SizedBox(height: 8),
             Text(
               'importing…',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
         ],
@@ -828,7 +843,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
         'session\u2019s chat still reads only its own sources.',
         style: TextStyle(
           color: LockedInColors.muted,
-          fontSize: 12,
+          fontSize: TypeScale.label,
           height: 1.5,
         ),
       ),
@@ -883,7 +898,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
         text,
         style: TextStyle(
           color: tone ?? LockedInColors.muted,
-          fontSize: 10,
+          fontSize: TypeScale.micro,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -912,7 +927,11 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
           Expanded(
             child: Text(
               message,
-              style: TextStyle(color: tone, fontSize: 12, height: 1.45),
+              style: TextStyle(
+                color: tone,
+                fontSize: TypeScale.label,
+                height: 1.45,
+              ),
             ),
           ),
         ],
@@ -941,7 +960,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
                 message,
                 style: TextStyle(
                   color: LockedInColors.error,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -997,7 +1016,7 @@ class _SessionSettingsViewState extends State<SessionSettingsView> {
                   body,
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 13,
+                    fontSize: TypeScale.body,
                     height: 1.5,
                   ),
                 ),
@@ -1041,7 +1060,10 @@ class _Loading extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             label,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),

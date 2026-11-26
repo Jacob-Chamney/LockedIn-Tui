@@ -288,7 +288,7 @@ class _DocumentSearchBarState extends State<DocumentSearchBar> {
                   maxLines: 1,
                   style: TextStyle(
                     color: LockedInColors.foreground,
-                    fontSize: 13,
+                    fontSize: TypeScale.body,
                   ),
                   decoration: InputDecoration(
                     isDense: true,
@@ -297,7 +297,7 @@ class _DocumentSearchBarState extends State<DocumentSearchBar> {
                     hintText: 'find in document',
                     hintStyle: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 12,
+                      fontSize: TypeScale.label,
                     ),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 10,
@@ -338,7 +338,7 @@ class _DocumentSearchBarState extends State<DocumentSearchBar> {
                           color: widget.controller.hasMatches
                               ? LockedInColors.foreground
                               : LockedInColors.muted,
-                          fontSize: 11,
+                          fontSize: TypeScale.label,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -394,7 +394,7 @@ class _DocumentSearchBarState extends State<DocumentSearchBar> {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: LockedInColors.primary,
-          fontSize: 10.5,
+          fontSize: TypeScale.micro,
           fontWeight: FontWeight.w600,
         ),
       ),

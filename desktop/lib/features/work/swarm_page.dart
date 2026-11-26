@@ -404,7 +404,10 @@ class _SwarmPageState extends State<SwarmPage> {
                       : '${widget.project.name} · read-only workers',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ],
             ),
@@ -511,7 +514,7 @@ class _SwarmPageState extends State<SwarmPage> {
                   'r refresh · [ ] switch run · Esc back',
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 10.5,
+                    fontSize: TypeScale.micro,
                     height: 1.4,
                   ),
                 ),
@@ -540,7 +543,10 @@ class _SwarmPageState extends State<SwarmPage> {
             const SizedBox(width: 12),
             Text(
               'loading swarm runs…',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
         ),
@@ -559,7 +565,7 @@ class _SwarmPageState extends State<SwarmPage> {
                 'no swarm runs yet',
                 style: TextStyle(
                   color: LockedInColors.foreground,
-                  fontSize: 13,
+                  fontSize: TypeScale.body,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -568,7 +574,10 @@ class _SwarmPageState extends State<SwarmPage> {
           const SizedBox(height: 6),
           Text(
             'n starts one',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -576,7 +585,7 @@ class _SwarmPageState extends State<SwarmPage> {
             'in its own read-only worker and leaves one Markdown report.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 11.5,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -596,7 +605,7 @@ class _SwarmPageState extends State<SwarmPage> {
             board.objective.isEmpty ? 'no objective recorded' : board.objective,
             style: TextStyle(
               color: LockedInColors.foreground,
-              fontSize: 14,
+              fontSize: TypeScale.proseSmall,
               height: 1.45,
             ),
           ),
@@ -637,7 +646,7 @@ class _SwarmPageState extends State<SwarmPage> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 11,
+                    fontSize: TypeScale.label,
                     fontFamily: 'monospace',
                   ),
                 ),
@@ -697,7 +706,7 @@ class _SwarmPageState extends State<SwarmPage> {
               color: selected
                   ? LockedInColors.foreground
                   : LockedInColors.muted,
-              fontSize: 11,
+              fontSize: TypeScale.label,
               fontFamily: 'monospace',
             ),
           ),
@@ -725,7 +734,10 @@ class _SwarmPageState extends State<SwarmPage> {
       child: board.tasks.isEmpty
           ? Text(
               'this run has no tasks',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -739,7 +751,7 @@ class _SwarmPageState extends State<SwarmPage> {
                     'workers settle',
                     style: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 10.5,
+                      fontSize: TypeScale.micro,
                     ),
                   ),
                 ] else if (board.retryableTasks.isNotEmpty) ...[
@@ -749,7 +761,7 @@ class _SwarmPageState extends State<SwarmPage> {
                     'run',
                     style: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 10.5,
+                      fontSize: TypeScale.micro,
                     ),
                   ),
                 ],
@@ -811,7 +823,7 @@ class _SwarmPageState extends State<SwarmPage> {
                     '${style.glyph} ${style.label}',
                     style: TextStyle(
                       color: style.tone,
-                      fontSize: 11.5,
+                      fontSize: TypeScale.label,
                       fontWeight: FontWeight.w600,
                       fontFamily: 'monospace',
                     ),
@@ -828,7 +840,7 @@ class _SwarmPageState extends State<SwarmPage> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: LockedInColors.foreground,
-                          fontSize: 13,
+                          fontSize: TypeScale.body,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -841,7 +853,7 @@ class _SwarmPageState extends State<SwarmPage> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: LockedInColors.muted,
-                          fontSize: 10.5,
+                          fontSize: TypeScale.micro,
                           fontFamily: 'monospace',
                         ),
                       ),
@@ -853,7 +865,7 @@ class _SwarmPageState extends State<SwarmPage> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: LockedInColors.secondary,
-                            fontSize: 10.5,
+                            fontSize: TypeScale.micro,
                             fontFamily: 'monospace',
                           ),
                         ),
@@ -866,7 +878,7 @@ class _SwarmPageState extends State<SwarmPage> {
                             color: task.verified
                                 ? LockedInColors.success
                                 : LockedInColors.warning,
-                            fontSize: 10.5,
+                            fontSize: TypeScale.micro,
                             fontFamily: 'monospace',
                           ),
                         ),
@@ -884,7 +896,7 @@ class _SwarmPageState extends State<SwarmPage> {
                           color: task.error != null
                               ? LockedInColors.error
                               : LockedInColors.muted,
-                          fontSize: 11.5,
+                          fontSize: TypeScale.label,
                           height: 1.4,
                         ),
                       ),
@@ -949,7 +961,7 @@ class _Chip extends StatelessWidget {
         text,
         style: TextStyle(
           color: tone ?? LockedInColors.muted,
-          fontSize: 10,
+          fontSize: TypeScale.micro,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -985,7 +997,7 @@ class _ErrorNote extends StatelessWidget {
                   message,
                   style: TextStyle(
                     color: LockedInColors.error,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     height: 1.45,
                   ),
                 ),

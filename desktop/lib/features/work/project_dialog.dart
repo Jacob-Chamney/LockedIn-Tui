@@ -125,7 +125,7 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
                   'deletes your files.',
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     height: 1.45,
                   ),
                 ),
@@ -159,7 +159,7 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
                         'mode',
                         style: TextStyle(
                           color: LockedInColors.muted,
-                          fontSize: 12,
+                          fontSize: TypeScale.label,
                         ),
                       ),
                     ),
@@ -183,7 +183,7 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
                   'workers',
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 11,
+                    fontSize: TypeScale.label,
                     height: 1.4,
                   ),
                 ),
@@ -242,7 +242,7 @@ class _ErrorNote extends StatelessWidget {
               message,
               style: TextStyle(
                 color: LockedInColors.error,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),

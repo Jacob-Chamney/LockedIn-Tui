@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../keymap/binding.dart';
 import '../../keymap/registry.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 
 /// One rebindable row of the Settings `KEYBINDS` group.
 ///
@@ -96,7 +97,7 @@ class KeybindValue extends StatelessWidget {
         key: const ValueKey('keybind-capturing'),
         style: TextStyle(
           color: LockedInColors.warning,
-          fontSize: 12,
+          fontSize: TypeScale.label,
           fontWeight: FontWeight.w600,
         ),
       );
@@ -117,7 +118,7 @@ class KeybindValue extends StatelessWidget {
             textAlign: TextAlign.right,
             style: TextStyle(
               color: custom ? LockedInColors.foreground : LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -141,7 +142,7 @@ class KeybindFooter extends StatelessWidget {
         keybindFooter(editable),
         style: TextStyle(
           color: LockedInColors.muted,
-          fontSize: 11,
+          fontSize: TypeScale.label,
           height: 1.4,
         ),
       ),

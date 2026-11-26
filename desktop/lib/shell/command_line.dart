@@ -271,7 +271,7 @@ class _CommandLineState extends State<CommandLine> {
                             ':',
                             style: TextStyle(
                               color: LockedInColors.primary,
-                              fontSize: 15,
+                              fontSize: TypeScale.prose,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -283,7 +283,7 @@ class _CommandLineState extends State<CommandLine> {
                               focusNode: _inputFocus,
                               style: TextStyle(
                                 color: LockedInColors.foreground,
-                                fontSize: 14,
+                                fontSize: TypeScale.proseSmall,
                               ),
                               // Borderless: the window is a surface fill with a
                               // plain header, never a box in a box.
@@ -355,7 +355,7 @@ class _CommandLineState extends State<CommandLine> {
                           '↑↓ move · Enter run · Esc close',
                           style: TextStyle(
                             color: LockedInColors.muted,
-                            fontSize: 11,
+                            fontSize: TypeScale.label,
                           ),
                         ),
                       ),
@@ -424,7 +424,10 @@ class _CommandRow extends StatelessWidget {
                 entry.hint,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: TypeScale.label,
+                ),
               ),
             ),
             const SizedBox(width: 10),

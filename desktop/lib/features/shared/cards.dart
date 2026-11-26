@@ -56,7 +56,7 @@ class ValueChip extends StatelessWidget {
         text,
         style: TextStyle(
           color: tone ?? LockedInColors.muted,
-          fontSize: 10,
+          fontSize: TypeScale.micro,
           fontWeight: FontWeight.w600,
         ),
       ),

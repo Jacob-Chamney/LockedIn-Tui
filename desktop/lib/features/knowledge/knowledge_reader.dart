@@ -386,7 +386,10 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
                   key: const ValueKey('knowledge-reader-subtitle'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ],
             ),
@@ -439,7 +442,7 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
         '${index + 1} of $total',
         style: TextStyle(
           color: LockedInColors.muted,
-          fontSize: 10,
+          fontSize: TypeScale.micro,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -461,14 +464,20 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
               message,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ),
           if (_hasHitOrder)
             Text(
               '[ previous · ] next',
               key: const ValueKey('knowledge-reader-navhint'),
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
         ],
       ),
@@ -509,7 +518,7 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
             label.toUpperCase(),
             style: TextStyle(
               color: color,
-              fontSize: 9,
+              fontSize: TypeScale.micro,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
             ),
@@ -533,7 +542,7 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
         label,
         style: TextStyle(
           color: sideColor(label),
-          fontSize: 9,
+          fontSize: TypeScale.micro,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.4,
         ),
@@ -632,7 +641,10 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
           const SizedBox(width: 12),
           Text(
             'reading…',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),
@@ -678,7 +690,7 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
                               'could not read this item',
                               style: TextStyle(
                                 color: LockedInColors.error,
-                                fontSize: 12.5,
+                                fontSize: TypeScale.key,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -687,7 +699,7 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
                               message,
                               style: TextStyle(
                                 color: LockedInColors.error,
-                                fontSize: 12,
+                                fontSize: TypeScale.label,
                                 height: 1.45,
                               ),
                             ),
@@ -740,7 +752,11 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
           Expanded(
             child: Text(
               text,
-              style: TextStyle(color: tone, fontSize: 11.5, height: 1.45),
+              style: TextStyle(
+                color: tone,
+                fontSize: TypeScale.label,
+                height: 1.45,
+              ),
             ),
           ),
         ],
@@ -776,7 +792,7 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
                   title,
                   style: TextStyle(
                     color: LockedInColors.foreground,
-                    fontSize: 13,
+                    fontSize: TypeScale.body,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -785,7 +801,7 @@ class _KnowledgeReaderState extends State<KnowledgeReader> {
                   body,
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     height: 1.45,
                   ),
                 ),

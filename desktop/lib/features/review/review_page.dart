@@ -332,7 +332,7 @@ class _ReviewPageState extends State<ReviewPage> {
           'REVIEW',
           style: theme.textTheme.labelSmall?.copyWith(
             color: LockedInColors.secondary,
-            fontSize: 11,
+            fontSize: TypeScale.label,
             letterSpacing: 1.4,
           ),
         ),
@@ -349,7 +349,7 @@ class _ReviewPageState extends State<ReviewPage> {
             '$actionable',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 10,
+              fontSize: TypeScale.micro,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -360,7 +360,10 @@ class _ReviewPageState extends State<ReviewPage> {
             summary,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ),
         if (!compact)
@@ -373,7 +376,10 @@ class _ReviewPageState extends State<ReviewPage> {
                   : 'k known · m missed · r refresh · s side',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ),
       ],
@@ -396,7 +402,7 @@ class _ReviewPageState extends State<ReviewPage> {
       key: const ValueKey('review-coverage'),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+      style: TextStyle(color: LockedInColors.muted, fontSize: TypeScale.label),
     );
   }
 
@@ -410,7 +416,7 @@ class _ReviewPageState extends State<ReviewPage> {
           'SIDE',
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 10,
+            fontSize: TypeScale.micro,
             letterSpacing: 1.2,
             fontWeight: FontWeight.w600,
           ),
@@ -438,7 +444,7 @@ class _ReviewPageState extends State<ReviewPage> {
         key: const ValueKey('review-purpose'),
         style: TextStyle(
           color: LockedInColors.muted,
-          fontSize: 11,
+          fontSize: TypeScale.label,
           height: 1.45,
         ),
       ),
@@ -589,12 +595,18 @@ class _ReviewPageState extends State<ReviewPage> {
             ? Text(
                 'snapshot · marking is available',
                 key: ValueKey('review-readonly'),
-                style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: TypeScale.label,
+                ),
               )
             : Text(
                 'k known · m missed · session memory is read-only',
                 key: ValueKey('review-mark-hint'),
-                style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: TypeScale.label,
+                ),
               ),
       );
     }
@@ -622,7 +634,7 @@ class _SectionHeading extends StatelessWidget {
             label,
             style: TextStyle(
               color: LockedInColors.secondary,
-              fontSize: 10,
+              fontSize: TypeScale.micro,
               letterSpacing: 1.2,
               fontWeight: FontWeight.w600,
             ),
@@ -630,7 +642,10 @@ class _SectionHeading extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             '$count',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 10),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.micro,
+            ),
           ),
         ],
       ),
@@ -763,7 +778,7 @@ class _ReviewRow extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: LockedInColors.muted,
-                          fontSize: 11,
+                          fontSize: TypeScale.label,
                         ),
                       ),
                     ],
@@ -796,7 +811,7 @@ class _ReviewRow extends StatelessWidget {
                       : item.count > 0
                       ? LockedInColors.warning
                       : LockedInColors.muted,
-                  fontSize: 11,
+                  fontSize: TypeScale.label,
                 ),
               ),
             ],
@@ -832,7 +847,7 @@ class _KindTag extends StatelessWidget {
             kind.toUpperCase(),
             style: TextStyle(
               color: color,
-              fontSize: 9,
+              fontSize: TypeScale.micro,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
             ),
@@ -874,7 +889,7 @@ class _NudgeStrip extends StatelessWidget {
                 'NUDGE',
                 style: TextStyle(
                   color: LockedInColors.secondary,
-                  fontSize: 10,
+                  fontSize: TypeScale.micro,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1.0,
                 ),
@@ -888,7 +903,7 @@ class _NudgeStrip extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: LockedInColors.foreground,
-                    fontSize: 11,
+                    fontSize: TypeScale.label,
                   ),
                 ),
               ),
@@ -904,7 +919,7 @@ class _NudgeStrip extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 11,
+                  fontSize: TypeScale.label,
                   height: 1.4,
                 ),
               ),
@@ -953,14 +968,17 @@ class _DiagnosticsBlock extends StatelessWidget {
                   'some items could not be read',
                   style: TextStyle(
                     color: LockedInColors.warning,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
               Text(
                 'not a failure',
-                style: TextStyle(color: LockedInColors.muted, fontSize: 10),
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: TypeScale.micro,
+                ),
               ),
             ],
           ),
@@ -975,7 +993,7 @@ class _DiagnosticsBlock extends StatelessWidget {
                       joinDot([diagnostic.kind, diagnostic.path]),
                       style: TextStyle(
                         color: LockedInColors.warning,
-                        fontSize: 11,
+                        fontSize: TypeScale.label,
                       ),
                     ),
                   const SizedBox(height: 2),
@@ -983,7 +1001,7 @@ class _DiagnosticsBlock extends StatelessWidget {
                     diagnostic.message,
                     style: TextStyle(
                       color: LockedInColors.foreground,
-                      fontSize: 12,
+                      fontSize: TypeScale.label,
                       height: 1.4,
                     ),
                   ),
@@ -993,7 +1011,7 @@ class _DiagnosticsBlock extends StatelessWidget {
                       'next: ${diagnostic.next}',
                       style: TextStyle(
                         color: LockedInColors.muted,
-                        fontSize: 11,
+                        fontSize: TypeScale.label,
                         height: 1.4,
                       ),
                     ),
@@ -1041,7 +1059,7 @@ class _ErrorBlock extends StatelessWidget {
                   message,
                   style: TextStyle(
                     color: LockedInColors.error,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     height: 1.45,
                   ),
                 ),
@@ -1092,7 +1110,7 @@ class _NoticeBlock extends StatelessWidget {
               message,
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),
@@ -1125,7 +1143,10 @@ class _LoadingState extends StatelessWidget {
             SizedBox(height: 14),
             Text(
               'loading review…',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
         ),
@@ -1157,7 +1178,10 @@ class _EmptyState extends StatelessWidget {
             'leave a lock-in step unchecked or miss a flashcard to fill this '
             'queue',
             textAlign: TextAlign.center,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),

@@ -461,7 +461,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                 'this goal and the original is never moved.',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -1429,7 +1429,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: LockedInType.body.copyWith(
-                            fontSize: 12.5,
+                            fontSize: TypeScale.key,
                             color: item.id == widget.researchOpenId
                                 ? LockedInColors.primary
                                 : LockedInColors.foreground,
@@ -2216,7 +2216,10 @@ class _SkillDetailViewState extends State<SkillDetailView> {
           width: 110,
           child: Text(
             label,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ),
         Expanded(
@@ -2224,7 +2227,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             value,
             style: TextStyle(
               color: LockedInColors.foreground,
-              fontSize: 12.5,
+              fontSize: TypeScale.key,
               height: 1.45,
             ),
           ),
@@ -2250,7 +2253,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             'here. The core keeps one copy per source inside the goal folder.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -2306,7 +2309,10 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                 const SizedBox(width: 12),
                 Text(
                   'a add sources',
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ],
             ),
@@ -2346,7 +2352,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: LockedInColors.foreground,
-                          fontSize: 13,
+                          fontSize: TypeScale.body,
                         ),
                       ),
                     ),
@@ -2362,7 +2368,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 11.5,
+                      fontSize: TypeScale.label,
                       height: 1.4,
                     ),
                   ),
@@ -2410,7 +2416,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             'sources. An unsourced claim is labelled as an agent explanation.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -2480,7 +2486,10 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                       if (editable) 'e edit stages',
                       'Esc back',
                     ].join(' · '),
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
         ],
@@ -2553,7 +2562,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: LockedInColors.foreground,
-                          fontSize: 13,
+                          fontSize: TypeScale.body,
                           fontWeight: selected
                               ? FontWeight.w600
                               : FontWeight.w400,
@@ -2567,7 +2576,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: LockedInColors.muted,
-                            fontSize: 10.5,
+                            fontSize: TypeScale.micro,
                             height: 1.4,
                           ),
                         ),
@@ -2629,7 +2638,10 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                 if (widget.onOpenChat != null) 'c chat',
                 'Esc back',
               ].join(' · '),
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
         ],
@@ -2708,7 +2720,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: LockedInColors.foreground,
-                          fontSize: 13,
+                          fontSize: TypeScale.body,
                           fontWeight: selected
                               ? FontWeight.w600
                               : FontWeight.w400,
@@ -2722,7 +2734,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: LockedInColors.muted,
-                            fontSize: 10.5,
+                            fontSize: TypeScale.micro,
                             fontFamily: 'monospace',
                           ),
                         ),
@@ -2762,7 +2774,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             'from them or are labelled as an agent explanation.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -2834,20 +2846,29 @@ class _SkillDetailViewState extends State<SkillDetailView> {
               chat.title.isEmpty ? chat.id : chat.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: LockedInColors.foreground, fontSize: 13),
+              style: TextStyle(
+                color: LockedInColors.foreground,
+                fontSize: TypeScale.body,
+              ),
             ),
           ),
           if (used.isNotEmpty) ...[
             const SizedBox(width: 10),
             Text(
               used,
-              style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.micro,
+              ),
             ),
           ],
           const SizedBox(width: 10),
           Text(
             chat.messages == 1 ? '1 message' : '${chat.messages} messages',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.micro,
+            ),
           ),
         ],
       ),
@@ -2894,7 +2915,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                       practical ? 'practical' : 'lesson',
                       style: TextStyle(
                         color: LockedInColors.muted,
-                        fontSize: 11,
+                        fontSize: TypeScale.label,
                       ),
                     ),
                   ],
@@ -2940,7 +2961,10 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             SizedBox(height: 14),
             Text(
               'loading chapter…',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
         ),
@@ -3000,7 +3024,10 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                 const SizedBox(height: 18),
                 Text(
                   'Esc back',
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ],
             ),
@@ -3048,7 +3075,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                   body,
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 13,
+                    fontSize: TypeScale.body,
                     height: 1.5,
                   ),
                 ),
@@ -3254,7 +3281,7 @@ class _PlanRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: LockedInType.body.copyWith(
-                        fontSize: 12.5,
+                        fontSize: TypeScale.key,
                         color: tone,
                       ),
                     ),
@@ -3490,7 +3517,7 @@ class _PhaseRow extends StatelessWidget {
                         Text(
                           label,
                           style: LockedInType.body.copyWith(
-                            fontSize: 12.5,
+                            fontSize: TypeScale.key,
                             color: selected
                                 ? LockedInColors.foreground
                                 : LockedInColors.muted,
@@ -3600,7 +3627,7 @@ class _StagePromptDialogState extends State<_StagePromptDialog> {
                 'keeps its id, status and lesson.',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 11.5,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -3690,7 +3717,7 @@ class _StageConfirmDialog extends StatelessWidget {
                 question,
                 style: TextStyle(
                   color: LockedInColors.foreground,
-                  fontSize: 13,
+                  fontSize: TypeScale.body,
                   height: 1.45,
                 ),
               ),
@@ -3699,7 +3726,7 @@ class _StageConfirmDialog extends StatelessWidget {
                 detail,
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -3754,7 +3781,7 @@ class _ErrorBanner extends StatelessWidget {
               message,
               style: TextStyle(
                 color: LockedInColors.error,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),
@@ -3795,7 +3822,7 @@ class _Notice extends StatelessWidget {
               message,
               style: TextStyle(
                 color: LockedInColors.warning,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),
@@ -3838,7 +3865,7 @@ class _SourceNotice extends StatelessWidget {
               message,
               style: TextStyle(
                 color: LockedInColors.success,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),
@@ -3880,7 +3907,7 @@ class _EmptyNote extends StatelessWidget {
                 title,
                 style: TextStyle(
                   color: tone,
-                  fontSize: 12.5,
+                  fontSize: TypeScale.key,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -3892,7 +3919,7 @@ class _EmptyNote extends StatelessWidget {
           body,
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 12,
+            fontSize: TypeScale.label,
             height: 1.45,
           ),
         ),

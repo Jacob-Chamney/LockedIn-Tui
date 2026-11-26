@@ -272,7 +272,10 @@ class _GoalWizardState extends State<GoalWizard> {
                       : 'goal → review',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ],
             ),
@@ -325,7 +328,7 @@ class _GoalWizardState extends State<GoalWizard> {
             '${index + 1} ${step.label}',
             style: TextStyle(
               color: tone,
-              fontSize: 11,
+              fontSize: TypeScale.label,
               fontWeight: current ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
@@ -396,7 +399,7 @@ class _GoalWizardState extends State<GoalWizard> {
                 'write it the way you would say it out loud.',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 11.5,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -437,7 +440,7 @@ class _GoalWizardState extends State<GoalWizard> {
                 'to start from scratch.',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 11.5,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -452,7 +455,7 @@ class _GoalWizardState extends State<GoalWizard> {
             'model is called and nothing is charged. Esc here writes nothing.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.5,
             ),
           ),
@@ -518,7 +521,7 @@ class _GoalWizardState extends State<GoalWizard> {
             key: ValueKey('goal-wizard-template-note'),
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.5,
             ),
           ),
@@ -539,7 +542,7 @@ class _GoalWizardState extends State<GoalWizard> {
               label,
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 11,
+                fontSize: TypeScale.label,
                 letterSpacing: 0.6,
               ),
             ),
@@ -552,7 +555,7 @@ class _GoalWizardState extends State<GoalWizard> {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: LockedInColors.foreground,
-                fontSize: 13,
+                fontSize: TypeScale.body,
                 height: 1.4,
               ),
             ),
@@ -571,7 +574,7 @@ class _GoalWizardState extends State<GoalWizard> {
       compact ? 'Esc back' : 'Tab moves · Enter next · Esc back',
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+      style: TextStyle(color: LockedInColors.muted, fontSize: TypeScale.label),
     );
     final buttons = Row(
       mainAxisSize: MainAxisSize.min,
@@ -639,15 +642,26 @@ class _GoalWizardState extends State<GoalWizard> {
         children: [
           Row(
             children: [
-              Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: LockedInColors.secondary,
-                  letterSpacing: 1.4,
+              // The label yields to the chip: a long trailing value used to
+              // overflow the card header by a few pixels at 460.
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: LockedInColors.secondary,
+                    letterSpacing: 1.4,
+                  ),
                 ),
               ),
-              const Spacer(),
-              ?trailing,
+              if (trailing != null) ...[
+                const SizedBox(width: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 260),
+                  child: trailing,
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 10),
@@ -667,9 +681,11 @@ class _GoalWizardState extends State<GoalWizard> {
       ),
       child: Text(
         text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: tone ?? LockedInColors.muted,
-          fontSize: 10,
+          fontSize: TypeScale.micro,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -698,7 +714,11 @@ class _GoalWizardState extends State<GoalWizard> {
           Expanded(
             child: Text(
               message,
-              style: TextStyle(color: tone, fontSize: 12, height: 1.45),
+              style: TextStyle(
+                color: tone,
+                fontSize: TypeScale.label,
+                height: 1.45,
+              ),
             ),
           ),
         ],

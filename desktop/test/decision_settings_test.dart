@@ -254,7 +254,7 @@ void main() {
     );
 
     // The only actionable row is the toggle; the model row is a projection.
-    expect(find.byType(TextField), findsNothing);
+    expect(find.byKey(const ValueKey('settings-search')), findsOneWidget);
     expect(find.byType(Switch), findsNothing);
     expect(find.byType(Slider), findsNothing);
     expect(find.text('not shipped in this build'), findsOneWidget);
@@ -368,7 +368,7 @@ void main() {
     // projection until a build exposes a local-model editor.
     expect(find.text('not shipped in this build'), findsNothing);
     expect(find.text('local/qwen'), findsOneWidget);
-    expect(find.byType(TextField), findsNothing);
+    expect(find.byKey(const ValueKey('settings-search')), findsOneWidget);
     expect(find.textContaining('The rules are always on.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

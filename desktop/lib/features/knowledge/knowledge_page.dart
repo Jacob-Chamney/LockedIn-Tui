@@ -421,7 +421,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
               color: selected
                   ? LockedInColors.foreground
                   : LockedInColors.muted,
-              fontSize: 11,
+              fontSize: TypeScale.label,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
             ),
           ),
@@ -499,7 +499,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
           'KNOWLEDGE',
           style: theme.textTheme.labelSmall?.copyWith(
             color: LockedInColors.secondary,
-            fontSize: 11,
+            fontSize: TypeScale.label,
             letterSpacing: 1.4,
           ),
         ),
@@ -516,7 +516,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
             '$total',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 10,
+              fontSize: TypeScale.micro,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -528,7 +528,10 @@ class _KnowledgePageState extends State<KnowledgePage> {
             key: const ValueKey('knowledge-summary'),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ),
         const SizedBox(width: 10),
@@ -555,7 +558,10 @@ class _KnowledgePageState extends State<KnowledgePage> {
                 '/ search · g graph · j/k move · Enter open · Esc back',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: TypeScale.label,
+                ),
               ),
             ),
           ),
@@ -577,13 +583,19 @@ class _KnowledgePageState extends State<KnowledgePage> {
         _searchNow(value);
       },
       textInputAction: TextInputAction.search,
-      style: TextStyle(color: LockedInColors.foreground, fontSize: 13),
+      style: TextStyle(
+        color: LockedInColors.foreground,
+        fontSize: TypeScale.body,
+      ),
       decoration: InputDecoration(
         isDense: true,
         filled: true,
         fillColor: LockedInColors.surface,
         hintText: 'search notes, memory, sources, sessions, goals and projects',
-        hintStyle: TextStyle(color: LockedInColors.muted, fontSize: 12),
+        hintStyle: TextStyle(
+          color: LockedInColors.muted,
+          fontSize: TypeScale.label,
+        ),
         prefixIcon: Icon(Icons.search, size: 16, color: LockedInColors.muted),
         prefixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 0),
         suffixIcon: _query.trim().isEmpty
@@ -628,7 +640,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
           'SCOPE',
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 10,
+            fontSize: TypeScale.micro,
             letterSpacing: 1.2,
             fontWeight: FontWeight.w600,
           ),
@@ -643,7 +655,10 @@ class _KnowledgePageState extends State<KnowledgePage> {
         if (widget.onScope != null)
           Text(
             's cycles',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
       ],
     );
@@ -669,7 +684,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 11,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -694,7 +709,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 11,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -726,7 +741,10 @@ class _KnowledgePageState extends State<KnowledgePage> {
               message,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ),
         ],
@@ -749,7 +767,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 11,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -798,7 +816,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
               node.kind.toUpperCase(),
               style: TextStyle(
                 color: LockedInColors.secondary,
-                fontSize: 10,
+                fontSize: TypeScale.micro,
                 letterSpacing: 1.2,
                 fontWeight: FontWeight.w600,
               ),
@@ -845,7 +863,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
                             color: selected
                                 ? LockedInColors.foreground
                                 : LockedInColors.secondary,
-                            fontSize: 12.5,
+                            fontSize: TypeScale.key,
                             height: 1.4,
                           ),
                         ),
@@ -855,7 +873,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
                           'agent explanation',
                           style: TextStyle(
                             color: LockedInColors.muted,
-                            fontSize: 10,
+                            fontSize: TypeScale.micro,
                           ),
                         ),
                     ],
@@ -865,7 +883,10 @@ class _KnowledgePageState extends State<KnowledgePage> {
                     '${node.context} · ${node.detail}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                    style: TextStyle(
+                      color: LockedInColors.muted,
+                      fontSize: TypeScale.label,
+                    ),
                   ),
                   if (expanded) ...[
                     const SizedBox(height: 4),
@@ -875,7 +896,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
                         '→ ${edge.kind} · ${byId[edge.to]?.label ?? edge.to}',
                         style: TextStyle(
                           color: LockedInColors.secondary,
-                          fontSize: 11,
+                          fontSize: TypeScale.label,
                         ),
                       ),
                     for (final edge
@@ -884,7 +905,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
                         '← ${edge.kind} · ${byId[edge.from]?.label ?? edge.from}',
                         style: TextStyle(
                           color: LockedInColors.muted,
-                          fontSize: 11,
+                          fontSize: TypeScale.label,
                         ),
                       ),
                     if ((outgoing[node.id] ?? const []).isEmpty &&
@@ -893,7 +914,7 @@ class _KnowledgePageState extends State<KnowledgePage> {
                         'no relations',
                         style: TextStyle(
                           color: LockedInColors.muted,
-                          fontSize: 11,
+                          fontSize: TypeScale.label,
                         ),
                       ),
                   ],
@@ -968,7 +989,10 @@ class _KnowledgePageState extends State<KnowledgePage> {
         Text(
           'Enter opens the reader · history is reference, not a source',
           key: const ValueKey('knowledge-search-hint'),
-          style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+          style: TextStyle(
+            color: LockedInColors.muted,
+            fontSize: TypeScale.label,
+          ),
         ),
       );
     } else {
@@ -1060,7 +1084,7 @@ class _TopicHeading extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 10,
+              fontSize: TypeScale.micro,
               letterSpacing: 1.2,
               fontWeight: FontWeight.w600,
             ),
@@ -1068,7 +1092,10 @@ class _TopicHeading extends StatelessWidget {
         ),
         Text(
           '${group.notes.length}',
-          style: TextStyle(color: LockedInColors.muted, fontSize: 10),
+          style: TextStyle(
+            color: LockedInColors.muted,
+            fontSize: TypeScale.micro,
+          ),
         ),
       ],
     );
@@ -1113,7 +1140,7 @@ class _NoteTile extends StatelessWidget {
                       key: const ValueKey('knowledge-cursor'),
                       style: TextStyle(
                         color: LockedInColors.primary,
-                        fontSize: 13,
+                        fontSize: TypeScale.body,
                       ),
                     )
                   : null,
@@ -1135,7 +1162,10 @@ class _NoteTile extends StatelessWidget {
                     joinDot([note.path, dateLabel(note.updated)]),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                    style: TextStyle(
+                      color: LockedInColors.muted,
+                      fontSize: TypeScale.label,
+                    ),
                   ),
                 ],
               ),
@@ -1186,7 +1216,7 @@ class _HitTile extends StatelessWidget {
                       key: const ValueKey('knowledge-cursor'),
                       style: TextStyle(
                         color: LockedInColors.primary,
-                        fontSize: 13,
+                        fontSize: TypeScale.body,
                       ),
                     )
                   : null,
@@ -1223,7 +1253,7 @@ class _HitTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: LockedInColors.foreground,
-                        fontSize: 12,
+                        fontSize: TypeScale.label,
                         height: 1.4,
                       ),
                     ),
@@ -1242,7 +1272,7 @@ class _HitTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: LockedInColors.muted,
-                            fontSize: 11,
+                            fontSize: TypeScale.label,
                           ),
                         ),
                       ),
@@ -1283,7 +1313,7 @@ class _KindTag extends StatelessWidget {
             label.toUpperCase(),
             style: TextStyle(
               color: color,
-              fontSize: 9,
+              fontSize: TypeScale.micro,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
             ),
@@ -1315,7 +1345,7 @@ class _SideBadge extends StatelessWidget {
         label,
         style: TextStyle(
           color: sideColor(label),
-          fontSize: 9,
+          fontSize: TypeScale.micro,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.4,
         ),
@@ -1351,7 +1381,7 @@ class _HistoryTag extends StatelessWidget {
             'history',
             style: TextStyle(
               color: LockedInColors.success,
-              fontSize: 9,
+              fontSize: TypeScale.micro,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -1390,7 +1420,7 @@ class _ErrorBlock extends StatelessWidget {
                   message,
                   style: TextStyle(
                     color: LockedInColors.error,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     height: 1.45,
                   ),
                 ),
@@ -1439,7 +1469,10 @@ class _LoadingState extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               searching ? 'searching…' : 'loading knowledge…',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
         ),
@@ -1466,7 +1499,7 @@ class _EmptyTree extends StatelessWidget {
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.5,
             ),
           ),
@@ -1500,7 +1533,10 @@ class _NoHits extends StatelessWidget {
           Text(
             'try another word · Esc to browse the tree',
             textAlign: TextAlign.center,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),

@@ -425,7 +425,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                       'LAST COMMAND',
                       style: TextStyle(
                         color: LockedInColors.secondary,
-                        fontSize: 11,
+                        fontSize: TypeScale.label,
                         letterSpacing: 1.4,
                       ),
                     ),
@@ -450,7 +450,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                   style: TextStyle(
                     color: LockedInColors.foreground,
                     fontFamily: 'monospace',
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                   ),
                 ),
                 if (output.isNotEmpty) ...[
@@ -472,7 +472,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                         style: TextStyle(
                           color: LockedInColors.muted,
                           fontFamily: 'monospace',
-                          fontSize: 11.5,
+                          fontSize: TypeScale.label,
                           height: 1.45,
                         ),
                       ),
@@ -482,7 +482,10 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                   const SizedBox(height: 4),
                   Text(
                     'no output',
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                    style: TextStyle(
+                      color: LockedInColors.muted,
+                      fontSize: TypeScale.label,
+                    ),
                   ),
                 ],
               ],
@@ -523,7 +526,10 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                       : '${widget.projectName} · pending writes and commands',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ],
             ),
@@ -549,7 +555,10 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
         return Center(
           child: Text(
             'reading approvals…',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         );
       }
@@ -598,7 +607,10 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                 Text(
                   'y approve · n reject/deny · Space toggle a hunk · '
                   'Tab/h/l move hunks · Esc back',
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.micro,
+                  ),
                 ),
               ],
             ),
@@ -650,7 +662,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                   body,
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 12.5,
+                    fontSize: TypeScale.key,
                     height: 1.45,
                   ),
                 ),
@@ -723,7 +735,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: LockedInColors.foreground,
-                      fontSize: 13,
+                      fontSize: TypeScale.body,
                       fontFamily: 'monospace',
                     ),
                   ),
@@ -812,7 +824,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                         : 'read-only',
                     style: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 10.5,
+                      fontSize: TypeScale.micro,
                     ),
                   ),
                 ),
@@ -850,7 +862,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                       softWrap: false,
                       style: TextStyle(
                         color: _diffTone(line),
-                        fontSize: 11.5,
+                        fontSize: TypeScale.label,
                         fontFamily: 'monospace',
                         height: 1.4,
                       ),
@@ -902,7 +914,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 11,
+                  fontSize: TypeScale.label,
                   fontFamily: 'monospace',
                 ),
               ),
@@ -912,7 +924,10 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                 padding: EdgeInsets.only(right: 6),
                 child: Text(
                   'Space',
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 10),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.micro,
+                  ),
                 ),
               ),
           ],
@@ -957,7 +972,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                     'command',
                     style: TextStyle(
                       color: LockedInColors.foreground,
-                      fontSize: 13,
+                      fontSize: TypeScale.body,
                     ),
                   ),
                 ),
@@ -995,7 +1010,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: LockedInColors.foreground,
-                              fontSize: 12,
+                              fontSize: TypeScale.label,
                               fontFamily: 'monospace',
                               height: 1.4,
                             ),
@@ -1009,7 +1024,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                 'reason · ${command.reason.trim()}',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 11.5,
+                  fontSize: TypeScale.label,
                   height: 1.4,
                 ),
               ),
@@ -1030,7 +1045,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                       command.risk.trim(),
                       style: TextStyle(
                         color: LockedInColors.warning,
-                        fontSize: 11,
+                        fontSize: TypeScale.label,
                         height: 1.45,
                       ),
                     ),
@@ -1085,7 +1100,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
                         : 'deciding…',
                     style: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 10.5,
+                      fontSize: TypeScale.micro,
                     ),
                   ),
                 ),
@@ -1115,7 +1130,7 @@ class _WorkApprovalsViewState extends State<WorkApprovalsView> {
               message,
               style: TextStyle(
                 color: LockedInColors.error,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),
@@ -1160,7 +1175,7 @@ class _OptInBlocked extends StatelessWidget {
             message,
             style: TextStyle(
               color: LockedInColors.warning,
-              fontSize: 11,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -1187,7 +1202,7 @@ class _Chip extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
         color: tone ?? LockedInColors.muted,
-        fontSize: 10,
+        fontSize: TypeScale.micro,
         fontWeight: FontWeight.w600,
       ),
     );
@@ -1217,7 +1232,7 @@ class _Muted extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+      style: TextStyle(color: LockedInColors.muted, fontSize: TypeScale.label),
     );
   }
 }

@@ -321,7 +321,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                           '↑↓ move · Enter run · Esc close',
                           style: TextStyle(
                             color: LockedInColors.muted,
-                            fontSize: 11,
+                            fontSize: TypeScale.label,
                           ),
                         ),
                       ),
@@ -383,7 +383,7 @@ class _PaletteRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: LockedInType.body.copyWith(
-                      fontSize: 12.5,
+                      fontSize: TypeScale.key,
                       color: LockedInColors.foreground,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                     ),

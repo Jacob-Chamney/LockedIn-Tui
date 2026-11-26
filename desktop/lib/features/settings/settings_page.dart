@@ -411,9 +411,14 @@ class _SettingsBody extends StatefulWidget {
 
 class _SettingsBodyState extends State<_SettingsBody> {
   final _scroll = ScrollController();
+  final _search = TextEditingController();
+  final _searchFocus = FocusNode(debugLabel: 'settings-search');
+  late List<_SettingGroup> _allGroups;
   late List<_SettingGroup> _groups;
   late List<_SettingRow> _rows;
   late List<GlobalKey> _rowKeys;
+  final _groupKeys = <String, GlobalKey>{};
+  String _query = '';
   int _selected = 0;
   String? _savingId;
   String? _rowErrorId;
@@ -458,8 +463,48 @@ class _SettingsBodyState extends State<_SettingsBody> {
       updateError: widget.updateError,
       prompts: widget.prompts,
     );
+    _allGroups = _groups;
+    final query = _query.trim().toLowerCase();
+    _groups = query.isEmpty
+        ? _allGroups
+        : [
+            for (final group in _allGroups)
+              if (group.rows
+                  .where(
+                    (row) =>
+                        row.label.toLowerCase().contains(query) ||
+                        row.hint.toLowerCase().contains(query) ||
+                        row.id.toLowerCase().contains(query) ||
+                        row.value.toLowerCase().contains(query),
+                  )
+                  .toList()
+                  .isNotEmpty)
+                _SettingGroup(
+                  title: group.title,
+                  rows: group.rows
+                      .where(
+                        (row) =>
+                            row.label.toLowerCase().contains(query) ||
+                            row.hint.toLowerCase().contains(query) ||
+                            row.id.toLowerCase().contains(query) ||
+                            row.value.toLowerCase().contains(query),
+                      )
+                      .toList(),
+                ),
+          ];
     _rows = [for (final group in _groups) ...group.rows];
     _rowKeys = [for (var i = 0; i < _rows.length; i++) GlobalKey()];
+    for (final group in _allGroups) {
+      _groupKeys.putIfAbsent(group.title, () => GlobalKey());
+    }
+  }
+
+  void _filter(String query) {
+    setState(() {
+      _query = query;
+      _selected = 0;
+    });
+    _rebuildRows();
   }
 
   @override
@@ -519,6 +564,8 @@ class _SettingsBodyState extends State<_SettingsBody> {
   @override
   void dispose() {
     _scroll.dispose();
+    _search.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -539,6 +586,29 @@ class _SettingsBodyState extends State<_SettingsBody> {
     // reach it. `Ctrl+S` is not bound here (session settings owns it).
     if (modifierHeld) return KeyEventResult.ignored;
     final key = event.logicalKey;
+    // A focused filter owns every bare key: typing `j` must not move the
+    // cursor, and typing `a` must not rename anything.
+    if (_searchFocus.hasFocus) {
+      if (key == LogicalKeyboardKey.escape) {
+        if (_query.isNotEmpty) {
+          _search.clear();
+          _filter('');
+        } else {
+          _searchFocus.unfocus();
+        }
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.enter ||
+          key == LogicalKeyboardKey.numpadEnter) {
+        _searchFocus.unfocus();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+    if (key == LogicalKeyboardKey.slash) {
+      _searchFocus.requestFocus();
+      return KeyEventResult.handled;
+    }
     if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.keyJ) {
       _select(_selected + 1);
       return KeyEventResult.handled;
@@ -1322,40 +1392,106 @@ class _SettingsBodyState extends State<_SettingsBody> {
     return Focus(
       autofocus: true,
       onKeyEvent: _onKey,
-      child: Scrollbar(
-        controller: _scroll,
-        child: SingleChildScrollView(
-          controller: _scroll,
-          padding: const EdgeInsets.fromLTRB(20, 2, 20, 24),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 880),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  ..._groupWidgets(),
-                  // One footer for the page. The KEYBINDS group prints its own
-                  // verbs under its last row (it needs them beside the list), so
-                  // the page footer steps aside there instead of echoing it.
-                  if (!_onKeybindRow)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-                      child: Text(
-                        widget.onSaveSettings != null
-                            ? 'Enter edit · Space toggle · Esc back'
-                            : 'selection only · use connect to change the chat model',
-                        style: TextStyle(
-                          color: LockedInColors.muted,
-                          fontSize: 11,
-                          height: 1.4,
-                        ),
-                      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _filterBar(),
+          _sectionRail(),
+          Expanded(
+            child: Scrollbar(
+              controller: _scroll,
+              child: SingleChildScrollView(
+                key: const ValueKey('settings-scroll'),
+                controller: _scroll,
+                padding: const EdgeInsets.fromLTRB(20, 2, 20, 24),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 880),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ..._groupWidgets(),
+                        // One footer for the page. The KEYBINDS group prints its own
+                        // verbs under its last row (it needs them beside the list), so
+                        // the page footer steps aside there instead of echoing it.
+                        if (!_onKeybindRow)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+                            child: Text(
+                              widget.onSaveSettings != null
+                                  ? 'Enter edit · Space toggle · / filter · Esc back'
+                                  : 'selection only · use connect to change the chat model',
+                              style: TextStyle(
+                                color: LockedInColors.muted,
+                                fontSize: TypeScale.label,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                ],
+                  ),
+                ),
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
+      child: TextField(
+        key: const ValueKey('settings-search'),
+        controller: _search,
+        focusNode: _searchFocus,
+        onChanged: _filter,
+        decoration: const InputDecoration(
+          isDense: true,
+          hintText: '/ filter settings',
+          prefixIcon: Icon(Icons.search, size: 16),
         ),
+      ),
+    );
+  }
+
+  Widget _sectionRail() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 2, 20, 6),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 4,
+        children: [
+          for (final group in _allGroups)
+            InkWell(
+              key: ValueKey(
+                'settings-section-${group.title.toLowerCase().replaceAll(' ', '-')}',
+              ),
+              onTap: () {
+                final target = _groupKeys[group.title]?.currentContext;
+                if (target != null) {
+                  Scrollable.ensureVisible(target, alignment: 0.04);
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  border: Border.all(color: LockedInColors.line),
+                  borderRadius: BorderRadius.circular(Radii.control),
+                ),
+                child: Text(
+                  group.title.toLowerCase(),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.micro,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -1364,7 +1500,12 @@ class _SettingsBodyState extends State<_SettingsBody> {
     final widgets = <Widget>[];
     var index = 0;
     for (final group in _groups) {
-      widgets.add(_GroupHeader(title: group.title));
+      widgets.add(
+        KeyedSubtree(
+          key: _groupKeys[group.title],
+          child: _GroupHeader(title: group.title),
+        ),
+      );
       for (final row in group.rows) {
         widgets.add(_buildRow(row, index));
         index += 1;
@@ -1496,7 +1637,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
                       row.note!,
                       style: TextStyle(
                         color: LockedInColors.error,
-                        fontSize: 11,
+                        fontSize: TypeScale.label,
                         height: 1.4,
                       ),
                     ),
@@ -1522,7 +1663,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
                       error,
                       style: TextStyle(
                         color: LockedInColors.error,
-                        fontSize: 11,
+                        fontSize: TypeScale.label,
                         height: 1.4,
                       ),
                     ),
@@ -1548,7 +1689,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
                       notice,
                       style: TextStyle(
                         color: LockedInColors.muted,
-                        fontSize: 11,
+                        fontSize: TypeScale.label,
                         height: 1.4,
                       ),
                     ),
@@ -1629,7 +1770,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
               key: ValueKey('settings-row-saving'),
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.5,
               ),
             ),
@@ -1662,7 +1803,10 @@ class _SettingsBodyState extends State<_SettingsBody> {
       children: [
         Text(
           row.label,
-          style: TextStyle(color: LockedInColors.foreground, fontSize: 13),
+          style: TextStyle(
+            color: LockedInColors.foreground,
+            fontSize: TypeScale.body,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
@@ -1671,7 +1815,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 11,
+            fontSize: TypeScale.label,
             height: 1.4,
           ),
         ),
@@ -1697,7 +1841,7 @@ class _GroupHeader extends StatelessWidget {
             title,
             style: TextStyle(
               color: LockedInColors.secondary,
-              fontSize: 11,
+              fontSize: TypeScale.label,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.8,
             ),
@@ -1747,7 +1891,7 @@ class _StateMessage extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 13,
+                  fontSize: TypeScale.body,
                   height: 1.5,
                 ),
               ),
@@ -1777,7 +1921,10 @@ class _ModelHint extends StatelessWidget {
           Text(
             'not connected',
             key: ValueKey('settings-model-not-connected'),
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),
@@ -1840,7 +1987,7 @@ class _PluginsNote extends StatelessWidget {
               key: ValueKey('settings-plugins-note'),
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 11,
+                fontSize: TypeScale.label,
                 height: 1.4,
               ),
             ),
@@ -1875,7 +2022,7 @@ class _DecisionRulesNote extends StatelessWidget {
               key: const ValueKey('settings-decision-rules'),
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 11,
+                fontSize: TypeScale.label,
                 height: 1.4,
               ),
             ),
@@ -1899,7 +2046,7 @@ class _DecisionLoading extends StatelessWidget {
         key: const ValueKey('settings-decision-loading'),
         style: TextStyle(
           color: LockedInColors.muted,
-          fontSize: 11,
+          fontSize: TypeScale.label,
           height: 1.4,
         ),
       ),
@@ -1932,7 +2079,7 @@ class _DecisionFailure extends StatelessWidget {
               key: const ValueKey('settings-decision-error'),
               style: TextStyle(
                 color: LockedInColors.warning,
-                fontSize: 11,
+                fontSize: TypeScale.label,
                 height: 1.4,
               ),
             ),
@@ -1968,7 +2115,7 @@ class _WorkNote extends StatelessWidget {
               key: const ValueKey('settings-work-note'),
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 11,
+                fontSize: TypeScale.label,
                 height: 1.4,
               ),
             ),
@@ -1992,7 +2139,7 @@ class _WorkLoading extends StatelessWidget {
         key: const ValueKey('settings-work-loading'),
         style: TextStyle(
           color: LockedInColors.muted,
-          fontSize: 11,
+          fontSize: TypeScale.label,
           height: 1.4,
         ),
       ),
@@ -2025,7 +2172,7 @@ class _WorkFailure extends StatelessWidget {
               key: const ValueKey('settings-work-error'),
               style: TextStyle(
                 color: LockedInColors.warning,
-                fontSize: 11,
+                fontSize: TypeScale.label,
                 height: 1.4,
               ),
             ),
@@ -2052,7 +2199,7 @@ class _PluginsEmpty extends StatelessWidget {
             'no MCP servers configured',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.4,
             ),
           ),
@@ -2060,7 +2207,7 @@ class _PluginsEmpty extends StatelessWidget {
             'add a server in config.toml',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 11,
+              fontSize: TypeScale.label,
               height: 1.4,
             ),
           ),
@@ -2095,7 +2242,7 @@ class _PluginsFailure extends StatelessWidget {
               key: const ValueKey('settings-mcp-error'),
               style: TextStyle(
                 color: LockedInColors.warning,
-                fontSize: 11,
+                fontSize: TypeScale.label,
                 height: 1.4,
               ),
             ),
@@ -2118,7 +2265,7 @@ class _PluginsRefreshing extends StatelessWidget {
         key: ValueKey('settings-mcp-refreshing'),
         style: TextStyle(
           color: LockedInColors.muted,
-          fontSize: 11,
+          fontSize: TypeScale.label,
           height: 1.4,
         ),
       ),
@@ -2219,7 +2366,7 @@ class _SettingEditorDialogState extends State<_SettingEditorDialog> {
                     edit.help,
                     style: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 12,
+                      fontSize: TypeScale.label,
                       height: 1.4,
                     ),
                   ),
@@ -2260,7 +2407,7 @@ class _SettingEditorDialogState extends State<_SettingEditorDialog> {
                         _failure!,
                         style: TextStyle(
                           color: LockedInColors.error,
-                          fontSize: 12,
+                          fontSize: TypeScale.label,
                           height: 1.4,
                         ),
                       ),
@@ -2492,7 +2639,7 @@ class _ConnectModelDialogState extends State<_ConnectModelDialog> {
                 'keychain. It is never read back here.',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.4,
                 ),
               ),
@@ -2512,7 +2659,7 @@ class _ConnectModelDialogState extends State<_ConnectModelDialog> {
                       'loading providers…',
                       style: TextStyle(
                         color: LockedInColors.muted,
-                        fontSize: 11,
+                        fontSize: TypeScale.label,
                       ),
                     ),
                   ],
@@ -2564,7 +2711,7 @@ class _ConnectModelDialogState extends State<_ConnectModelDialog> {
                     _error!,
                     style: TextStyle(
                       color: LockedInColors.error,
-                      fontSize: 12,
+                      fontSize: TypeScale.label,
                       height: 1.4,
                     ),
                   ),
@@ -2576,7 +2723,7 @@ class _ConnectModelDialogState extends State<_ConnectModelDialog> {
                   'choose a chat model',
                   style: TextStyle(
                     color: LockedInColors.secondary,
-                    fontSize: 11,
+                    fontSize: TypeScale.label,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.8,
                   ),
@@ -2587,7 +2734,7 @@ class _ConnectModelDialogState extends State<_ConnectModelDialog> {
                     'No models returned for this key.',
                     style: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 12,
+                      fontSize: TypeScale.label,
                       height: 1.4,
                     ),
                   )
@@ -2639,7 +2786,7 @@ class _ConnectModelDialogState extends State<_ConnectModelDialog> {
             : 'No providers configured. Add one to config.toml first.',
         style: TextStyle(
           color: LockedInColors.muted,
-          fontSize: 12,
+          fontSize: TypeScale.label,
           height: 1.4,
         ),
       );
@@ -2654,7 +2801,7 @@ class _ConnectModelDialogState extends State<_ConnectModelDialog> {
               error,
               style: TextStyle(
                 color: LockedInColors.warning,
-                fontSize: 11,
+                fontSize: TypeScale.label,
                 height: 1.3,
               ),
             ),
@@ -2690,7 +2837,7 @@ class _ConnectModelDialogState extends State<_ConnectModelDialog> {
                     provider.label.isEmpty ? provider.id : provider.label,
                     style: TextStyle(
                       color: LockedInColors.foreground,
-                      fontSize: 13,
+                      fontSize: TypeScale.body,
                     ),
                   ),
                   if (provider.note.isNotEmpty)
@@ -2698,7 +2845,7 @@ class _ConnectModelDialogState extends State<_ConnectModelDialog> {
                       provider.note,
                       style: TextStyle(
                         color: LockedInColors.muted,
-                        fontSize: 11,
+                        fontSize: TypeScale.label,
                         height: 1.3,
                       ),
                     ),
@@ -2722,7 +2869,7 @@ class _ConnectModelDialogState extends State<_ConnectModelDialog> {
                   color: provider.linked
                       ? LockedInColors.success
                       : LockedInColors.muted,
-                  fontSize: 10,
+                  fontSize: TypeScale.micro,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.4,
                 ),
@@ -2757,7 +2904,7 @@ class _ConnectModelDialogState extends State<_ConnectModelDialog> {
                 model,
                 style: TextStyle(
                   color: LockedInColors.foreground,
-                  fontSize: 13,
+                  fontSize: TypeScale.body,
                 ),
               ),
             ),
@@ -2922,7 +3069,7 @@ TextStyle _valueStyle(String value) {
     color: value == 'not set'
         ? LockedInColors.muted
         : LockedInColors.foreground,
-    fontSize: 13,
+    fontSize: TypeScale.body,
     height: 1.5,
   );
 }
@@ -3726,7 +3873,7 @@ class _CustomPaletteDialogState extends State<_CustomPaletteDialog> {
                       'custom palette',
                       style: TextStyle(
                         color: LockedInColors.foreground,
-                        fontSize: 15,
+                        fontSize: TypeScale.prose,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -3736,7 +3883,7 @@ class _CustomPaletteDialogState extends State<_CustomPaletteDialog> {
                       '${customThemeTokenNames.length} set',
                       style: TextStyle(
                         color: LockedInColors.muted,
-                        fontSize: 11,
+                        fontSize: TypeScale.label,
                       ),
                     ),
                   ],
@@ -3774,7 +3921,10 @@ class _CustomPaletteDialogState extends State<_CustomPaletteDialog> {
                   Text(
                     _error!,
                     key: const ValueKey('custom-palette-error'),
-                    style: TextStyle(color: LockedInColors.error, fontSize: 11),
+                    style: TextStyle(
+                      color: LockedInColors.error,
+                      fontSize: TypeScale.label,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 8),
@@ -3786,7 +3936,7 @@ class _CustomPaletteDialogState extends State<_CustomPaletteDialog> {
                         'Esc back',
                         style: TextStyle(
                           color: LockedInColors.muted,
-                          fontSize: 11,
+                          fontSize: TypeScale.label,
                           height: 1.4,
                         ),
                       ),
@@ -3864,7 +4014,7 @@ class _CustomPaletteDialogState extends State<_CustomPaletteDialog> {
                   color: selected
                       ? LockedInColors.foreground
                       : LockedInColors.secondary,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                 ),
               ),
             ),
@@ -3873,7 +4023,7 @@ class _CustomPaletteDialogState extends State<_CustomPaletteDialog> {
               key: ValueKey('custom-hex-$name'),
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 11,
+                fontSize: TypeScale.label,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
@@ -3884,7 +4034,7 @@ class _CustomPaletteDialogState extends State<_CustomPaletteDialog> {
                 color: overridden
                     ? LockedInColors.accent
                     : LockedInColors.muted,
-                fontSize: 10,
+                fontSize: TypeScale.micro,
               ),
             ),
           ],
@@ -3926,7 +4076,7 @@ class _PalettePreview extends StatelessWidget {
             'Aa',
             style: TextStyle(
               color: foreground,
-              fontSize: 18,
+              fontSize: TypeScale.title,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -3934,7 +4084,7 @@ class _PalettePreview extends StatelessWidget {
           Expanded(
             child: Text(
               'live preview',
-              style: TextStyle(color: foreground, fontSize: 11),
+              style: TextStyle(color: foreground, fontSize: TypeScale.label),
             ),
           ),
           _PreviewChip(token: 'primary', colour: primary),
@@ -3970,7 +4120,10 @@ class _PreviewChip extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           token,
-          style: TextStyle(color: LockedInColors.muted, fontSize: 10),
+          style: TextStyle(
+            color: LockedInColors.muted,
+            fontSize: TypeScale.micro,
+          ),
         ),
       ],
     );
@@ -4054,7 +4207,7 @@ class _ThemeJsonDialogState extends State<_ThemeJsonDialog> {
                 'refused before anything is stored.',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 11,
+                  fontSize: TypeScale.label,
                   height: 1.4,
                 ),
               ),
@@ -4067,7 +4220,7 @@ class _ThemeJsonDialogState extends State<_ThemeJsonDialog> {
                 style: TextStyle(
                   color: LockedInColors.foreground,
                   fontFamily: 'JetBrainsMono',
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                 ),
                 decoration: const InputDecoration(
                   hintText: '{"base":"lockedin","tokens":{"panel":"#161A20"}}',
@@ -4078,7 +4231,10 @@ class _ThemeJsonDialogState extends State<_ThemeJsonDialog> {
                 Text(
                   _error!,
                   key: const ValueKey('theme-json-error'),
-                  style: TextStyle(color: LockedInColors.error, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.error,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ],
               const SizedBox(height: 10),
@@ -4151,7 +4307,7 @@ class _PromptNoteDialogState extends State<_PromptNoteDialog> {
                 'shape, its length limits and the safety rules still apply.',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 11,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -4164,7 +4320,7 @@ class _PromptNoteDialogState extends State<_PromptNoteDialog> {
                 maxLength: 2000,
                 style: TextStyle(
                   color: LockedInColors.foreground,
-                  fontSize: 12.5,
+                  fontSize: TypeScale.key,
                   height: 1.45,
                 ),
                 decoration: const InputDecoration(

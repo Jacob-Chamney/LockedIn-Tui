@@ -64,7 +64,7 @@ class ChatFailureBanner extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: LockedInColors.error,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     height: 1.4,
                   ),
                 ),
@@ -77,7 +77,7 @@ class ChatFailureBanner extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: LockedInColors.muted,
-                        fontSize: 11.5,
+                        fontSize: TypeScale.label,
                         height: 1.4,
                       ),
                     ),

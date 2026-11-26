@@ -197,7 +197,7 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: LockedInColors.warning,
-                                  fontSize: 11,
+                                  fontSize: TypeScale.label,
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: 1.2,
                                 ),
@@ -209,7 +209,7 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
                                 key: const ValueKey('plugin-permission-queued'),
                                 style: TextStyle(
                                   color: LockedInColors.muted,
-                                  fontSize: 11,
+                                  fontSize: TypeScale.label,
                                 ),
                               ),
                           ],
@@ -229,7 +229,7 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
                                     'tool',
                                     style: TextStyle(
                                       color: LockedInColors.muted,
-                                      fontSize: 11,
+                                      fontSize: TypeScale.label,
                                     ),
                                   ),
                                   const SizedBox(width: 10),
@@ -240,7 +240,7 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
                                         fontFamily: 'monospace',
-                                        fontSize: 12,
+                                        fontSize: TypeScale.label,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -253,7 +253,7 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
                                 'It has not run.',
                                 style: muted.copyWith(
                                   color: LockedInColors.muted,
-                                  fontSize: 12,
+                                  fontSize: TypeScale.label,
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -277,7 +277,7 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
                                     pretty,
                                     style: const TextStyle(
                                       fontFamily: 'monospace',
-                                      fontSize: 12,
+                                      fontSize: TypeScale.label,
                                       height: 1.4,
                                     ),
                                   ),
@@ -289,7 +289,7 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
                                 'This decision applies to this one call only.',
                                 style: muted.copyWith(
                                   color: LockedInColors.muted,
-                                  fontSize: 12,
+                                  fontSize: TypeScale.label,
                                 ),
                               ),
                               if (message.isNotEmpty) ...[
@@ -322,7 +322,7 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
                                           message,
                                           style: TextStyle(
                                             color: LockedInColors.error,
-                                            fontSize: 12,
+                                            fontSize: TypeScale.label,
                                             height: 1.4,
                                           ),
                                         ),
@@ -351,7 +351,7 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: LockedInColors.muted,
-                                  fontSize: 11,
+                                  fontSize: TypeScale.label,
                                 ),
                               ),
                             ),

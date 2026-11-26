@@ -32,7 +32,11 @@ class ChatMarkdown extends StatelessWidget {
     final base =
         style ??
         Theme.of(context).textTheme.bodyMedium ??
-        TextStyle(color: LockedInColors.foreground, fontSize: 14, height: 1.45);
+        TextStyle(
+          color: LockedInColors.foreground,
+          fontSize: TypeScale.proseSmall,
+          height: 1.45,
+        );
 
     final children = <Widget>[];
     for (var index = 0; index < blocks.length; index++) {
@@ -121,7 +125,7 @@ class ChatMarkdown extends StatelessWidget {
     final codeStyle = TextStyle(
       color: LockedInColors.foreground,
       fontFamily: 'monospace',
-      fontSize: 12.5,
+      fontSize: TypeScale.key,
       height: 1.4,
     );
     // Highlighting is a lexer: an unknown language returns null and the block
@@ -149,7 +153,7 @@ class ChatMarkdown extends StatelessWidget {
                 block.language!,
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 10,
+                  fontSize: TypeScale.micro,
                   letterSpacing: 1,
                 ),
               ),
@@ -210,7 +214,7 @@ class ChatMarkdown extends StatelessWidget {
 
   Widget _cell(String text, TextStyle base, bool header) {
     final style = base.copyWith(
-      fontSize: 12.5,
+      fontSize: TypeScale.key,
       fontWeight: header ? FontWeight.w700 : null,
       height: 1.35,
     );

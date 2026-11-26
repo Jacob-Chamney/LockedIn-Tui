@@ -309,7 +309,7 @@ class _ChatPageState extends State<ChatPage> {
                 'the file is never copied or stored.',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -548,7 +548,7 @@ class _ChatPageState extends State<ChatPage> {
                 'Chill',
                 style: LockedInType.display.copyWith(
                   color: LockedInColors.foreground,
-                  fontSize: 26,
+                  fontSize: TypeScale.display,
                 ),
               ),
               const SizedBox(height: Space.xs),
@@ -559,7 +559,7 @@ class _ChatPageState extends State<ChatPage> {
                   'writes, and it keeps nothing but its own history.',
                   style: LockedInType.prose.copyWith(
                     color: LockedInColors.muted,
-                    fontSize: 14.5,
+                    fontSize: TypeScale.prose,
                   ),
                 ),
               ),
@@ -604,7 +604,7 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                     child: const Text(
                       'connect a model',
-                      style: TextStyle(fontSize: 12),
+                      style: TextStyle(fontSize: TypeScale.label),
                     ),
                   ),
                 ),
@@ -714,7 +714,10 @@ class _ChatPageState extends State<ChatPage> {
                 Text(
                   _notice!,
                   key: const ValueKey('chat-attach-notice'),
-                  style: TextStyle(color: LockedInColors.warning, fontSize: 12),
+                  style: TextStyle(
+                    color: LockedInColors.warning,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
                 const SizedBox(height: 8),
               ],
@@ -733,7 +736,7 @@ class _ChatPageState extends State<ChatPage> {
                     color: blocked != null
                         ? LockedInColors.warning
                         : LockedInColors.muted,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                   ),
                 ),
               ),
@@ -751,7 +754,7 @@ class _ChatPageState extends State<ChatPage> {
                       cursorWidth: Stroke.focus,
                       style: LockedInType.prose.copyWith(
                         color: LockedInColors.foreground,
-                        fontSize: 14.5,
+                        fontSize: TypeScale.prose,
                       ),
                       decoration: InputDecoration(
                         // Always a placeholder: an empty field with no
@@ -769,7 +772,7 @@ class _ChatPageState extends State<ChatPage> {
                               color: _canSend
                                   ? LockedInColors.primary
                                   : LockedInColors.muted,
-                              fontSize: 13,
+                              fontSize: TypeScale.body,
                             ),
                           ),
                         ),
@@ -794,7 +797,7 @@ class _ChatPageState extends State<ChatPage> {
                         color: _sending
                             ? LockedInColors.muted
                             : LockedInColors.secondary,
-                        fontSize: 16,
+                        fontSize: TypeScale.prose,
                       ),
                     ),
                   ),
@@ -886,7 +889,10 @@ class _ChatPageState extends State<ChatPage> {
           _attachmentChip(index),
         Text(
           'Ctrl+Shift+X clears',
-          style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+          style: TextStyle(
+            color: LockedInColors.muted,
+            fontSize: TypeScale.label,
+          ),
         ),
       ],
     );
@@ -913,7 +919,10 @@ class _ChatPageState extends State<ChatPage> {
               attachment.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: LockedInColors.foreground, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.foreground,
+                fontSize: TypeScale.label,
+              ),
             ),
           ),
           IconButton(
@@ -973,7 +982,10 @@ class _ExampleRow extends StatelessWidget {
                 text,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: LockedInType.prose.copyWith(fontSize: 13.5, color: tone),
+                style: LockedInType.prose.copyWith(
+                  fontSize: TypeScale.proseSmall,
+                  color: tone,
+                ),
               ),
             ),
             const SizedBox(width: Space.xs),
@@ -1011,7 +1023,7 @@ class _Centered extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 13,
+                fontSize: TypeScale.body,
                 height: 1.5,
               ),
             ),
@@ -1106,7 +1118,7 @@ class _MessageBubble extends StatelessWidget {
                       text,
                       style: LockedInType.prose.copyWith(
                         color: LockedInColors.foreground,
-                        fontSize: 14.5,
+                        fontSize: TypeScale.prose,
                       ),
                     )
                   else
@@ -1114,7 +1126,7 @@ class _MessageBubble extends StatelessWidget {
                       text: text,
                       style: LockedInType.prose.copyWith(
                         color: LockedInColors.foreground,
-                        fontSize: 14.5,
+                        fontSize: TypeScale.prose,
                         height: 1.65,
                       ),
                     ),
@@ -1194,7 +1206,10 @@ class _BridgeChip extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),

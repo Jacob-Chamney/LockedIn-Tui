@@ -37,4 +37,18 @@ describe("desktop design tokens", () => {
     }
     expect(offenders).toEqual([]);
   });
+
+  test("no surface hard-codes a font size", async () => {
+    const files = (await dartFiles(LIB)).filter(
+      (file) => !file.includes(`${join("lib", "theme")}`),
+    );
+    const offenders: string[] = [];
+    for (const file of files) {
+      const source = await readFile(file, "utf8");
+      if (/fontSize:\s*\d/.test(source)) {
+        offenders.push(file.slice(LIB.length + 1));
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
 });
