@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
+import '../../bridge/core_client.dart';
 import '../../bridge/core_scope.dart';
 import '../../bridge/errors.dart';
 import '../keys.dart';

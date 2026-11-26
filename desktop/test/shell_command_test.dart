@@ -4,6 +4,7 @@ import 'package:lockedin_desktop/keymap/registry.dart';
 import 'package:lockedin_desktop/shell/command_line.dart';
 import 'package:lockedin_desktop/shell/leader.dart';
 import 'package:lockedin_desktop/shell/palette.dart';
+import 'package:lockedin_desktop/bridge/core_client.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'support/shell.dart';
