@@ -8835,6 +8835,15 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     if (params.again !== undefined && typeof params.again !== "boolean") {
       return invalid(id, "teach.step: again must be a boolean");
     }
+    const rawStepId = params.stepId;
+    if (
+      rawStepId !== undefined &&
+      (typeof rawStepId !== "string" || rawStepId.trim() === "")
+    ) {
+      return invalid(id, "teach.step: stepId must be a non-empty string");
+    }
+    const wantedStepId =
+      typeof rawStepId === "string" ? rawStepId.trim() : null;
 
     const current = await services();
     if (!current.ok) return bootFailureResponse(id, current.error);
@@ -8852,7 +8861,54 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       return teachFailure(id, goalId, "this session has not been measured yet; measure it first");
     }
 
-    const index = nextStepIndex(record);
+    // A named step lets the learner pick an available branch instead of the
+    // first one in plan order. A locked step is refused by name, so the tree's
+    // lock and the core's answer cannot disagree.
+    let index: number;
+    if (wantedStepId === null) {
+      index = nextStepIndex(record);
+    } else {
+      index = record.state.plan.findIndex((step) => step.id === wantedStepId);
+      if (index === -1) {
+        return teachFailure(
+          id,
+          goalId,
+          `this session has no step ${JSON.stringify(wantedStepId)}`,
+        );
+      }
+      const passed = new Set(
+        record.checks
+          .filter((check) => check.verdict === "correct")
+          .map((check) => check.stepId),
+      );
+      if (passed.has(wantedStepId)) {
+        // A held step has no body to re-teach: its check and correction are on
+        // the record, and regenerating it would spend a model call to replace
+        // an explanation the learner already passed.
+        return success(id, {
+          record,
+          step: null,
+          index,
+          total: record.state.plan.length,
+        });
+      }
+      const blockers = record.state.plan[index]!.requires.filter(
+        (required) => !passed.has(required),
+      );
+      if (blockers.length > 0) {
+        const titles = blockers.map((required) => {
+          const step = record.state.plan.find((entry) => entry.id === required);
+          return step?.title ?? required;
+        });
+        return teachFailure(
+          id,
+          goalId,
+          `${JSON.stringify(wantedStepId)} is locked until ${titles.join(", ")} ${
+            titles.length === 1 ? "is" : "are"
+          } held`,
+        );
+      }
+    }
     if (index >= record.state.plan.length) {
       return success(id, { record, step: null, index, total: record.state.plan.length });
     }

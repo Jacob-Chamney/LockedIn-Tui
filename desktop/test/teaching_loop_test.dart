@@ -727,4 +727,50 @@ void main() {
     await tester.pump();
     expect(sent, 'on the stack');
   });
+
+  testWidgets('an unlocked branch opens by name; a locked row does nothing', (
+    tester,
+  ) async {
+    String? opened;
+    await pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        teaching: TeachingState(
+          goal: _measured.goal,
+          prior: _measured.prior,
+          held: _measured.held,
+          gaps: _measured.gaps,
+          plan: const [
+            TeachingStep(id: 'step-1', title: 'root'),
+            TeachingStep(id: 'step-2', title: 'left', requires: ['step-1']),
+            TeachingStep(id: 'step-3', title: 'right', requires: ['step-1']),
+            TeachingStep(
+              id: 'step-4',
+              title: 'join',
+              requires: ['step-2', 'step-3'],
+            ),
+          ],
+          checks: const [
+            TeachingCheckRecord(
+              stepId: 'step-1',
+              verdict: 'correct',
+              correction: '',
+            ),
+          ],
+        ),
+        onNextStep: () {},
+        onOpenStep: (stepId) => opened = stepId,
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('teach-plan-step-3')));
+    await tester.pump();
+    expect(opened, 'step-3');
+
+    opened = null;
+    await tester.tap(find.byKey(const ValueKey('teach-plan-step-4')));
+    await tester.pump();
+    expect(opened, isNull);
+  });
 }

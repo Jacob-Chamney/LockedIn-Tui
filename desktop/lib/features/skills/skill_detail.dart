@@ -58,6 +58,7 @@ class SkillDetailView extends StatefulWidget {
     this.teachingVerdict,
     this.onMeasure,
     this.onNextStep,
+    this.onOpenStep,
     this.onCheck,
     this.sideMessages = const [],
     this.sideLoading = false,
@@ -175,6 +176,9 @@ class SkillDetailView extends StatefulWidget {
 
   /// Open the next step (`teach.step`).
   final VoidCallback? onNextStep;
+
+  /// Open one named step, so a learner can choose between unlocked branches.
+  final void Function(String stepId)? onOpenStep;
 
   /// Answer the open step (`teach.check`).
   ///
@@ -1620,6 +1624,16 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                     needs: entry.requires.length,
                     locked: record.lockedOf(position),
                     blockedBy: record.blockersOf(position),
+                    onTap:
+                        widget.onOpenStep == null ||
+                            record.lockedOf(position) ||
+                            record.checks.any(
+                              (check) =>
+                                  check.stepId == entry.id &&
+                                  check.verdict == 'correct',
+                            )
+                        ? null
+                        : () => widget.onOpenStep!(entry.id),
                   ),
               ],
             ),
@@ -3145,6 +3159,7 @@ class _PlanRow extends StatelessWidget {
     this.needs = 0,
     this.locked = false,
     this.blockedBy = const [],
+    this.onTap,
   });
 
   final int number;
@@ -3165,6 +3180,9 @@ class _PlanRow extends StatelessWidget {
   /// The titles of the steps that still block this one, in plan order.
   final List<String> blockedBy;
 
+  /// Open this step when it is available. A locked or held row has none.
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     final tone = current
@@ -3180,105 +3198,108 @@ class _PlanRow extends StatelessWidget {
           ? '$title — locked${after.isEmpty ? '' : '; after $after'}'
           : title,
       selected: current,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: Space.xs - 3),
-        decoration: BoxDecoration(
-          color: current ? LockedInColors.panel : Colors.transparent,
-          border: Border(
-            left: BorderSide(
-              color: current ? LockedInColors.primary : Colors.transparent,
-              width: Stroke.focus,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: Space.xs - 3),
+          decoration: BoxDecoration(
+            color: current ? LockedInColors.panel : Colors.transparent,
+            border: Border(
+              left: BorderSide(
+                color: current ? LockedInColors.primary : Colors.transparent,
+                width: Stroke.focus,
+              ),
             ),
           ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // The map, not a list: a branch is indented under what it needs.
-            if (depth > 0) ...[
-              SizedBox(width: 14.0 * (depth - 1)),
-              SizedBox(
-                width: 14,
-                child: Text(
-                  '└',
-                  style: LockedInType.micro.copyWith(
-                    color: LockedInColors.line,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // The map, not a list: a branch is indented under what it needs.
+              if (depth > 0) ...[
+                SizedBox(width: 14.0 * (depth - 1)),
+                SizedBox(
+                  width: 14,
+                  child: Text(
+                    '└',
+                    style: LockedInType.micro.copyWith(
+                      color: LockedInColors.line,
+                    ),
                   ),
                 ),
-              ),
-            ],
-            SizedBox(
-              width: 32,
-              child: locked
-                  ? Icon(
-                      Icons.lock_outline,
-                      size: 13,
-                      color: LockedInColors.muted,
-                    )
-                  : Text(
-                      passed ? '✓' : '$number',
-                      textAlign: TextAlign.center,
-                      style: LockedInType.micro.copyWith(
-                        color: passed ? LockedInColors.success : tone,
-                        fontWeight: FontWeight.w600,
+              ],
+              SizedBox(
+                width: 32,
+                child: locked
+                    ? Icon(
+                        Icons.lock_outline,
+                        size: 13,
+                        color: LockedInColors.muted,
+                      )
+                    : Text(
+                        passed ? '✓' : '$number',
+                        textAlign: TextAlign.center,
+                        style: LockedInType.micro.copyWith(
+                          color: passed ? LockedInColors.success : tone,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-            ),
-            const SizedBox(width: Space.xs),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: LockedInType.body.copyWith(
-                      fontSize: 12.5,
-                      color: tone,
-                    ),
-                  ),
-                  if (locked && after.isNotEmpty)
+              ),
+              const SizedBox(width: Space.xs),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      'after $after',
+                      title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: LockedInType.micro.copyWith(
-                        color: LockedInColors.muted,
-                        letterSpacing: 0,
+                      style: LockedInType.body.copyWith(
+                        fontSize: 12.5,
+                        color: tone,
                       ),
                     ),
-                ],
+                    if (locked && after.isNotEmpty)
+                      Text(
+                        'after $after',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: LockedInType.micro.copyWith(
+                          color: LockedInColors.muted,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-            if (current)
-              Text(
-                'here',
-                style: LockedInType.micro.copyWith(
-                  color: LockedInColors.primary,
-                  letterSpacing: 0,
-                ),
-              )
-            else if (locked)
-              Text(
-                'locked',
-                style: LockedInType.micro.copyWith(
-                  color: LockedInColors.muted,
-                  letterSpacing: 0,
-                ),
-              )
-            else if (needs > 1)
-              Padding(
-                padding: const EdgeInsets.only(left: Space.xxs),
-                child: Text(
-                  'needs $needs',
+              if (current)
+                Text(
+                  'here',
+                  style: LockedInType.micro.copyWith(
+                    color: LockedInColors.primary,
+                    letterSpacing: 0,
+                  ),
+                )
+              else if (locked)
+                Text(
+                  'locked',
                   style: LockedInType.micro.copyWith(
                     color: LockedInColors.muted,
                     letterSpacing: 0,
                   ),
+                )
+              else if (needs > 1)
+                Padding(
+                  padding: const EdgeInsets.only(left: Space.xxs),
+                  child: Text(
+                    'needs $needs',
+                    style: LockedInType.micro.copyWith(
+                      color: LockedInColors.muted,
+                      letterSpacing: 0,
+                    ),
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

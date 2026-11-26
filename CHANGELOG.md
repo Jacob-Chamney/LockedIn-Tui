@@ -42,6 +42,10 @@ requests merge.
 
 ### Changed
 
+- A learner can choose an unlocked branch in the learning tree: `teach.step`
+  accepts a `stepId`, refuses a locked step by naming what blocks it, and a held
+  step opens no model call. The tree rows are clickable and the next step stays
+  the default.
 - The teaching page has a keyboard path: `1`–`4` jump phases, `m` measures,
   `n` advances the tree, `i` focuses the answer, `s` opens the side question,
   and `Enter` submits a check. The phase rail's summaries now come from the

@@ -1450,8 +1450,13 @@ class CoreStore extends ChangeNotifier {
     }
   }
 
-  /// Open the next step, or a new wording of the open one (`teach.step`).
-  Future<bool> teachNextStep(String goalId, {bool again = false}) async {
+  /// Open the next step, a chosen branch, or a new wording of the open one
+  /// (`teach.step`).
+  Future<bool> teachNextStep(
+    String goalId, {
+    bool again = false,
+    String? stepId,
+  }) async {
     final id = goalId.trim();
     if (id.isEmpty) return false;
     final ticket = ++_teachingTicket;
@@ -1463,6 +1468,7 @@ class CoreStore extends ChangeNotifier {
       final json = await _connection.call(CoreMethod.teachStep, {
         'goalId': id,
         if (again) 'again': true,
+        if (stepId != null && stepId.trim().isNotEmpty) 'stepId': stepId.trim(),
       });
       if (ticket != _teachingTicket) return false;
       teaching = TeachingState.fromJson(

@@ -2184,6 +2184,9 @@ class _ShellState extends State<Shell> {
       onNextStep: skillId == null
           ? null
           : () => unawaited(store.teachNextStep(skillId)),
+      onOpenStep: skillId == null
+          ? null
+          : (stepId) => unawaited(store.teachNextStep(skillId, stepId: stepId)),
       onCheck: skillId == null
           ? null
           : (answer, thinking, confidence) => unawaited(

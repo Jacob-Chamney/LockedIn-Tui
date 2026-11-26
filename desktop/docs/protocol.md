@@ -2443,10 +2443,14 @@ The record lives at `skills/goals/<id>/teaching.json` (atomic replace):
 - `teach.measure` `{goalId, prior?}` → `{record}` — one model call. The reply is
   validated: no held propositions, or fewer than three plan steps, is a refusal
   naming the count. `prior` defaults to the goal's `statement` + `level`.
-- `teach.step` `{goalId, again?}` → `{record, step, index, total}` — teaches the
-  first step with no passing check. While a step is open the same record is
-  returned (no model call) unless `again: true`. `step: null` when every step is
-  passed. A step reply may carry `citations: [{name, quote}]`: each name must be
+- `teach.step` `{goalId, stepId?, again?}` → `{record, step, index, total}` —
+  teaches the first step with no passing check, or the named step. `stepId` lets
+  a learner choose between unlocked branches: it must name a step in the plan,
+  a locked step is refused with the blocking titles, and a held step returns
+  `step: null` without a model call (its check and correction are on the
+  record). While a step is open the same record is returned (no model call)
+  unless `again: true`. `step: null` when every step is passed. A step reply may
+  carry `citations: [{name, quote}]`: each name must be
   one of the goal's copied sources with a saved excerpt, and each quote is the
   exact words that prove it (≤240 characters). An unknown name, or a citation
   when the goal has no sources, is a `{kind:"teaching"}` refusal — the step is
