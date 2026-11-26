@@ -2,6 +2,7 @@ import type { Result } from "../domain/markdown";
 import type { BootFailure } from "../app/boot";
 import type { SessionServices } from "./session-context";
 import { loadProjectMeta } from "../services/work/agents";
+import type { LoadedProject } from "../app/actions/projects";
 import {
   createProject,
   loadAgentTemplates,
@@ -66,6 +67,40 @@ export async function resolveProject<C extends SessionServices>(
   }
   return { projectId: meta.value.id, meta: meta.value };
 }
+
+/**
+ * Resolve one project from the registry, never from a caller-supplied path.
+ *
+ * `loadProjects` already skips a broken `meta.json`; a row that is not there is
+ * the project error shape every `work.*` method shares.
+ */
+export async function resolveLoadedProject<C extends SessionServices>(
+  id: RpcId,
+  current: C,
+  raw: unknown,
+): Promise<{ error: JsonRpcFailure } | { project: LoadedProject }> {
+  if (typeof raw !== "string" || raw.trim() === "") {
+    return { error: invalid(id, "a project id is required") };
+  }
+  const projectId = raw.trim();
+  const rows = await loadProjects(current.workspace);
+  const project = rows.find((row) => row.id === projectId);
+  if (!project) {
+    const message = `the project ${JSON.stringify(projectId)} is not registered in this workspace`;
+    return {
+      error: failure(
+        id,
+        BOOT_FAILED,
+        message,
+        { kind: "project", projectId, message },
+        false,
+      ),
+    };
+  }
+  return { project };
+}
+
+/** The project's chats, newest last; a read failure is one typed message. */
 
 /**
  * The Work project and agent surface: `work.list/open/create/instructions`,
