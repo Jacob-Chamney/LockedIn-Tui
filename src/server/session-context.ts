@@ -13,7 +13,12 @@ import type { JsonRpcFailure, RpcId } from "./rpc";
  */
 export type SessionServices = {
   workspace: Workspace;
+  /** The live settings; only the history limit is read here. */
+  settings: { historyLimit: number };
   generate?: Booted["generate"];
+  createChat?: Booted["createChat"];
+  /** The standing note a generator's prompt is built with, when one is set. */
+  promptNote?: (id: import("../domain/prompts").PromptId) => string;
 };
 
 /**
@@ -26,6 +31,7 @@ export type SessionServices = {
  */
 export type SessionHandlerContext<C extends SessionServices> = {
   services: () => Promise<Result<C, BootFailure>>;
+
   resolveSession: (
     id: RpcId,
     current: C,
