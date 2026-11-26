@@ -292,6 +292,11 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   /// Which phase the rail marks as current (the one last navigated to).
   _Phase _phase = _Phase.teach;
 
+  /// The context tab under the learning surface. Sources is the default: the
+  /// material every lesson and check is built from. Goal metadata, chats and
+  /// research sit behind the other tabs instead of stacking under the lesson.
+  int _contextTab = 0;
+
   /// One key per phase section, so the rail can scroll to it and tests can
   /// assert where the navigation landed.
   final _planKey = GlobalKey(debugLabel: 'phase-plan');
@@ -1148,30 +1153,31 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                   child: _teachingCard(),
                 ),
                 const SizedBox(height: Space.md),
-                _goalCard(),
-                const SizedBox(height: Space.md),
-                // A course has chapters, not stages: the plan section is the
-                // curriculum when there is one.
-                if (_stages.isNotEmpty || _editingStages) ...[
-                  KeyedSubtree(key: _stagesKey, child: _stagesCard()),
-                  const SizedBox(height: Space.md),
-                ],
-                // Sources sit above the lesson: the plan and every stage are
-                // built from them, so they are context for what follows.
-                _sourcesCard(),
-                const SizedBox(height: Space.md),
-                if (_chapters.isNotEmpty) ...[
-                  KeyedSubtree(key: _courseKey, child: _courseCard()),
-                  const SizedBox(height: Space.md),
-                ],
+                // Practice is part of the harness, not context: it follows the
+                // learning surface.
                 KeyedSubtree(
                   key: _sectionKey(_Phase.practice),
                   child: _practiceCard(),
                 ),
                 const SizedBox(height: Space.md),
-                _chatsCard(),
-                const SizedBox(height: Space.md),
-                _researchCard(),
+                if (_chapters.isNotEmpty) ...[
+                  KeyedSubtree(key: _courseKey, child: _courseCard()),
+                  const SizedBox(height: Space.md),
+                ],
+                // A curriculum goal's stage list is its plan; it stays primary
+                // until the teaching loop has a measured plan of its own.
+                if ((_stages.isNotEmpty &&
+                        !(widget.teaching?.measured ?? false)) ||
+                    _editingStages) ...[
+                  KeyedSubtree(key: _stagesKey, child: _stagesCard()),
+                  const SizedBox(height: Space.md),
+                ],
+                _contextTabBar(),
+                const SizedBox(height: Space.xs),
+                Offstage(offstage: _contextTab != 0, child: _sourcesCard()),
+                Offstage(offstage: _contextTab != 1, child: _chatsCard()),
+                Offstage(offstage: _contextTab != 2, child: _researchCard()),
+                Offstage(offstage: _contextTab != 3, child: _goalCard()),
               ],
             ),
           ),
@@ -2233,6 +2239,55 @@ class _SkillDetailViewState extends State<SkillDetailView> {
           ),
         ),
       ],
+    );
+  }
+
+  /// The context tabs: sources, chats, research, goal metadata.
+  ///
+  /// The learning surface is the page; everything a lesson is *built from* or
+  /// *discussed in* is one click away instead of four cards below it.
+  Widget _contextTabBar() {
+    const tabs = <(String, String)>[
+      ('sources', 'sources'),
+      ('chats', 'chats'),
+      ('research', 'research'),
+      ('goal', 'goal'),
+    ];
+    return Container(
+      key: const ValueKey('skill-context-tabs'),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: LockedInColors.line)),
+      ),
+      child: Row(
+        children: [
+          for (final (index, (id, label)) in tabs.indexed)
+            InkWell(
+              key: ValueKey('skill-context-tab-$id'),
+              onTap: () => setState(() => _contextTab = index),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(10, 4, 10, 6),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: _contextTab == index
+                          ? LockedInColors.primary
+                          : Colors.transparent,
+                      width: Stroke.focus,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  label,
+                  style: LockedInType.label.copyWith(
+                    color: _contextTab == index
+                        ? LockedInColors.foreground
+                        : LockedInColors.muted,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 

@@ -30,6 +30,15 @@ Future<void> _pump(WidgetTester tester, Widget child) async {
   await tester.pumpAndSettle();
 }
 
+Future<void> _openResearch(WidgetTester tester) async {
+  await tester.ensureVisible(
+    find.byKey(const ValueKey('skill-context-tab-research')),
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const ValueKey('skill-context-tab-research')));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('a question and its sources start one brief', (tester) async {
     String? question;
@@ -44,7 +53,9 @@ void main() {
         },
       ),
     );
+    await _openResearch(tester);
 
+    await _openResearch(tester);
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('research-question')),
       240,
@@ -73,6 +84,7 @@ void main() {
       tester,
       SkillDetailView(detail: _detail, onResearch: (_, _) => runs += 1),
     );
+    await _openResearch(tester);
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('research-question')),
       240,
@@ -112,6 +124,7 @@ void main() {
         onCloseResearch: () => closed += 1,
       ),
     );
+    await _openResearch(tester);
 
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('research-item-202611241000-why')),

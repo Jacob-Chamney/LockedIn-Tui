@@ -217,6 +217,12 @@ void main() {
     // new navigation worth asserting.
     await tester.tap(find.byKey(const ValueKey('teach-phase-measure')));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('skill-context-tab-goal')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('skill-context-tab-goal')));
+    await tester.pumpAndSettle();
     expect(find.text('GOAL'), findsOneWidget);
     expect(find.text('Read disassembly output confidently'), findsOneWidget);
     expect(find.text('I know a little C'), findsOneWidget);
@@ -229,6 +235,12 @@ void main() {
     expect(find.text('Registers and memory'), findsOneWidget);
     expect(find.text('1/3 chapters'), findsOneWidget);
     expect(find.text('practical'), findsNWidgets(2));
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('skill-context-tab-chats')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('skill-context-tab-chats')));
+    await tester.pumpAndSettle();
     expect(find.text('CHATS'), findsOneWidget);
     expect(find.text('Where do I start?'), findsOneWidget);
     expect(find.text('2 messages'), findsOneWidget);

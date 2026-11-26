@@ -21,6 +21,7 @@ import '../features/sessions/sessions_page.dart';
 import '../features/settings/settings_page.dart';
 import '../features/skills/goal_wizard.dart';
 import '../features/skills/skill_chat.dart';
+import '../features/skills/learning_pane.dart';
 import '../features/skills/skill_detail.dart';
 import '../features/skills/skill_lesson.dart';
 import '../features/skills/skills_page.dart';
@@ -2138,6 +2139,17 @@ class _ShellState extends State<Shell> {
         onModeChanged: (insert) {
           if (_insert != insert) setState(() => _insert = insert);
         },
+        contextPane: skillId == null
+            ? null
+            : LearningPane(
+                teaching: store.teaching,
+                onMeasure: () => unawaited(store.measureTeaching(skillId)),
+                onOpenGoal: () => setState(() => _skillChatOpen = false),
+                onOpenStep: (stepId) {
+                  setState(() => _skillChatOpen = false);
+                  unawaited(store.teachNextStep(skillId, stepId: stepId));
+                },
+              ),
       );
     }
 

@@ -39,6 +39,13 @@ requests merge.
   460 px.
 - Settings has a `/` filter and a section index; the filter's field owns bare
   keys while focused, and the full page returns on `Esc`.
+- The skill page is a learning surface first: the teaching loop and practice
+  lead, a course's chapters follow, and sources, chats, research and goal
+  metadata live behind one tab strip instead of four stacked cards. A measured
+  goal's legacy stage list no longer competes with its learning tree.
+- A goal chat at 1100 px or wider keeps the learning tree beside the
+  transcript; tapping a step opens it and returns to the goal. Narrow windows
+  keep the chat full width.
 
 - The model badge sits at the right edge of the top bar; it used to float a
   third of the bar away because a `Spacer` and two loose flex children split the

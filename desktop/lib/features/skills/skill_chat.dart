@@ -8,6 +8,8 @@ import '../chat/markdown.dart';
 import '../chat/transcript_scroll.dart';
 import '../keys.dart';
 import '../../theme/tokens.dart';
+import '../../shell/chrome.dart';
+import '../../theme/breakpoints.dart';
 
 /// One goal-scoped chat surface.
 ///
@@ -36,6 +38,7 @@ class SkillChatView extends StatefulWidget {
     this.onModeChanged,
     this.initialText,
     this.onDraftChanged,
+    this.contextPane,
   });
 
   /// The chat id the core resolved (`chat-1`, `chat-2`, …).
@@ -74,6 +77,10 @@ class SkillChatView extends StatefulWidget {
 
   /// Reports every keystroke of the draft to the shell.
   final ValueChanged<String>? onDraftChanged;
+
+  /// The learning tree beside the transcript on a wide window. Null keeps the
+  /// chat full-width.
+  final Widget? contextPane;
 
   @override
   State<SkillChatView> createState() => _SkillChatViewState();
@@ -208,34 +215,53 @@ class _SkillChatViewState extends State<SkillChatView> {
 
   @override
   Widget build(BuildContext context) {
+    final chat = Column(
+      children: [
+        _header(),
+        if (widget.loading)
+          LinearProgressIndicator(
+            minHeight: 2,
+            color: LockedInColors.primary,
+            backgroundColor: LockedInColors.line,
+          ),
+        Expanded(child: _body()),
+        if (widget.chat?.error != null)
+          ChatFailureBanner(
+            failed: widget.chat!.error!.failed,
+            kept: widget.chat!.error!.kept,
+            next: widget.chat!.error!.next,
+            onRetry: widget.onRetry,
+          )
+        else if (widget.sendError != null && widget.sendError!.isNotEmpty)
+          ChatFailureBanner(
+            failed: widget.sendError!,
+            kept: 'your message is still in the composer',
+          ),
+        _composerBox(),
+      ],
+    );
     return Focus(
       focusNode: _pageFocus,
       autofocus: true,
       onKeyEvent: _onKey,
-      child: Column(
-        children: [
-          _header(),
-          if (widget.loading)
-            LinearProgressIndicator(
-              minHeight: 2,
-              color: LockedInColors.primary,
-              backgroundColor: LockedInColors.line,
-            ),
-          Expanded(child: _body()),
-          if (widget.chat?.error != null)
-            ChatFailureBanner(
-              failed: widget.chat!.error!.failed,
-              kept: widget.chat!.error!.kept,
-              next: widget.chat!.error!.next,
-              onRetry: widget.onRetry,
-            )
-          else if (widget.sendError != null && widget.sendError!.isNotEmpty)
-            ChatFailureBanner(
-              failed: widget.sendError!,
-              kept: 'your message is still in the composer',
-            ),
-          _composerBox(),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final pane = widget.contextPane;
+          // `Breakpoints.split` is the first width where a 340 px tree still
+          // leaves the chat a readable column. Below it the tree would be a
+          // sliver, so the chat keeps the full window and the goal page owns it.
+          if (pane == null || constraints.maxWidth < Breakpoints.split) {
+            return chat;
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: chat),
+              const VRule(),
+              SizedBox(width: 340, child: pane),
+            ],
+          );
+        },
       ),
     );
   }

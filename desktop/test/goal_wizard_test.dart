@@ -421,6 +421,12 @@ void main() {
       // The shell swapped the wizard for the new goal's course index.
       expect(find.text('New skill goal'), findsNothing);
       expect(find.text('TEACHING'), findsOneWidget);
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('skill-context-tab-goal')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('skill-context-tab-goal')));
+      await tester.pumpAndSettle();
       expect(find.text('plan · template'), findsOneWidget);
       expect(find.text('Getting started'), findsOneWidget);
       expect(tester.takeException(), isNull);

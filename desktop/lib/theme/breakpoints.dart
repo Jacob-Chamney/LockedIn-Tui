@@ -14,6 +14,9 @@ abstract final class Breakpoints {
   /// The wider data column: Stats' cards and charts use the extra room.
   static const double contentWide = 1180;
 
+  /// A chat keeps a 340 px context pane beside it at this width.
+  static const double split = 1100;
+
   /// Below this width a four-up KPI row becomes two, and a two-column detail
   /// becomes one.
   static const double columns = 980;
