@@ -1,3 +1,4 @@
+import type { BootFailure } from "../app/boot";
 import { stat } from "node:fs/promises";
 
 export type RpcId = string | number | null;
@@ -121,3 +122,19 @@ export function invalid(id: RpcId, message: string): JsonRpcFailure {
   return failure(id, -32602, message);
 }
 
+
+/**
+ * The one refusal for an app that will not start.
+ *
+ * The shell shows `message` and `next` and must not silently re-send the
+ * request; restarting the core after the user acts is the only retry.
+ */
+export function bootFailureResponse(id: RpcId, boot: BootFailure): JsonRpcFailure {
+  return failure(
+    id,
+    BOOT_FAILED,
+    `LockedIn could not start: ${oneLine(boot.message)}`,
+    { kind: "boot", path: boot.path, message: boot.message, next: boot.next },
+    false,
+  );
+}

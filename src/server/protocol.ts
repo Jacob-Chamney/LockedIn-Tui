@@ -34,13 +34,9 @@ import type { PluginRow, PluginWriteApprover, PluginWriteRequest } from "../app/
 import {
   addSessionSources,
   generateSessionDocument,
-  importSessionInstructionsFile,
-  loadSessionInstructions,
   loadSessionPrompt,
   loadSessionSteps,
-  reExtractSessionInstructions,
   regenerateSessionSteps,
-  saveSessionInstructions,
   sessionTools,
   stepFailureMessage,
   toggleSessionStep,
@@ -83,13 +79,13 @@ import {
 import { err, ok, type Result } from "../domain/markdown";
 import {
   generationFailure,
-  instructionsFailure,
   parseDocumentRequest,
   outputFailure,
   parseOutputReadRequest,
   readOutputFile,
 } from "./session-documents";
 import { deckFailure, deckStateReply, readDeckFile } from "./deck-state";
+import { createSessionInstructionHandlers } from "./session-instructions";
 import {
   markCard,
   markMistakeTarget,
@@ -99,7 +95,6 @@ import {
   type MarkOutcome,
 } from "./review-mark";
 import {
-  instructionsRow,
   nextProjectChatId,
   projectAgentRows,
   sourceRows,
@@ -154,6 +149,7 @@ import {
 } from "./keybinds";
 import {
   BOOT_FAILED,
+  bootFailureResponse,
   failure,
   invalid,
   isRecord,
@@ -884,15 +880,6 @@ async function normaliseRestoredSession(
   }
 }
 
-function bootFailureResponse(id: RpcId, boot: BootFailure): JsonRpcFailure {
-  return failure(
-    id,
-    BOOT_FAILED,
-    `LockedIn could not start: ${oneLine(boot.message)}`,
-    { kind: "boot", path: boot.path, message: boot.message, next: boot.next },
-    false,
-  );
-}
 
 function isRange(value: unknown): value is StatsRange {
   return typeof value === "string" && (RANGES as readonly string[]).includes(value);
@@ -1300,6 +1287,17 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     }
     return { opened: opened.value };
   };
+
+  const sessionInstructionHandlers = createSessionInstructionHandlers({
+    services,
+    resolveSession,
+  });
+  const {
+    sessionInstructionsGet,
+    sessionInstructionsSave,
+    sessionInstructionsImport,
+    sessionInstructionsReextract,
+  } = sessionInstructionHandlers;
 
   const sessionOpen = async (
     id: RpcId,
@@ -2024,169 +2022,6 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       total: marked.value.total,
       markdown,
       hash: `sha256:${createHash("sha256").update(markdown).digest("hex")}`,
-    });
-  };
-
-  /* ------------------------------------------------------------------------ */
-  /* Session instructions (Flutter session settings)                          */
-  /* ------------------------------------------------------------------------ */
-
-  /**
-   * The instruction failure shape: one session, one message.
-   *
-   * Every service failure after the session resolves — a refused file, an
-   * extraction failure, an archived session, a storage error — is reported
-   * once with `retryable: false`, and the previous prompt and metadata are left
-   * exactly as they were. A session that does not exist is the shared session
-   * shape instead (`resolveSession`), so the shell can tell "no such session"
-   * from "this session's instructions could not be changed".
-   */
-  /**
-   * Read the session's current instructions.
-   *
-   * `prompt.md` is the text the model reads; `instructionsSource` is the copied
-   * original's provenance when the prompt came from a file. The shell edits the
-   * text and never sends a path back, so this is the read half of the session
-   * settings pane (`docs/product.md` §4.3).
-   */
-  const sessionInstructionsGet = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const rawId = params.id;
-    if (typeof rawId !== "string" || rawId.trim() === "") {
-      return invalid(id, "session.instructions.get requires a session id");
-    }
-
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const resolved = await resolveSession(id, current.value, rawId);
-    if ("error" in resolved) return resolved.error;
-    const sessionId = resolved.opened.session.id;
-
-    const loaded = await loadSessionInstructions(current.value.workspace, sessionId);
-    if (!loaded.ok) {
-      return instructionsFailure(id, sessionId, oneLine(loaded.error.message));
-    }
-    const { prompt, instructions } = loaded.value;
-    return success(id, {
-      prompt,
-      ...(instructions === null ? {} : { instructionsSource: instructionsRow(instructions) }),
-    });
-  };
-
-  /**
-   * Replace the instruction text in `prompt.md`.
-   *
-   * The text is the only input: the service writes `prompt.md` and the matching
-   * `meta.prompt` atomically. An empty string is accepted by the service and
-   * clears the prompt; a source file is not required for that. The original
-   * instruction file, when there is one, is provenance and is left in place.
-   */
-  const sessionInstructionsSave = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const rawId = params.id;
-    if (typeof rawId !== "string" || rawId.trim() === "") {
-      return invalid(id, "session.instructions.save requires a session id");
-    }
-    const text = params.text;
-    if (typeof text !== "string") {
-      return invalid(id, "session.instructions.save requires a text string (empty clears the prompt)");
-    }
-
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const resolved = await resolveSession(id, current.value, rawId);
-    if ("error" in resolved) return resolved.error;
-    const sessionId = resolved.opened.session.id;
-
-    const saved = await saveSessionInstructions({
-      workspace: current.value.workspace,
-      id: sessionId,
-      text,
-    });
-    if (!saved.ok) {
-      return instructionsFailure(id, sessionId, oneLine(saved.error.message));
-    }
-    return success(id, { prompt: saved.value.prompt });
-  };
-
-  /**
-   * Load a user-picked file as the instructions.
-   *
-   * `file` is the original the user chose, never a destination: the service
-   * copies it into this session's `sources/`, extracts its text into
-   * `prompt.md` and records the provenance in `meta.json`, all in one
-   * transaction. A duplicate copy is counted in `added: false` without a second
-   * source row. A scanned PDF with no text layer is the service's typed refusal
-   * and leaves the previous prompt and metadata untouched.
-   */
-  const sessionInstructionsImport = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const rawId = params.id;
-    if (typeof rawId !== "string" || rawId.trim() === "") {
-      return invalid(id, "session.instructions.import requires a session id");
-    }
-    const file = params.file;
-    if (typeof file !== "string" || file.trim() === "") {
-      return invalid(id, "session.instructions.import requires a non-empty file path");
-    }
-
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const resolved = await resolveSession(id, current.value, rawId);
-    if ("error" in resolved) return resolved.error;
-    const sessionId = resolved.opened.session.id;
-
-    const imported = await importSessionInstructionsFile({
-      workspace: current.value.workspace,
-      id: sessionId,
-      file,
-    });
-    if (!imported.ok) {
-      return instructionsFailure(id, sessionId, oneLine(imported.error.message));
-    }
-    return success(id, {
-      prompt: imported.value.prompt,
-      instructions: instructionsRow(imported.value.instructions),
-      added: imported.value.added,
-    });
-  };
-
-  /**
-   * Re-extract the copied original into `prompt.md`, replacing manual edits.
-   *
-   * This is only possible when the session has an instruction file; a
-   * text-only session is the service's blocked message. The copied original is
-   * the source of truth for this action, not the user's original path, so a
-   * later edit to that original cannot change the session.
-   */
-  const sessionInstructionsReextract = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const rawId = params.id;
-    if (typeof rawId !== "string" || rawId.trim() === "") {
-      return invalid(id, "session.instructions.reextract requires a session id");
-    }
-
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const resolved = await resolveSession(id, current.value, rawId);
-    if ("error" in resolved) return resolved.error;
-    const sessionId = resolved.opened.session.id;
-
-    const extracted = await reExtractSessionInstructions(current.value.workspace, sessionId);
-    if (!extracted.ok) {
-      return instructionsFailure(id, sessionId, oneLine(extracted.error.message));
-    }
-    return success(id, {
-      prompt: extracted.value.prompt,
-      instructions: instructionsRow(extracted.value.instructions),
     });
   };
 
