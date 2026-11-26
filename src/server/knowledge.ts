@@ -1,10 +1,22 @@
 import { stat, readFile } from "node:fs/promises";
-import { basename, isAbsolute, join, relative, sep } from "node:path";
+import { basename, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { parseDocument, readString, readStringArray } from "../domain/markdown";
 import { listNotes } from "../storage/note-store";
 import { indexFileExists } from "../storage/index";
 import { searchKnowledge as indexedKnowledgeSearch } from "../services/knowledge/search";
+import { readMemory, type Memory } from "../services/lockin/memory";
+import { loadProjectMeta } from "../services/work/agents";
+import { openSession } from "../services/lockin/manager";
+import {
+  goalFolderFor,
+  readMeta as readGoalMeta,
+} from "../services/skills/progress";
+import { SESSION_FILES } from "../domain/session";
+import { extract } from "../services/extract/index";
+import { confinedJoin } from "../storage/paths";
+import { isRecord, oneLine } from "./rpc";
+
 import type { Workspace } from "../storage/workspace";
 
 export const KNOWLEDGE_HIT_LIMIT = 50;
@@ -315,3 +327,557 @@ export async function indexedNoteCandidates(
  * Memory is history, never a source: it is its own `memory` kind and never a
  * `source` row. A broken session folder is skipped, never an error.
  */
+
+/* -------------------------------------------------------------------------- */
+/* Knowledge base: open one hit in a reader                                   */
+/* -------------------------------------------------------------------------- */
+
+export type KnowledgeReadTarget =
+  | { kind: "note"; side: "school" | "skills"; path: string }
+  | { kind: "memory"; sessionId: string; index: number }
+  | { kind: "source"; sessionId: string; hash: string }
+  | { kind: "session"; sessionId: string }
+  | { kind: "goal"; goalId: string }
+  | { kind: "project"; projectId: string }
+  | { kind: "archive"; side: "school" | "skills"; entryId: string };
+
+/**
+ * Resolve one knowledge id (or a bare tree path) to a read target.
+ *
+ * The scheme is exactly what {@link knowledgeIds} builds, so a row from
+ * `knowledge.search` round-trips. `knowledge.tree` returns a workspace-relative
+ * path rather than an id, and no scheme starts with a vault folder, so a bare
+ * `school/…` or `skills/…` path is a note row and is accepted for the note kind
+ * only. `null` means "no such item".
+ */
+export function parseKnowledgeReadTarget(raw: string): KnowledgeReadTarget | null {
+  if (raw.startsWith("school/")) return { kind: "note", side: "school", path: raw };
+  if (raw.startsWith("skills/")) return { kind: "note", side: "skills", path: raw };
+
+  const note = /^note:(school|skills):(.+)$/s.exec(raw);
+  if (note !== null) {
+    return { kind: "note", side: note[1] as "school" | "skills", path: note[2]! };
+  }
+
+  if (raw.startsWith("memory:")) {
+    // `memory:<sessionId>:<index>`: the index is the only colon-suffixed number.
+    const rest = raw.slice("memory:".length);
+    const at = rest.lastIndexOf(":");
+    if (at <= 0) return null;
+    const index = rest.slice(at + 1);
+    if (!/^\d+$/.test(index)) return null;
+    return { kind: "memory", sessionId: rest.slice(0, at), index: Number(index) };
+  }
+
+  if (raw.startsWith("source:")) {
+    // The hash is `sha256:…`, so only the first colon separates the session.
+    const rest = raw.slice("source:".length);
+    const at = rest.indexOf(":");
+    if (at <= 0 || at === rest.length - 1) return null;
+    return { kind: "source", sessionId: rest.slice(0, at), hash: rest.slice(at + 1) };
+  }
+
+  if (raw.startsWith("session:")) {
+    const sessionId = raw.slice("session:".length);
+    return sessionId === "" ? null : { kind: "session", sessionId };
+  }
+
+  if (raw.startsWith("goal:")) {
+    const goalId = raw.slice("goal:".length);
+    return goalId === "" ? null : { kind: "goal", goalId };
+  }
+
+  if (raw.startsWith("project:")) {
+    const projectId = raw.slice("project:".length);
+    return projectId === "" ? null : { kind: "project", projectId };
+  }
+
+  if (raw.startsWith("archive:")) {
+    const rest = raw.slice("archive:".length);
+    const at = rest.indexOf(":");
+    if (at <= 0 || at === rest.length - 1) return null;
+    const side = rest.slice(0, at);
+    if (side !== "school" && side !== "skills") return null;
+    return { kind: "archive", side, entryId: rest.slice(at + 1) };
+  }
+
+  return null;
+}
+
+/**
+ * Confine a workspace-relative note path to its own vault.
+ *
+ * Both `note:<side>:<path>` and a bare tree path are workspace-relative. An
+ * absolute path, a `..` segment, or a path that resolves into the other vault
+ * is refused before it is opened: the wall is the vault, not a prefix check on
+ * a string the shell happened to send.
+ */
+export function resolveVaultNotePath(
+  workspace: Workspace,
+  side: "school" | "skills",
+  path: string,
+): string | null {
+  const vault = side === "school" ? workspace.paths.schoolVault : workspace.paths.skillVault;
+  const trimmed = path.trim();
+  if (trimmed === "" || isAbsolute(trimmed)) return null;
+  const normalised = trimmed.split("\\").join("/");
+  if (normalised.split("/").some((part) => part === "..")) return null;
+  const absolute = resolve(workspace.root, normalised);
+  const rel = relative(vault, absolute);
+  if (rel === "" || isAbsolute(rel) || rel === ".." || rel.startsWith(`..${sep}`)) return null;
+  return absolute;
+}
+
+/** Cut a body to {@link KNOWLEDGE_BODY_LIMIT} bytes on a character boundary. */
+export function capKnowledgeBody(text: string): { body: string; truncated: boolean } {
+  if (Buffer.byteLength(text, "utf8") <= KNOWLEDGE_BODY_LIMIT) {
+    return { body: text, truncated: false };
+  }
+  let bytes = 0;
+  let body = "";
+  for (const character of text) {
+    const size = Buffer.byteLength(character, "utf8");
+    if (bytes + size > KNOWLEDGE_BODY_LIMIT) break;
+    bytes += size;
+    body += character;
+  }
+  return { body, truncated: true };
+}
+
+/** One `- Label: value` line; an absent value reads as unknown, never empty. */
+export function summaryBullet(label: string, value: string): string {
+  return `- ${label}: ${value.trim() === "" ? "unknown" : value}`;
+}
+
+export function renderMemoryKnowledge(memory: Memory, name: string): string {
+  const bullets = [...memory.points, ...memory.folded].map((point) => `- ${point}`);
+  return [
+    `# Session memory — ${name}`,
+    "",
+    "Session memory — history, not a source.",
+    "",
+    `Updated: ${memory.updated || "unknown"}`,
+    "",
+    ...(bullets.length === 0 ? ["- (no key points recorded yet)"] : bullets),
+    "",
+  ].join("\n");
+}
+
+export function renderSessionKnowledge(input: {
+  name: string;
+  created: string;
+  archived: boolean;
+  prompt: string;
+  sources: number;
+}): string {
+  const lines = [
+    `# ${input.name}`,
+    "",
+    "- Kind: lock-in session",
+    summaryBullet("Created", input.created),
+    `- Sources: ${input.sources}`,
+    `- Archived: ${input.archived ? "yes" : "no"}`,
+  ];
+  const prompt = input.prompt.trim();
+  if (prompt !== "") lines.push("", "## Instructions", "", prompt);
+  lines.push("");
+  return lines.join("\n");
+}
+
+export function renderGoalKnowledge(input: {
+  name: string;
+  created: string;
+  lastOpened: string;
+  level: string;
+  timeBudget: string;
+  statement: string;
+  stagesDone: number;
+  stagesTotal: number;
+  chats: number;
+  sources: number;
+  archived: boolean;
+}): string {
+  const lines = [
+    `# ${input.name}`,
+    "",
+    "- Kind: skill session",
+    summaryBullet("Level", input.level),
+    summaryBullet("Time budget", input.timeBudget),
+    summaryBullet("Created", input.created),
+    summaryBullet("Last opened", input.lastOpened),
+    `- Stages: ${input.stagesDone} of ${input.stagesTotal}`,
+    `- Chats: ${input.chats}`,
+    `- Sources: ${input.sources}`,
+    `- Archived: ${input.archived ? "yes" : "no"}`,
+  ];
+  if (input.statement.trim() !== "") {
+    lines.push("", "## Goal", "", input.statement.trim());
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+
+export function renderProjectKnowledge(input: {
+  name: string;
+  created: string;
+  lastOpened: string;
+  mode: string;
+  instructions: string;
+  agents: number;
+  tasks: number;
+  archived: boolean;
+}): string {
+  const lines = [
+    `# ${input.name}`,
+    "",
+    "- Kind: work project",
+    summaryBullet("Mode", input.mode),
+    summaryBullet("Created", input.created),
+    summaryBullet("Last opened", input.lastOpened),
+    `- Agents: ${input.agents}`,
+    `- Tasks: ${input.tasks}`,
+    `- Archived: ${input.archived ? "yes" : "no"}`,
+  ];
+  if (input.instructions.trim() !== "") {
+    lines.push("", "## Instructions", "", input.instructions.trim());
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+
+export function renderArchiveKnowledge(input: {
+  title: string;
+  kind: string;
+  side: "school" | "skills";
+  archivedAt: string;
+  sizeBytes: number | null;
+  tags: string[];
+}): string {
+  return [
+    `# ${input.title}`,
+    "",
+    summaryBullet("Kind", input.kind),
+    summaryBullet("Side", input.side),
+    summaryBullet("Archived", input.archivedAt),
+    ...(input.sizeBytes === null ? [] : [`- Size: ${input.sizeBytes} bytes`]),
+    ...(input.tags.length === 0 ? [] : [`- Tags: ${input.tags.join(", ")}`]),
+    "",
+  ].join("\n");
+}
+
+/**
+ * Build the read `hit` from the fields the row builders already produce.
+ *
+ * `score` is `0` because a read has no query: relevance is the search row's
+ * fact, not the document's. Everything else (side, path, updated) is the same
+ * value the list row carries, so the reader header cannot drift from it.
+ */
+export function knowledgeReadHit(
+  id: string,
+  kind: KnowledgeHitKind,
+  title: string,
+  side: KnowledgeSide,
+  path: string,
+  updated: string,
+  body: string,
+): KnowledgeHit {
+  return {
+    id,
+    kind,
+    title,
+    excerpt: knowledgeExcerpt(body, ""),
+    side,
+    path,
+    updated,
+    score: 0,
+  };
+}
+
+export type KnowledgeReadResult =
+  | { ok: true; hit: KnowledgeHit; body: string }
+  | { ok: false; message: string };
+
+/** Read one target's body. Read-only: every file is opened for reading. */
+export async function readKnowledgeTarget(
+  workspace: Workspace,
+  target: KnowledgeReadTarget,
+  itemId: string,
+): Promise<KnowledgeReadResult> {
+  switch (target.kind) {
+    case "note": {
+      const absolute = resolveVaultNotePath(workspace, target.side, target.path);
+      if (absolute === null) {
+        return { ok: false, message: `"${itemId}" is not a readable ${target.side} note` };
+      }
+      const note = await readVaultNoteFile(workspace.root, absolute);
+      if (note === null) {
+        return { ok: false, message: `note "${target.path}" could not be read` };
+      }
+      return {
+        ok: true,
+        hit: knowledgeReadHit(
+          knowledgeIds.note(target.side, note.path),
+          "note",
+          note.title,
+          target.side,
+          note.path,
+          note.updated,
+          note.body,
+        ),
+        body: note.body,
+      };
+    }
+
+    case "memory": {
+      const opened = await openSession({ workspace, id: target.sessionId });
+      if (!opened.ok) {
+        return { ok: false, message: `"${itemId}" does not name a readable session memory item` };
+      }
+      const memory = await readMemory(opened.value.folder, target.sessionId);
+      if (!memory.ok || memory.value === null) {
+        return { ok: false, message: `session memory for "${target.sessionId}" could not be read` };
+      }
+      const value = memory.value;
+      if (target.index < 0 || target.index >= value.points.length) {
+        return { ok: false, message: `there is no knowledge item "${itemId}"` };
+      }
+      const path = workspaceRelativePath(
+        workspace.root,
+        join(opened.value.folder, SESSION_FILES.memory),
+      );
+      if (path === "") {
+        return { ok: false, message: `session memory for "${target.sessionId}" is outside the workspace` };
+      }
+      const name = opened.value.session.name || target.sessionId;
+      const body = renderMemoryKnowledge(value, name);
+      return {
+        ok: true,
+        hit: knowledgeReadHit(
+          knowledgeIds.memory(target.sessionId, target.index),
+          "memory",
+          `${name} — session memory`,
+          "school",
+          path,
+          value.updated || opened.value.session.created,
+          body,
+        ),
+        body,
+      };
+    }
+
+    case "source": {
+      const opened = await openSession({ workspace, id: target.sessionId });
+      if (!opened.ok) {
+        return { ok: false, message: `"${itemId}" does not name a readable source` };
+      }
+      const source = opened.value.session.sources.find((entry) => entry.hash === target.hash);
+      if (source === undefined) {
+        return {
+          ok: false,
+          message: `there is no source "${target.hash}" in session "${target.sessionId}"`,
+        };
+      }
+      const absolute = confinedJoin(opened.value.folder, source.storedPath);
+      if (absolute === null) {
+        return { ok: false, message: `source "${source.name}" is outside its session` };
+      }
+      const extracted = await extract(absolute);
+      if (!extracted.ok) {
+        return {
+          ok: false,
+          message: `source "${source.name}" could not be read: ${oneLine(extracted.error.message)}`,
+        };
+      }
+      const path = workspaceRelativePath(workspace.root, absolute);
+      if (path === "") {
+        return { ok: false, message: `source "${source.name}" is outside the workspace` };
+      }
+      return {
+        ok: true,
+        hit: knowledgeReadHit(
+          knowledgeIds.source(target.sessionId, source.hash),
+          "source",
+          source.name,
+          "school",
+          path,
+          opened.value.session.created,
+          extracted.text,
+        ),
+        body: extracted.text,
+      };
+    }
+
+    case "session": {
+      const opened = await openSession({ workspace, id: target.sessionId });
+      if (!opened.ok) {
+        return { ok: false, message: `lock-in session "${target.sessionId}" could not be read` };
+      }
+      const session = opened.value.session;
+      const path = workspaceRelativePath(
+        workspace.root,
+        join(opened.value.folder, SESSION_FILES.meta),
+      );
+      if (path === "") {
+        return { ok: false, message: `lock-in session "${target.sessionId}" is outside the workspace` };
+      }
+      const name = session.name || target.sessionId;
+      const body = renderSessionKnowledge({
+        name,
+        created: session.created,
+        archived: session.archived,
+        prompt: session.prompt,
+        sources: session.sources.length,
+      });
+      return {
+        ok: true,
+        hit: knowledgeReadHit(
+          knowledgeIds.session(session.id || target.sessionId),
+          "session",
+          name,
+          "school",
+          path,
+          session.created,
+          body,
+        ),
+        body,
+      };
+    }
+
+    case "goal": {
+      const folder = goalFolderFor(workspace, target.goalId);
+      const loaded = await readGoalMeta(folder);
+      if (!loaded.ok) {
+        return { ok: false, message: `skill session "${target.goalId}" could not be read` };
+      }
+      const { meta, goal } = loaded.value;
+      const path = workspaceRelativePath(
+        workspace.root,
+        join(workspace.paths.goals, target.goalId, "meta.json"),
+      );
+      if (path === "") {
+        return { ok: false, message: `skill session "${target.goalId}" is outside the workspace` };
+      }
+      const name = goal.name || target.goalId;
+      const created = goal.created || (typeof meta.created === "string" ? meta.created : "");
+      const lastOpened = typeof meta.last_opened_at === "string" ? meta.last_opened_at : "";
+      const body = renderGoalKnowledge({
+        name,
+        created,
+        lastOpened,
+        level: goal.level,
+        timeBudget: goal.timeBudget,
+        statement: goal.statement,
+        stagesDone: goal.stages.filter((stage) => stage.status === "done").length,
+        stagesTotal: goal.stages.length,
+        chats: goal.chats.length,
+        sources: goal.sources.length,
+        archived: goal.archived,
+      });
+      return {
+        ok: true,
+        hit: knowledgeReadHit(
+          knowledgeIds.goal(target.goalId),
+          "goal",
+          name,
+          "skills",
+          path,
+          lastOpened || created,
+          body,
+        ),
+        body,
+      };
+    }
+
+    case "project": {
+      const loaded = await loadProjectMeta(workspace, target.projectId);
+      if (!loaded.ok) {
+        return { ok: false, message: `work project "${target.projectId}" could not be read` };
+      }
+      const meta = loaded.value;
+      const path = workspaceRelativePath(
+        workspace.root,
+        join(workspace.paths.workProjects, target.projectId, "meta.json"),
+      );
+      if (path === "") {
+        return { ok: false, message: `work project "${target.projectId}" is outside the workspace` };
+      }
+      const name = meta.name || target.projectId;
+      const body = renderProjectKnowledge({
+        name,
+        created: meta.created,
+        lastOpened: meta.last_opened_at,
+        mode: meta.mode,
+        instructions: meta.instructions,
+        agents: meta.agents.length,
+        tasks: meta.tasks.length,
+        archived: meta.archived,
+      });
+      return {
+        ok: true,
+        hit: knowledgeReadHit(
+          knowledgeIds.project(target.projectId),
+          "project",
+          name,
+          "work",
+          path,
+          meta.last_opened_at || meta.created,
+          body,
+        ),
+        body,
+      };
+    }
+
+    case "archive": {
+      const missing = `there is no archived item "${target.entryId}" on the ${target.side} side`;
+      let raw: unknown;
+      try {
+        raw = JSON.parse(
+          await readFile(join(workspace.paths.archiveIndex, `${target.side}.json`), "utf8"),
+        );
+      } catch {
+        return { ok: false, message: missing };
+      }
+      if (!isRecord(raw) || !Array.isArray(raw.entries)) {
+        return { ok: false, message: missing };
+      }
+      const entry = raw.entries.find(
+        (candidate): candidate is Record<string, unknown> =>
+          isRecord(candidate) &&
+          typeof candidate.id === "string" &&
+          candidate.id === target.entryId,
+      );
+      if (entry === undefined) return { ok: false, message: missing };
+
+      const title =
+        typeof entry.title === "string" && entry.title.trim() !== "" ? entry.title : target.entryId;
+      const kind = typeof entry.kind === "string" ? entry.kind : "session";
+      const archivedAt = typeof entry.archivedAt === "string" ? entry.archivedAt : "";
+      const sizeBytes = typeof entry.sizeBytes === "number" ? entry.sizeBytes : null;
+      const tags = Array.isArray(entry.tags)
+        ? entry.tags.filter((tag): tag is string => typeof tag === "string")
+        : [];
+      const body = renderArchiveKnowledge({
+        title,
+        kind,
+        side: target.side,
+        archivedAt,
+        sizeBytes,
+        tags,
+      });
+      return {
+        ok: true,
+        hit: knowledgeReadHit(
+          knowledgeIds.archive(target.side, target.entryId),
+          "archive",
+          title,
+          target.side,
+          `archive-index/${target.side}.json`,
+          archivedAt,
+          body,
+        ),
+        body,
+      };
+    }
+  }
+}
+
