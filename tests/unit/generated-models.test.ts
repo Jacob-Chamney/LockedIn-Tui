@@ -459,7 +459,7 @@ describe("generated Dart models", () => {
 
   test("the source is the exported protocol type", () => {
     expect(MODEL_SOURCES).toContain("src/server/protocol.ts");
-    expect(read("src/server/protocol.ts")).toContain("export type KnowledgeHit = {");
+    expect(read("src/server/knowledge.ts")).toContain("export type KnowledgeHit = {");
   });
 
   test("stats keeps its ints, nullable fields and nested models", () => {
