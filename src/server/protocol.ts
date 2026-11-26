@@ -85,6 +85,13 @@ import {
 } from "../domain/achievements";
 import { err, ok, type Result } from "../domain/markdown";
 import {
+  KEYBIND_FORMS,
+  displayBinding,
+  keybindConflict,
+  keybindTable,
+  normalizeKeybind,
+} from "./keybinds";
+import {
   failure,
   invalid,
   isRecord,
@@ -1971,78 +1978,6 @@ type LessonTarget = {
  * the user. The default action table and the set of legal action ids live in the
  * UI registry.
  */
-const NAMED_KEYBIND_KEYS = ["escape", "enter", "tab", "space"] as const;
-
-/** The accepted forms, in the one sentence a refusal repeats. */
-const KEYBIND_FORMS =
-  'a leader binding ("space+<key>"), one printable character, a named key (escape, enter, tab), "space", or "ctrl+<character>"';
-
-function isPrintableKey(char: string): boolean {
-  return char.length === 1 && char >= "!" && char <= "~";
-}
-
-/**
- * Validate and normalise one binding string; `null` means "not a binding".
- *
- * The stored form is lowercase and trimmed, so two spellings of one chord can
- * never be saved as two different bindings. A chord is the leader prefix plus a
- * letter; the bare `space` is the named space key, not the leader prefix.
- */
-function normalizeKeybind(raw: string): string | null {
-  const text = raw.trim().toLowerCase();
-  if (text === "") return null;
-  if (text.startsWith("ctrl+")) {
-    return isPrintableKey(text.slice("ctrl+".length)) ? text : null;
-  }
-  if (text.startsWith("space+")) {
-    return isPrintableKey(text.slice("space+".length)) ? text : null;
-  }
-  if (isPrintableKey(text)) return text;
-  return (NAMED_KEYBIND_KEYS as readonly string[]).includes(text) ? text : null;
-}
-
-/** The binding as a person reads it: `Space x`, `Esc`, `Ctrl+Q`, `?`. */
-function displayBinding(binding: string): string {
-  const text = binding.trim().toLowerCase();
-  if (text.startsWith("space+")) return `Space ${text.slice("space+".length)}`;
-  if (text.startsWith("ctrl+")) return `Ctrl+${text.slice("ctrl+".length).toUpperCase()}`;
-  if (text === "escape") return "Esc";
-  if (text === "enter") return "Enter";
-  if (text === "tab") return "Tab";
-  if (text === "space") return "Space";
-  return text;
-}
-
-/**
- * One table from the loaded config, without the empty "no override" markers.
- *
- * An empty binding is how a cleared action is stored (a config patch merges
- * tables, so a key cannot be deleted), and every reader treats it as absent.
- */
-function keybindTable(raw: Record<string, string> | undefined): Record<string, string> {
-  const table: Record<string, string> = {};
-  for (const [action, binding] of Object.entries(raw ?? {})) {
-    if (typeof binding !== "string" || binding.trim() === "") continue;
-    table[action] = binding;
-  }
-  return table;
-}
-
-/** The action that already holds `binding` in either table, if any. */
-function keybindConflict(
-  action: string,
-  binding: string,
-  tables: readonly Record<string, string>[],
-): string | null {
-  for (const table of tables) {
-    for (const [id, existing] of Object.entries(table)) {
-      if (id === action) continue;
-      if (existing.trim().toLowerCase() === binding) return id;
-    }
-  }
-  return null;
-}
-
 /* -------------------------------------------------------------------------- */
 /* Swarm workers                                                              */
 /* -------------------------------------------------------------------------- */
