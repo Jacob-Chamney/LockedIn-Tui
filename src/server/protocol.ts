@@ -15,7 +15,7 @@
  *   the returned lines and logs go to stderr.
  */
 import { createHash, randomUUID } from "node:crypto";
-import { appendFile, open, readFile, rename, rm, stat } from "node:fs/promises";
+import { appendFile, open, readFile, rename, rm } from "node:fs/promises";
 import { basename, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { openFolderArchive } from "../archive/folder";
@@ -84,6 +84,21 @@ import {
   difficultyLabel,
 } from "../domain/achievements";
 import { err, ok, type Result } from "../domain/markdown";
+import {
+  failure,
+  invalid,
+  isRecord,
+  messageOf,
+  oneLine,
+  pathExists,
+  providerOf,
+  success,
+  type JsonRpcFailure,
+  type JsonRpcRequest,
+  type JsonRpcResponse,
+  type RpcId,
+} from "./rpc";
+export * from "./rpc";
 import {
   REVIEW_MARK_RESULTS,
   REVIEW_SIDES,
@@ -488,35 +503,6 @@ export const CAPABILITIES = [
 /** JSON-RPC error code for a boot refusal (server-defined range). */
 export const BOOT_FAILED = -32000;
 
-export type RpcId = string | number | null;
-
-export type JsonRpcRequest = {
-  jsonrpc: "2.0";
-  id?: RpcId;
-  method: string;
-  params?: Record<string, unknown>;
-};
-
-export type JsonRpcSuccess = {
-  jsonrpc: "2.0";
-  id: RpcId;
-  result: Record<string, unknown>;
-};
-
-export type JsonRpcFailure = {
-  jsonrpc: "2.0";
-  id: RpcId;
-  error: {
-    code: number;
-    message: string;
-    data?: unknown;
-    /** False for a failure the shell must not silently re-send. */
-    retryable?: boolean;
-  };
-};
-
-export type JsonRpcResponse = JsonRpcSuccess | JsonRpcFailure;
-
 /**
  * The two stored keybind tables (`docs/data-model.md` §2).
  *
@@ -835,38 +821,6 @@ export type CoreServer = {
   handle(request: JsonRpcRequest): Promise<JsonRpcResponse | null>;
 };
 
-function failure(
-  id: RpcId,
-  code: number,
-  message: string,
-  data?: unknown,
-  retryable?: boolean,
-): JsonRpcFailure {
-  return {
-    jsonrpc: "2.0",
-    id,
-    error: {
-      code,
-      message,
-      ...(data === undefined ? {} : { data }),
-      ...(retryable === undefined ? {} : { retryable }),
-    },
-  };
-}
-
-function success(id: RpcId, result: Record<string, unknown>): JsonRpcSuccess {
-  return { jsonrpc: "2.0", id, result };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** One sentence: a boot message may carry newlines from a TOML parse error. */
-function oneLine(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
-}
-
 /**
  * The one-line description of an agent template, for a picker row.
  *
@@ -878,32 +832,13 @@ function templateSummary(instructions: string): string {
   return text.length > 160 ? `${text.slice(0, 159)}…` : text;
 }
 
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-/** A path probe that treats every failure as "not there". */
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await stat(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Normalise a session folder a **remote** backend just restored.
  *
  * The GitHub adapter copies files down; it does not know the session's metadata
  * rules. A restored session must be live: `archived: false`, no
- * `chat_archived` claim (the archive never carried a chat, and a restore cannot
- * imply one), and no `chat.jsonl` even if a remote copy somehow held one.
- * `writeMeta` replaces the whole metadata document from the domain entity, so
- * the claim is dropped rather than left stale.
- *
- * The session's own files are left alone: sources, steps, progress and outputs
- * are what the archive carried, byte for byte.
+ * `chat_archived` claim, and no `chat.jsonl` even if a remote copy held one.
+ * The session's own files are left alone.
  */
 async function normaliseRestoredSession(
   folder: string,
@@ -918,45 +853,6 @@ async function normaliseRestoredSession(
   } catch (error) {
     return { ok: false, message: messageOf(error) };
   }
-}
-
-/** Parse one line; malformed lines become a JSON-RPC parse error. */
-export function parseRequest(line: string): JsonRpcRequest | JsonRpcFailure {
-  let value: unknown;
-  try {
-    value = JSON.parse(line);
-  } catch {
-    return failure(null, -32700, "Parse error");
-  }
-  if (!isRecord(value)) return failure(null, -32600, "Invalid Request");
-  if (value.jsonrpc !== "2.0") return failure(null, -32600, "Invalid Request");
-
-  const rawId = value.id;
-  const id: RpcId | undefined =
-    rawId === undefined ? undefined : rawId === null ? null : typeof rawId === "number" || typeof rawId === "string" ? rawId : undefined;
-  if (rawId !== undefined && id === undefined) return failure(null, -32600, "Invalid Request");
-  if (typeof value.method !== "string" || value.method.length === 0) {
-    return failure(id ?? null, -32600, "Invalid Request");
-  }
-  const params = value.params;
-  if (params !== undefined && !isRecord(params)) {
-    return failure(id ?? null, -32602, "Invalid params");
-  }
-
-  const method = value.method;
-  return {
-    jsonrpc: "2.0",
-    ...(id === undefined ? {} : { id }),
-    method,
-    ...(params === undefined ? {} : { params }),
-  };
-}
-
-/** Provider id from a `provider/model` name; `""` when the name has no slash. */
-export function providerOf(model: string): string {
-  const trimmed = model.trim();
-  const slash = trimmed.indexOf("/");
-  return slash === -1 ? "" : trimmed.slice(0, slash);
 }
 
 function bootFailureResponse(id: RpcId, boot: BootFailure): JsonRpcFailure {
@@ -992,10 +888,6 @@ function isExportFormat(value: unknown): value is StatsExportFormat {
 /** One stored activity kind (`src/services/work/activity.ts`). */
 function isActivityKind(value: unknown): value is ActivityKind {
   return typeof value === "string" && (ACTIVITY_KINDS as readonly string[]).includes(value);
-}
-
-function invalid(id: RpcId, message: string): JsonRpcFailure {
-  return failure(id, -32602, message);
 }
 
 /**
