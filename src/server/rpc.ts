@@ -2,6 +2,9 @@ import { stat } from "node:fs/promises";
 
 export type RpcId = string | number | null;
 
+/** The one refusal code for "this needs the app, and the app would not start". */
+export const BOOT_FAILED = -32000;
+
 export type JsonRpcRequest = {
   jsonrpc: "2.0";
   id?: RpcId;

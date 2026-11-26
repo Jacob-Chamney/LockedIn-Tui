@@ -82,6 +82,7 @@ import {
   difficultyLabel,
 } from "../domain/achievements";
 import { err, ok, type Result } from "../domain/markdown";
+import { deckFailure, deckStateReply, readDeckFile } from "./deck-state";
 import {
   markCard,
   markMistakeTarget,
@@ -145,6 +146,7 @@ import {
   normalizeKeybind,
 } from "./keybinds";
 import {
+  BOOT_FAILED,
   failure,
   invalid,
   isRecord,
@@ -280,7 +282,6 @@ import { archiveGoal, exportGoal } from "../services/skills/archive";
 import { deleteGoal } from "../services/skills/delete";
 import { LESSONS_DIR, buildLesson, lessonFileName } from "../services/skills/lesson";
 import { CURRICULUM_FILE, renderCurriculum } from "../services/skills/create";
-import { parseDeck } from "../services/skills/outputs";
 import { readSchedule, writeSchedule } from "../services/skills/schedule";
 import {
   clearContextPlan,
@@ -304,8 +305,6 @@ import { createLockInSession } from "../services/lockin/create";
 import { sessionContextReport } from "../services/lockin/context";
 import {
   REVIEW_GRADES,
-  dueCount,
-  isDue,
   mergeSchedules,
   reviewCard,
   type ReviewGrade,
@@ -540,7 +539,6 @@ export const CAPABILITIES = [
 ] as const;
 
 /** JSON-RPC error code for a boot refusal (server-defined range). */
-export const BOOT_FAILED = -32000;
 
 /**
  * The two stored keybind tables (`docs/data-model.md` §2).
@@ -2046,62 +2044,6 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     }
     return deckStateReply(id, current.value.workspace, sessionId, new Date());
   };
-
-  /** Read the deck and answer with its cards paired to schedules. */
-  const deckStateReply = async (
-    id: RpcId,
-    workspace: CoreServices["workspace"],
-    sessionId: string,
-    now: Date,
-  ): Promise<JsonRpcResponse> => {
-    const folder = join(workspace.root, "school", "outputs", sessionId);
-    const deck = await readDeckFile(folder);
-    if (!deck.ok) return deckFailure(id, sessionId, deck.message);
-    const stored = await readSchedule(folder);
-    if (!stored.ok) return deckFailure(id, sessionId, stored.error.message);
-    const merged = mergeSchedules(
-      deck.value.map((card) => card.question),
-      stored.value,
-      now,
-    );
-    return success(id, {
-      due: dueCount(merged, now),
-      total: deck.value.length,
-      cards: deck.value.map((card, index) => {
-        const schedule = merged[index]!;
-        return {
-          index,
-          question: card.question,
-          due: isDue(schedule, now),
-          dueAt: schedule.due,
-          intervalDays: schedule.intervalDays,
-          ease: schedule.ease,
-          reps: schedule.reps,
-          lapses: schedule.lapses,
-          ...(schedule.lastGrade === undefined ? {} : { lastGrade: schedule.lastGrade }),
-        };
-      }),
-    });
-  };
-
-  const readDeckFile = async (
-    folder: string,
-  ): Promise<{ ok: true; value: ReturnType<typeof parseDeck> } | { ok: false; message: string }> => {
-    try {
-      return { ok: true, value: parseDeck(await readFile(join(folder, "flashcards.md"), "utf8")) };
-    } catch (error) {
-      if ((error as { code?: string }).code === "ENOENT") {
-        return { ok: false, message: "this session has no flashcard deck; build one first" };
-      }
-      return {
-        ok: false,
-        message: `the flashcard deck cannot be read (${oneLine(messageOf(error))})`,
-      };
-    }
-  };
-
-  const deckFailure = (id: RpcId, sessionId: string, message: string): JsonRpcResponse =>
-    failure(id, BOOT_FAILED, message, { kind: "deck", id: sessionId, message }, false);
 
   /**
    * Mark one study-guide section reviewed (`docs/product.md` §5.2).
