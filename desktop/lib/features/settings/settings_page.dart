@@ -16,6 +16,7 @@ import '../../theme/palette.dart';
 import '../../theme/breakpoints.dart';
 import '../../theme/tokens.dart';
 import 'connect_model_dialog.dart';
+import 'setting_editor.dart';
 import 'settings_dialogs.dart';
 import 'theme_picker.dart';
 import 'keybinds_section.dart';
@@ -962,7 +963,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
     final edit = row.edit;
     final save = widget.onSaveSettings;
     if (edit == null || save == null) return;
-    if (edit.kind == _EditKind.toggle) {
+    if (edit.kind == EditKind.toggle) {
       _toggle(row, edit, save);
     } else {
       _openEditor(edit, save);
@@ -1342,7 +1343,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
 
   Future<void> _toggle(
     _SettingRow row,
-    _SettingEdit edit,
+    SettingEdit edit,
     Future<void> Function(Map<String, dynamic> patch) save,
   ) async {
     final build = edit.togglePatch;
@@ -1368,13 +1369,12 @@ class _SettingsBodyState extends State<_SettingsBody> {
   }
 
   Future<void> _openEditor(
-    _SettingEdit edit,
+    SettingEdit edit,
     Future<void> Function(Map<String, dynamic> patch) save,
   ) async {
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) =>
-          _SettingEditorDialog(edit: edit, onSave: save),
+      builder: (dialogContext) => SettingEditorDialog(edit: edit, onSave: save),
     );
   }
 
@@ -2279,170 +2279,6 @@ class _PluginsRefreshing extends StatelessWidget {
 ///
 /// Validation is local and happens before the callback: an out-of-range value
 /// never reaches [onSave]. A core rejection keeps the dialog open with the
-/// message inline, so the user can correct the value without retyping it.
-class _SettingEditorDialog extends StatefulWidget {
-  const _SettingEditorDialog({required this.edit, required this.onSave});
-
-  final _SettingEdit edit;
-  final Future<void> Function(Map<String, dynamic> patch) onSave;
-
-  @override
-  State<_SettingEditorDialog> createState() => _SettingEditorDialogState();
-}
-
-class _SettingEditorDialogState extends State<_SettingEditorDialog> {
-  late final TextEditingController _controller;
-  String? _validation;
-  String? _failure;
-  bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.edit.initial);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (_saving) return;
-    final build = widget.edit.valuePatch;
-    if (build == null) return;
-    final invalid = widget.edit.validate?.call(_controller.text);
-    if (invalid != null) {
-      setState(() {
-        _validation = invalid;
-        _failure = null;
-      });
-      return;
-    }
-    setState(() {
-      _validation = null;
-      _failure = null;
-      _saving = true;
-    });
-    try {
-      await widget.onSave(build(_controller.text));
-      if (!mounted) return;
-      Navigator.of(context).pop();
-    } catch (failure) {
-      if (!mounted) return;
-      setState(() => _failure = userMessage(failure));
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final edit = widget.edit;
-    return PopScope(
-      canPop: !_saving,
-      child: Focus(
-        canRequestFocus: false,
-        skipTraversal: true,
-        onKeyEvent: (node, event) {
-          if (event is KeyDownEvent &&
-              (event.logicalKey == LogicalKeyboardKey.enter ||
-                  event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
-            _submit();
-            return KeyEventResult.handled;
-          }
-          return KeyEventResult.ignored;
-        },
-        child: AlertDialog(
-          backgroundColor: LockedInColors.surface,
-          title: Text('edit ${edit.label}'),
-          content: SizedBox(
-            width: 380,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    edit.help,
-                    style: TextStyle(
-                      color: LockedInColors.muted,
-                      fontSize: TypeScale.label,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    key: const ValueKey('settings-edit-field'),
-                    controller: _controller,
-                    autofocus: true,
-                    enabled: !_saving,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    keyboardType: switch (edit.kind) {
-                      _EditKind.text => TextInputType.text,
-                      _EditKind.integer => TextInputType.number,
-                      _EditKind.decimal =>
-                        const TextInputType.numberWithOptions(decimal: true),
-                      _EditKind.toggle => TextInputType.text,
-                    },
-                    decoration: InputDecoration(
-                      labelText: edit.label,
-                      errorText: _validation,
-                    ),
-                    onSubmitted: (_) => _submit(),
-                  ),
-                  if (_failure != null) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      key: const ValueKey('settings-edit-error'),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: LockedInColors.error),
-                        borderRadius: BorderRadius.circular(Radii.control),
-                      ),
-                      child: Text(
-                        _failure!,
-                        style: TextStyle(
-                          color: LockedInColors.error,
-                          fontSize: TypeScale.label,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              key: const ValueKey('settings-edit-cancel'),
-              onPressed: _saving ? null : () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              key: const ValueKey('settings-edit-save'),
-              onPressed: _saving ? null : _submit,
-              child: _saving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Save'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _SettingRow {
   const _SettingRow({
     required this.id,
@@ -2488,7 +2324,7 @@ class _SettingRow {
 
   /// Null keeps the row read-only. A value editor opens a dialog; a toggle
   /// patch is written on Enter or Space.
-  final _SettingEdit? edit;
+  final SettingEdit? edit;
 }
 
 enum _DecisionKind { enabled, model }
@@ -2560,31 +2396,6 @@ class _PolicyCell {
   final String value;
 }
 
-enum _EditKind { text, integer, decimal, toggle }
-
-class _SettingEdit {
-  const _SettingEdit({
-    required this.kind,
-    required this.label,
-    required this.help,
-    this.initial = '',
-    this.validate,
-    this.valuePatch,
-    this.togglePatch,
-  }) : assert(
-         (kind == _EditKind.toggle) == (togglePatch != null),
-         'a toggle needs a togglePatch and nothing else',
-       );
-
-  final _EditKind kind;
-  final String label;
-  final String help;
-  final String initial;
-  final String? Function(String input)? validate;
-  final Map<String, dynamic> Function(String input)? valuePatch;
-  final Map<String, dynamic> Function()? togglePatch;
-}
-
 class _SettingGroup {
   const _SettingGroup({required this.title, required this.rows});
 
@@ -2637,8 +2448,8 @@ List<_SettingGroup> _buildGroups(
           label: 'username',
           value: _text(settings.username),
           hint: 'shown in the chat greeting',
-          edit: _SettingEdit(
-            kind: _EditKind.text,
+          edit: SettingEdit(
+            kind: EditKind.text,
             label: 'username',
             help: 'shown in the chat greeting',
             initial: settings.username,
@@ -2652,8 +2463,8 @@ List<_SettingGroup> _buildGroups(
           label: 'theme',
           value: _text(settings.theme),
           hint: 'Enter pick · c custom · e edit · x export · i import',
-          edit: _SettingEdit(
-            kind: _EditKind.toggle,
+          edit: SettingEdit(
+            kind: EditKind.toggle,
             label: 'theme',
             help: 'Enter picks a theme from the catalogue; c picks custom',
             togglePatch: () => {
@@ -2683,8 +2494,8 @@ List<_SettingGroup> _buildGroups(
           label: 'base URL',
           value: _text(settings.baseUrl),
           hint: 'custom OpenAI-compatible endpoint',
-          edit: _SettingEdit(
-            kind: _EditKind.text,
+          edit: SettingEdit(
+            kind: EditKind.text,
             label: 'base URL',
             help: 'http(s) URL, or empty for the provider default',
             initial: settings.baseUrl,
@@ -2699,8 +2510,8 @@ List<_SettingGroup> _buildGroups(
           label: 'max tool calls',
           value: _positive(settings.maxToolCalls),
           hint: 'per request ceiling',
-          edit: _SettingEdit(
-            kind: _EditKind.integer,
+          edit: SettingEdit(
+            kind: EditKind.integer,
             label: 'max tool calls',
             help: 'whole number from 1 to 64',
             initial: settings.maxToolCalls > 0
@@ -2720,8 +2531,8 @@ List<_SettingGroup> _buildGroups(
               ? 'not set'
               : _thousands(settings.maxTokensPerRequest),
           hint: 'output ceiling per request',
-          edit: _SettingEdit(
-            kind: _EditKind.integer,
+          edit: SettingEdit(
+            kind: EditKind.integer,
             label: 'max tokens per request',
             help: 'whole number from 256 to ${_thousands(1000000)}',
             initial: settings.maxTokensPerRequest > 0
@@ -2748,8 +2559,8 @@ List<_SettingGroup> _buildGroups(
           label: 'budget',
           value: _budget(settings.budgetUsd),
           hint: 'estimated spend, not a bill',
-          edit: _SettingEdit(
-            kind: _EditKind.decimal,
+          edit: SettingEdit(
+            kind: EditKind.decimal,
             label: 'budget',
             help: '0 or more; 0 means no limit',
             initial: _decimalInput(settings.budgetUsd),
@@ -2764,8 +2575,8 @@ List<_SettingGroup> _buildGroups(
           label: 'period',
           value: _text(settings.period),
           hint: 'day or month',
-          edit: _SettingEdit(
-            kind: _EditKind.toggle,
+          edit: SettingEdit(
+            kind: EditKind.toggle,
             label: 'period',
             help: 'toggles between day and month',
             togglePatch: () => {
@@ -2778,8 +2589,8 @@ List<_SettingGroup> _buildGroups(
           label: 'warn at',
           value: '${(settings.warnAt * 100).round()}%',
           hint: 'budget warning threshold',
-          edit: _SettingEdit(
-            kind: _EditKind.decimal,
+          edit: SettingEdit(
+            kind: EditKind.decimal,
             label: 'warn at (%)',
             help: 'percent from 0 to 100',
             initial: '${(settings.warnAt * 100).round()}',
@@ -2794,8 +2605,8 @@ List<_SettingGroup> _buildGroups(
           label: 'pause at limit',
           value: settings.pauseAtLimit ? 'yes' : 'no',
           hint: 'stop sending at the limit',
-          edit: _SettingEdit(
-            kind: _EditKind.toggle,
+          edit: SettingEdit(
+            kind: EditKind.toggle,
             label: 'pause at limit',
             help: 'toggles the budget pause',
             togglePatch: () => {
@@ -2833,8 +2644,8 @@ List<_SettingGroup> _buildGroups(
               ? 'off'
               : '${settings.historyLimit} messages',
           hint: 'messages kept in Chill',
-          edit: _SettingEdit(
-            kind: _EditKind.integer,
+          edit: SettingEdit(
+            kind: EditKind.integer,
             label: 'history limit',
             help: 'whole number from 0 to 200; 0 turns history off',
             initial: '${settings.historyLimit}',
