@@ -2117,6 +2117,31 @@ class TeachingState {
     return open == -1 ? plan.length : open;
   }
 
+  /// True when a step cannot be opened yet: it is not held and at least one
+  /// step it builds on is not held either.
+  ///
+  /// This is the tree's lock. It is derived from the same checks [nextIndex]
+  /// uses, so the row that is marked available and the row the core would teach
+  /// can never disagree.
+  bool lockedOf(int index) {
+    if (index < 0 || index >= plan.length) return false;
+    final step = plan[index];
+    if (_passed(step.id)) return false;
+    return step.requires.any((id) => !_passed(id));
+  }
+
+  /// The steps still blocking [index], in plan order, for the locked row's
+  /// explanation. An id with no plan entry is named as-is: an old record cannot
+  /// silently pretend a missing prerequisite is held.
+  List<String> blockersOf(int index) {
+    if (!lockedOf(index)) return const [];
+    final wanted = plan[index].requires.toSet();
+    return plan
+        .where((step) => wanted.contains(step.id) && !_passed(step.id))
+        .map((step) => step.title.isEmpty ? step.id : step.title)
+        .toList(growable: false);
+  }
+
   /// How deep a step sits in the prerequisite map, for the map's indentation.
   int depthOf(int index) {
     final seen = <int>{};

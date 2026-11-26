@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -231,7 +233,7 @@ class _WorkPageState extends State<WorkPage> {
           'WORK PROJECTS',
           style: theme.textTheme.labelSmall?.copyWith(
             color: LockedInColors.secondary,
-            fontSize: 11,
+            fontSize: TypeScale.label,
             letterSpacing: 1.4,
           ),
         ),
@@ -249,7 +251,10 @@ class _WorkPageState extends State<WorkPage> {
               textAlign: TextAlign.right,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ),
         ],
@@ -279,12 +284,18 @@ class _WorkPageState extends State<WorkPage> {
             const SizedBox(height: 10),
             Text(
               'no project matches “${_query.trim()}”',
-              style: TextStyle(color: LockedInColors.foreground, fontSize: 13),
+              style: TextStyle(
+                color: LockedInColors.foreground,
+                fontSize: TypeScale.body,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               'Esc clears the search',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
         ),
@@ -382,6 +393,7 @@ class WorkDetailView extends StatefulWidget {
     this.onSaveAgent,
     this.onDeleteAgent,
     this.onSetDefaultAgent,
+    this.onSaveInstructions,
   });
 
   final WorkProjectDetail project;
@@ -477,6 +489,10 @@ class WorkDetailView extends StatefulWidget {
 
   /// Set (or clear, with null) the project's default agent.
   final Future<void> Function(String? agentId)? onSetDefaultAgent;
+
+  /// Replace the project's standing instructions. Null keeps the card
+  /// read-only and drops the `i` key.
+  final Future<void> Function(String instructions)? onSaveInstructions;
 
   @override
   State<WorkDetailView> createState() => _WorkDetailViewState();
@@ -657,6 +673,12 @@ class _WorkDetailViewState extends State<WorkDetailView> {
       widget.onBack!();
       return KeyEventResult.handled;
     }
+    if (key == LogicalKeyboardKey.keyI &&
+        widget.onSaveInstructions != null &&
+        event is KeyDownEvent) {
+      unawaited(_editInstructions());
+      return KeyEventResult.handled;
+    }
     // `c` opens the project chat even when there are no agents to edit.
     if (key == LogicalKeyboardKey.keyC && widget.onOpenChat != null) {
       if (event is KeyDownEvent) widget.onOpenChat!();
@@ -779,7 +801,10 @@ class _WorkDetailViewState extends State<WorkDetailView> {
                   _subtitle(widget.project),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ],
             ),
@@ -869,7 +894,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
                     color: project.rootMissing
                         ? LockedInColors.warning
                         : LockedInColors.foreground,
-                    fontSize: 13,
+                    fontSize: TypeScale.body,
                     fontFamily: 'monospace',
                   ),
                 ),
@@ -906,7 +931,10 @@ class _WorkDetailViewState extends State<WorkDetailView> {
           if (loading) ...[
             Text(
               'reading changes…',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
             const SizedBox(height: 8),
           ],
@@ -931,7 +959,10 @@ class _WorkDetailViewState extends State<WorkDetailView> {
           if (refresh != null) ...[
             Text(
               'g or r refresh',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.micro,
+              ),
             ),
             const SizedBox(height: 4),
           ],
@@ -939,7 +970,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
             'read-only summary · approve writes in Approvals (`p`)',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 10.5,
+              fontSize: TypeScale.micro,
               height: 1.4,
             ),
           ),
@@ -972,7 +1003,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: LockedInColors.foreground,
-                  fontSize: 12.5,
+                  fontSize: TypeScale.key,
                   fontFamily: 'monospace',
                 ),
               ),
@@ -1009,7 +1040,10 @@ class _WorkDetailViewState extends State<WorkDetailView> {
         if (files.isEmpty)
           Text(
             'the working tree has no changed files',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           )
         else
           _changeFileList(files),
@@ -1036,7 +1070,10 @@ class _WorkDetailViewState extends State<WorkDetailView> {
           if (widget.approvalsLoading) ...[
             Text(
               'reading approvals…',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
             const SizedBox(height: 8),
           ],
@@ -1075,7 +1112,10 @@ class _WorkDetailViewState extends State<WorkDetailView> {
               const SizedBox(height: 4),
               Text(
                 'and ${total - 6} more',
-                style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: TypeScale.micro,
+                ),
               ),
             ],
             if (canOpen) ...[
@@ -1092,7 +1132,10 @@ class _WorkDetailViewState extends State<WorkDetailView> {
               const SizedBox(height: 8),
               Text(
                 'p opens the pending writes and commands',
-                style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: TypeScale.micro,
+                ),
               ),
             ],
           ],
@@ -1122,7 +1165,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
               glyph,
               style: TextStyle(
                 color: tone,
-                fontSize: 12.5,
+                fontSize: TypeScale.key,
                 fontWeight: FontWeight.w700,
                 fontFamily: 'monospace',
               ),
@@ -1139,7 +1182,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: LockedInColors.foreground,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     fontFamily: 'monospace',
                   ),
                 ),
@@ -1148,7 +1191,10 @@ class _WorkDetailViewState extends State<WorkDetailView> {
                   detail,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.micro,
+                  ),
                 ),
               ],
             ),
@@ -1180,7 +1226,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
                     : message,
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -1191,7 +1237,10 @@ class _WorkDetailViewState extends State<WorkDetailView> {
           const SizedBox(height: 6),
           Text(
             'reason · $reason',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.micro,
+            ),
           ),
         ],
       ],
@@ -1244,7 +1293,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
               status.glyph,
               style: TextStyle(
                 color: status.tone,
-                fontSize: 13,
+                fontSize: TypeScale.body,
                 fontWeight: FontWeight.w700,
                 fontFamily: 'monospace',
               ),
@@ -1261,7 +1310,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: LockedInColors.foreground,
-                    fontSize: 12.5,
+                    fontSize: TypeScale.key,
                     fontFamily: 'monospace',
                   ),
                 ),
@@ -1272,14 +1321,17 @@ class _WorkDetailViewState extends State<WorkDetailView> {
                   children: [
                     Text(
                       status.label,
-                      style: TextStyle(color: status.tone, fontSize: 10.5),
+                      style: TextStyle(
+                        color: status.tone,
+                        fontSize: TypeScale.micro,
+                      ),
                     ),
                     if (file.added > 0)
                       Text(
                         '+${file.added}',
                         style: TextStyle(
                           color: LockedInColors.success,
-                          fontSize: 10.5,
+                          fontSize: TypeScale.micro,
                         ),
                       ),
                     if (file.removed > 0)
@@ -1287,7 +1339,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
                         '-${file.removed}',
                         style: TextStyle(
                           color: LockedInColors.error,
-                          fontSize: 10.5,
+                          fontSize: TypeScale.micro,
                         ),
                       ),
                     if (where.isNotEmpty)
@@ -1295,7 +1347,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
                         where.join(' · '),
                         style: TextStyle(
                           color: LockedInColors.muted,
-                          fontSize: 10.5,
+                          fontSize: TypeScale.micro,
                         ),
                       ),
                   ],
@@ -1310,8 +1362,16 @@ class _WorkDetailViewState extends State<WorkDetailView> {
 
   Widget _instructionsCard() {
     final instructions = widget.project.instructions.trim();
+    final editable = widget.onSaveInstructions != null;
     return SectionCard(
       label: 'INSTRUCTIONS',
+      trailing: editable
+          ? TextButton(
+              key: const ValueKey('work-edit-instructions'),
+              onPressed: () => unawaited(_editInstructions()),
+              child: const Text('edit'),
+            )
+          : null,
       child: instructions.isEmpty
           ? _EmptyNote(
               tone: LockedInColors.muted,
@@ -1324,10 +1384,27 @@ class _WorkDetailViewState extends State<WorkDetailView> {
               instructions,
               style: TextStyle(
                 color: LockedInColors.foreground,
-                fontSize: 13.5,
+                fontSize: TypeScale.proseSmall,
                 height: 1.5,
               ),
             ),
+    );
+  }
+
+  /// Edit the project's standing instructions.
+  ///
+  /// The value lives in `work/projects/<id>/meta.json`; nothing inside the
+  /// registered folder is touched. A refusal stays in the dialog with the
+  /// core's own sentence and keeps the previous text.
+  Future<void> _editInstructions() async {
+    final save = widget.onSaveInstructions;
+    if (save == null) return;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _InstructionsEditor(
+        initial: widget.project.instructions,
+        onSave: save,
+      ),
     );
   }
 
@@ -1347,7 +1424,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
             'approve it.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -1359,7 +1436,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 11,
+                fontSize: TypeScale.label,
                 fontFamily: 'monospace',
               ),
             ),
@@ -1382,7 +1459,10 @@ class _WorkDetailViewState extends State<WorkDetailView> {
               Text(
                 'This project has no chats yet. Starting one writes a new '
                 'transcript under the project metadata.',
-                style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: TypeScale.micro,
+                ),
               ),
             ],
           ],
@@ -1414,7 +1494,10 @@ class _WorkDetailViewState extends State<WorkDetailView> {
           if (widget.swarmLoading) ...[
             Text(
               'reading swarm runs…',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
             const SizedBox(height: 8),
           ],
@@ -1428,7 +1511,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
             'never write a file or run a command.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -1445,7 +1528,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: LockedInColors.foreground,
-                      fontSize: 12.5,
+                      fontSize: TypeScale.key,
                     ),
                   ),
                 ),
@@ -1460,7 +1543,10 @@ class _WorkDetailViewState extends State<WorkDetailView> {
             const SizedBox(height: 8),
             Text(
               'no swarm runs yet · w opens the board',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
           if (canOpen) ...[
@@ -1477,7 +1563,10 @@ class _WorkDetailViewState extends State<WorkDetailView> {
             const SizedBox(height: 8),
             Text(
               'w opens the swarm board',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.micro,
+              ),
             ),
           ],
         ],
@@ -1506,7 +1595,10 @@ class _WorkDetailViewState extends State<WorkDetailView> {
           if (widget.activityLoading) ...[
             Text(
               'reading activity…',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
             const SizedBox(height: 8),
           ],
@@ -1520,7 +1612,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
             'output.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -1538,7 +1630,10 @@ class _WorkDetailViewState extends State<WorkDetailView> {
             const SizedBox(height: 8),
             Text(
               'l opens the log',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.micro,
+              ),
             ),
           ],
         ],
@@ -1602,7 +1697,10 @@ class _WorkDetailViewState extends State<WorkDetailView> {
               children: [
                 Text(
                   'a new · Enter edit · d delete · m default',
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.micro,
+                  ),
                 ),
                 TextButton.icon(
                   key: const ValueKey('work-agent-add-inline'),
@@ -1683,7 +1781,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: LockedInColors.foreground,
-                          fontSize: 13,
+                          fontSize: TypeScale.body,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1721,7 +1819,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 12,
+                      fontSize: TypeScale.label,
                       height: 1.45,
                     ),
                   ),
@@ -1739,7 +1837,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 10.5,
+                    fontSize: TypeScale.micro,
                     height: 1.4,
                   ),
                 ),
@@ -1782,7 +1880,10 @@ class _WorkDetailViewState extends State<WorkDetailView> {
             width: 96,
             child: Text(
               label,
-              style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ),
           Expanded(
@@ -1790,7 +1891,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
               value,
               style: TextStyle(
                 color: LockedInColors.foreground,
-                fontSize: 12.5,
+                fontSize: TypeScale.key,
               ),
             ),
           ),
@@ -1897,7 +1998,7 @@ class _ProjectRowTile extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: selected ? LockedInColors.primary : Colors.transparent,
                   borderRadius: const BorderRadius.horizontal(
-                    right: Radius.circular(2),
+                    right: Radius.circular(Radii.control),
                   ),
                 ),
               ),
@@ -1937,7 +2038,7 @@ class _ProjectRowTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: LockedInColors.muted,
-                        fontSize: 11,
+                        fontSize: TypeScale.label,
                       ),
                     ),
                   ],
@@ -1954,7 +2055,10 @@ class _ProjectRowTile extends StatelessWidget {
                   agents == 1 ? '1 agent' : '$agents agents',
                   textAlign: TextAlign.right,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ),
             ],
@@ -1984,7 +2088,10 @@ class _ArchivedBadge extends StatelessWidget {
           SizedBox(width: 4),
           Text(
             'archived',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 10),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.micro,
+            ),
           ),
         ],
       ),
@@ -2023,7 +2130,7 @@ class _EmptyNote extends StatelessWidget {
                 title,
                 style: TextStyle(
                   color: tone,
-                  fontSize: 12.5,
+                  fontSize: TypeScale.key,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -2035,7 +2142,7 @@ class _EmptyNote extends StatelessWidget {
           body,
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 12,
+            fontSize: TypeScale.label,
             height: 1.45,
           ),
         ),
@@ -2066,7 +2173,10 @@ class _LoadingState extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             label,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),
@@ -2093,7 +2203,10 @@ class _EmptyState extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           'n registers one',
-          style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+          style: TextStyle(
+            color: LockedInColors.muted,
+            fontSize: TypeScale.label,
+          ),
         ),
         if (onCreate != null) ...[
           const SizedBox(height: 14),
@@ -2137,7 +2250,7 @@ class _ErrorState extends StatelessWidget {
                   message,
                   style: TextStyle(
                     color: LockedInColors.error,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     height: 1.45,
                   ),
                 ),
@@ -2157,6 +2270,113 @@ class _ErrorState extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// The project-instructions editor. It owns its controller, so the dialog's
+/// closing animation and the field's lifetime cannot overlap.
+class _InstructionsEditor extends StatefulWidget {
+  const _InstructionsEditor({required this.initial, required this.onSave});
+
+  final String initial;
+  final Future<void> Function(String instructions) onSave;
+
+  @override
+  State<_InstructionsEditor> createState() => _InstructionsEditorState();
+}
+
+class _InstructionsEditorState extends State<_InstructionsEditor> {
+  late final TextEditingController _text = TextEditingController(
+    text: widget.initial,
+  );
+  var _saving = false;
+  String? _failure;
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _saving = true;
+      _failure = null;
+    });
+    try {
+      await widget.onSave(_text.text);
+      if (mounted) Navigator.of(context).pop();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _failure = userMessage(error);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      scrollable: true,
+      title: const Text('project instructions'),
+      content: SizedBox(
+        width: 520,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Every project chat reads this. It is stored in the project '
+              'metadata, never written into the folder.',
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              key: const ValueKey('work-instructions-field'),
+              controller: _text,
+              autofocus: true,
+              minLines: 4,
+              maxLines: 8,
+              style: TextStyle(
+                color: LockedInColors.foreground,
+                fontSize: TypeScale.proseSmall,
+                height: 1.5,
+              ),
+              decoration: const InputDecoration(
+                hintText: 'prefer small diffs; cite file paths',
+              ),
+            ),
+            if (_failure != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _failure!,
+                key: const ValueKey('work-instructions-error'),
+                style: TextStyle(
+                  color: LockedInColors.error,
+                  fontSize: TypeScale.label,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const ValueKey('work-instructions-save'),
+          onPressed: _saving ? null : _save,
+          child: Text(_saving ? 'saving…' : 'Save'),
+        ),
+      ],
     );
   }
 }

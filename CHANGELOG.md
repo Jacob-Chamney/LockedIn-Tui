@@ -21,6 +21,78 @@ requests merge.
 
 ## Unreleased
 
+### Fixed
+
+- Work projects can set instructions when they are created and edit them later:
+  `work.instructions.save` writes only the project metadata, and the detail page
+  has an `edit` control plus the `i` key. The old live error that promised a
+  "later packet" is gone.
+- `skill.stages.save` rewrites `curriculum.md` atomically, so the readable
+  mirror always matches `meta.json`.
+- Every corner radius in the shell comes from `Radii`; raw
+  `BorderRadius.circular(n)` values are gone and a unit test fails on a new one.
+  Pills use `Radii.pill`, controls `Radii.control`, floating layers
+  `Radii.layer`.
+- Every font size comes from the eight-step `TypeScale`; the 666 raw
+  `fontSize: n` values are gone and a unit test fails on a new one. The goal
+  wizard's review card yields its label to the chip, fixing a 3 px overflow at
+  460 px.
+- Settings has a `/` filter and a section index; the filter's field owns bare
+  keys while focused, and the full page returns on `Esc`.
+- The skill page is a learning surface first: the teaching loop and practice
+  lead, a course's chapters follow, and sources, chats, research and goal
+  metadata live behind one tab strip instead of four stacked cards. A measured
+  goal's legacy stage list no longer competes with its learning tree.
+- A goal chat at 980 px or wider keeps the learning tree beside the
+  transcript; tapping a step opens it and returns to the goal. Narrow windows
+  keep the chat full width.
+- A window 1200 px or wider opens with the rail expanded, so destinations are
+  labelled on first frame; narrower windows still start as icons. A later
+  toggle is the user's.
+- The Knowledge graph draws a deterministic canvas above its rows: nodes grouped
+  by kind, edges as hairlines, the selected node labelled. Clicking a node
+  selects it; the list keeps keyboard navigation.
+
+- The model badge sits at the right edge of the top bar; it used to float a
+  third of the bar away because a `Spacer` and two loose flex children split the
+  free space.
+- The window title is `LockedIn`, and Linux and Windows enforce the documented
+  800×600 minimum size.
+- Chat usage appears once, in the status bar. The composer no longer repeats the
+  same `tok · cost` line 20 px above it.
+- Chill's unconfigured state says "no model" once as a state and once as a
+  `connect a model` action, instead of four warnings; the `TRY` rows' return
+  glyph is readable instead of hairline-on-background.
+- The Knowledge page has visible `notes` / `graph` tabs, so the learning graph
+  is mouse-reachable, and its header hint names `g`.
+- Status-bar hints match the keys the deck really handles (`Tab flip · 1-4
+  answer · h/l move · a/f/g/e grade`) and name the teaching loop's keys.
+- Settings no longer consumes `Space`; `Enter` runs its rows, so the leader
+  works everywhere.
+
+### Changed
+
+- Knowledge search uses each vault's FTS5 index for notes instead of reading
+  every Markdown file per query. A literal substring query (`gradient` →
+  `subgradient`) is supplemented from the same index, and a corrupt index or a
+  query no indexed note matches falls back to the Markdown so a cache can never
+  hide a note. Session, source, goal, project and archive hits are unchanged.
+
+- A learner can choose an unlocked branch in the learning tree: `teach.step`
+  accepts a `stepId`, refuses a locked step by naming what blocks it, and a held
+  step opens no model call. The tree rows are clickable and the next step stays
+  the default.
+- The teaching page has a keyboard path: `1`–`4` jump phases, `m` measures,
+  `n` advances the tree, `i` focuses the answer, `s` opens the side question,
+  and `Enter` submits a check. The phase rail's summaries now come from the
+  teaching record, and `2 plan` lands on the learning tree even for a course.
+- The teaching plan is now a **learning tree**. The first step is open, a branch
+  stays locked until every step it builds on is held, and a locked row names
+  what still blocks it (`after …`) as well as saying `locked`. Passing a
+  prerequisite unlocks the branch immediately.
+
+### Added
+
 - Dart model decoders are generated from the core's TypeScript wire types: the
   Knowledge search/tree models, the full Stats + learning-graph surface, the
   settings view, the session figure, the whole chat cluster including

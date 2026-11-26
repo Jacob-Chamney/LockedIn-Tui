@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../theme/palette.dart';
 import 'star_map.dart';
+import '../../theme/tokens.dart';
 
 /// The Achievements sky: constellation lines, a fixed dust field and one star
 /// button per achievement.
@@ -203,7 +204,7 @@ class _Star extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: LockedInColors.foreground,
-                            fontSize: 11,
+                            fontSize: TypeScale.label,
                             height: 1.3,
                             fontWeight: FontWeight.w600,
                           ),
@@ -292,7 +293,10 @@ class StarDetail extends StatelessWidget {
     if (row == null) {
       return Text(
         'no star selected',
-        style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+        style: TextStyle(
+          color: LockedInColors.muted,
+          fontSize: TypeScale.label,
+        ),
       );
     }
     final unlocked = row.unlocked;
@@ -315,7 +319,9 @@ class StarDetail extends StatelessWidget {
                 row.name.isEmpty ? row.id : row.name,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium?.copyWith(fontSize: 15),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontSize: TypeScale.prose,
+                ),
               ),
             ),
           ],
@@ -325,7 +331,7 @@ class StarDetail extends StatelessWidget {
           row.task,
           style: TextStyle(
             color: LockedInColors.foreground,
-            fontSize: 12.5,
+            fontSize: TypeScale.key,
             height: 1.45,
           ),
         ),
@@ -336,14 +342,14 @@ class StarDetail extends StatelessWidget {
               '${row.value} of $target',
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 11,
+                fontSize: TypeScale.label,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(3),
+                borderRadius: BorderRadius.circular(Radii.control),
                 child: LinearProgressIndicator(
                   value: progress,
                   minHeight: 5,
@@ -392,14 +398,14 @@ class _Chip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Text(
         label,
         style: TextStyle(
           color: tone ?? LockedInColors.muted,
-          fontSize: 10,
+          fontSize: TypeScale.micro,
           fontWeight: FontWeight.w600,
         ),
       ),

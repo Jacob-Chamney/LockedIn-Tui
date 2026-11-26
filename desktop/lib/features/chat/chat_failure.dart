@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 
 /// One failed turn, shown **beside** the transcript instead of replacing it.
 ///
@@ -43,7 +44,7 @@ class ChatFailureBanner extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 9, 8, 9),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.6)),
       ),
       child: Row(
@@ -63,7 +64,7 @@ class ChatFailureBanner extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: LockedInColors.error,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     height: 1.4,
                   ),
                 ),
@@ -76,7 +77,7 @@ class ChatFailureBanner extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: LockedInColors.muted,
-                        fontSize: 11.5,
+                        fontSize: TypeScale.label,
                         height: 1.4,
                       ),
                     ),

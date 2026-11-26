@@ -9,6 +9,7 @@ import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
 import '../../theme/breakpoints.dart';
 import '../shared/format.dart';
+import '../../theme/tokens.dart';
 
 /// Returns the files the user chose, or an empty list when they cancelled.
 typedef SourcePicker = Future<List<String>> Function();
@@ -113,7 +114,7 @@ class _SourcesPageState extends State<SourcesPage> {
                 'session and the original is never moved.',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -317,7 +318,10 @@ class _SourcesPageState extends State<SourcesPage> {
                       : '$countLabel · copied into this session',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ],
             ),
@@ -326,7 +330,10 @@ class _SourcesPageState extends State<SourcesPage> {
             const SizedBox(width: 12),
             Text(
               'a add · r refresh',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
           if (_hasSession && widget.onRefresh != null) ...[
@@ -443,7 +450,7 @@ class _SourcesPageState extends State<SourcesPage> {
             'session\u2019s copies.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.5,
             ),
           ),
@@ -452,7 +459,7 @@ class _SourcesPageState extends State<SourcesPage> {
             'a add sources · r refresh',
             style: TextStyle(
               color: LockedInColors.secondary,
-              fontSize: 11,
+              fontSize: TypeScale.label,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -476,7 +483,7 @@ class _SourcesPageState extends State<SourcesPage> {
           textAlign: TextAlign.center,
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 12,
+            fontSize: TypeScale.label,
             height: 1.45,
           ),
         ),
@@ -517,7 +524,7 @@ class _SourcesPageState extends State<SourcesPage> {
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
         color: LockedInColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Column(
@@ -548,14 +555,14 @@ class _SourcesPageState extends State<SourcesPage> {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Text(
         text,
         style: TextStyle(
           color: tone ?? LockedInColors.muted,
-          fontSize: 10,
+          fontSize: TypeScale.micro,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -569,7 +576,7 @@ class _SourcesPageState extends State<SourcesPage> {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: tone.withValues(alpha: 0.5)),
       ),
       child: Row(
@@ -584,7 +591,11 @@ class _SourcesPageState extends State<SourcesPage> {
           Expanded(
             child: Text(
               message,
-              style: TextStyle(color: tone, fontSize: 12, height: 1.45),
+              style: TextStyle(
+                color: tone,
+                fontSize: TypeScale.label,
+                height: 1.45,
+              ),
             ),
           ),
         ],
@@ -598,7 +609,7 @@ class _SourcesPageState extends State<SourcesPage> {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Row(
@@ -611,7 +622,7 @@ class _SourcesPageState extends State<SourcesPage> {
               message,
               style: TextStyle(
                 color: LockedInColors.error,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),
@@ -640,7 +651,10 @@ class _SourceRow extends StatelessWidget {
               source.name.isEmpty ? 'unnamed source' : source.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: LockedInColors.foreground, fontSize: 13),
+              style: TextStyle(
+                color: LockedInColors.foreground,
+                fontSize: TypeScale.body,
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -648,14 +662,14 @@ class _SourceRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
             decoration: BoxDecoration(
               color: LockedInColors.panel,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(Radii.control),
               border: Border.all(color: LockedInColors.line),
             ),
             child: Text(
               source.kind.isEmpty ? 'file' : source.kind,
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 10,
+                fontSize: TypeScale.micro,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -665,7 +679,7 @@ class _SourceRow extends StatelessWidget {
             shortHash(source.hash),
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 10,
+              fontSize: TypeScale.micro,
               fontFamily: 'monospace',
             ),
           ),
@@ -697,7 +711,10 @@ class _Loading extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             label,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),
@@ -736,7 +753,7 @@ class _EmptyNote extends StatelessWidget {
                 title,
                 style: TextStyle(
                   color: tone,
-                  fontSize: 12.5,
+                  fontSize: TypeScale.key,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -748,7 +765,7 @@ class _EmptyNote extends StatelessWidget {
           body,
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 12,
+            fontSize: TypeScale.label,
             height: 1.45,
           ),
         ),

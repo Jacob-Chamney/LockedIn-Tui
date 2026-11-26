@@ -758,7 +758,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Space on period toggles day to month and saves', (tester) async {
+  testWidgets('Enter on period toggles day to month and saves', (tester) async {
     Map<String, dynamic>? saved;
     await pumpPage(
       tester,
@@ -770,7 +770,7 @@ void main() {
     );
 
     await selectRow(tester, 'period');
-    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
 
     expect(saved, {
@@ -873,6 +873,37 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('settings-edit-field')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('/ filters rows and Escape restores the full page', (
+    tester,
+  ) async {
+    await pumpPage(
+      tester,
+      SettingsPage(settings: populatedSettings(), loading: false),
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.slash);
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const ValueKey('settings-search')),
+      'budget',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('settings-row-budget')), findsOneWidget);
+    expect(find.byKey(const ValueKey('settings-row-username')), findsNothing);
+    expect(find.text('USAGE'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('username'), findsOneWidget);
+    expect(find.text('USAGE'), findsOneWidget);
+
+    // The section index is a pointer path to the same groups.
+    await tester.tap(find.byKey(const ValueKey('settings-section-usage')));
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
 }

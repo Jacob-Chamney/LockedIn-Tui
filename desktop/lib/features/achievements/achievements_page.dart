@@ -8,6 +8,7 @@ import '../../theme/breakpoints.dart';
 import '../shared/content_column.dart';
 import 'star_field.dart';
 import 'star_map.dart';
+import '../../theme/tokens.dart';
 
 /// The category order the inventory is grouped in.
 ///
@@ -277,7 +278,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
           'ACHIEVEMENTS',
           style: theme.textTheme.labelSmall?.copyWith(
             color: LockedInColors.secondary,
-            fontSize: 11,
+            fontSize: TypeScale.label,
             letterSpacing: 1.4,
           ),
         ),
@@ -287,7 +288,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
           decoration: BoxDecoration(
             color: LockedInColors.panel,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(Radii.control),
             border: Border.all(color: LockedInColors.line),
           ),
           child: Text(
@@ -296,7 +297,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
               color: widget.earned >= widget.total && widget.total > 0
                   ? LockedInColors.success
                   : LockedInColors.muted,
-              fontSize: 10,
+              fontSize: TypeScale.micro,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -308,7 +309,10 @@ class _AchievementsPageState extends State<AchievementsPage> {
               'read-only · awards are the core\'s',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ),
       ],
@@ -339,7 +343,10 @@ class _AchievementsPageState extends State<AchievementsPage> {
         Text(
           'note · ${widget.warning}',
           key: const ValueKey('achievements-warning'),
-          style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+          style: TextStyle(
+            color: LockedInColors.muted,
+            fontSize: TypeScale.label,
+          ),
         ),
       );
       notices.add(const SizedBox(height: 8));
@@ -425,13 +432,19 @@ class _AchievementsPageState extends State<AchievementsPage> {
             hints.join(' · '),
             key: const ValueKey('achievements-hint'),
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ),
         if (!compact)
           Text(
             'progress is the counter, not a promise',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
       ],
     );
@@ -457,7 +470,10 @@ class _LoadingState extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'loading achievements…',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
         ),
@@ -486,7 +502,10 @@ class _EmptyState extends StatelessWidget {
             Text(
               'the core sent no catalogue; r re-reads it',
               textAlign: TextAlign.center,
-              style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
         ),
@@ -507,7 +526,7 @@ class _ErrorBlock extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: LockedInColors.error.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.4)),
       ),
       child: Row(
@@ -516,7 +535,10 @@ class _ErrorBlock extends StatelessWidget {
             child: Text(
               message,
               key: const ValueKey('achievements-error'),
-              style: TextStyle(color: LockedInColors.error, fontSize: 12),
+              style: TextStyle(
+                color: LockedInColors.error,
+                fontSize: TypeScale.label,
+              ),
             ),
           ),
           if (onRetry != null) ...[

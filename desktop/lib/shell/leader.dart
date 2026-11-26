@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import '../keymap/binding.dart';
 import '../keymap/registry.dart';
 import '../theme/palette.dart';
+import '../theme/tokens.dart';
 
 /// The row a leader chord's second key names, or null when it names none.
 ///
@@ -208,7 +209,7 @@ class _LeaderOverlayState extends State<LeaderOverlay> {
                               'LEADER',
                               style: TextStyle(
                                 color: LockedInColors.primary,
-                                fontSize: 11,
+                                fontSize: TypeScale.label,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 1.2,
                               ),
@@ -221,7 +222,7 @@ class _LeaderOverlayState extends State<LeaderOverlay> {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: LockedInColors.muted,
-                                  fontSize: 11,
+                                  fontSize: TypeScale.label,
                                 ),
                               ),
                             ),
@@ -253,7 +254,7 @@ class _LeaderOverlayState extends State<LeaderOverlay> {
                             '↑↓ move · Enter run · Esc close',
                             style: TextStyle(
                               color: LockedInColors.muted,
-                              fontSize: 11,
+                              fontSize: TypeScale.label,
                             ),
                           ),
                         ),
@@ -285,7 +286,7 @@ class _LeaderOverlayState extends State<LeaderOverlay> {
             actionGroupTitles[group] ?? group.name.toUpperCase(),
             style: TextStyle(
               color: LockedInColors.secondary,
-              fontSize: 10,
+              fontSize: TypeScale.micro,
               fontWeight: FontWeight.w600,
               letterSpacing: 1.0,
             ),
@@ -355,7 +356,7 @@ class _LeaderRow extends StatelessWidget {
                   color: selected
                       ? LockedInColors.primary
                       : LockedInColors.foreground,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -393,7 +394,7 @@ class _LeaderRow extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: LockedInColors.muted,
-                          fontSize: 11,
+                          fontSize: TypeScale.label,
                         ),
                       ),
                     ),

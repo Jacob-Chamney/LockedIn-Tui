@@ -120,6 +120,8 @@ Future<void> _selectRow(WidgetTester tester, String id) async {
 /// Expand the rail: it starts shrunk, so its labels exist only once it is open.
 /// `Esc` then leaves it open for the pointer.
 Future<void> _expandSidebar(WidgetTester tester) async {
+  // A wide window already shows the labels; the chord would shrink it.
+  if (find.text('LEARN').evaluate().isNotEmpty) return;
   await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
   await tester.pumpAndSettle();
   await tester.sendKeyEvent(LogicalKeyboardKey.keyE);

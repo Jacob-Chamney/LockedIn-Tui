@@ -153,6 +153,18 @@ const MEASURE = JSON.stringify({
   ],
 });
 
+const BRANCHED = JSON.stringify({
+  goal: "Read a function's disassembly and say what it does",
+  held: ["registers hold working state"],
+  gaps: [],
+  plan: [
+    { title: "root" },
+    { title: "left", requires: [1] },
+    { title: "right", requires: [1] },
+    { title: "join", requires: [2, 3] },
+  ],
+});
+
 const STEP = JSON.stringify({
   prose:
     "A call writes the address of the next instruction onto the stack. A return reads it back, so the processor knows where to continue.",
@@ -274,6 +286,50 @@ describe("teach", () => {
     expect((record.checks as unknown[]).length).toBe(1);
     // Step 2 is now the open one: the passed step was cleared before it opened.
     expect((record.current as Record<string, unknown>).stepId).toBe("step-2");
+  });
+
+  test("stepId chooses an unlocked branch and refuses a locked one", async () => {
+    let calls = 0;
+    const { server } = fakeCore(async (prompt) => {
+      calls += 1;
+      if (prompt.includes("marking one answer")) return CORRECT;
+      if (prompt.includes("teaching one step")) return STEP;
+      return BRANCHED;
+    });
+    await resultOf(server, "teach.measure", { goalId: GOAL_ID });
+    await resultOf(server, "teach.step", { goalId: GOAL_ID });
+    await resultOf(server, "teach.check", {
+      goalId: GOAL_ID,
+      answer: "on the stack",
+    });
+    expect(calls).toBe(3);
+
+    // Both branches are available; the learner picks the right one.
+    const right = await resultOf(server, "teach.step", {
+      goalId: GOAL_ID,
+      stepId: "step-3",
+    });
+    expect(right.index).toBe(2);
+    expect((right.step as Record<string, unknown>).stepId).toBe("step-3");
+    expect(calls).toBe(4);
+
+    // The join still needs both branches, so it is refused by name and no
+    // model call is spent on it.
+    const locked = await errorOf(server, "teach.step", {
+      goalId: GOAL_ID,
+      stepId: "step-4",
+    });
+    expect(locked.code).toBe(BOOT_FAILED);
+    expect(locked.message).toContain("locked");
+    expect(calls).toBe(4);
+
+    // A held step has no body to re-teach; its check is already on the record.
+    const held = await resultOf(server, "teach.step", {
+      goalId: GOAL_ID,
+      stepId: "step-1",
+    });
+    expect(held.step).toBeNull();
+    expect(calls).toBe(4);
   });
 
   test("thinking and confidence ride with the check and are kept on the record", async () => {

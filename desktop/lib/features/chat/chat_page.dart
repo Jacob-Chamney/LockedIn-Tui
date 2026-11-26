@@ -11,7 +11,6 @@ import '../../theme/palette.dart';
 import '../../theme/tokens.dart';
 import 'attachments.dart';
 import 'chat_failure.dart';
-import 'usage_text.dart';
 import 'markdown.dart';
 import 'transcript_scroll.dart';
 import '../keys.dart';
@@ -310,7 +309,7 @@ class _ChatPageState extends State<ChatPage> {
                 'the file is never copied or stored.',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -549,7 +548,7 @@ class _ChatPageState extends State<ChatPage> {
                 'Chill',
                 style: LockedInType.display.copyWith(
                   color: LockedInColors.foreground,
-                  fontSize: 26,
+                  fontSize: TypeScale.display,
                 ),
               ),
               const SizedBox(height: Space.xs),
@@ -560,7 +559,7 @@ class _ChatPageState extends State<ChatPage> {
                   'writes, and it keeps nothing but its own history.',
                   style: LockedInType.prose.copyWith(
                     color: LockedInColors.muted,
-                    fontSize: 14.5,
+                    fontSize: TypeScale.prose,
                   ),
                 ),
               ),
@@ -604,8 +603,8 @@ class _ChatPageState extends State<ChatPage> {
                       ),
                     ),
                     child: const Text(
-                      'link a model in Settings → Providers',
-                      style: TextStyle(fontSize: 12),
+                      'connect a model',
+                      style: TextStyle(fontSize: TypeScale.label),
                     ),
                   ),
                 ),
@@ -695,7 +694,7 @@ class _ChatPageState extends State<ChatPage> {
         : !widget.configured
         // The top bar's badge already says `! no model`; this line is the
         // action, so it does not repeat the diagnosis.
-        ? 'link a key in Settings → Providers, then ask anything'
+        ? 'sending needs a model — use the badge above'
         : streaming
         ? 'streaming · Esc stops the reply'
         : 'Enter send · Shift+Enter newline · p attach · Esc normal';
@@ -715,7 +714,10 @@ class _ChatPageState extends State<ChatPage> {
                 Text(
                   _notice!,
                   key: const ValueKey('chat-attach-notice'),
-                  style: TextStyle(color: LockedInColors.warning, fontSize: 12),
+                  style: TextStyle(
+                    color: LockedInColors.warning,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
                 const SizedBox(height: 8),
               ],
@@ -734,7 +736,7 @@ class _ChatPageState extends State<ChatPage> {
                     color: blocked != null
                         ? LockedInColors.warning
                         : LockedInColors.muted,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                   ),
                 ),
               ),
@@ -752,7 +754,7 @@ class _ChatPageState extends State<ChatPage> {
                       cursorWidth: Stroke.focus,
                       style: LockedInType.prose.copyWith(
                         color: LockedInColors.foreground,
-                        fontSize: 14.5,
+                        fontSize: TypeScale.prose,
                       ),
                       decoration: InputDecoration(
                         // Always a placeholder: an empty field with no
@@ -770,7 +772,7 @@ class _ChatPageState extends State<ChatPage> {
                               color: _canSend
                                   ? LockedInColors.primary
                                   : LockedInColors.muted,
-                              fontSize: 13,
+                              fontSize: TypeScale.body,
                             ),
                           ),
                         ),
@@ -795,7 +797,7 @@ class _ChatPageState extends State<ChatPage> {
                         color: _sending
                             ? LockedInColors.muted
                             : LockedInColors.secondary,
-                        fontSize: 16,
+                        fontSize: TypeScale.prose,
                       ),
                     ),
                   ),
@@ -865,21 +867,6 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                 ],
               ),
-              if (widget.chat != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      chatUsageLabel(widget.chat!.usage),
-                      style: LockedInType.micro.copyWith(
-                        color: LockedInColors.muted,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0,
-                      ),
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
@@ -902,7 +889,10 @@ class _ChatPageState extends State<ChatPage> {
           _attachmentChip(index),
         Text(
           'Ctrl+Shift+X clears',
-          style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+          style: TextStyle(
+            color: LockedInColors.muted,
+            fontSize: TypeScale.label,
+          ),
         ),
       ],
     );
@@ -915,7 +905,7 @@ class _ChatPageState extends State<ChatPage> {
       padding: const EdgeInsets.fromLTRB(8, 2, 2, 2),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Row(
@@ -929,7 +919,10 @@ class _ChatPageState extends State<ChatPage> {
               attachment.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: LockedInColors.foreground, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.foreground,
+                fontSize: TypeScale.label,
+              ),
             ),
           ),
           IconButton(
@@ -989,13 +982,16 @@ class _ExampleRow extends StatelessWidget {
                 text,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: LockedInType.prose.copyWith(fontSize: 13.5, color: tone),
+                style: LockedInType.prose.copyWith(
+                  fontSize: TypeScale.proseSmall,
+                  color: tone,
+                ),
               ),
             ),
             const SizedBox(width: Space.xs),
             Text(
               '↵',
-              style: LockedInType.micro.copyWith(color: LockedInColors.line),
+              style: LockedInType.micro.copyWith(color: LockedInColors.muted),
             ),
           ],
         ),
@@ -1027,7 +1023,7 @@ class _Centered extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: LockedInColors.muted,
-                fontSize: 13,
+                fontSize: TypeScale.body,
                 height: 1.5,
               ),
             ),
@@ -1122,7 +1118,7 @@ class _MessageBubble extends StatelessWidget {
                       text,
                       style: LockedInType.prose.copyWith(
                         color: LockedInColors.foreground,
-                        fontSize: 14.5,
+                        fontSize: TypeScale.prose,
                       ),
                     )
                   else
@@ -1130,7 +1126,7 @@ class _MessageBubble extends StatelessWidget {
                       text: text,
                       style: LockedInType.prose.copyWith(
                         color: LockedInColors.foreground,
-                        fontSize: 14.5,
+                        fontSize: TypeScale.prose,
                         height: 1.65,
                       ),
                     ),
@@ -1200,7 +1196,7 @@ class _BridgeChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Row(
@@ -1210,7 +1206,10 @@ class _BridgeChip extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),

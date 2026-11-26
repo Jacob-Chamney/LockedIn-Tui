@@ -48,6 +48,10 @@ abstract final class Radii {
 
   /// 6 px — floating layers only (palette, leader, dialogs).
   static const double layer = 6;
+
+  /// A fully rounded cap (a status pill). Only for a shape that is meant to be
+  /// a capsule; chrome and controls stay square.
+  static const double pill = 999;
 }
 
 /// Stroke widths.
@@ -74,6 +78,22 @@ abstract final class Motion {
 
   static const Curve enter = Curves.easeOutCubic;
   static const Curve settleCurve = Curves.easeOutQuint;
+}
+
+/// The numeric type scale, in px.
+///
+/// Every `fontSize` in the shell draws from these eight steps. A raw number on
+/// a widget was the last place two surfaces could disagree about hierarchy:
+/// `fontSize: 12` and `fontSize: 13` side by side read as two different apps.
+abstract final class TypeScale {
+  static const double micro = 10.5;
+  static const double label = 11.5;
+  static const double key = 12.5;
+  static const double body = 13;
+  static const double proseSmall = 13.5;
+  static const double prose = 15;
+  static const double title = 18;
+  static const double display = 24;
 }
 
 /// The two families, and the text styles built from them.

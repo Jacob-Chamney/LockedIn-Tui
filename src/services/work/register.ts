@@ -844,6 +844,44 @@ export async function markOpened(
 }
 
 /**
+ * Replace a project's standing instructions.
+ *
+ * Only `instructions` is written; every other key in `meta.json` is preserved
+ * (`docs/data-model.md` §6.1). The value is trimmed and capped at the same
+ * 20,000 characters registration accepts, so create and save cannot disagree.
+ * Nothing inside the project root is read or written.
+ */
+export async function setInstructions(input: {
+  workspace: Workspace
+  id: string
+  instructions: string
+}): Promise<Result<{ instructions: string }, WorkError>> {
+  const id = assertProjectId(input.id)
+  if (!id.ok) return id
+
+  const instructions = input.instructions.trim()
+  if (instructions.length > MAX_INSTRUCTIONS_CHARS) {
+    return err({
+      kind: "invalid-input",
+      field: "instructions",
+      message: `project instructions are at most ${MAX_INSTRUCTIONS_CHARS} characters`,
+    })
+  }
+
+  const path = projectMetaPath(input.workspace, id.value)
+  let raw: Record<string, unknown>
+  try {
+    raw = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>
+  } catch (error) {
+    return err(storageError(path, error, "meta.json could not be read before the instructions write"))
+  }
+
+  const written = await writeJsonAtomic(path, { ...raw, instructions })
+  if (!written.ok) return written
+  return ok({ instructions })
+}
+
+/**
  * Change how a project is worked in. Only `mode` is written; every other key
  * in `meta.json` is preserved.
  */

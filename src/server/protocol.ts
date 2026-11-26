@@ -52,6 +52,7 @@ import {
   createProject,
   loadAgentTemplates,
   loadProjects,
+  setProjectInstructions,
   loadWorkHome,
   makeAgentId,
   makeProjectId,
@@ -61,6 +62,8 @@ import {
   type ProjectAgent,
 } from "../app/actions/projects";
 import { loadSessionHome, loadSessionRows } from "../app/actions/sessions";
+import { searchKnowledge as indexedKnowledgeSearch } from "../services/knowledge/search";
+import { indexFileExists } from "../storage/index";
 import {
   createSkillCourse,
   gatherSkillSources,
@@ -160,6 +163,7 @@ import { openChat as openSkillChat } from "../services/skills/chats";
 import { archiveGoal, exportGoal } from "../services/skills/archive";
 import { deleteGoal } from "../services/skills/delete";
 import { courseFolder, type GeneratedChapter } from "../services/skills/course";
+import { CURRICULUM_FILE, renderCurriculum } from "../services/skills/create";
 import {
   LESSONS_DIR,
   buildLesson,
@@ -363,6 +367,7 @@ export const CAPABILITIES = [
   "work.agent.save",
   "work.agent.delete",
   "work.defaultAgent",
+  "work.instructions.save",
   "work.changes",
   "work.write.propose",
   "work.write.decide",
@@ -2923,6 +2928,53 @@ function noteCandidates(root: string, vault: string, side: "school" | "skills"):
       text: note.text,
     })),
   );
+}
+
+/**
+ * Vault note candidates from the FTS index, not a walk of every note.
+ *
+ * The index is a cache and `indexedKnowledgeSearch` rebuilds it when it is
+ * missing. Only the matched notes are read from disk, to keep the same title,
+ * `updated` value and body the reader sees. A broken index, or a query no note
+ * matches, falls back to the direct read so a cache can never hide a note.
+ */
+async function indexedNoteCandidates(
+  workspace: CoreServices["workspace"],
+  side: "school" | "skills",
+  query: string,
+): Promise<KnowledgeCandidate[]> {
+  const vault =
+    side === "school" ? workspace.paths.schoolVault : workspace.paths.skillVault;
+  // Search is read-only: a missing index is not built here. The direct read is
+  // the fallback, so a workspace that has never been indexed still answers and
+  // is left byte-identical.
+  if (!indexFileExists(workspace.paths, side)) {
+    return noteCandidates(workspace.root, vault, side);
+  }
+  let indexed;
+  try {
+    indexed = await indexedKnowledgeSearch(workspace, query, { side, limit: 200 });
+  } catch {
+    return noteCandidates(workspace.root, vault, side);
+  }
+  if (indexed.diagnostics.length > 0 || indexed.hits.length === 0) {
+    return noteCandidates(workspace.root, vault, side);
+  }
+  const out: KnowledgeCandidate[] = [];
+  for (const hit of indexed.hits) {
+    const note = await readVaultNoteFile(workspace.root, join(vault, hit.path));
+    if (note === null) continue;
+    out.push({
+      id: knowledgeIds.note(side, note.path),
+      kind: "note",
+      title: note.title,
+      side,
+      path: note.path,
+      updated: note.updated,
+      text: note.text,
+    });
+  }
+  return out;
 }
 
 /**
@@ -6197,9 +6249,9 @@ export function createCoreServer(options: CoreOptions): CoreServer {
    *
    * This is metadata only — `createProject` resolves the user's path (and may
    * create the leaf they named), then writes `work/projects/<id>/meta.json`.
-   * The root is never moved, copied or deleted. Project instructions and agent
-   * profiles are edited by later packets, so they are refused rather than
-   * silently dropped.
+   * The root is never moved, copied or deleted. Optional `instructions` are
+   * saved with the registration; agent profiles are added with
+   * `work.agent.save`.
    */
   const workCreate = async (
     id: RpcId,
@@ -6217,20 +6269,19 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     if (mode !== "chat" && mode !== "swarm") {
       return invalid(id, 'work.create requires mode "chat" or "swarm"');
     }
-    const instructions = params.instructions;
-    if (instructions !== undefined) {
-      return invalid(
-        id,
-        "work.create does not accept instructions yet; create the project and edit its instructions in a later packet",
-      );
+    const rawInstructions = params.instructions;
+    if (rawInstructions !== undefined && typeof rawInstructions !== "string") {
+      return invalid(id, "work.create: instructions must be a string");
     }
+    const instructions =
+      typeof rawInstructions === "string" ? rawInstructions : undefined;
 
     const name = rawName.trim();
     const folder = rawFolder.trim();
     const current = await services();
     if (!current.ok) return bootFailureResponse(id, current.error);
-    // The id is derived from the name against the ids already taken, exactly as
-    // the TUI does, so the shell can open the project without a second lookup.
+    // The id is derived from the name against the ids already taken, so the
+    // shell can open the project without a second lookup.
     const taken = (await listProjects(current.value.workspace)).map((row) => row.id);
     const created = await createProject({
       workspace: current.value.workspace,
@@ -6238,12 +6289,54 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       name,
       folder,
       mode,
+      instructions,
     });
     if (!created.ok) {
       const message = oneLine(created.error.message);
       return failure(id, BOOT_FAILED, message, { kind: "project-create", message }, false);
     }
     return success(id, { id: created.value.id, name });
+  };
+
+  /**
+   * Replace a project's standing instructions (`work.instructions.save`).
+   *
+   * The value is metadata only: only `work/projects/<id>/meta.json` is
+   * written, and nothing inside the registered root is read or changed. The
+   * save is the same 20,000-character rule registration applies, so create and
+   * edit cannot disagree. A failure preserves the previous text.
+   */
+  const workInstructionsSave = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const rawProjectId = params.projectId;
+    if (typeof rawProjectId !== "string" || rawProjectId.trim() === "") {
+      return invalid(id, "work.instructions.save requires a project id");
+    }
+    const projectId = rawProjectId.trim();
+    const rawInstructions = params.instructions;
+    if (typeof rawInstructions !== "string") {
+      return invalid(id, "work.instructions.save: instructions must be a string");
+    }
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const saved = await setProjectInstructions({
+      workspace: current.value.workspace,
+      id: projectId,
+      instructions: rawInstructions,
+    });
+    if (!saved.ok) {
+      const message = oneLine(saved.error.message);
+      return failure(
+        id,
+        BOOT_FAILED,
+        message,
+        { kind: "project", projectId, message },
+        false,
+      );
+    }
+    return success(id, { instructions: saved.value.instructions });
   };
 
   /**
@@ -8835,6 +8928,15 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     if (params.again !== undefined && typeof params.again !== "boolean") {
       return invalid(id, "teach.step: again must be a boolean");
     }
+    const rawStepId = params.stepId;
+    if (
+      rawStepId !== undefined &&
+      (typeof rawStepId !== "string" || rawStepId.trim() === "")
+    ) {
+      return invalid(id, "teach.step: stepId must be a non-empty string");
+    }
+    const wantedStepId =
+      typeof rawStepId === "string" ? rawStepId.trim() : null;
 
     const current = await services();
     if (!current.ok) return bootFailureResponse(id, current.error);
@@ -8852,7 +8954,54 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       return teachFailure(id, goalId, "this session has not been measured yet; measure it first");
     }
 
-    const index = nextStepIndex(record);
+    // A named step lets the learner pick an available branch instead of the
+    // first one in plan order. A locked step is refused by name, so the tree's
+    // lock and the core's answer cannot disagree.
+    let index: number;
+    if (wantedStepId === null) {
+      index = nextStepIndex(record);
+    } else {
+      index = record.state.plan.findIndex((step) => step.id === wantedStepId);
+      if (index === -1) {
+        return teachFailure(
+          id,
+          goalId,
+          `this session has no step ${JSON.stringify(wantedStepId)}`,
+        );
+      }
+      const passed = new Set(
+        record.checks
+          .filter((check) => check.verdict === "correct")
+          .map((check) => check.stepId),
+      );
+      if (passed.has(wantedStepId)) {
+        // A held step has no body to re-teach: its check and correction are on
+        // the record, and regenerating it would spend a model call to replace
+        // an explanation the learner already passed.
+        return success(id, {
+          record,
+          step: null,
+          index,
+          total: record.state.plan.length,
+        });
+      }
+      const blockers = record.state.plan[index]!.requires.filter(
+        (required) => !passed.has(required),
+      );
+      if (blockers.length > 0) {
+        const titles = blockers.map((required) => {
+          const step = record.state.plan.find((entry) => entry.id === required);
+          return step?.title ?? required;
+        });
+        return teachFailure(
+          id,
+          goalId,
+          `${JSON.stringify(wantedStepId)} is locked until ${titles.join(", ")} ${
+            titles.length === 1 ? "is" : "are"
+          } held`,
+        );
+      }
+    }
     if (index >= record.state.plan.length) {
       return success(id, { record, step: null, index, total: record.state.plan.length });
     }
@@ -10606,6 +10755,28 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     const written = await writeGoalMeta(folder, loaded.value.meta, validated.value);
     if (!written.ok) return stageFailure(id, goalId, oneLine(written.error.message));
 
+    // `meta.json` is authoritative, but the readable mirror is part of the
+    // contract (`docs/data-model.md` §5.2): a stage edit that left it stale made
+    // the Markdown lie about the curriculum. Both writes are atomic; a mirror
+    // failure is reported once and a retry rewrites both.
+    try {
+      await replaceAtomic(
+        join(folder, CURRICULUM_FILE),
+        renderCurriculum({
+          name: loaded.value.goal.name,
+          stages: validated.value,
+        }),
+      );
+    } catch (error) {
+      return stageFailure(
+        id,
+        goalId,
+        `the stages were saved but curriculum.md could not be rewritten (${oneLine(
+          error instanceof Error ? error.message : String(error),
+        )}); save again`,
+      );
+    }
+
     return success(id, { stages: skillStageRows(validated.value) });
   };
 
@@ -11653,8 +11824,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
    * There is **one read** of every source and `scope` is a projection over that
    * result, never a second pass: a `school` request cannot see a skills row
    * because the row was labelled when it was built, not filtered afterwards into
-   * existence. Nothing is written, no index is rebuilt, no model is called and
-   * no network is contacted.
+   * existence. The vault notes come from the side's FTS index (refreshed as a
+   * cache, never Markdown); no model is called and no network is contacted.
    *
    * Ranking is deterministic and lexical: a title/name prefix beats a whole-word
    * match, which beats a body substring; ties go to the most recently updated,
@@ -11707,12 +11878,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     const workspace = current.value.workspace;
 
     const candidates: KnowledgeCandidate[] = [];
-    candidates.push(
-      ...(await noteCandidates(workspace.root, workspace.paths.schoolVault, "school")),
-    );
-    candidates.push(
-      ...(await noteCandidates(workspace.root, workspace.paths.skillVault, "skills")),
-    );
+    candidates.push(...(await indexedNoteCandidates(workspace, "school", query)));
+    candidates.push(...(await indexedNoteCandidates(workspace, "skills", query)));
     candidates.push(...(await sessionKnowledge(workspace)));
     candidates.push(...(await goalKnowledge(workspace)));
     candidates.push(...(await projectKnowledge(workspace)));
@@ -12089,6 +12256,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         return workOpen(id, params);
       case "work.create":
         return workCreate(id, params);
+      case "work.instructions.save":
+        return workInstructionsSave(id, params);
       case "work.templates.list":
         return workTemplatesList(id, params);
       case "work.agent.save":

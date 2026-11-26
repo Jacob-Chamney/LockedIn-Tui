@@ -407,7 +407,7 @@ class _SkillsPageState extends State<SkillsPage> {
                       'a archive · d delete · x export',
                       style: TextStyle(
                         color: LockedInColors.muted,
-                        fontSize: 11,
+                        fontSize: TypeScale.label,
                       ),
                     ),
                   ],
@@ -437,7 +437,7 @@ class _SkillsPageState extends State<SkillsPage> {
           'TEACHING',
           style: theme.textTheme.labelSmall?.copyWith(
             color: LockedInColors.secondary,
-            fontSize: 11,
+            fontSize: TypeScale.label,
             letterSpacing: 1.4,
           ),
         ),
@@ -455,7 +455,10 @@ class _SkillsPageState extends State<SkillsPage> {
               textAlign: TextAlign.right,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ),
         ],
@@ -489,12 +492,18 @@ class _SkillsPageState extends State<SkillsPage> {
             const SizedBox(height: 10),
             Text(
               'no goal matches “${_query.trim()}”',
-              style: TextStyle(color: LockedInColors.foreground, fontSize: 13),
+              style: TextStyle(
+                color: LockedInColors.foreground,
+                fontSize: TypeScale.body,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               'Esc clears the search',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
         ),
@@ -651,7 +660,7 @@ class _SkillRowTile extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: selected ? LockedInColors.primary : Colors.transparent,
                   borderRadius: const BorderRadius.horizontal(
-                    right: Radius.circular(2),
+                    right: Radius.circular(Radii.control),
                   ),
                 ),
               ),
@@ -697,7 +706,7 @@ class _SkillRowTile extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: LockedInColors.error,
-                                fontSize: 11,
+                                fontSize: TypeScale.label,
                                 height: 1.35,
                               ),
                             ),
@@ -716,7 +725,10 @@ class _SkillRowTile extends StatelessWidget {
                     _chaptersLabel,
                     textAlign: TextAlign.right,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                    style: TextStyle(
+                      color: LockedInColors.muted,
+                      fontSize: TypeScale.label,
+                    ),
                   ),
                 ),
               ],
@@ -728,7 +740,10 @@ class _SkillRowTile extends StatelessWidget {
                     _openedLabel,
                     textAlign: TextAlign.right,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                    style: TextStyle(
+                      color: LockedInColors.muted,
+                      fontSize: TypeScale.label,
+                    ),
                   ),
                 ),
               ],
@@ -739,7 +754,10 @@ class _SkillRowTile extends StatelessWidget {
                   _chatsLabel,
                   textAlign: TextAlign.right,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ),
               if (busy) ...[
@@ -753,7 +771,7 @@ class _SkillRowTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: LockedInColors.primary,
-                      fontSize: 11,
+                      fontSize: TypeScale.label,
                     ),
                   ),
                 ),
@@ -769,7 +787,7 @@ class _SkillRowTile extends StatelessWidget {
                       color: skill.complete
                           ? LockedInColors.success
                           : LockedInColors.muted,
-                      fontSize: 11,
+                      fontSize: TypeScale.label,
                     ),
                   ),
                 ),
@@ -801,7 +819,10 @@ class _ArchivedBadge extends StatelessWidget {
           SizedBox(width: 4),
           Text(
             'archived',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 10),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.micro,
+            ),
           ),
         ],
       ),
@@ -831,7 +852,10 @@ class _LoadingState extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             label,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),
@@ -857,7 +881,10 @@ class _EmptyState extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           'n starts a goal',
-          style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+          style: TextStyle(
+            color: LockedInColors.muted,
+            fontSize: TypeScale.label,
+          ),
         ),
         const SizedBox(height: 14),
         OutlinedButton(
@@ -897,7 +924,7 @@ class _BlockedState extends StatelessWidget {
               message,
               style: TextStyle(
                 color: LockedInColors.warning,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),
@@ -936,7 +963,7 @@ class _ErrorState extends StatelessWidget {
                   message,
                   style: TextStyle(
                     color: LockedInColors.error,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     height: 1.45,
                   ),
                 ),
@@ -1082,7 +1109,7 @@ class _SkillConfirmDialog extends StatelessWidget {
                 question,
                 style: TextStyle(
                   color: LockedInColors.foreground,
-                  fontSize: 14,
+                  fontSize: TypeScale.proseSmall,
                   height: 1.45,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1092,7 +1119,7 @@ class _SkillConfirmDialog extends StatelessWidget {
                 detail,
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12.5,
+                  fontSize: TypeScale.key,
                   height: 1.5,
                 ),
               ),
@@ -1160,7 +1187,11 @@ class _ActionBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: TextStyle(color: color, fontSize: 12, height: 1.4),
+              style: TextStyle(
+                color: color,
+                fontSize: TypeScale.label,
+                height: 1.4,
+              ),
             ),
           ),
           IconButton(

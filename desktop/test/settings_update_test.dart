@@ -44,7 +44,14 @@ void main() {
         ),
       );
 
-      await tester.scrollUntilVisible(_row('updates'), 240);
+      await tester.scrollUntilVisible(
+        _row('updates'),
+        240,
+        scrollable: find.descendant(
+          of: find.byKey(const ValueKey('settings-scroll')),
+          matching: find.byType(Scrollable),
+        ),
+      );
       expect(find.text('2026.11.12'), findsWidgets);
       expect(find.text('v2026.12.1 available'), findsOneWidget);
 
@@ -70,7 +77,14 @@ void main() {
         updateChecking: true,
       ),
     );
-    await tester.scrollUntilVisible(_row('updates'), 240);
+    await tester.scrollUntilVisible(
+      _row('updates'),
+      240,
+      scrollable: find.descendant(
+        of: find.byKey(const ValueKey('settings-scroll')),
+        matching: find.byType(Scrollable),
+      ),
+    );
     expect(find.text('checking…'), findsOneWidget);
 
     await _pump(
@@ -86,7 +100,14 @@ void main() {
         ),
       ),
     );
-    await tester.scrollUntilVisible(_row('updates'), 240);
+    await tester.scrollUntilVisible(
+      _row('updates'),
+      240,
+      scrollable: find.descendant(
+        of: find.byKey(const ValueKey('settings-scroll')),
+        matching: find.byType(Scrollable),
+      ),
+    );
     expect(find.text('up to date'), findsOneWidget);
 
     await _pump(
@@ -97,7 +118,14 @@ void main() {
         updateError: 'the request timed out',
       ),
     );
-    await tester.scrollUntilVisible(_row('updates'), 240);
+    await tester.scrollUntilVisible(
+      _row('updates'),
+      240,
+      scrollable: find.descendant(
+        of: find.byKey(const ValueKey('settings-scroll')),
+        matching: find.byType(Scrollable),
+      ),
+    );
     expect(find.text('check failed'), findsOneWidget);
   });
 
@@ -106,7 +134,14 @@ void main() {
       tester,
       SettingsPage(settings: populatedSettings(), loading: false),
     );
-    await tester.scrollUntilVisible(_row('app-version'), 240);
+    await tester.scrollUntilVisible(
+      _row('app-version'),
+      240,
+      scrollable: find.descendant(
+        of: find.byKey(const ValueKey('settings-scroll')),
+        matching: find.byType(Scrollable),
+      ),
+    );
     expect(find.text('not read'), findsOneWidget);
     expect(find.text('not checked'), findsOneWidget);
   });

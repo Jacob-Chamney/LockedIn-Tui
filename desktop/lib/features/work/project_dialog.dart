@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 
 /// Registers one project through the shell's `work.create`.
 ///
@@ -124,7 +125,7 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
                   'deletes your files.',
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     height: 1.45,
                   ),
                 ),
@@ -158,7 +159,7 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
                         'mode',
                         style: TextStyle(
                           color: LockedInColors.muted,
-                          fontSize: 12,
+                          fontSize: TypeScale.label,
                         ),
                       ),
                     ),
@@ -182,7 +183,7 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
                   'workers',
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 11,
+                    fontSize: TypeScale.label,
                     height: 1.4,
                   ),
                 ),
@@ -228,7 +229,7 @@ class _ErrorNote extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Row(
@@ -241,7 +242,7 @@ class _ErrorNote extends StatelessWidget {
               message,
               style: TextStyle(
                 color: LockedInColors.error,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),

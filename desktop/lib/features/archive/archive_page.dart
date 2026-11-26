@@ -386,7 +386,10 @@ class _ArchivePageState extends State<ArchivePage> {
                   Text(
                     _hint,
                     key: const ValueKey('archive-restore-hint'),
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                    style: TextStyle(
+                      color: LockedInColors.muted,
+                      fontSize: TypeScale.label,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   if (_actionError != null || _notice != null) ...[
@@ -425,7 +428,7 @@ class _ArchivePageState extends State<ArchivePage> {
           'ARCHIVE',
           style: theme.textTheme.labelSmall?.copyWith(
             color: LockedInColors.secondary,
-            fontSize: 11,
+            fontSize: TypeScale.label,
             letterSpacing: 1.4,
           ),
         ),
@@ -440,13 +443,19 @@ class _ArchivePageState extends State<ArchivePage> {
             summary,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ),
         if (!compact)
           Text(
             'r refresh · Esc back',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
       ],
     );
@@ -554,7 +563,7 @@ class _GroupHeader extends StatelessWidget {
           side.toUpperCase(),
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 10,
+            fontSize: TypeScale.micro,
             letterSpacing: 1.2,
             fontWeight: FontWeight.w600,
           ),
@@ -572,7 +581,7 @@ class _GroupHeader extends StatelessWidget {
             '$count',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 10,
+              fontSize: TypeScale.micro,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -645,7 +654,7 @@ class _ArchiveRowTile extends StatelessWidget {
                       key: ValueKey('archive-row-cursor'),
                       style: TextStyle(
                         color: LockedInColors.primary,
-                        fontSize: 13,
+                        fontSize: TypeScale.body,
                       ),
                     )
                   : null,
@@ -670,7 +679,7 @@ class _ArchiveRowTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: LockedInColors.muted,
-                        fontSize: 11,
+                        fontSize: TypeScale.label,
                       ),
                     ),
                   ],
@@ -682,14 +691,20 @@ class _ArchiveRowTile extends StatelessWidget {
               Text(
                 'restoring…',
                 key: ValueKey('archive-restoring'),
-                style: TextStyle(color: LockedInColors.accent, fontSize: 11),
+                style: TextStyle(
+                  color: LockedInColors.accent,
+                  fontSize: TypeScale.label,
+                ),
               ),
             ] else if (deleting) ...[
               const SizedBox(width: 10),
               Text(
                 'deleting…',
                 key: ValueKey('archive-deleting'),
-                style: TextStyle(color: LockedInColors.error, fontSize: 11),
+                style: TextStyle(
+                  color: LockedInColors.error,
+                  fontSize: TypeScale.label,
+                ),
               ),
             ] else if (onRestore != null || onDelete != null) ...[
               const SizedBox(width: 8),
@@ -742,7 +757,7 @@ class _KindTag extends StatelessWidget {
             label.toUpperCase(),
             style: TextStyle(
               color: color,
-              fontSize: 9,
+              fontSize: TypeScale.micro,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
             ),
@@ -782,7 +797,7 @@ class _ErrorBlock extends StatelessWidget {
                   message,
                   style: TextStyle(
                     color: LockedInColors.error,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     height: 1.45,
                   ),
                 ),
@@ -844,7 +859,11 @@ class _ActionBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: TextStyle(color: color, fontSize: 12, height: 1.4),
+              style: TextStyle(
+                color: color,
+                fontSize: TypeScale.label,
+                height: 1.4,
+              ),
             ),
           ),
           if (onRetry != null)
@@ -940,7 +959,7 @@ class _RestoreDialog extends StatelessWidget {
                 'Restore “$name”?',
                 style: TextStyle(
                   color: LockedInColors.foreground,
-                  fontSize: 14,
+                  fontSize: TypeScale.proseSmall,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -949,7 +968,7 @@ class _RestoreDialog extends StatelessWidget {
                 _consequence,
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -1005,7 +1024,7 @@ class _DeleteDialog extends StatelessWidget {
                 'Delete “$name” from the archive?',
                 style: TextStyle(
                   color: LockedInColors.foreground,
-                  fontSize: 14,
+                  fontSize: TypeScale.proseSmall,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1014,7 +1033,7 @@ class _DeleteDialog extends StatelessWidget {
                 'The archived copy goes; the live item is untouched.',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -1066,7 +1085,10 @@ class _LoadingState extends StatelessWidget {
             SizedBox(height: 14),
             Text(
               'loading archive…',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
         ),
@@ -1093,7 +1115,10 @@ class _EmptyState extends StatelessWidget {
           Text(
             'archive one from Sessions or Skills with `a`; it appears here',
             textAlign: TextAlign.center,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),

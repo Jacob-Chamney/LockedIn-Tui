@@ -191,8 +191,8 @@ void main() {
     ]);
     expect(rowValue('mcp-policy-chill-notes', 'on'), findsOneWidget);
 
-    // Space advances the same cell, and the page asks for exactly one write.
-    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    // Enter advances the same cell, and the page asks for exactly one write.
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
     expect(calls.last, ['chill', 'notes', 'explicit']);
     expect(rowValue('mcp-policy-chill-notes', 'explicit'), findsOneWidget);

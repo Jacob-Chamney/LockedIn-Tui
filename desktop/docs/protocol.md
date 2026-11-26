@@ -8,7 +8,7 @@ to stderr.
 
 ```json
 → {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol":1,"client":"flutter"}}
-← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","session.deck.state","session.deck.grade","session.deck.reset","session.figure.list","session.figure.extract","session.figure.read","session.figure.annotate","session.figure.remove","session.mistake.list","session.mistake.record","session.mistake.promote","session.mistake.correct","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","keybinds.get","keybinds.set","chat.snapshot","chat.send","chat.cancel","session.chat.snapshot","session.chat.send","session.chat.cancel","session.chat.context","session.chat.compact","session.chat.uncompact","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","work.list","work.open","work.create","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","work.swarm.verify","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","teach.state","teach.measure","teach.step","teach.check","teach.practice","teach.practice.result","teach.side.snapshot","teach.side.send","teach.side.clear","research.start","research.list","research.read","research.cancel","prompts.list","prompts.set","update.info","update.check","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read","knowledge.graph"]}}
+← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","session.deck.state","session.deck.grade","session.deck.reset","session.figure.list","session.figure.extract","session.figure.read","session.figure.annotate","session.figure.remove","session.mistake.list","session.mistake.record","session.mistake.promote","session.mistake.correct","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","keybinds.get","keybinds.set","chat.snapshot","chat.send","chat.cancel","session.chat.snapshot","session.chat.send","session.chat.cancel","session.chat.context","session.chat.compact","session.chat.uncompact","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","work.list","work.open","work.create","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.instructions.save","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","work.swarm.verify","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","teach.state","teach.measure","teach.step","teach.check","teach.practice","teach.practice.result","teach.side.snapshot","teach.side.send","teach.side.clear","research.start","research.list","research.read","research.cancel","prompts.list","prompts.set","update.info","update.check","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read","knowledge.graph"]}}
 ```
 
 - `protocol` is an integer. A mismatch is a blocking shell error, not a retry.
@@ -114,6 +114,7 @@ Implemented today (`src/server/protocol.ts`, capability names in the handshake):
 | `work.agent.save` | `{projectId, agent}` | `{id}` |
 | `work.agent.delete` | `{projectId, agentId}` | `{ok: true}` |
 | `work.defaultAgent` | `{projectId, agentId?}` | `{defaultAgent: string \| null}` |
+| `work.instructions.save` | `{projectId, instructions}` | `{instructions}` |
 | `work.changes` | `{projectId}` | `{changes: ChangeSummary}` |
 | `work.write.propose` | `{projectId, path, newContent}` | `{id, path, kind, diff, hunks, stats, baseHash}` |
 | `work.write.decide` | `{id, decision, hunks?}` | `{decision, applied, path, hunks, bytes}` |
@@ -969,15 +970,20 @@ invented row.
   count, and `rootMissing` is true when the registered folder vanished after
   registration (the metadata still opens).
 
-- `work.create` `{name, folder, mode}` → `{id, name}`, where `mode` is `chat` or
-  `swarm`. The id is derived from the name exactly as the TUI does
-  (`makeProjectId`), the folder may not exist yet (it is created), and a folder
-  that is already registered is refused rather than duplicated. The root is
-  never moved or deleted. Creation does not take project instructions or agent
-  profiles (`work.agent.save` owns those), so an `instructions` parameter is
-  refused (`-32602`) instead of being silently dropped; a refusal is `-32000`,
-  `retryable: false`,
-  `data: {kind: "project-create", message}`.
+- `work.create` `{name, folder, mode, instructions?}` → `{id, name}`, where
+  `mode` is `chat` or `swarm`. The id is derived from the name (`makeProjectId`),
+  the folder may not exist yet (it is created), and a folder that is already
+  registered is refused rather than duplicated. The root is never moved or
+  deleted. `instructions` is optional and saved with the registration; agent
+  profiles are added with `work.agent.save`. A refusal is `-32000`,
+  `retryable: false`, `data: {kind: "project-create", message}`.
+- `work.instructions.save` `{projectId, instructions}` → `{instructions}`.
+  Replaces the project's standing instructions in
+  `work/projects/<id>/meta.json`; every other key is preserved and nothing
+  inside the project root is read or written. The same 20,000-character rule as
+  creation applies; a blank string clears them. A wrong type is `-32602`; an
+  unknown project or a failed write is `-32000`, `retryable: false`,
+  `data: {kind: "project", projectId, message}`, and the previous text stays.
 
 `work.agent.*` and `work.defaultAgent` edit the project's **agent profiles**
 (`docs/product.md` §8.3). They write only `work/projects/<id>/meta.json` — the
@@ -1889,10 +1895,9 @@ network.
     `chapters`, `sources`, `chats`, `last_opened_at`, `archived`). A failure is
     `-32000`, `retryable: false`, `data: {kind: "stage", goalId, message}`, and
     the previous bytes stay in place.
-  - `curriculum.md` is **not** rewritten. `meta.json` is authoritative for order
-    and status (`docs/data-model.md` §5.2) and no service exposes a mirror
-    writer, so the readable mirror can lag an edit; regenerate it by re-saving
-    the goal through the TUI's curriculum path until a writer lands.
+  - `curriculum.md` is rewritten in the same call, atomically, so the readable
+    mirror always matches `meta.json` (`docs/data-model.md` §5.2). A mirror
+    write failure is reported once and a retry rewrites both.
   - The reply is the stored curriculum in order, as
     `{id, title, status, milestone?}` rows (the same projection `skill.open`
     carries; `milestone` is omitted when empty). The shell replaces its copy from
@@ -2354,9 +2359,13 @@ request.
     process history are never results.
   - The archive index is a **cache**: a missing or corrupt index contributes no
     `archive` hit, and deleting it cannot fail the search.
-  - Read-only: every file is opened for reading only. Nothing is written, no
-    index is rebuilt, no model is called and no network is contacted. A broken
-    session, goal or project folder becomes no hit, never an error.
+  - The vault notes are searched through the side's FTS index (with a literal
+    substring supplement, so `gradient` still finds `subgradient`). The index is
+    a cache: a missing index is not built by this read-only call, and a query no
+    indexed note matches falls back to the Markdown so a stale cache cannot hide
+    a new note. No Markdown is rewritten, no model is called and no network is
+    contacted. A broken session, goal or project folder becomes no hit, never an
+    error.
   - An empty workspace is `{hits: []}` — an empty state with a next action, not
     an error.
 
@@ -2443,10 +2452,14 @@ The record lives at `skills/goals/<id>/teaching.json` (atomic replace):
 - `teach.measure` `{goalId, prior?}` → `{record}` — one model call. The reply is
   validated: no held propositions, or fewer than three plan steps, is a refusal
   naming the count. `prior` defaults to the goal's `statement` + `level`.
-- `teach.step` `{goalId, again?}` → `{record, step, index, total}` — teaches the
-  first step with no passing check. While a step is open the same record is
-  returned (no model call) unless `again: true`. `step: null` when every step is
-  passed. A step reply may carry `citations: [{name, quote}]`: each name must be
+- `teach.step` `{goalId, stepId?, again?}` → `{record, step, index, total}` —
+  teaches the first step with no passing check, or the named step. `stepId` lets
+  a learner choose between unlocked branches: it must name a step in the plan,
+  a locked step is refused with the blocking titles, and a held step returns
+  `step: null` without a model call (its check and correction are on the
+  record). While a step is open the same record is returned (no model call)
+  unless `again: true`. `step: null` when every step is passed. A step reply may
+  carry `citations: [{name, quote}]`: each name must be
   one of the goal's copied sources with a saved excerpt, and each quote is the
   exact words that prove it (≤240 characters). An unknown name, or a citation
   when the goal has no sources, is a `{kind:"teaching"}` refusal — the step is

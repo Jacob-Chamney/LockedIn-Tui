@@ -111,8 +111,20 @@ void main() {
     expect(store.activeSkillId, FakeCore.skillId);
     expect(find.text('TEACHING'), findsOneWidget);
     expect(find.text('Read disassembly output confidently'), findsOneWidget);
-    expect(find.text('I know a little C'), findsOneWidget);
     expect(find.text('COURSE'), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('skill-context-tab-goal')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('skill-context-tab-goal')));
+    await tester.pumpAndSettle();
+    expect(find.text('I know a little C'), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('skill-context-tab-chats')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('skill-context-tab-chats')));
+    await tester.pumpAndSettle();
     expect(find.text('Where do I start?'), findsOneWidget);
     // The goal page's own status scope, not the list's title.
     expect(find.text('TEACHING'), findsOneWidget);

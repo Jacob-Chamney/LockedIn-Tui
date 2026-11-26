@@ -4,10 +4,10 @@ import 'package:material_ui/material_ui.dart';
 import '../../bridge/models.dart';
 import '../../theme/palette.dart';
 import '../chat/chat_failure.dart';
-import '../chat/usage_text.dart';
 import '../chat/markdown.dart';
 import '../chat/transcript_scroll.dart';
 import '../keys.dart';
+import '../../theme/tokens.dart';
 
 /// One project-scoped chat surface.
 ///
@@ -284,7 +284,10 @@ class _WorkChatViewState extends State<WorkChatView> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -413,7 +416,7 @@ class _WorkChatViewState extends State<WorkChatView> {
                     color: blocked != null
                         ? LockedInColors.warning
                         : LockedInColors.muted,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                   ),
                 ),
               ),
@@ -452,14 +455,6 @@ class _WorkChatViewState extends State<WorkChatView> {
                     ),
                 ],
               ),
-              if (chat != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    chatUsageLabel(chat.usage),
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
-                  ),
-                ),
             ],
           ),
         ),
@@ -483,7 +478,7 @@ class _WorkChatViewState extends State<WorkChatView> {
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             decoration: BoxDecoration(
               color: LockedInColors.surface,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(Radii.layer),
               border: Border.all(color: LockedInColors.line),
             ),
             child: Column(
@@ -507,7 +502,7 @@ class _WorkChatViewState extends State<WorkChatView> {
                   body,
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 13,
+                    fontSize: TypeScale.body,
                     height: 1.5,
                   ),
                 ),
@@ -555,7 +550,10 @@ class _Loading extends StatelessWidget {
           Text(
             body,
             textAlign: TextAlign.center,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),
@@ -600,8 +598,8 @@ class _MessageBubble extends StatelessWidget {
               ? LockedInColors.primary.withValues(alpha: 0.16)
               : LockedInColors.panel,
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(10),
-            topRight: const Radius.circular(10),
+            topLeft: const Radius.circular(Radii.layer),
+            topRight: const Radius.circular(Radii.layer),
             bottomLeft: Radius.circular(user ? 10 : 2),
             bottomRight: Radius.circular(user ? 2 : 10),
           ),
@@ -628,21 +626,30 @@ class _MessageBubble extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 'streaming…',
-                style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: TypeScale.label,
+                ),
               ),
             ],
             if (failed) ...[
               const SizedBox(height: 6),
               Text(
                 '× failed',
-                style: TextStyle(color: LockedInColors.error, fontSize: 11),
+                style: TextStyle(
+                  color: LockedInColors.error,
+                  fontSize: TypeScale.label,
+                ),
               ),
             ],
             if (cancelled) ...[
               const SizedBox(height: 6),
               Text(
                 '— stopped',
-                style: TextStyle(color: LockedInColors.warning, fontSize: 11),
+                style: TextStyle(
+                  color: LockedInColors.warning,
+                  fontSize: TypeScale.label,
+                ),
               ),
             ],
           ],
@@ -666,7 +673,7 @@ class _StatusChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Row(
@@ -676,7 +683,10 @@ class _StatusChip extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),

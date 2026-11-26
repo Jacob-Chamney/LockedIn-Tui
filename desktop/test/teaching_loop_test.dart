@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lockedin_desktop/bridge/models.dart';
 import 'package:lockedin_desktop/features/skills/skill_detail.dart';
@@ -213,7 +214,66 @@ void main() {
     );
 
     expect(find.byKey(const ValueKey('teach-plan-step-4')), findsOneWidget);
-    expect(find.text('needs 2'), findsOneWidget);
+
+    // Only the root is open. Every branch waits for what it builds on, and the
+    // row says which step unlocks it instead of just going dim.
+    expect(find.text('locked'), findsNWidgets(3));
+    expect(find.text('after root'), findsNWidgets(2));
+    expect(find.text('after left, right'), findsOneWidget);
+    expect(find.text('here'), findsOneWidget);
+  });
+
+  testWidgets('passing a prerequisite unlocks the branch that builds on it', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        teaching: TeachingState(
+          goal: _measured.goal,
+          prior: _measured.prior,
+          held: _measured.held,
+          gaps: _measured.gaps,
+          plan: const [
+            TeachingStep(id: 'step-1', title: 'root'),
+            TeachingStep(id: 'step-2', title: 'left', requires: ['step-1']),
+            TeachingStep(id: 'step-3', title: 'right', requires: ['step-1']),
+            TeachingStep(
+              id: 'step-4',
+              title: 'join',
+              requires: ['step-2', 'step-3'],
+            ),
+          ],
+          checks: const [
+            TeachingCheckRecord(
+              stepId: 'step-1',
+              verdict: 'correct',
+              correction: '',
+            ),
+          ],
+        ),
+        onMeasure: () {},
+        onNextStep: () {},
+      ),
+    );
+
+    // The two branches are available; only the join still waits.
+    expect(find.text('locked'), findsOneWidget);
+    expect(find.text('after left, right'), findsOneWidget);
+    expect(find.text('here'), findsOneWidget);
+    expect(
+      tester
+          .widget<Text>(
+            find.descendant(
+              of: find.byKey(const ValueKey('teach-plan-step-2')),
+              matching: find.text('left'),
+            ),
+          )
+          .style
+          ?.color,
+      isNot(LockedInColors.muted),
+    );
   });
 
   testWidgets('a side question opens inside the step and sends', (
@@ -253,6 +313,10 @@ void main() {
       find.byKey(const ValueKey('teach-side-input')),
       'why does the call need to save it?',
     );
+    // The tree hint above the step makes the page taller than the test view;
+    // scroll the send key into reach before tapping it.
+    await tester.ensureVisible(find.byKey(const ValueKey('teach-side-send')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('teach-side-send')));
     await tester.pump();
 
@@ -422,7 +486,7 @@ void main() {
         ),
       );
 
-      expect(find.text('1/3 held'), findsOneWidget);
+      expect(find.text('1/3 held'), findsWidgets);
       expect(find.text('here'), findsOneWidget);
       // The tick replaces the number for a passed step.
       expect(find.text('✓'), findsWidgets);
@@ -582,6 +646,131 @@ void main() {
       ),
     );
     expect(find.text('! revisit'), findsOneWidget);
-    expect(find.textContaining('0 solved · 1 to revisit'), findsOneWidget);
+    expect(find.textContaining('0 solved · 1 to revisit'), findsWidgets);
+  });
+
+  testWidgets('m measures, n advances, s asks, and the rail jumps phases', (
+    tester,
+  ) async {
+    var measured = 0;
+    var next = 0;
+    var side = 0;
+    await pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        teaching: TeachingState.empty,
+        onMeasure: () => measured += 1,
+      ),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyM);
+    expect(measured, 1);
+
+    await pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        teaching: TeachingState(
+          goal: _measured.goal,
+          prior: _measured.prior,
+          held: _measured.held,
+          gaps: _measured.gaps,
+          plan: _measured.plan,
+          checks: const [],
+          current: _openStep,
+        ),
+        onNextStep: () => next += 1,
+        onCheck: (_, _, _) {},
+        onSideOpen: () => side += 1,
+        onSideSend: (_) {},
+      ),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+    expect(next, 1);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+    expect(side, 1);
+    // `2` is the plan phase; on a measured session it lands on the tree.
+    await tester.tap(find.byKey(const ValueKey('teach-phase-plan')));
+    await tester.pumpAndSettle();
+    expect(find.text('LEARNING TREE'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('i focuses the answer and Enter on the page submits it', (
+    tester,
+  ) async {
+    String? sent;
+    await pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        teaching: TeachingState(
+          goal: _measured.goal,
+          prior: _measured.prior,
+          held: _measured.held,
+          gaps: _measured.gaps,
+          plan: _measured.plan,
+          checks: const [],
+          current: _openStep,
+        ),
+        onCheck: (answer, _, _) => sent = answer,
+        onNextStep: () {},
+      ),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyI);
+    await tester.enterText(
+      find.byKey(const ValueKey('teach-answer')),
+      'on the stack',
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(sent, 'on the stack');
+  });
+
+  testWidgets('an unlocked branch opens by name; a locked row does nothing', (
+    tester,
+  ) async {
+    String? opened;
+    await pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        teaching: TeachingState(
+          goal: _measured.goal,
+          prior: _measured.prior,
+          held: _measured.held,
+          gaps: _measured.gaps,
+          plan: const [
+            TeachingStep(id: 'step-1', title: 'root'),
+            TeachingStep(id: 'step-2', title: 'left', requires: ['step-1']),
+            TeachingStep(id: 'step-3', title: 'right', requires: ['step-1']),
+            TeachingStep(
+              id: 'step-4',
+              title: 'join',
+              requires: ['step-2', 'step-3'],
+            ),
+          ],
+          checks: const [
+            TeachingCheckRecord(
+              stepId: 'step-1',
+              verdict: 'correct',
+              correction: '',
+            ),
+          ],
+        ),
+        onNextStep: () {},
+        onOpenStep: (stepId) => opened = stepId,
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('teach-plan-step-3')));
+    await tester.pump();
+    expect(opened, 'step-3');
+
+    opened = null;
+    await tester.tap(find.byKey(const ValueKey('teach-plan-step-4')));
+    await tester.pump();
+    expect(opened, isNull);
   });
 }

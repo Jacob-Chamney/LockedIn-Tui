@@ -72,6 +72,7 @@ abstract final class CoreMethod {
   static const String workAgentSave = 'work.agent.save';
   static const String workAgentDelete = 'work.agent.delete';
   static const String workDefaultAgent = 'work.defaultAgent';
+  static const String workInstructionsSave = 'work.instructions.save';
   static const String workChanges = 'work.changes';
   static const String workWritePropose = 'work.write.propose';
   static const String workWriteDecide = 'work.write.decide';
@@ -204,6 +205,7 @@ abstract final class CoreMethod {
     workAgentSave,
     workAgentDelete,
     workDefaultAgent,
+    workInstructionsSave,
     workChanges,
     workWritePropose,
     workWriteDecide,

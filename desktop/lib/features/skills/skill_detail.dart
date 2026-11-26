@@ -58,6 +58,7 @@ class SkillDetailView extends StatefulWidget {
     this.teachingVerdict,
     this.onMeasure,
     this.onNextStep,
+    this.onOpenStep,
     this.onCheck,
     this.sideMessages = const [],
     this.sideLoading = false,
@@ -176,6 +177,9 @@ class SkillDetailView extends StatefulWidget {
   /// Open the next step (`teach.step`).
   final VoidCallback? onNextStep;
 
+  /// Open one named step, so a learner can choose between unlocked branches.
+  final void Function(String stepId)? onOpenStep;
+
   /// Answer the open step (`teach.check`).
   ///
   /// The second and third values are the learner's optional reasoning and
@@ -245,10 +249,27 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   final _chapterScroll = ScrollController();
 
   @override
+  void initState() {
+    super.initState();
+    // Enter submits; Esc hands the keyboard back to the page. Without this a
+    // focus in the answer field made the teaching loop's keys unreachable.
+    _answerFocus.onKeyEvent = (node, event) {
+      if (event is! KeyDownEvent) return KeyEventResult.ignored;
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        _pageFocus.requestFocus();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    };
+  }
+
+  @override
   void dispose() {
     _chapterScroll.dispose();
     _sectionsScroll.dispose();
     _answer.dispose();
+    _answerFocus.dispose();
+    _pageFocus.dispose();
     _thinking.dispose();
     _sideInput.dispose();
     _researchQuestion.dispose();
@@ -271,10 +292,15 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   /// Which phase the rail marks as current (the one last navigated to).
   _Phase _phase = _Phase.teach;
 
+  /// The context tab under the learning surface. Sources is the default: the
+  /// material every lesson and check is built from. Goal metadata, chats and
+  /// research sit behind the other tabs instead of stacking under the lesson.
+  int _contextTab = 0;
+
   /// One key per phase section, so the rail can scroll to it and tests can
   /// assert where the navigation landed.
-  final _measureKey = GlobalKey(debugLabel: 'phase-measure');
   final _planKey = GlobalKey(debugLabel: 'phase-plan');
+  final _stagesKey = GlobalKey(debugLabel: 'phase-stages');
   final _teachKey = GlobalKey(debugLabel: 'phase-teach');
   final _practiceKey = GlobalKey(debugLabel: 'phase-practice');
 
@@ -285,8 +311,13 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   /// The scroll the four sections live in.
   final _sectionsScroll = ScrollController();
 
+  /// Where the keyboard rests in NORMAL mode. `Esc` in a check field returns
+  /// here, so the teaching keys are never dead behind a text field.
+  final _pageFocus = FocusNode(debugLabel: 'skill-page');
+
   /// The answer to the open step's check.
   final _answer = TextEditingController();
+  final _answerFocus = FocusNode(debugLabel: 'teach-answer');
 
   /// The learner's own reasoning, optional. Never judged as the answer.
   final _thinking = TextEditingController();
@@ -435,7 +466,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                 'this goal and the original is never moved.',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -835,6 +866,62 @@ class _SkillDetailViewState extends State<SkillDetailView> {
       widget.onBack!();
       return KeyEventResult.handled;
     }
+    // The four phases are one press each, so the rail is reachable without a
+    // pointer. They are bare digits, not leader chords: the rail is the page's
+    // own map and this page has no other digit action.
+    final phaseKey = switch (key) {
+      LogicalKeyboardKey.digit1 || LogicalKeyboardKey.numpad1 => _Phase.measure,
+      LogicalKeyboardKey.digit2 || LogicalKeyboardKey.numpad2 => _Phase.plan,
+      LogicalKeyboardKey.digit3 || LogicalKeyboardKey.numpad3 => _Phase.teach,
+      LogicalKeyboardKey.digit4 ||
+      LogicalKeyboardKey.numpad4 => _Phase.practice,
+      _ => null,
+    };
+    if (phaseKey != null) {
+      if (event is KeyDownEvent) _gotoPhase(phaseKey);
+      return KeyEventResult.handled;
+    }
+    // The teaching loop's own keys. They exist only when the core has a
+    // teaching record, so a course/stage goal keeps its old grammar.
+    final teaching = widget.teaching;
+    if (teaching != null) {
+      final measured = teaching.measured;
+      if (key == LogicalKeyboardKey.keyM &&
+          !measured &&
+          widget.onMeasure != null &&
+          !widget.teachingLoading) {
+        if (event is KeyDownEvent) widget.onMeasure!();
+        return KeyEventResult.handled;
+      }
+      if (measured) {
+        if (key == LogicalKeyboardKey.keyN &&
+            widget.onNextStep != null &&
+            !widget.teachingLoading) {
+          if (event is KeyDownEvent) widget.onNextStep!();
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.keyI && teaching.current != null) {
+          if (event is KeyDownEvent) _answerFocus.requestFocus();
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.keyS &&
+            teaching.current != null &&
+            widget.onSideSend != null) {
+          if (event is KeyDownEvent) _toggleSide();
+          return KeyEventResult.handled;
+        }
+        // Enter submits the check when the page (not a field) has the
+        // keyboard. With no open step it still opens the selected
+        // stage/chapter below, so the legacy path is untouched.
+        if ((key == LogicalKeyboardKey.enter ||
+                key == LogicalKeyboardKey.numpadEnter) &&
+            teaching.current != null &&
+            _answer.text.trim().isNotEmpty) {
+          if (event is KeyDownEvent) _submitCheck();
+          return KeyEventResult.handled;
+        }
+      }
+    }
     // `e` edits the curriculum. It is separate from `a` (add sources), so the
     // sources action is not shadowed outside edit mode.
     if (key == LogicalKeyboardKey.keyE) {
@@ -911,6 +998,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   @override
   Widget build(BuildContext context) {
     return Focus(
+      focusNode: _pageFocus,
       autofocus: true,
       onKeyEvent: _onKey,
       child: widget.chapterOpen ? _reader() : _goalPage(),
@@ -1065,36 +1153,31 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                   child: _teachingCard(),
                 ),
                 const SizedBox(height: Space.md),
-                KeyedSubtree(
-                  key: _sectionKey(_Phase.measure),
-                  child: _goalCard(),
-                ),
-                const SizedBox(height: Space.md),
-                // A course has chapters, not stages: the plan section is the
-                // curriculum when there is one.
-                if (_stages.isNotEmpty || _editingStages) ...[
-                  KeyedSubtree(
-                    key: _sectionKey(_Phase.plan),
-                    child: _stagesCard(),
-                  ),
-                  const SizedBox(height: Space.md),
-                ],
-                // Sources sit above the lesson: the plan and every stage are
-                // built from them, so they are context for what follows.
-                _sourcesCard(),
-                const SizedBox(height: Space.md),
-                if (_chapters.isNotEmpty) ...[
-                  KeyedSubtree(key: _courseKey, child: _courseCard()),
-                  const SizedBox(height: Space.md),
-                ],
+                // Practice is part of the harness, not context: it follows the
+                // learning surface.
                 KeyedSubtree(
                   key: _sectionKey(_Phase.practice),
                   child: _practiceCard(),
                 ),
                 const SizedBox(height: Space.md),
-                _chatsCard(),
-                const SizedBox(height: Space.md),
-                _researchCard(),
+                if (_chapters.isNotEmpty) ...[
+                  KeyedSubtree(key: _courseKey, child: _courseCard()),
+                  const SizedBox(height: Space.md),
+                ],
+                // A curriculum goal's stage list is its plan; it stays primary
+                // until the teaching loop has a measured plan of its own.
+                if ((_stages.isNotEmpty &&
+                        !(widget.teaching?.measured ?? false)) ||
+                    _editingStages) ...[
+                  KeyedSubtree(key: _stagesKey, child: _stagesCard()),
+                  const SizedBox(height: Space.md),
+                ],
+                _contextTabBar(),
+                const SizedBox(height: Space.xs),
+                Offstage(offstage: _contextTab != 0, child: _sourcesCard()),
+                Offstage(offstage: _contextTab != 1, child: _chatsCard()),
+                Offstage(offstage: _contextTab != 2, child: _researchCard()),
+                Offstage(offstage: _contextTab != 3, child: _goalCard()),
               ],
             ),
           ),
@@ -1352,7 +1435,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: LockedInType.body.copyWith(
-                            fontSize: 12.5,
+                            fontSize: TypeScale.key,
                             color: item.id == widget.researchOpenId
                                 ? LockedInColors.primary
                                 : LockedInColors.foreground,
@@ -1513,21 +1596,54 @@ class _SkillDetailViewState extends State<SkillDetailView> {
           const SizedBox(height: Space.md),
           const Rule(),
           const SizedBox(height: Space.sm),
-          SectionLabel('plan', trailing: '$index of ${record.plan.length}'),
-          const SizedBox(height: Space.xxs),
-          for (final (position, entry) in record.plan.indexed)
-            _PlanRow(
-              key: ValueKey('teach-plan-${entry.id}'),
-              number: position + 1,
-              title: entry.title,
-              passed: record.checks.any(
-                (check) =>
-                    check.stepId == entry.id && check.verdict == 'correct',
-              ),
-              current: position == index && !done,
-              depth: record.depthOf(position),
-              needs: entry.requires.length,
+          KeyedSubtree(
+            key: _planKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SectionLabel(
+                  'learning tree',
+                  trailing:
+                      '${record.passedCount} of ${record.plan.length} held',
+                ),
+                const SizedBox(height: Space.xxs),
+                Text(
+                  'Start at the top. A branch unlocks once every step it needs is held.',
+                  style: LockedInType.micro.copyWith(
+                    color: LockedInColors.muted,
+                    letterSpacing: 0,
+                  ),
+                ),
+                const SizedBox(height: Space.xs),
+                for (final (position, entry) in record.plan.indexed)
+                  _PlanRow(
+                    key: ValueKey('teach-plan-${entry.id}'),
+                    number: position + 1,
+                    title: entry.title,
+                    passed: record.checks.any(
+                      (check) =>
+                          check.stepId == entry.id &&
+                          check.verdict == 'correct',
+                    ),
+                    current: position == index && !done,
+                    depth: record.depthOf(position),
+                    needs: entry.requires.length,
+                    locked: record.lockedOf(position),
+                    blockedBy: record.blockersOf(position),
+                    onTap:
+                        widget.onOpenStep == null ||
+                            record.lockedOf(position) ||
+                            record.checks.any(
+                              (check) =>
+                                  check.stepId == entry.id &&
+                                  check.verdict == 'correct',
+                            )
+                        ? null
+                        : () => widget.onOpenStep!(entry.id),
+                  ),
+              ],
             ),
+          ),
           const SizedBox(height: Space.md),
           if (widget.teachingError != null) ...[
             Text(
@@ -1634,8 +1750,10 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                   TextField(
                     key: const ValueKey('teach-answer'),
                     controller: _answer,
+                    focusNode: _answerFocus,
                     minLines: 1,
                     maxLines: 3,
+                    textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _submitCheck(),
                     style: LockedInType.proseSmall.copyWith(
                       color: LockedInColors.foreground,
@@ -1925,8 +2043,16 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   );
 
   GlobalKey _sectionKey(_Phase phase) => switch (phase) {
-    _Phase.measure => _measureKey,
-    _Phase.plan => _planKey,
+    // Measure, the tree and the step all live in the teaching card. The tree
+    // has its own key so `2 plan` lands on it rather than the card's top, and
+    // a curriculum goal falls back to its stage list when there is no tree.
+    _Phase.measure => _teachKey,
+    _Phase.plan =>
+      (widget.teaching?.measured ?? false)
+          ? _planKey
+          : _stages.isEmpty
+          ? _teachKey
+          : _stagesKey,
     _Phase.teach => _teachKey,
     _Phase.practice => _practiceKey,
   };
@@ -1962,27 +2088,40 @@ class _SkillDetailViewState extends State<SkillDetailView> {
     final done = stages.where((stage) => stage.done).length;
     final stageIndex = _stageIndex;
     final stage = stageIndex < 0 ? null : stages[stageIndex];
-    final prior = widget.detail.prior.trim();
+    final teaching = widget.teaching;
+    final measured = teaching?.measured ?? false;
+    final practice = teaching?.practice;
     final rows = <(_Phase, String, String)>[
       (
         _Phase.measure,
         'measure',
-        prior.isEmpty ? 'starting point missing' : 'starting point set',
+        teaching == null
+            ? 'not measured'
+            : '${teaching.held.length} held · ${teaching.gaps.length} gap'
+                  '${teaching.gaps.length == 1 ? '' : 's'}',
       ),
       (
         _Phase.plan,
         'plan',
-        _chapters.isNotEmpty
+        measured
+            ? '${teaching!.passedCount}/${teaching.plan.length} held'
+            : _chapters.isNotEmpty
             ? 'course ${_chapters.where((chapter) => chapter.done).length}/'
                   '${_chapters.length}'
             : stages.isEmpty
-            ? 'no stages'
+            ? 'not planned'
             : '$done/${stages.length} held',
       ),
       (
         _Phase.teach,
         'teach',
-        stage == null
+        measured
+            ? teaching!.current != null
+                  ? 'step ${teaching.nextIndex + 1} of ${teaching.plan.length}'
+                  : teaching.nextIndex >= teaching.plan.length
+                  ? 'all steps held'
+                  : 'step ${teaching.nextIndex + 1} ready'
+            : stage == null
             ? 'pick a stage'
             : stage.done
             ? 'held'
@@ -1991,7 +2130,13 @@ class _SkillDetailViewState extends State<SkillDetailView> {
       (
         _Phase.practice,
         'practice',
-        stages.isEmpty ? 'after the plan' : '${stages.length - done} to hold',
+        practice != null && practice.problems.isNotEmpty
+            ? '${practice.solved.length} solved · ${practice.missed.length} to revisit'
+            : measured
+            ? 'after a check'
+            : stages.isEmpty
+            ? 'after the plan'
+            : '${stages.length - done} to hold',
       ),
     ];
     return Container(
@@ -2027,7 +2172,11 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Space.sm),
               child: Text(
-                'Enter opens a stage · b builds its lesson',
+                measured
+                    ? '1–4 jump · n next · i answer · s ask'
+                    : teaching == null
+                    ? '1–4 jump · m measure'
+                    : '1–4 jump · m measure · Enter check',
                 style: LockedInType.micro.copyWith(
                   color: LockedInColors.muted,
                   letterSpacing: 0,
@@ -2073,7 +2222,10 @@ class _SkillDetailViewState extends State<SkillDetailView> {
           width: 110,
           child: Text(
             label,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ),
         Expanded(
@@ -2081,12 +2233,61 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             value,
             style: TextStyle(
               color: LockedInColors.foreground,
-              fontSize: 12.5,
+              fontSize: TypeScale.key,
               height: 1.45,
             ),
           ),
         ),
       ],
+    );
+  }
+
+  /// The context tabs: sources, chats, research, goal metadata.
+  ///
+  /// The learning surface is the page; everything a lesson is *built from* or
+  /// *discussed in* is one click away instead of four cards below it.
+  Widget _contextTabBar() {
+    const tabs = <(String, String)>[
+      ('sources', 'sources'),
+      ('chats', 'chats'),
+      ('research', 'research'),
+      ('goal', 'goal'),
+    ];
+    return Container(
+      key: const ValueKey('skill-context-tabs'),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: LockedInColors.line)),
+      ),
+      child: Row(
+        children: [
+          for (final (index, (id, label)) in tabs.indexed)
+            InkWell(
+              key: ValueKey('skill-context-tab-$id'),
+              onTap: () => setState(() => _contextTab = index),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(10, 4, 10, 6),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: _contextTab == index
+                          ? LockedInColors.primary
+                          : Colors.transparent,
+                      width: Stroke.focus,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  label,
+                  style: LockedInType.label.copyWith(
+                    color: _contextTab == index
+                        ? LockedInColors.foreground
+                        : LockedInColors.muted,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -2107,7 +2308,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             'here. The core keeps one copy per source inside the goal folder.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -2163,7 +2364,10 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                 const SizedBox(width: 12),
                 Text(
                   'a add sources',
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ],
             ),
@@ -2203,7 +2407,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: LockedInColors.foreground,
-                          fontSize: 13,
+                          fontSize: TypeScale.body,
                         ),
                       ),
                     ),
@@ -2219,7 +2423,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 11.5,
+                      fontSize: TypeScale.label,
                       height: 1.4,
                     ),
                   ),
@@ -2267,7 +2471,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             'sources. An unsourced claim is labelled as an agent explanation.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -2337,7 +2541,10 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                       if (editable) 'e edit stages',
                       'Esc back',
                     ].join(' · '),
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
         ],
@@ -2356,10 +2563,10 @@ class _SkillDetailViewState extends State<SkillDetailView> {
       padding: const EdgeInsets.only(bottom: 4),
       child: Material(
         color: selected ? LockedInColors.panel : Colors.transparent,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         child: InkWell(
           key: ValueKey('skill-stage-${stage.id}'),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(Radii.layer),
           onTap: (widget.onOpenStage == null && !_editingStages)
               ? null
               : () {
@@ -2375,7 +2582,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             key: selected ? _selectedStageKey : null,
             padding: const EdgeInsets.fromLTRB(0, 8, 10, 8),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(Radii.layer),
               border: Border.all(
                 color: selected
                     ? LockedInColors.primary.withValues(alpha: 0.5)
@@ -2393,7 +2600,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                         ? LockedInColors.primary
                         : Colors.transparent,
                     borderRadius: const BorderRadius.horizontal(
-                      right: Radius.circular(2),
+                      right: Radius.circular(Radii.control),
                     ),
                   ),
                 ),
@@ -2410,7 +2617,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: LockedInColors.foreground,
-                          fontSize: 13,
+                          fontSize: TypeScale.body,
                           fontWeight: selected
                               ? FontWeight.w600
                               : FontWeight.w400,
@@ -2424,7 +2631,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: LockedInColors.muted,
-                            fontSize: 10.5,
+                            fontSize: TypeScale.micro,
                             height: 1.4,
                           ),
                         ),
@@ -2486,7 +2693,10 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                 if (widget.onOpenChat != null) 'c chat',
                 'Esc back',
               ].join(' · '),
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
         ],
@@ -2505,9 +2715,9 @@ class _SkillDetailViewState extends State<SkillDetailView> {
       padding: const EdgeInsets.only(bottom: 4),
       child: Material(
         color: selected ? LockedInColors.panel : Colors.transparent,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         child: InkWell(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(Radii.layer),
           onTap: widget.onOpenChapter == null
               ? null
               : () {
@@ -2521,7 +2731,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             key: selected ? _selectedChapterKey : null,
             padding: const EdgeInsets.fromLTRB(0, 8, 10, 8),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(Radii.layer),
               border: Border.all(
                 color: selected
                     ? LockedInColors.primary.withValues(alpha: 0.5)
@@ -2538,7 +2748,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                         ? LockedInColors.primary
                         : Colors.transparent,
                     borderRadius: const BorderRadius.horizontal(
-                      right: Radius.circular(2),
+                      right: Radius.circular(Radii.control),
                     ),
                   ),
                 ),
@@ -2565,7 +2775,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: LockedInColors.foreground,
-                          fontSize: 13,
+                          fontSize: TypeScale.body,
                           fontWeight: selected
                               ? FontWeight.w600
                               : FontWeight.w400,
@@ -2579,7 +2789,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: LockedInColors.muted,
-                            fontSize: 10.5,
+                            fontSize: TypeScale.micro,
                             fontFamily: 'monospace',
                           ),
                         ),
@@ -2619,7 +2829,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             'from them or are labelled as an agent explanation.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -2691,20 +2901,29 @@ class _SkillDetailViewState extends State<SkillDetailView> {
               chat.title.isEmpty ? chat.id : chat.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: LockedInColors.foreground, fontSize: 13),
+              style: TextStyle(
+                color: LockedInColors.foreground,
+                fontSize: TypeScale.body,
+              ),
             ),
           ),
           if (used.isNotEmpty) ...[
             const SizedBox(width: 10),
             Text(
               used,
-              style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.micro,
+              ),
             ),
           ],
           const SizedBox(width: 10),
           Text(
             chat.messages == 1 ? '1 message' : '${chat.messages} messages',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.micro,
+            ),
           ),
         ],
       ),
@@ -2751,7 +2970,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                       practical ? 'practical' : 'lesson',
                       style: TextStyle(
                         color: LockedInColors.muted,
-                        fontSize: 11,
+                        fontSize: TypeScale.label,
                       ),
                     ),
                   ],
@@ -2797,7 +3016,10 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             SizedBox(height: 14),
             Text(
               'loading chapter…',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
         ),
@@ -2857,7 +3079,10 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                 const SizedBox(height: 18),
                 Text(
                   'Esc back',
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ],
             ),
@@ -2884,7 +3109,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             decoration: BoxDecoration(
               color: LockedInColors.surface,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(Radii.layer),
               border: Border.all(color: LockedInColors.line),
             ),
             child: Column(
@@ -2905,7 +3130,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
                   body,
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 13,
+                    fontSize: TypeScale.body,
                     height: 1.5,
                   ),
                 ),
@@ -3014,6 +3239,9 @@ class _PlanRow extends StatelessWidget {
     required this.current,
     this.depth = 0,
     this.needs = 0,
+    this.locked = false,
+    this.blockedBy = const [],
+    this.onTap,
   });
 
   final int number;
@@ -3027,77 +3255,134 @@ class _PlanRow extends StatelessWidget {
   /// How many earlier steps it builds on (0 = a root).
   final int needs;
 
+  /// True when a prerequisite is not held yet. A locked row is legible but not
+  /// an invitation: the tree says what unlocks it instead of opening it.
+  final bool locked;
+
+  /// The titles of the steps that still block this one, in plan order.
+  final List<String> blockedBy;
+
+  /// Open this step when it is available. A locked or held row has none.
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     final tone = current
         ? LockedInColors.foreground
         : passed
         ? LockedInColors.muted
+        : locked
+        ? LockedInColors.muted
         : LockedInColors.secondary;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: Space.xs - 3),
-      decoration: BoxDecoration(
-        color: current ? LockedInColors.panel : Colors.transparent,
-        border: Border(
-          left: BorderSide(
-            color: current ? LockedInColors.primary : Colors.transparent,
-            width: Stroke.focus,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          // The map, not a list: a branch is indented under what it needs.
-          if (depth > 0) ...[
-            SizedBox(width: 14.0 * (depth - 1)),
-            SizedBox(
-              width: 14,
-              child: Text(
-                '└',
-                style: LockedInType.micro.copyWith(color: LockedInColors.line),
-              ),
-            ),
-          ],
-          SizedBox(
-            width: 32,
-            child: Text(
-              passed ? '✓' : '$number',
-              textAlign: TextAlign.center,
-              style: LockedInType.micro.copyWith(
-                color: passed ? LockedInColors.success : tone,
-                fontWeight: FontWeight.w600,
+    final after = blockedBy.isEmpty ? '' : blockedBy.join(', ');
+    return Semantics(
+      label: locked
+          ? '$title — locked${after.isEmpty ? '' : '; after $after'}'
+          : title,
+      selected: current,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: Space.xs - 3),
+          decoration: BoxDecoration(
+            color: current ? LockedInColors.panel : Colors.transparent,
+            border: Border(
+              left: BorderSide(
+                color: current ? LockedInColors.primary : Colors.transparent,
+                width: Stroke.focus,
               ),
             ),
           ),
-          const SizedBox(width: Space.xs),
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: LockedInType.body.copyWith(fontSize: 12.5, color: tone),
-            ),
-          ),
-          if (needs > 1)
-            Padding(
-              padding: const EdgeInsets.only(left: Space.xxs),
-              child: Text(
-                'needs $needs',
-                style: LockedInType.micro.copyWith(
-                  color: LockedInColors.muted,
-                  letterSpacing: 0,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // The map, not a list: a branch is indented under what it needs.
+              if (depth > 0) ...[
+                SizedBox(width: 14.0 * (depth - 1)),
+                SizedBox(
+                  width: 14,
+                  child: Text(
+                    '└',
+                    style: LockedInType.micro.copyWith(
+                      color: LockedInColors.line,
+                    ),
+                  ),
+                ),
+              ],
+              SizedBox(
+                width: 32,
+                child: locked
+                    ? Icon(
+                        Icons.lock_outline,
+                        size: 13,
+                        color: LockedInColors.muted,
+                      )
+                    : Text(
+                        passed ? '✓' : '$number',
+                        textAlign: TextAlign.center,
+                        style: LockedInType.micro.copyWith(
+                          color: passed ? LockedInColors.success : tone,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+              ),
+              const SizedBox(width: Space.xs),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: LockedInType.body.copyWith(
+                        fontSize: TypeScale.key,
+                        color: tone,
+                      ),
+                    ),
+                    if (locked && after.isNotEmpty)
+                      Text(
+                        'after $after',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: LockedInType.micro.copyWith(
+                          color: LockedInColors.muted,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-            ),
-          if (current)
-            Text(
-              'here',
-              style: LockedInType.micro.copyWith(
-                color: LockedInColors.primary,
-                letterSpacing: 0,
-              ),
-            ),
-        ],
+              if (current)
+                Text(
+                  'here',
+                  style: LockedInType.micro.copyWith(
+                    color: LockedInColors.primary,
+                    letterSpacing: 0,
+                  ),
+                )
+              else if (locked)
+                Text(
+                  'locked',
+                  style: LockedInType.micro.copyWith(
+                    color: LockedInColors.muted,
+                    letterSpacing: 0,
+                  ),
+                )
+              else if (needs > 1)
+                Padding(
+                  padding: const EdgeInsets.only(left: Space.xxs),
+                  child: Text(
+                    'needs $needs',
+                    style: LockedInType.micro.copyWith(
+                      color: LockedInColors.muted,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -3287,7 +3572,7 @@ class _PhaseRow extends StatelessWidget {
                         Text(
                           label,
                           style: LockedInType.body.copyWith(
-                            fontSize: 12.5,
+                            fontSize: TypeScale.key,
                             color: selected
                                 ? LockedInColors.foreground
                                 : LockedInColors.muted,
@@ -3397,7 +3682,7 @@ class _StagePromptDialogState extends State<_StagePromptDialog> {
                 'keeps its id, status and lesson.',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 11.5,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -3487,7 +3772,7 @@ class _StageConfirmDialog extends StatelessWidget {
                 question,
                 style: TextStyle(
                   color: LockedInColors.foreground,
-                  fontSize: 13,
+                  fontSize: TypeScale.body,
                   height: 1.45,
                 ),
               ),
@@ -3496,7 +3781,7 @@ class _StageConfirmDialog extends StatelessWidget {
                 detail,
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -3538,7 +3823,7 @@ class _ErrorBanner extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Row(
@@ -3551,7 +3836,7 @@ class _ErrorBanner extends StatelessWidget {
               message,
               style: TextStyle(
                 color: LockedInColors.error,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),
@@ -3577,7 +3862,7 @@ class _Notice extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(
           color: LockedInColors.warning.withValues(alpha: 0.5),
         ),
@@ -3592,7 +3877,7 @@ class _Notice extends StatelessWidget {
               message,
               style: TextStyle(
                 color: LockedInColors.warning,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),
@@ -3616,7 +3901,7 @@ class _SourceNotice extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(
           color: LockedInColors.success.withValues(alpha: 0.5),
         ),
@@ -3635,7 +3920,7 @@ class _SourceNotice extends StatelessWidget {
               message,
               style: TextStyle(
                 color: LockedInColors.success,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),
@@ -3677,7 +3962,7 @@ class _EmptyNote extends StatelessWidget {
                 title,
                 style: TextStyle(
                   color: tone,
-                  fontSize: 12.5,
+                  fontSize: TypeScale.key,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -3689,7 +3974,7 @@ class _EmptyNote extends StatelessWidget {
           body,
           style: TextStyle(
             color: LockedInColors.muted,
-            fontSize: 12,
+            fontSize: TypeScale.label,
             height: 1.45,
           ),
         ),

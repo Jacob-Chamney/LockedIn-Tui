@@ -56,7 +56,7 @@ change our product:
 | **One reasoning step at a time** | Each teaching beat adds exactly one connection to something already held. |
 | **A check after every step** | The step is verified immediately; a miss is repaired before anything is built on it. |
 | **The minimal tree** | The plan is the smallest dependency set from held to goal — not a topic list, not coverage. |
-| **Plan is a map, not the road** | The learner sees a coarse structural map; the lesson is not chopped into "Part 3". |
+| **Plan is a map, not the road** | The learner sees a coarse structural map; the lesson is not chopped into "Part 3". The map is a tree: the first step is open and a branch stays locked, with the blocking step named, until everything it builds on is held. |
 | **Presentation is clarity** | No meta-narration, no labelled segments, no restating the structure. Prose carries the reasoning. |
 | **Knowledge is a graph** | Held propositions and the reasoning links between them persist across sessions. |
 | **Practice retrieves without naming** | Problems that require the knowledge to come to mind, not questions that name the concept. |
@@ -83,6 +83,9 @@ left is always visible.
 
 - Every generation returns **structured data we render**, never prose we dump:
   a probe set, a plan tree, one step, one check, one repair.
+- The four phases are keyboard-reachable (`1`–`4`), and the teaching loop has
+  its own keys (`m` measure, `n` next step, `i` answer, `s` side question,
+  `Enter` check), so the harness never requires a pointer.
 - Prompts state the shape, the length budget and the voice, and refuse
   meta-commentary ("In this step we will…"). A reply that fails the shape is
   retried once by us with the failure named, then reported — never rendered raw.

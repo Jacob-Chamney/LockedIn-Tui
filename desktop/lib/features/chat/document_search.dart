@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../theme/palette.dart';
 import '../../theme/breakpoints.dart';
+import '../../theme/tokens.dart';
 
 /// One case-insensitive match inside a document.
 ///
@@ -287,7 +288,7 @@ class _DocumentSearchBarState extends State<DocumentSearchBar> {
                   maxLines: 1,
                   style: TextStyle(
                     color: LockedInColors.foreground,
-                    fontSize: 13,
+                    fontSize: TypeScale.body,
                   ),
                   decoration: InputDecoration(
                     isDense: true,
@@ -296,22 +297,22 @@ class _DocumentSearchBarState extends State<DocumentSearchBar> {
                     hintText: 'find in document',
                     hintStyle: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 12,
+                      fontSize: TypeScale.label,
                     ),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 10,
                       vertical: 8,
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(Radii.layer),
                       borderSide: BorderSide(color: LockedInColors.line),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(Radii.layer),
                       borderSide: BorderSide(color: LockedInColors.line),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(Radii.layer),
                       borderSide: BorderSide(color: LockedInColors.primary),
                     ),
                   ),
@@ -337,7 +338,7 @@ class _DocumentSearchBarState extends State<DocumentSearchBar> {
                           color: widget.controller.hasMatches
                               ? LockedInColors.foreground
                               : LockedInColors.muted,
-                          fontSize: 11,
+                          fontSize: TypeScale.label,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -382,7 +383,7 @@ class _DocumentSearchBarState extends State<DocumentSearchBar> {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(
           color: LockedInColors.primary.withValues(alpha: 0.5),
         ),
@@ -393,7 +394,7 @@ class _DocumentSearchBarState extends State<DocumentSearchBar> {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: LockedInColors.primary,
-          fontSize: 10.5,
+          fontSize: TypeScale.micro,
           fontWeight: FontWeight.w600,
         ),
       ),

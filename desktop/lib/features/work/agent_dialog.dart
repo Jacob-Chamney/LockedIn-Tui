@@ -8,6 +8,7 @@ import '../../bridge/core_scope.dart';
 import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 
 /// The one line beside the Templates row when its read failed.
 ///
@@ -75,7 +76,7 @@ Future<bool> confirmAgentDelete(
                 'Delete “$name”?',
                 style: TextStyle(
                   color: LockedInColors.foreground,
-                  fontSize: 14,
+                  fontSize: TypeScale.proseSmall,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -86,7 +87,7 @@ Future<bool> confirmAgentDelete(
                 'moved or deleted.',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -431,7 +432,7 @@ class _AgentDialogState extends State<_AgentDialog> {
                   'folder.',
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     height: 1.45,
                   ),
                 ),
@@ -503,7 +504,7 @@ class _AgentDialogState extends State<_AgentDialog> {
                   'profile may use',
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 11,
+                    fontSize: TypeScale.label,
                     height: 1.4,
                   ),
                 ),
@@ -546,7 +547,7 @@ class _AgentDialogState extends State<_AgentDialog> {
                       'templates',
                       style: TextStyle(
                         color: LockedInColors.foreground,
-                        fontSize: 12.5,
+                        fontSize: TypeScale.key,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -558,7 +559,7 @@ class _AgentDialogState extends State<_AgentDialog> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: LockedInColors.muted,
-                          fontSize: 11,
+                          fontSize: TypeScale.label,
                           height: 1.4,
                         ),
                       ),
@@ -582,7 +583,7 @@ class _AgentDialogState extends State<_AgentDialog> {
                   'capability',
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 11,
+                    fontSize: TypeScale.label,
                     height: 1.4,
                   ),
                 ),
@@ -656,14 +657,14 @@ class _SwitchRow extends StatelessWidget {
                 label,
                 style: TextStyle(
                   color: LockedInColors.foreground,
-                  fontSize: 12.5,
+                  fontSize: TypeScale.key,
                 ),
               ),
               Text(
                 hint,
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 10.5,
+                  fontSize: TypeScale.micro,
                   height: 1.4,
                 ),
               ),
@@ -687,7 +688,7 @@ class _ErrorNote extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Row(
@@ -700,7 +701,7 @@ class _ErrorNote extends StatelessWidget {
               message,
               style: TextStyle(
                 color: LockedInColors.error,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),
@@ -821,7 +822,7 @@ class _TemplatePickerDialogState extends State<_TemplatePickerDialog> {
                   'it saves nothing until you press Save.',
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     height: 1.45,
                   ),
                 ),
@@ -832,7 +833,7 @@ class _TemplatePickerDialogState extends State<_TemplatePickerDialog> {
                     key: const ValueKey('template-picker-error'),
                     style: TextStyle(
                       color: LockedInColors.warning,
-                      fontSize: 11.5,
+                      fontSize: TypeScale.label,
                       height: 1.4,
                     ),
                   ),
@@ -845,7 +846,7 @@ class _TemplatePickerDialogState extends State<_TemplatePickerDialog> {
                       'reading templates…',
                       style: TextStyle(
                         color: LockedInColors.muted,
-                        fontSize: 12,
+                        fontSize: TypeScale.label,
                       ),
                     ),
                   )
@@ -858,7 +859,7 @@ class _TemplatePickerDialogState extends State<_TemplatePickerDialog> {
                       key: const ValueKey('template-picker-empty'),
                       style: TextStyle(
                         color: LockedInColors.muted,
-                        fontSize: 12,
+                        fontSize: TypeScale.label,
                         height: 1.45,
                       ),
                     ),
@@ -896,7 +897,7 @@ class _TemplatePickerDialogState extends State<_TemplatePickerDialog> {
                   'j/k move · Enter choose · Esc back',
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 10.5,
+                    fontSize: TypeScale.micro,
                     height: 1.4,
                   ),
                 ),
@@ -940,7 +941,7 @@ class _TemplateRow extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
         decoration: BoxDecoration(
           color: selected ? LockedInColors.panel : null,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(Radii.layer),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -964,7 +965,7 @@ class _TemplateRow extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: LockedInColors.foreground,
-                            fontSize: 12.5,
+                            fontSize: TypeScale.key,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -980,7 +981,7 @@ class _TemplateRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 11,
+                      fontSize: TypeScale.label,
                       height: 1.4,
                     ),
                   ),
@@ -991,7 +992,7 @@ class _TemplateRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 10.5,
+                      fontSize: TypeScale.micro,
                       height: 1.35,
                     ),
                   ),
@@ -1016,14 +1017,14 @@ class _TemplateBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Text(
         label,
         style: TextStyle(
           color: LockedInColors.muted,
-          fontSize: 10,
+          fontSize: TypeScale.micro,
           height: 1.3,
         ),
       ),
@@ -1068,7 +1069,7 @@ class _TemplateReplaceDialog extends StatelessWidget {
                   'already set. Nothing is saved until you press Save.',
                   style: TextStyle(
                     color: LockedInColors.foreground,
-                    fontSize: 12.5,
+                    fontSize: TypeScale.key,
                     height: 1.45,
                   ),
                 ),
@@ -1082,7 +1083,7 @@ class _TemplateReplaceDialog extends StatelessWidget {
                       key: ValueKey('template-replace-${field.label}'),
                       style: TextStyle(
                         color: LockedInColors.muted,
-                        fontSize: 11.5,
+                        fontSize: TypeScale.label,
                         height: 1.45,
                       ),
                     ),

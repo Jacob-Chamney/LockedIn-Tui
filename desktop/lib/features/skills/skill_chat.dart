@@ -4,10 +4,12 @@ import 'package:material_ui/material_ui.dart';
 import '../../bridge/models.dart';
 import '../../theme/palette.dart';
 import '../chat/chat_failure.dart';
-import '../chat/usage_text.dart';
 import '../chat/markdown.dart';
 import '../chat/transcript_scroll.dart';
 import '../keys.dart';
+import '../../theme/tokens.dart';
+import '../../shell/chrome.dart';
+import '../../theme/breakpoints.dart';
 
 /// One goal-scoped chat surface.
 ///
@@ -36,6 +38,7 @@ class SkillChatView extends StatefulWidget {
     this.onModeChanged,
     this.initialText,
     this.onDraftChanged,
+    this.contextPane,
   });
 
   /// The chat id the core resolved (`chat-1`, `chat-2`, …).
@@ -74,6 +77,10 @@ class SkillChatView extends StatefulWidget {
 
   /// Reports every keystroke of the draft to the shell.
   final ValueChanged<String>? onDraftChanged;
+
+  /// The learning tree beside the transcript on a wide window. Null keeps the
+  /// chat full-width.
+  final Widget? contextPane;
 
   @override
   State<SkillChatView> createState() => _SkillChatViewState();
@@ -208,34 +215,53 @@ class _SkillChatViewState extends State<SkillChatView> {
 
   @override
   Widget build(BuildContext context) {
+    final chat = Column(
+      children: [
+        _header(),
+        if (widget.loading)
+          LinearProgressIndicator(
+            minHeight: 2,
+            color: LockedInColors.primary,
+            backgroundColor: LockedInColors.line,
+          ),
+        Expanded(child: _body()),
+        if (widget.chat?.error != null)
+          ChatFailureBanner(
+            failed: widget.chat!.error!.failed,
+            kept: widget.chat!.error!.kept,
+            next: widget.chat!.error!.next,
+            onRetry: widget.onRetry,
+          )
+        else if (widget.sendError != null && widget.sendError!.isNotEmpty)
+          ChatFailureBanner(
+            failed: widget.sendError!,
+            kept: 'your message is still in the composer',
+          ),
+        _composerBox(),
+      ],
+    );
     return Focus(
       focusNode: _pageFocus,
       autofocus: true,
       onKeyEvent: _onKey,
-      child: Column(
-        children: [
-          _header(),
-          if (widget.loading)
-            LinearProgressIndicator(
-              minHeight: 2,
-              color: LockedInColors.primary,
-              backgroundColor: LockedInColors.line,
-            ),
-          Expanded(child: _body()),
-          if (widget.chat?.error != null)
-            ChatFailureBanner(
-              failed: widget.chat!.error!.failed,
-              kept: widget.chat!.error!.kept,
-              next: widget.chat!.error!.next,
-              onRetry: widget.onRetry,
-            )
-          else if (widget.sendError != null && widget.sendError!.isNotEmpty)
-            ChatFailureBanner(
-              failed: widget.sendError!,
-              kept: 'your message is still in the composer',
-            ),
-          _composerBox(),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final pane = widget.contextPane;
+          // `Breakpoints.split` is the first width where a 340 px tree still
+          // leaves the chat a readable column. Below it the tree would be a
+          // sliver, so the chat keeps the full window and the goal page owns it.
+          if (pane == null || constraints.maxWidth < Breakpoints.split) {
+            return chat;
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: chat),
+              const VRule(),
+              SizedBox(width: 340, child: pane),
+            ],
+          );
+        },
       ),
     );
   }
@@ -282,7 +308,10 @@ class _SkillChatViewState extends State<SkillChatView> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -410,7 +439,7 @@ class _SkillChatViewState extends State<SkillChatView> {
                     color: blocked != null
                         ? LockedInColors.warning
                         : LockedInColors.muted,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                   ),
                 ),
               ),
@@ -449,14 +478,6 @@ class _SkillChatViewState extends State<SkillChatView> {
                     ),
                 ],
               ),
-              if (chat != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    chatUsageLabel(chat.usage),
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
-                  ),
-                ),
             ],
           ),
         ),
@@ -480,7 +501,7 @@ class _SkillChatViewState extends State<SkillChatView> {
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             decoration: BoxDecoration(
               color: LockedInColors.surface,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(Radii.layer),
               border: Border.all(color: LockedInColors.line),
             ),
             child: Column(
@@ -504,7 +525,7 @@ class _SkillChatViewState extends State<SkillChatView> {
                   body,
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 13,
+                    fontSize: TypeScale.body,
                     height: 1.5,
                   ),
                 ),
@@ -552,7 +573,10 @@ class _Loading extends StatelessWidget {
           Text(
             body,
             textAlign: TextAlign.center,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),
@@ -597,8 +621,8 @@ class _MessageBubble extends StatelessWidget {
               ? LockedInColors.primary.withValues(alpha: 0.16)
               : LockedInColors.panel,
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(10),
-            topRight: const Radius.circular(10),
+            topLeft: const Radius.circular(Radii.layer),
+            topRight: const Radius.circular(Radii.layer),
             bottomLeft: Radius.circular(user ? 10 : 2),
             bottomRight: Radius.circular(user ? 2 : 10),
           ),
@@ -625,21 +649,30 @@ class _MessageBubble extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 'streaming…',
-                style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: TypeScale.label,
+                ),
               ),
             ],
             if (failed) ...[
               const SizedBox(height: 6),
               Text(
                 '× failed',
-                style: TextStyle(color: LockedInColors.error, fontSize: 11),
+                style: TextStyle(
+                  color: LockedInColors.error,
+                  fontSize: TypeScale.label,
+                ),
               ),
             ],
             if (cancelled) ...[
               const SizedBox(height: 6),
               Text(
                 '— stopped',
-                style: TextStyle(color: LockedInColors.warning, fontSize: 11),
+                style: TextStyle(
+                  color: LockedInColors.warning,
+                  fontSize: TypeScale.label,
+                ),
               ),
             ],
           ],
@@ -663,7 +696,7 @@ class _StatusChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.circular(Radii.control),
         border: Border.all(color: LockedInColors.line),
       ),
       child: Row(
@@ -673,7 +706,10 @@ class _StatusChip extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),

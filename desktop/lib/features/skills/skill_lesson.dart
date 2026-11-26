@@ -7,6 +7,7 @@ import '../../bridge/models.dart';
 import '../../theme/palette.dart';
 import '../chat/markdown.dart';
 import '../shared/cards.dart';
+import '../../theme/tokens.dart';
 
 /// One curriculum stage's lesson, read or built.
 ///
@@ -191,7 +192,10 @@ class _SkillLessonViewState extends State<SkillLessonView> {
                   _subtitle(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ],
             ),
@@ -240,7 +244,10 @@ class _SkillLessonViewState extends State<SkillLessonView> {
             SizedBox(height: 14),
             Text(
               'loading lesson…',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
         ),
@@ -345,7 +352,10 @@ class _SkillLessonViewState extends State<SkillLessonView> {
                 const SizedBox(height: 10),
                 Text(
                   'Esc back',
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ],
             ),
@@ -372,7 +382,7 @@ class _SkillLessonViewState extends State<SkillLessonView> {
             'without a citation is marked as an agent explanation.',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12,
+              fontSize: TypeScale.label,
               height: 1.45,
             ),
           ),
@@ -411,7 +421,7 @@ class _SkillLessonViewState extends State<SkillLessonView> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: LockedInColors.foreground,
-                    fontSize: 13,
+                    fontSize: TypeScale.body,
                   ),
                 ),
                 if (citation.location.trim().isNotEmpty) ...[
@@ -422,7 +432,7 @@ class _SkillLessonViewState extends State<SkillLessonView> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 10.5,
+                      fontSize: TypeScale.micro,
                       fontFamily: 'monospace',
                     ),
                   ),
@@ -433,7 +443,7 @@ class _SkillLessonViewState extends State<SkillLessonView> {
                     excerpt,
                     style: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 11.5,
+                      fontSize: TypeScale.label,
                       height: 1.45,
                     ),
                   ),
@@ -462,7 +472,7 @@ class _SkillLessonViewState extends State<SkillLessonView> {
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             decoration: BoxDecoration(
               color: LockedInColors.surface,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(Radii.layer),
               border: Border.all(color: LockedInColors.line),
             ),
             child: Column(
@@ -486,7 +496,7 @@ class _SkillLessonViewState extends State<SkillLessonView> {
                   body,
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 13,
+                    fontSize: TypeScale.body,
                     height: 1.5,
                   ),
                 ),

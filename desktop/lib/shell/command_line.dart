@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../keymap/registry.dart';
 import '../theme/palette.dart';
+import '../theme/tokens.dart';
 
 /// One command the `:` line can run.
 ///
@@ -257,7 +258,7 @@ class _CommandLineState extends State<CommandLine> {
               child: Container(
                 decoration: BoxDecoration(
                   color: LockedInColors.surface,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(Radii.layer),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -270,7 +271,7 @@ class _CommandLineState extends State<CommandLine> {
                             ':',
                             style: TextStyle(
                               color: LockedInColors.primary,
-                              fontSize: 15,
+                              fontSize: TypeScale.prose,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -282,7 +283,7 @@ class _CommandLineState extends State<CommandLine> {
                               focusNode: _inputFocus,
                               style: TextStyle(
                                 color: LockedInColors.foreground,
-                                fontSize: 14,
+                                fontSize: TypeScale.proseSmall,
                               ),
                               // Borderless: the window is a surface fill with a
                               // plain header, never a box in a box.
@@ -354,7 +355,7 @@ class _CommandLineState extends State<CommandLine> {
                           '↑↓ move · Enter run · Esc close',
                           style: TextStyle(
                             color: LockedInColors.muted,
-                            fontSize: 11,
+                            fontSize: TypeScale.label,
                           ),
                         ),
                       ),
@@ -393,7 +394,7 @@ class _CommandRow extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 2),
         decoration: BoxDecoration(
           color: selected ? LockedInColors.panel : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(Radii.layer),
         ),
         child: Row(
           children: [
@@ -423,7 +424,10 @@ class _CommandRow extends StatelessWidget {
                 entry.hint,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: TypeScale.label,
+                ),
               ),
             ),
             const SizedBox(width: 10),

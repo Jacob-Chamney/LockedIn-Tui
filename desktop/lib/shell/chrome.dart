@@ -163,7 +163,10 @@ class KeyCap extends StatelessWidget {
       child: Text(
         keyLabel,
         maxLines: 1,
-        style: LockedInType.key.copyWith(color: colour, fontSize: 11.5),
+        style: LockedInType.key.copyWith(
+          color: colour,
+          fontSize: TypeScale.label,
+        ),
       ),
     );
   }

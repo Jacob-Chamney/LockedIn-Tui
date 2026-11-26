@@ -163,7 +163,7 @@ class _FlowchartCanvas extends StatelessWidget {
     final textStyle = TextStyle(
       color: LockedInColors.foreground,
       fontFamily: 'JetBrainsMono',
-      fontSize: 12,
+      fontSize: TypeScale.label,
       height: 1.2,
     );
     final sizes = <String, Size>{};
@@ -337,7 +337,7 @@ class _NodeBox extends StatelessWidget {
         style: TextStyle(
           color: LockedInColors.foreground,
           fontFamily: 'JetBrainsMono',
-          fontSize: 12,
+          fontSize: TypeScale.label,
           height: 1.2,
         ),
       ),
@@ -416,7 +416,7 @@ class _EdgePainter extends CustomPainter {
         style: TextStyle(
           color: labelColor,
           fontFamily: 'JetBrainsMono',
-          fontSize: 10,
+          fontSize: TypeScale.micro,
         ),
       ),
       textDirection: TextDirection.ltr,

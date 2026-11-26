@@ -242,7 +242,10 @@ class _ActivityPageState extends State<ActivityPage> {
                       : '$project · write, command and swarm decisions',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
                 // A skipped line is a note beside the rows, never an error: one
                 // interrupted append must not hide every other decision.
@@ -253,7 +256,7 @@ class _ActivityPageState extends State<ActivityPage> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 10.5,
+                      fontSize: TypeScale.micro,
                     ),
                   ),
               ],
@@ -278,7 +281,10 @@ class _ActivityPageState extends State<ActivityPage> {
         return Center(
           child: Text(
             'reading activity…',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         );
       }
@@ -334,7 +340,7 @@ class _ActivityPageState extends State<ActivityPage> {
                   'j/k move · s kind · r re-read · Esc back',
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 10.5,
+                    fontSize: TypeScale.micro,
                     height: 1.4,
                   ),
                 ),
@@ -361,14 +367,17 @@ class _ActivityPageState extends State<ActivityPage> {
             'project · $project',
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 10.5,
+              fontSize: TypeScale.micro,
               fontFamily: 'monospace',
             ),
           ),
         if (widget.onKind == null)
           Text(
             'kind · ${_kindLabel(widget.kind)}',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.micro,
+            ),
           )
         else
           // The filter is a chip: `s` and a click run the same cycle.
@@ -387,7 +396,7 @@ class _ActivityPageState extends State<ActivityPage> {
                 'kind · ${_kindLabel(widget.kind)}',
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 10.5,
+                  fontSize: TypeScale.micro,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -396,7 +405,10 @@ class _ActivityPageState extends State<ActivityPage> {
         if (widget.onKind != null)
           Text(
             's cycles the kind filter',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 10.5),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.micro,
+            ),
           ),
       ],
     );
@@ -417,10 +429,10 @@ class _ActivityPageState extends State<ActivityPage> {
       padding: const EdgeInsets.only(bottom: 6),
       child: Material(
         color: selected ? LockedInColors.panel : LockedInColors.surface,
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(Radii.layer),
         child: InkWell(
           key: ValueKey('activity-row-$index'),
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(Radii.layer),
           onTap: () => setState(() {
             _selected = index;
             if (!_expanded.remove(index)) _expanded.add(index);
@@ -429,7 +441,7 @@ class _ActivityPageState extends State<ActivityPage> {
             key: selected ? _selectedRowKey : null,
             padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(7),
+              borderRadius: BorderRadius.circular(Radii.layer),
               border: Border.all(
                 color: selected
                     ? LockedInColors.primary.withValues(alpha: 0.5)
@@ -445,7 +457,7 @@ class _ActivityPageState extends State<ActivityPage> {
                     tag,
                     style: TextStyle(
                       color: tone,
-                      fontSize: 11,
+                      fontSize: TypeScale.label,
                       fontWeight: FontWeight.w700,
                       fontFamily: 'monospace',
                     ),
@@ -462,7 +474,7 @@ class _ActivityPageState extends State<ActivityPage> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: LockedInColors.foreground,
-                          fontSize: 12.5,
+                          fontSize: TypeScale.key,
                           fontFamily: 'monospace',
                         ),
                       ),
@@ -477,7 +489,7 @@ class _ActivityPageState extends State<ActivityPage> {
                                 : record.project,
                             style: TextStyle(
                               color: LockedInColors.muted,
-                              fontSize: 10.5,
+                              fontSize: TypeScale.micro,
                               fontFamily: 'monospace',
                             ),
                           ),
@@ -485,7 +497,7 @@ class _ActivityPageState extends State<ActivityPage> {
                             decision,
                             style: TextStyle(
                               color: decisionTone,
-                              fontSize: 10.5,
+                              fontSize: TypeScale.micro,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -496,7 +508,7 @@ class _ActivityPageState extends State<ActivityPage> {
                                   : '${hunks.length} hunks',
                               style: TextStyle(
                                 color: LockedInColors.muted,
-                                fontSize: 10.5,
+                                fontSize: TypeScale.micro,
                               ),
                             ),
                           if (cwd.isNotEmpty)
@@ -506,7 +518,7 @@ class _ActivityPageState extends State<ActivityPage> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: LockedInColors.muted,
-                                fontSize: 10.5,
+                                fontSize: TypeScale.micro,
                                 fontFamily: 'monospace',
                               ),
                             ),
@@ -515,7 +527,7 @@ class _ActivityPageState extends State<ActivityPage> {
                               'exit $exitCode',
                               style: TextStyle(
                                 color: LockedInColors.muted,
-                                fontSize: 10.5,
+                                fontSize: TypeScale.micro,
                                 fontFamily: 'monospace',
                               ),
                             ),
@@ -524,7 +536,7 @@ class _ActivityPageState extends State<ActivityPage> {
                               'timed out',
                               style: TextStyle(
                                 color: LockedInColors.warning,
-                                fontSize: 10.5,
+                                fontSize: TypeScale.micro,
                               ),
                             ),
                         ],
@@ -548,7 +560,7 @@ class _ActivityPageState extends State<ActivityPage> {
                                     : record.at,
                                 style: TextStyle(
                                   color: LockedInColors.muted,
-                                  fontSize: 10.5,
+                                  fontSize: TypeScale.micro,
                                   fontFamily: 'monospace',
                                 ),
                               ),
@@ -558,7 +570,7 @@ class _ActivityPageState extends State<ActivityPage> {
                                   record.argv.join(' '),
                                   style: TextStyle(
                                     color: LockedInColors.foreground,
-                                    fontSize: 11,
+                                    fontSize: TypeScale.label,
                                     fontFamily: 'monospace',
                                     height: 1.4,
                                   ),
@@ -570,7 +582,7 @@ class _ActivityPageState extends State<ActivityPage> {
                                   'hunks ${hunks.join(', ')}',
                                   style: TextStyle(
                                     color: LockedInColors.muted,
-                                    fontSize: 10.5,
+                                    fontSize: TypeScale.micro,
                                     fontFamily: 'monospace',
                                   ),
                                 ),
@@ -581,7 +593,7 @@ class _ActivityPageState extends State<ActivityPage> {
                                   'cwd ${record.cwd}',
                                   style: TextStyle(
                                     color: LockedInColors.muted,
-                                    fontSize: 10.5,
+                                    fontSize: TypeScale.micro,
                                     fontFamily: 'monospace',
                                   ),
                                 ),
@@ -603,7 +615,7 @@ class _ActivityPageState extends State<ActivityPage> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: LockedInColors.muted,
-                      fontSize: 10.5,
+                      fontSize: TypeScale.micro,
                       fontFamily: 'monospace',
                     ),
                   ),
@@ -666,7 +678,7 @@ class _ActivityPageState extends State<ActivityPage> {
                   message,
                   style: TextStyle(
                     color: LockedInColors.error,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     height: 1.45,
                   ),
                 ),
@@ -696,7 +708,7 @@ class _ActivityPageState extends State<ActivityPage> {
       'metadata only · no file bodies, no prompts, no output',
       style: TextStyle(
         color: LockedInColors.muted,
-        fontSize: 10.5,
+        fontSize: TypeScale.micro,
         height: 1.4,
       ),
     );
@@ -732,7 +744,7 @@ class _Panel extends StatelessWidget {
                 child: Text(
                   title,
                   style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontSize: 14, height: 1.4),
+                      ?.copyWith(fontSize: TypeScale.proseSmall, height: 1.4),
                 ),
               ),
             ],
@@ -742,7 +754,7 @@ class _Panel extends StatelessWidget {
             body,
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 12.5,
+              fontSize: TypeScale.key,
               height: 1.45,
             ),
           ),
@@ -771,7 +783,7 @@ class _Chip extends StatelessWidget {
         text,
         style: TextStyle(
           color: tone ?? LockedInColors.muted,
-          fontSize: 10,
+          fontSize: TypeScale.micro,
           fontWeight: FontWeight.w600,
         ),
       ),

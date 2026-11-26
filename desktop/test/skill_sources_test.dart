@@ -154,6 +154,8 @@ void main() {
       ),
     );
 
+    await tester.ensureVisible(find.byKey(const ValueKey('skill-sources-add')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('skill-sources-add')));
     await tester.pumpAndSettle();
 
@@ -226,6 +228,8 @@ void main() {
 
     expect(find.text('the goal’s source list is malformed'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Retry'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Retry'));
     await tester.pump();
     expect(retries, 1);

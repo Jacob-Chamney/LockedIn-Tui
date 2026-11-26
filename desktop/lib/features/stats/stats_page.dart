@@ -224,12 +224,18 @@ class _StatsFooter extends StatelessWidget {
             child: Text(
               hints.join(' · '),
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ),
           Text(
             'estimates, not a bill',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),
@@ -307,7 +313,7 @@ class _Dashboard extends StatelessWidget {
                         _periodLabel(summary.period),
                         style: TextStyle(
                           color: LockedInColors.muted,
-                          fontSize: 12,
+                          fontSize: TypeScale.label,
                         ),
                       ),
                       // The two header actions are keys (`a`, `x`); the buttons
@@ -429,7 +435,7 @@ class _Dashboard extends StatelessWidget {
                               style: tabular(
                                 TextStyle(
                                   color: LockedInColors.muted,
-                                  fontSize: 12,
+                                  fontSize: TypeScale.label,
                                 ),
                               ),
                             ),
@@ -469,14 +475,14 @@ class _Dashboard extends StatelessWidget {
                                 _shortDate(summary.activity.first.date),
                                 style: TextStyle(
                                   color: LockedInColors.muted,
-                                  fontSize: 11,
+                                  fontSize: TypeScale.label,
                                 ),
                               ),
                               Text(
                                 _shortDate(summary.activity.last.date),
                                 style: TextStyle(
                                   color: LockedInColors.muted,
-                                  fontSize: 11,
+                                  fontSize: TypeScale.label,
                                 ),
                               ),
                             ],
@@ -500,7 +506,7 @@ class _Dashboard extends StatelessWidget {
                                 style: tabular(
                                   TextStyle(
                                     color: LockedInColors.muted,
-                                    fontSize: 12,
+                                    fontSize: TypeScale.label,
                                   ),
                                 ),
                               ),
@@ -544,7 +550,7 @@ class _Dashboard extends StatelessWidget {
                                               style: TextStyle(
                                                 color:
                                                     LockedInColors.foreground,
-                                                fontSize: 12,
+                                                fontSize: TypeScale.label,
                                               ),
                                             ),
                                           ),
@@ -552,7 +558,7 @@ class _Dashboard extends StatelessWidget {
                                             _plural(tool.calls, 'call'),
                                             style: TextStyle(
                                               color: LockedInColors.muted,
-                                              fontSize: 11,
+                                              fontSize: TypeScale.label,
                                             ),
                                           ),
                                         ],
@@ -662,7 +668,10 @@ class _State extends StatelessWidget {
               Text(
                 'send a message or run a generation to fill this page',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: TypeScale.label,
+                ),
               ),
             ],
           ],
@@ -688,7 +697,7 @@ class _SectionTitle extends StatelessWidget {
           text,
           style: TextStyle(
             color: LockedInColors.secondary,
-            fontSize: 11,
+            fontSize: TypeScale.label,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.8,
           ),
@@ -791,7 +800,7 @@ class _KpiCard extends StatelessWidget {
             label,
             style: TextStyle(
               color: LockedInColors.muted,
-              fontSize: 10,
+              fontSize: TypeScale.micro,
               fontWeight: FontWeight.w600,
               letterSpacing: 1.0,
             ),
@@ -803,7 +812,7 @@ class _KpiCard extends StatelessWidget {
             style: tabular(
               TextStyle(
                 color: LockedInColors.foreground,
-                fontSize: 23,
+                fontSize: TypeScale.display,
                 fontWeight: FontWeight.w600,
                 height: 1.1,
               ),
@@ -812,7 +821,10 @@ class _KpiCard extends StatelessWidget {
           const SizedBox(height: 3),
           Text(
             detail,
-            style: TextStyle(color: tone ?? LockedInColors.muted, fontSize: 11),
+            style: TextStyle(
+              color: tone ?? LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),
@@ -840,7 +852,10 @@ class _ModelRow extends StatelessWidget {
           child: Text(
             name,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: LockedInColors.foreground, fontSize: 13),
+            style: TextStyle(
+              color: LockedInColors.foreground,
+              fontSize: TypeScale.body,
+            ),
           ),
         ),
         Expanded(
@@ -861,7 +876,7 @@ class _ModelRow extends StatelessWidget {
             '$runs runs · ${(share * 100).round()}%',
             textAlign: TextAlign.right,
             style: tabular(
-              TextStyle(color: LockedInColors.muted, fontSize: 11),
+              TextStyle(color: LockedInColors.muted, fontSize: TypeScale.label),
             ),
           ),
         ),
@@ -886,14 +901,20 @@ class _LearningLine extends StatelessWidget {
             width: 62,
             child: Text(
               label,
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ),
           Expanded(
             child: Text(
               value,
               style: tabular(
-                TextStyle(color: LockedInColors.foreground, fontSize: 12),
+                TextStyle(
+                  color: LockedInColors.foreground,
+                  fontSize: TypeScale.label,
+                ),
               ),
             ),
           ),
@@ -921,7 +942,10 @@ class _Notice extends StatelessWidget {
       ),
       child: Text(
         '! $text',
-        style: TextStyle(color: LockedInColors.warning, fontSize: 12),
+        style: TextStyle(
+          color: LockedInColors.warning,
+          fontSize: TypeScale.label,
+        ),
       ),
     );
   }
@@ -1251,11 +1275,17 @@ class _ExportDialogState extends State<_ExportDialog> {
         title: Row(
           children: [
             const Expanded(
-              child: Text('export stats', style: TextStyle(fontSize: 17)),
+              child: Text(
+                'export stats',
+                style: TextStyle(fontSize: TypeScale.title),
+              ),
             ),
             Text(
               '${widget.range} · ${widget.scope}',
-              style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
             ),
           ],
         ),
@@ -1278,7 +1308,10 @@ class _ExportDialogState extends State<_ExportDialog> {
                   const SizedBox(width: 8),
                   Text(
                     's save · Esc close',
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 11),
+                    style: TextStyle(
+                      color: LockedInColors.muted,
+                      fontSize: TypeScale.label,
+                    ),
                   ),
                 ],
               ),
@@ -1292,7 +1325,7 @@ class _ExportDialogState extends State<_ExportDialog> {
                     color: _saveError != null
                         ? LockedInColors.error
                         : LockedInColors.success,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                   ),
                 ),
               ],
@@ -1338,7 +1371,10 @@ class _ExportDialogState extends State<_ExportDialog> {
         children: [
           Text(
             error,
-            style: TextStyle(color: LockedInColors.error, fontSize: 13),
+            style: TextStyle(
+              color: LockedInColors.error,
+              fontSize: TypeScale.body,
+            ),
           ),
           const SizedBox(height: 10),
           OutlinedButton(onPressed: _load, child: const Text('Retry')),
@@ -1358,7 +1394,7 @@ class _ExportDialogState extends State<_ExportDialog> {
           _text,
           style: TextStyle(
             fontFamily: 'monospace',
-            fontSize: 12,
+            fontSize: TypeScale.label,
             height: 1.4,
             color: LockedInColors.foreground,
           ),

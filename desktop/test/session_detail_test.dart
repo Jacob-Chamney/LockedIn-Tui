@@ -461,10 +461,10 @@ void main() {
     expect(find.text('— stopped'), findsOneWidget);
     expect(find.text('× failed'), findsOneWidget);
 
-    // Usage: tokens · cost · duration.
-    expect(find.textContaining('1.2K tok'), findsOneWidget);
-    expect(find.textContaining(r'$0.0021'), findsOneWidget);
-    expect(find.textContaining('2.4s'), findsOneWidget);
+    // Usage lives in the shell's status bar, not under the composer: the two
+    // lines said the same numbers 20 px apart.
+    expect(find.textContaining('1.2K tok'), findsNothing);
+    expect(find.textContaining(r'$0.0021'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

@@ -21,6 +21,7 @@ import '../features/sessions/sessions_page.dart';
 import '../features/settings/settings_page.dart';
 import '../features/skills/goal_wizard.dart';
 import '../features/skills/skill_chat.dart';
+import '../features/skills/learning_pane.dart';
 import '../features/skills/skill_detail.dart';
 import '../features/skills/skill_lesson.dart';
 import '../features/skills/skills_page.dart';
@@ -273,6 +274,21 @@ class _ShellState extends State<Shell> {
   /// It starts shrunk so a new window opens on the chat without giving up its
   /// navigation, and the toggle is a switch — there is no hidden state.
   SidebarMode _sidebarMode = SidebarMode.icons;
+
+  /// The first frame chooses the rail for the window: wide windows show the
+  /// destination labels, narrow ones start as icons. A later toggle is the
+  /// user's and is never overridden.
+  var _sidebarSized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_sidebarSized) return;
+    _sidebarSized = true;
+    if (MediaQuery.sizeOf(context).width >= Breakpoints.railWide) {
+      _sidebarMode = SidebarMode.expanded;
+    }
+  }
 
   /// True while the rail owns the keyboard. `Space e` expands *and* focuses it;
   /// `Esc` gives the keyboard back and leaves it expanded, and activating a row
@@ -1418,8 +1434,12 @@ class _ShellState extends State<Shell> {
       if (_wizardOpen) return 'Tab next · Enter continue · Esc back';
       if (store.activeSession != null) {
         if (store.outputKind != null) {
+          // The deck's real keys (`session_outputs.dart`): Tab flips, 1-4
+          // answers, h/l move, a/f/g/e grade, m/k mark, Shift+R rebuilds. The
+          // old line named arrow scrolling and `R` for a deck that used
+          // neither.
           return store.outputKind == 'flashcards'
-              ? '↑↓ scroll · R rebuild · Esc back'
+              ? 'Tab flip · 1-4 answer · h/l move · a/f/g/e grade · Esc back'
               : 'a answers · R rebuild · Esc back';
         }
         if (_sessionSettingsOpen) {
@@ -1449,7 +1469,7 @@ class _ShellState extends State<Shell> {
       // looks first, and `Esc back` alone hid all of them.
       return _workChatOpen
           ? leaderHint
-          : 'c chat · p approvals · w swarm · l activity · r refresh · Esc back';
+          : 'c chat · i instructions · p approvals · w swarm · l activity · r refresh · Esc back';
     }
     if (_surface == Surface.skills) {
       if (_goalWizardOpen) return 'Tab next · Enter continue · Esc back';
@@ -1459,6 +1479,15 @@ class _ShellState extends State<Shell> {
         }
         if (store.skillLessonOpen) return 'b build · R rebuild · Esc back';
         if (store.skillChapterOpen) return 'Esc back';
+        // The teaching loop owns these keys (`skill_detail.dart`). The old
+        // line named stage/chapter keys only, so the harness it advertises
+        // looked inaccessible from the keyboard.
+        final teaching = store.teaching;
+        if (teaching != null) {
+          return teaching.measured
+              ? '1-4 jump · n next · i answer · s ask · c chat · a sources · Esc back'
+              : '1-4 jump · m measure · a sources · Esc back';
+        }
         if (store.activeSkill?.hasStages ?? false) {
           return '↑↓ move · Enter lesson · b build · c chat · Shift+N new chat · Esc back';
         }
@@ -2125,6 +2154,17 @@ class _ShellState extends State<Shell> {
         onModeChanged: (insert) {
           if (_insert != insert) setState(() => _insert = insert);
         },
+        contextPane: skillId == null
+            ? null
+            : LearningPane(
+                teaching: store.teaching,
+                onMeasure: () => unawaited(store.measureTeaching(skillId)),
+                onOpenGoal: () => setState(() => _skillChatOpen = false),
+                onOpenStep: (stepId) {
+                  setState(() => _skillChatOpen = false);
+                  unawaited(store.teachNextStep(skillId, stepId: stepId));
+                },
+              ),
       );
     }
 
@@ -2171,6 +2211,9 @@ class _ShellState extends State<Shell> {
       onNextStep: skillId == null
           ? null
           : () => unawaited(store.teachNextStep(skillId)),
+      onOpenStep: skillId == null
+          ? null
+          : (stepId) => unawaited(store.teachNextStep(skillId, stepId: stepId)),
       onCheck: skillId == null
           ? null
           : (answer, thinking, confidence) => unawaited(
@@ -2522,6 +2565,9 @@ class _ShellState extends State<Shell> {
       onSetDefaultAgent: projectId == null
           ? null
           : (agentId) => store.setDefaultAgent(projectId, agentId),
+      onSaveInstructions: projectId == null
+          ? null
+          : (text) => store.saveProjectInstructions(projectId, text),
     );
   }
 
@@ -2732,25 +2778,23 @@ class _TopBar extends StatelessWidget {
             style: LockedInType.micro.copyWith(color: LockedInColors.line),
           ),
           const SizedBox(width: Space.xs),
-          Flexible(
+          // The breadcrumb takes the free space and the badge takes its
+          // natural width at the right edge. A `Spacer` plus a loose
+          // `Flexible` around an `Align` split the remainder into equal
+          // thirds, so `! no model` floated ~220 px from the edge at 1280.
+          Expanded(
             child: Text(
               surface.label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: LockedInType.label.copyWith(
                 color: LockedInColors.foreground,
-                fontSize: 12.5,
+                fontSize: TypeScale.key,
               ),
             ),
           ),
-          const Spacer(),
-          // The badge may shrink; the breadcrumb keeps its space.
-          Flexible(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: _CoreChip(store: store, onOpenSettings: onOpenSettings),
-            ),
-          ),
+          const SizedBox(width: Space.sm),
+          _CoreChip(store: store, onOpenSettings: onOpenSettings),
           const SizedBox(width: Space.sm),
         ],
       ),
@@ -2795,7 +2839,7 @@ class _RailToggle extends StatelessWidget {
             '≡',
             style: LockedInType.key.copyWith(
               color: active ? LockedInColors.primary : LockedInColors.muted,
-              fontSize: 15,
+              fontSize: TypeScale.prose,
             ),
           ),
         ),
@@ -2845,14 +2889,15 @@ class _CoreChip extends StatelessWidget {
             children: [
               Text(glyph, style: LockedInType.micro.copyWith(color: tone)),
               const SizedBox(width: Space.xxs + 2),
-              Flexible(
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 240),
                 child: Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: LockedInType.label.copyWith(
                     color: configured ? LockedInColors.foreground : tone,
-                    fontSize: 11.5,
+                    fontSize: TypeScale.label,
                   ),
                 ),
               ),
@@ -3038,7 +3083,7 @@ class _Sidebar extends StatelessWidget {
                           group.$1!,
                           style: TextStyle(
                             color: LockedInColors.muted,
-                            fontSize: 10,
+                            fontSize: TypeScale.micro,
                             letterSpacing: 1.4,
                             fontWeight: FontWeight.w600,
                           ),
@@ -3089,7 +3134,7 @@ class _Sidebar extends StatelessWidget {
                         'RECENT',
                         style: TextStyle(
                           color: LockedInColors.muted,
-                          fontSize: 10,
+                          fontSize: TypeScale.micro,
                           letterSpacing: 1.4,
                           fontWeight: FontWeight.w600,
                         ),
@@ -3129,7 +3174,7 @@ class _Sidebar extends StatelessWidget {
                 footer,
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 11,
+                  fontSize: TypeScale.label,
                   height: 1.4,
                 ),
               ),
@@ -3175,9 +3220,9 @@ class _RecentItem extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 2),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         child: InkWell(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(Radii.layer),
           onTap: onTap,
           child: Container(
             height: 32,
@@ -3196,7 +3241,10 @@ class _RecentItem extends StatelessWidget {
                     key: ValueKey('recent-session-${row.id}'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+                    style: TextStyle(
+                      color: LockedInColors.muted,
+                      fontSize: TypeScale.label,
+                    ),
                   ),
                 ),
               ],
@@ -3327,7 +3375,7 @@ class _SidebarRow extends StatelessWidget {
                                 glyph,
                                 maxLines: 1,
                                 style: LockedInType.body.copyWith(
-                                  fontSize: 12,
+                                  fontSize: TypeScale.label,
                                   color: selected
                                       ? LockedInColors.primary
                                       : LockedInColors.muted,
@@ -3342,7 +3390,7 @@ class _SidebarRow extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: LockedInType.body.copyWith(
-                                  fontSize: 12.5,
+                                  fontSize: TypeScale.key,
                                   color: selected
                                       ? LockedInColors.foreground
                                       : LockedInColors.muted,
@@ -3367,7 +3415,7 @@ class _SidebarRow extends StatelessWidget {
                                   maxLines: 1,
                                   style: LockedInType.label.copyWith(
                                     color: LockedInColors.muted,
-                                    fontSize: 11,
+                                    fontSize: TypeScale.label,
                                     fontFeatures: const [
                                       FontFeature.tabularFigures(),
                                     ],

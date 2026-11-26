@@ -496,7 +496,7 @@ class _SessionsPageState extends State<SessionsPage> {
                       'a archive · d delete · x export',
                       style: TextStyle(
                         color: LockedInColors.muted,
-                        fontSize: 11,
+                        fontSize: TypeScale.label,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -720,7 +720,7 @@ class _SessionRowTile extends StatelessWidget {
             decoration: BoxDecoration(
               color: selected ? LockedInColors.primary : Colors.transparent,
               borderRadius: const BorderRadius.horizontal(
-                right: Radius.circular(2),
+                right: Radius.circular(Radii.control),
               ),
             ),
           ),
@@ -766,7 +766,7 @@ class _SessionRowTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: LockedInColors.error,
-                            fontSize: 11,
+                            fontSize: TypeScale.label,
                             height: 1.35,
                           ),
                         ),
@@ -786,7 +786,10 @@ class _SessionRowTile extends StatelessWidget {
                 textAlign: TextAlign.right,
                 overflow: TextOverflow.ellipsis,
                 style: tabular(
-                  TextStyle(color: LockedInColors.muted, fontSize: 11),
+                  TextStyle(
+                    color: LockedInColors.muted,
+                    fontSize: TypeScale.label,
+                  ),
                 ),
               ),
             ),
@@ -800,7 +803,10 @@ class _SessionRowTile extends StatelessWidget {
               textAlign: TextAlign.right,
               overflow: TextOverflow.ellipsis,
               style: tabular(
-                TextStyle(color: LockedInColors.muted, fontSize: 11),
+                TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: TypeScale.label,
+                ),
               ),
             ),
           ),
@@ -815,7 +821,7 @@ class _SessionRowTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: LockedInColors.primary,
-                      fontSize: 11,
+                      fontSize: TypeScale.label,
                     ),
                   )
                 : Text(
@@ -827,7 +833,7 @@ class _SessionRowTile extends StatelessWidget {
                         color: complete
                             ? LockedInColors.success
                             : LockedInColors.muted,
-                        fontSize: 11,
+                        fontSize: TypeScale.label,
                       ),
                     ),
                   ),
@@ -872,7 +878,11 @@ class _ActionBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: TextStyle(color: color, fontSize: 12, height: 1.4),
+              style: TextStyle(
+                color: color,
+                fontSize: TypeScale.label,
+                height: 1.4,
+              ),
             ),
           ),
           IconButton(
@@ -987,7 +997,7 @@ class _ConfirmDialog extends StatelessWidget {
                 question,
                 style: TextStyle(
                   color: LockedInColors.foreground,
-                  fontSize: 14,
+                  fontSize: TypeScale.proseSmall,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -996,7 +1006,7 @@ class _ConfirmDialog extends StatelessWidget {
                 detail,
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -1042,7 +1052,10 @@ class _ArchivedBadge extends StatelessWidget {
           SizedBox(width: 4),
           Text(
             'archived',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 10),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.micro,
+            ),
           ),
         ],
       ),
@@ -1070,7 +1083,10 @@ class _LoadingState extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             'loading sessions…',
-            style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+            style: TextStyle(
+              color: LockedInColors.muted,
+              fontSize: TypeScale.label,
+            ),
           ),
         ],
       ),
@@ -1096,7 +1112,10 @@ class _EmptyState extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           'n starts a new lock-in',
-          style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+          style: TextStyle(
+            color: LockedInColors.muted,
+            fontSize: TypeScale.label,
+          ),
         ),
         if (onCreate != null) ...[
           const SizedBox(height: 14),
@@ -1129,14 +1148,17 @@ class _NoMatchState extends StatelessWidget {
           textAlign: TextAlign.center,
           style: TextStyle(
             color: LockedInColors.foreground,
-            fontSize: 13,
+            fontSize: TypeScale.body,
             height: 1.45,
           ),
         ),
         const SizedBox(height: 6),
         Text(
           'Esc clears the search',
-          style: TextStyle(color: LockedInColors.muted, fontSize: 12),
+          style: TextStyle(
+            color: LockedInColors.muted,
+            fontSize: TypeScale.label,
+          ),
         ),
       ],
     );
@@ -1171,7 +1193,7 @@ class _ErrorState extends StatelessWidget {
                   message,
                   style: TextStyle(
                     color: LockedInColors.error,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     height: 1.45,
                   ),
                 ),

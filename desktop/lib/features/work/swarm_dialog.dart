@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
+import '../../theme/tokens.dart';
 
 /// Starts one swarm run through the shell's `work.swarm.run`.
 ///
@@ -132,7 +133,7 @@ Future<bool> _confirm(
                 heading,
                 style: TextStyle(
                   color: LockedInColors.foreground,
-                  fontSize: 14,
+                  fontSize: TypeScale.proseSmall,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -141,7 +142,7 @@ Future<bool> _confirm(
                 body,
                 style: TextStyle(
                   color: LockedInColors.muted,
-                  fontSize: 12,
+                  fontSize: TypeScale.label,
                   height: 1.45,
                 ),
               ),
@@ -317,7 +318,7 @@ class _SwarmRunDialogState extends State<_SwarmRunDialog> {
                   'project’s files, and can never write a file or run a command.',
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 12,
+                    fontSize: TypeScale.label,
                     height: 1.45,
                   ),
                 ),
@@ -338,7 +339,10 @@ class _SwarmRunDialogState extends State<_SwarmRunDialog> {
                   controller: _plan,
                   minLines: 3,
                   maxLines: 6,
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: TypeScale.label,
+                  ),
                   decoration: const InputDecoration(
                     labelText: 'tasks',
                     hintText:
@@ -353,7 +357,7 @@ class _SwarmRunDialogState extends State<_SwarmRunDialog> {
                   '— the last two columns are optional',
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 11,
+                    fontSize: TypeScale.label,
                     height: 1.4,
                   ),
                 ),
@@ -366,7 +370,7 @@ class _SwarmRunDialogState extends State<_SwarmRunDialog> {
                         'parallel',
                         style: TextStyle(
                           color: LockedInColors.muted,
-                          fontSize: 12,
+                          fontSize: TypeScale.label,
                         ),
                       ),
                     ),
@@ -391,7 +395,7 @@ class _SwarmRunDialogState extends State<_SwarmRunDialog> {
                   'lanes run side by side; the hard cap is 4',
                   style: TextStyle(
                     color: LockedInColors.muted,
-                    fontSize: 11,
+                    fontSize: TypeScale.label,
                     height: 1.4,
                   ),
                 ),
@@ -437,7 +441,7 @@ class _ErrorNote extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
         color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Radii.layer),
         border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
       ),
       child: Row(
@@ -450,7 +454,7 @@ class _ErrorNote extends StatelessWidget {
               message,
               style: TextStyle(
                 color: LockedInColors.error,
-                fontSize: 12,
+                fontSize: TypeScale.label,
                 height: 1.45,
               ),
             ),

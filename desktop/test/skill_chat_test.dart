@@ -47,6 +47,12 @@ void main() {
     expect(store.activeSkillId, FakeCore.skillId);
     expect(store.skillChats.map((chat) => chat.id), ['chat-1', 'chat-2']);
     expect(find.text('TEACHING'), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('skill-context-tab-chats')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('skill-context-tab-chats')));
+    await tester.pumpAndSettle();
     expect(find.text('2 chats'), findsOneWidget);
     expect(find.text('Open chat'), findsOneWidget);
 
@@ -405,5 +411,25 @@ void main() {
         expect(store.skillChats.first.messages, 0);
       },
     );
+  });
+
+  testWidgets('a wide window keeps the learning tree beside the goal chat', (
+    tester,
+  ) async {
+    await openGoal(tester);
+    await openGoalChat(tester);
+
+    expect(find.byKey(const ValueKey('skill-chat-composer')), findsOneWidget);
+    expect(find.byKey(const ValueKey('skill-learning-pane')), findsOneWidget);
+    expect(find.text('LEARNING TREE'), findsOneWidget);
+    expect(find.text('TEACHING CHAT'), findsOneWidget);
+  });
+
+  testWidgets('a narrow window keeps the chat full width', (tester) async {
+    await openGoal(tester, size: const Size(800, 600));
+    await openGoalChat(tester);
+
+    expect(find.byKey(const ValueKey('skill-chat-composer')), findsOneWidget);
+    expect(find.byKey(const ValueKey('skill-learning-pane')), findsNothing);
   });
 }

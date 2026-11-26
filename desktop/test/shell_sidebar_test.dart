@@ -25,14 +25,19 @@ Future<void> pressSidebarChord(WidgetTester tester) async {
 /// Open the rail (`Space e`): it expands, takes the keyboard, and `Esc` hands
 /// the keyboard back while leaving it open.
 Future<void> expandSidebar(WidgetTester tester) async {
+  // A wide window starts expanded; the chord toggles, so shrink once and then
+  // expand to take the keyboard (the tests below assert the rail's cursor).
+  if (find.text('LEARN').evaluate().isNotEmpty) {
+    await pressSidebarChord(tester);
+  }
+  // Leave the keyboard in the rail: these tests assert its cursor.
   await pressSidebarChord(tester);
-  await tester.sendKeyEvent(LogicalKeyboardKey.escape);
   await tester.pumpAndSettle();
 }
 
 void main() {
   testWidgets('the rail starts shrunk and Space e expands it', (tester) async {
-    await pumpShell(tester);
+    await pumpShell(tester, size: const Size(1000, 700));
 
     // Default: icons only, so a new window opens on the chat with navigation
     // still on screen.
@@ -52,9 +57,16 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a wide window opens with the rail expanded', (tester) async {
+    await pumpShell(tester, size: const Size(1280, 800));
+    expect(find.text('LEARN'), findsOneWidget);
+    expect(find.text('PRODUCTIVITY'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('opening the rail gives it the keyboard', (tester) async {
     await pumpShell(tester);
-    await pressSidebarChord(tester);
+    await expandSidebar(tester);
 
     // The rail owns the keyboard: its cursor sits on the first drawn row.
     expect(
@@ -82,7 +94,7 @@ void main() {
 
   testWidgets('the cursor walks the rows that are drawn', (tester) async {
     await pumpShell(tester);
-    await pressSidebarChord(tester);
+    await expandSidebar(tester);
 
     // The drawn order (`_sidebarGroups`, then the pinned Settings row), which
     // is not `Surface.values`: Sources has no row and Review sits under Skills.
@@ -153,7 +165,7 @@ void main() {
     tester,
   ) async {
     await pumpShell(tester);
-    await pressSidebarChord(tester);
+    await expandSidebar(tester);
     expect(find.text('LEARN'), findsOneWidget);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
@@ -176,7 +188,7 @@ void main() {
     tester,
   ) async {
     await pumpShell(tester);
-    await pressSidebarChord(tester);
+    await expandSidebar(tester);
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
 
@@ -196,15 +208,16 @@ void main() {
     tester,
   ) async {
     await pumpShell(tester);
-    expect(find.text('LEARN'), findsNothing);
-
-    await tester.tap(find.byKey(const ValueKey('sidebar-toggle')));
-    await tester.pumpAndSettle();
+    // A wide window opens expanded; the button is still the pointer's switch.
     expect(find.text('LEARN'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('sidebar-toggle')));
     await tester.pumpAndSettle();
     expect(find.text('LEARN'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('sidebar-toggle')));
+    await tester.pumpAndSettle();
+    expect(find.text('LEARN'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -369,7 +382,7 @@ void main() {
   testWidgets('a leader chord typed with no frame between keys still runs', (
     tester,
   ) async {
-    await pumpShell(tester);
+    await pumpShell(tester, size: const Size(1000, 700));
     // The rail starts shrunk: icons only, no labels.
     expect(find.text('LEARN'), findsNothing);
 
@@ -383,7 +396,7 @@ void main() {
   });
 
   testWidgets('two fast chords in a row both run', (tester) async {
-    await pumpShell(tester);
+    await pumpShell(tester, size: const Size(1000, 700));
 
     await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyE);

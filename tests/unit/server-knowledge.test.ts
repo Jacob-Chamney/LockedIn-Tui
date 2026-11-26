@@ -24,6 +24,7 @@ import {
   type KnowledgeTopicGroup,
 } from "../../src/server/protocol";
 import { dataPaths, workspacePaths } from "../../src/storage/paths";
+import { indexLocation } from "../../src/storage/index";
 import type { Workspace } from "../../src/storage/workspace";
 
 const TEMP_BASE = existsSync("/tmp/opencode") ? "/tmp/opencode" : tmpdir();
@@ -355,6 +356,21 @@ describe("knowledge.search resilience", () => {
     const hits = await hitsOf(server, { query: "resilient" });
     expect(hits.map((hit) => hit.title)).toEqual(["Resilient note"]);
     expect(hits.some((hit) => hit.path.includes("broken-session"))).toBe(false);
+  });
+
+  test("a corrupt index falls back to the Markdown, never hides a note", async () => {
+    await writeNote({
+      side: "school",
+      folder: "concepts",
+      slug: "fallback",
+      title: "Fallback note",
+      body: "A fallback fact survives a broken cache.",
+    });
+    await writeFile(indexLocation(workspace.paths, "school").db, "not a database");
+
+    const { server } = core();
+    const hits = await hitsOf(server, { query: "fallback" });
+    expect(hits.map((hit) => hit.title)).toEqual(["Fallback note"]);
   });
 });
 
