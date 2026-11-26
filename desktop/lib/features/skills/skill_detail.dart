@@ -17,6 +17,7 @@ import '../chat/markdown.dart';
 import '../chat/transcript_scroll.dart';
 import '../shared/cards.dart';
 import 'teaching_rows.dart';
+import 'skill_widgets.dart';
 
 /// Returns the files the user chose, or an empty list when they cancelled.
 typedef SkillSourcePicker = Future<List<String>> Function();
@@ -769,7 +770,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   }) {
     return showDialog<({String title, String? milestone})>(
       context: context,
-      builder: (dialogContext) => _StagePromptDialog(
+      builder: (dialogContext) => StagePromptDialog(
         dialogTitle: dialogTitle,
         confirmLabel: confirmLabel,
         fieldKeyPrefix: fieldKeyPrefix,
@@ -1133,19 +1134,19 @@ class _SkillDetailViewState extends State<SkillDetailView> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (widget.error != null) ...[
-                  _ErrorBanner(message: widget.error!, onRetry: widget.onRetry),
+                  ErrorBanner(message: widget.error!, onRetry: widget.onRetry),
                   const SizedBox(height: Space.sm),
                 ],
                 if (_notice != null) ...[
-                  _Notice(message: _notice!),
+                  Notice(message: _notice!),
                   const SizedBox(height: Space.sm),
                 ],
                 if (_sourcesFailure != null) ...[
-                  _ErrorBanner(message: _sourcesFailure!),
+                  ErrorBanner(message: _sourcesFailure!),
                   const SizedBox(height: Space.sm),
                 ],
                 if (_sourcesNotice != null) ...[
-                  _SourceNotice(message: _sourcesNotice!),
+                  SourceNotice(message: _sourcesNotice!),
                   const SizedBox(height: Space.sm),
                 ],
                 KeyedSubtree(
@@ -2316,7 +2317,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
           if (sources.isEmpty &&
               !widget.sourcesLoading &&
               widget.sourcesError == null)
-            _EmptyNote(
+            EmptyNote(
               tone: interactive ? LockedInColors.warning : LockedInColors.muted,
               title: 'no sources yet',
               body: 'add sources so lessons and chat can cite them',
@@ -2338,7 +2339,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
             ),
           if (widget.sourcesError != null) ...[
             const SizedBox(height: 10),
-            _ErrorBanner(
+            ErrorBanner(
               message: widget.sourcesError!,
               onRetry: widget.onRetrySources,
             ),
@@ -2389,7 +2390,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            _skillSourceIcon(source.kind),
+            skillSourceIcon(source.kind),
             size: 15,
             color: LockedInColors.muted,
           ),
@@ -2477,7 +2478,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
           ),
           const SizedBox(height: 10),
           if (stages.isEmpty)
-            _EmptyNote(
+            EmptyNote(
               tone: LockedInColors.warning,
               title: 'no stages yet',
               body: editable
@@ -2494,7 +2495,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
               ),
           if (_stagesFailure != null) ...[
             const SizedBox(height: 10),
-            _ErrorBanner(message: _stagesFailure!),
+            ErrorBanner(message: _stagesFailure!),
           ],
           if (_stagesBusy) ...[
             const SizedBox(height: 10),
@@ -2669,7 +2670,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (chapters.isEmpty)
-            _EmptyNote(
+            EmptyNote(
               tone: LockedInColors.warning,
               title: 'no chapters yet',
               body:
@@ -2835,7 +2836,7 @@ class _SkillDetailViewState extends State<SkillDetailView> {
           ),
           const SizedBox(height: 10),
           if (chats.isEmpty)
-            _EmptyNote(
+            EmptyNote(
               tone: LockedInColors.muted,
               title: 'no chats yet',
               body: canOpen
@@ -3183,393 +3184,3 @@ String _usedLabel(String lastUsed) {
 /// The plan is a coarse map, not the lesson (`desktop/docs/redesign.md` §2.1):
 /// one line per idea, so the whole route fits on screen beside the step.
 /// One 1–5 confidence key. Selected is filled; the number is the label.
-class _StagePromptDialog extends StatefulWidget {
-  const _StagePromptDialog({
-    required this.dialogTitle,
-    required this.confirmLabel,
-    required this.fieldKeyPrefix,
-    required this.initialTitle,
-    required this.initialMilestone,
-  });
-
-  final String dialogTitle;
-  final String confirmLabel;
-  final String fieldKeyPrefix;
-  final String initialTitle;
-  final String initialMilestone;
-
-  @override
-  State<_StagePromptDialog> createState() => _StagePromptDialogState();
-}
-
-class _StagePromptDialogState extends State<_StagePromptDialog> {
-  late final _title = TextEditingController(text: widget.initialTitle);
-  late final _milestone = TextEditingController(text: widget.initialMilestone);
-
-  @override
-  void dispose() {
-    _title.dispose();
-    _milestone.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final title = _title.text.trim();
-    if (title.isEmpty) return;
-    final milestone = _milestone.text.trim();
-    Navigator.of(context)
-        .pop((title: title, milestone: milestone.isEmpty ? null : milestone));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: LockedInColors.surface,
-      title: Text(widget.dialogTitle),
-      content: SizedBox(
-        width: 420,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                key: ValueKey('${widget.fieldKeyPrefix}-title'),
-                controller: _title,
-                autofocus: true,
-                maxLength: 120,
-                onSubmitted: (_) => _submit(),
-                decoration: const InputDecoration(
-                  labelText: 'stage title',
-                  hintText: 'Trace a loop',
-                ),
-              ),
-              const SizedBox(height: 4),
-              TextField(
-                key: ValueKey('${widget.fieldKeyPrefix}-milestone'),
-                controller: _milestone,
-                maxLength: 200,
-                onSubmitted: (_) => _submit(),
-                decoration: const InputDecoration(
-                  labelText: 'milestone (optional)',
-                  hintText: 'Explain a stack frame',
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'The whole curriculum is saved in this order, so a stage '
-                'keeps its id, status and lesson.',
-                style: TextStyle(
-                  color: LockedInColors.muted,
-                  fontSize: TypeScale.label,
-                  height: 1.45,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          key: ValueKey('${widget.fieldKeyPrefix}-cancel'),
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        ValueListenableBuilder<TextEditingValue>(
-          valueListenable: _title,
-          builder: (context, value, _) {
-            return FilledButton(
-              key: ValueKey('${widget.fieldKeyPrefix}-confirm'),
-              onPressed: value.text.trim().isEmpty ? null : _submit,
-              child: Text(widget.confirmLabel),
-            );
-          },
-        ),
-      ],
-    );
-  }
-}
-
-/// Confirms removing one curriculum stage, naming it.
-///
-/// A `done` stage's finished progress is lost with it, so the copy says so.
-/// Returns true only for the explicit Remove button; `Esc`, Cancel or a
-/// dismissal is false and nothing is sent.
-Future<bool> confirmSkillStageRemove(
-  BuildContext context, {
-  required String title,
-  required bool done,
-}) async {
-  final result = await showDialog<bool>(
-    context: context,
-    builder: (dialogContext) => _StageConfirmDialog(
-      question: 'Remove “$title”?',
-      detail: done
-          ? 'This stage is done, so removing it loses its finished progress. '
-                'The curriculum is saved again without it.'
-          : 'The curriculum is saved again without this stage. Its lesson file '
-                'is not touched by this pane.',
-      confirmLabel: 'Remove',
-    ),
-  );
-  return result ?? false;
-}
-
-class _StageConfirmDialog extends StatelessWidget {
-  const _StageConfirmDialog({
-    required this.question,
-    required this.detail,
-    required this.confirmLabel,
-  });
-
-  final String question;
-  final String detail;
-  final String confirmLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Focus(
-      autofocus: true,
-      onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent) return KeyEventResult.ignored;
-        if (event.logicalKey != LogicalKeyboardKey.escape) {
-          return KeyEventResult.ignored;
-        }
-        Navigator.of(context).pop(false);
-        return KeyEventResult.handled;
-      },
-      child: AlertDialog(
-        backgroundColor: LockedInColors.surface,
-        title: const Text('remove stage', key: ValueKey('skill-stage-remove')),
-        content: SizedBox(
-          width: 420,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                question,
-                style: TextStyle(
-                  color: LockedInColors.foreground,
-                  fontSize: TypeScale.body,
-                  height: 1.45,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                detail,
-                style: TextStyle(
-                  color: LockedInColors.muted,
-                  fontSize: TypeScale.label,
-                  height: 1.45,
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            key: const ValueKey('skill-stage-remove-cancel'),
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            key: const ValueKey('skill-stage-remove-confirm'),
-            style: FilledButton.styleFrom(
-              backgroundColor: LockedInColors.error,
-              // The theme derives onError by measurement; `background` is only
-              // readable while the palette is dark.
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(confirmLabel),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorBanner extends StatelessWidget {
-  const _ErrorBanner({required this.message, this.onRetry});
-
-  final String message;
-  final VoidCallback? onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-      decoration: BoxDecoration(
-        color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(Radii.layer),
-        border: Border.all(color: LockedInColors.error.withValues(alpha: 0.55)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.error_outline, size: 16, color: LockedInColors.error),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                color: LockedInColors.error,
-                fontSize: TypeScale.label,
-                height: 1.45,
-              ),
-            ),
-          ),
-          if (onRetry != null) ...[
-            const SizedBox(width: 8),
-            TextButton(onPressed: onRetry, child: const Text('Retry')),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _Notice extends StatelessWidget {
-  const _Notice({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
-      decoration: BoxDecoration(
-        color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(Radii.layer),
-        border: Border.all(
-          color: LockedInColors.warning.withValues(alpha: 0.5),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.info_outline, size: 15, color: LockedInColors.warning),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                color: LockedInColors.warning,
-                fontSize: TypeScale.label,
-                height: 1.45,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A successful gather, stated in `success` with an explicit glyph.
-class _SourceNotice extends StatelessWidget {
-  const _SourceNotice({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey('skill-sources-notice'),
-      padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
-      decoration: BoxDecoration(
-        color: LockedInColors.panel,
-        borderRadius: BorderRadius.circular(Radii.layer),
-        border: Border.all(
-          color: LockedInColors.success.withValues(alpha: 0.5),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.check_circle_outline,
-            size: 15,
-            color: LockedInColors.success,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                color: LockedInColors.success,
-                fontSize: TypeScale.label,
-                height: 1.45,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyNote extends StatelessWidget {
-  const _EmptyNote({
-    required this.tone,
-    required this.title,
-    required this.body,
-  });
-
-  final Color tone;
-  final String title;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              tone == LockedInColors.warning
-                  ? Icons.info_outline
-                  : Icons.remove_circle_outline,
-              size: 14,
-              color: tone,
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                title,
-                style: TextStyle(
-                  color: tone,
-                  fontSize: TypeScale.key,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Text(
-          body,
-          style: TextStyle(
-            color: LockedInColors.muted,
-            fontSize: TypeScale.label,
-            height: 1.45,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// The glyph a gathered source's `kind` is labelled with. The text label always
-/// sits beside it, so the icon never carries meaning alone.
-IconData _skillSourceIcon(String kind) {
-  return switch (kind) {
-    'pdf' => Icons.picture_as_pdf_outlined,
-    'docx' => Icons.description_outlined,
-    'image' => Icons.image_outlined,
-    'markdown' || 'text' || 'code' => Icons.article_outlined,
-    _ => Icons.insert_drive_file_outlined,
-  };
-}
