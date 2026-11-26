@@ -15,6 +15,7 @@ import '../../theme/breakpoints.dart';
 import '../chat/document_search.dart';
 import '../chat/markdown.dart';
 import '../shared/format.dart';
+import 'session_widgets.dart';
 
 /// One lock-in session, rendered from the shell's `session.open` projection.
 ///
@@ -454,12 +455,12 @@ class _SessionDetailViewState extends State<SessionDetailView> {
   GlobalKey _stepKey(int index) =>
       _stepKeys.putIfAbsent(index, () => GlobalKey(debugLabel: 'step-$index'));
 
-  List<_StepRow> _stepRows(SessionDetail? detail) {
+  List<StepRow> _stepRows(SessionDetail? detail) {
     final steps = detail?.steps;
     if (steps == null || !steps.exists || steps.markdown.trim().isEmpty) {
       return const [];
     }
-    return _parseSteps(steps.markdown);
+    return parseSteps(steps.markdown);
   }
 
   int _taskCount(SessionDetail? detail) =>
@@ -946,7 +947,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
           ),
           if (detail?.archived ?? false) ...[
             const SizedBox(width: 10),
-            const _ArchivedBadge(),
+            const ArchivedBadge(),
           ],
           if (detail != null && widget.onOpenSettings != null) ...[
             const SizedBox(width: 8),
@@ -981,14 +982,14 @@ class _SessionDetailViewState extends State<SessionDetailView> {
   String _subtitle(SessionDetail detail) {
     final sources = detail.sources.length;
     final label = sources == 1 ? 'source' : 'sources';
-    return '${_createdLabel(detail.created)} · $sources $label';
+    return '${createdLabel(detail.created)} · $sources $label';
   }
 
   Widget _body() {
     final detail = widget.detail;
     if (detail == null) {
       if (widget.loading) {
-        return const _Loading(label: 'loading session…');
+        return const SessionLoading(label: 'loading session…');
       }
       final error = widget.error;
       if (error != null) {
@@ -1144,7 +1145,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
   Widget _currentStepHero(SessionDetail detail) {
     final steps = detail.steps;
     final ready = steps.exists && steps.markdown.trim().isNotEmpty;
-    final rows = ready ? _parseSteps(steps.markdown) : const <_StepRow>[];
+    final rows = ready ? parseSteps(steps.markdown) : const <StepRow>[];
     final tasks = [
       for (final row in rows)
         if (row.index != null) row,
@@ -1238,7 +1239,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
     final complete = steps.total > 0 && steps.done >= steps.total;
     final canGenerate = widget.onGenerateSteps != null;
     final generating = widget.generatingSteps || _requestingSteps;
-    final rows = ready ? _parseSteps(steps.markdown) : const <_StepRow>[];
+    final rows = ready ? parseSteps(steps.markdown) : const <StepRow>[];
     final tasks = [
       for (final row in rows)
         if (row.index != null) row.index!,
@@ -1270,7 +1271,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
           for (final row in rows)
             _stepRow(row, selected: row.index != null && row.index == selected)
         else
-          _EmptyNote(
+          SessionEmptyNote(
             tone: LockedInColors.warning,
             title: 'steps missing',
             body: canGenerate
@@ -1550,7 +1551,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
     return _card(
       label: 'INSTRUCTIONS',
       child: prompt.isEmpty
-          ? _EmptyNote(
+          ? SessionEmptyNote(
               tone: LockedInColors.warning,
               title: 'no instructions yet',
               body:
@@ -1574,7 +1575,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
       label: 'SOURCES',
       trailing: _countChip('${sources.length}'),
       child: sources.isEmpty
-          ? _EmptyNote(
+          ? SessionEmptyNote(
               tone: LockedInColors.muted,
               title: 'no sources yet',
               body:
@@ -1876,7 +1877,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
             if (updated.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                'updated ${_shortStamp(updated)}',
+                'updated ${shortStamp(updated)}',
                 style: TextStyle(
                   color: LockedInColors.muted,
                   fontSize: TypeScale.label,
@@ -2472,7 +2473,7 @@ class _SessionDetailViewState extends State<SessionDetailView> {
     ].join(' · ');
   }
 
-  Widget _stepRow(_StepRow row, {required bool selected}) {
+  Widget _stepRow(StepRow row, {required bool selected}) {
     if (row.heading) {
       return Padding(
         padding: const EdgeInsets.only(top: 4, bottom: 6),
@@ -2942,198 +2943,4 @@ class _SessionDetailViewState extends State<SessionDetailView> {
       ),
     );
   }
-}
-
-class _Loading extends StatelessWidget {
-  const _Loading({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: LockedInColors.primary,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            label,
-            style: TextStyle(
-              color: LockedInColors.muted,
-              fontSize: TypeScale.label,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyNote extends StatelessWidget {
-  const _EmptyNote({
-    required this.tone,
-    required this.title,
-    required this.body,
-  });
-
-  final Color tone;
-  final String title;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              tone == LockedInColors.warning
-                  ? Icons.info_outline
-                  : Icons.remove_circle_outline,
-              size: 14,
-              color: tone,
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                title,
-                style: TextStyle(
-                  color: tone,
-                  fontSize: TypeScale.key,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Text(
-          body,
-          style: TextStyle(
-            color: LockedInColors.muted,
-            fontSize: TypeScale.label,
-            height: 1.45,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ArchivedBadge extends StatelessWidget {
-  const _ArchivedBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-      decoration: BoxDecoration(
-        color: LockedInColors.background,
-        borderRadius: BorderRadius.circular(Radii.control),
-        border: Border.all(color: LockedInColors.line),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.archive_outlined, size: 10, color: LockedInColors.muted),
-          SizedBox(width: 4),
-          Text(
-            'archived',
-            style: TextStyle(
-              color: LockedInColors.muted,
-              fontSize: TypeScale.micro,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-String _createdLabel(String created) {
-  if (created.isEmpty) return 'date unknown';
-  final stamp = created.replaceFirst('T', ' ');
-  final cut = stamp.length > 16 ? stamp.substring(0, 16) : stamp;
-  return 'created $cut';
-}
-
-/// A short, single-line rendering of an ISO-8601 instant: `YYYY-MM-DD HH:MM`.
-String _shortStamp(String stamp) {
-  final value = stamp.replaceFirst('T', ' ');
-  return value.length > 16 ? value.substring(0, 16) : value;
-}
-
-/// One rendered line of `assignment-steps.md`.
-///
-/// [index] is the task-item ordinal the core toggles; headings and prose lines
-/// carry none. Parsing here is display-only: the counts come from the core, and
-/// a toggle's answer replaces the markdown rather than being merged locally.
-class _StepRow {
-  const _StepRow({
-    required this.text,
-    this.index,
-    this.checked,
-    this.heading = false,
-  });
-
-  final String text;
-  final int? index;
-  final bool? checked;
-  final bool heading;
-}
-
-final _stepHeadingPattern = RegExp(r'^(#{1,6})\s+(.*)$');
-final _stepCheckboxPattern = RegExp(r'^[-*]\s+\[([ xX])\]\s+(.*)$');
-final _stepBulletPattern = RegExp(r'^[-*]\s+(.*)$');
-
-List<_StepRow> _parseSteps(String markdown) {
-  final rows = <_StepRow>[];
-  var task = 0;
-  final lines = markdown
-      .replaceAll('\r\n', '\n')
-      .replaceAll('\r', '\n')
-      .split('\n');
-  for (final line in lines) {
-    final trimmed = line.trim();
-    if (trimmed.isEmpty) continue;
-
-    final heading = _stepHeadingPattern.firstMatch(trimmed);
-    if (heading != null) {
-      rows.add(_StepRow(text: heading.group(2)!.trim(), heading: true));
-      continue;
-    }
-
-    final checkbox = _stepCheckboxPattern.firstMatch(trimmed);
-    if (checkbox != null) {
-      rows.add(
-        _StepRow(
-          text: checkbox.group(2)!.trimRight(),
-          index: task++,
-          checked: checkbox.group(1)!.toLowerCase() == 'x',
-        ),
-      );
-      continue;
-    }
-
-    final bullet = _stepBulletPattern.firstMatch(trimmed);
-    if (bullet != null) {
-      rows.add(_StepRow(text: bullet.group(1)!.trimRight()));
-      continue;
-    }
-
-    final quote = trimmed.startsWith('>')
-        ? trimmed.substring(1).trim()
-        : trimmed;
-    rows.add(_StepRow(text: quote));
-  }
-  return rows;
 }
