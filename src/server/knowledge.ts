@@ -6,6 +6,9 @@ import { listNotes } from "../storage/note-store";
 import { indexFileExists } from "../storage/index";
 import { searchKnowledge as indexedKnowledgeSearch } from "../services/knowledge/search";
 import { readMemory, type Memory } from "../services/lockin/memory";
+import { listSessions, sessionFolderFor } from "../services/lockin/manager";
+import { loadGoalRows } from "../app/actions/skills";
+import { loadProjects } from "../app/actions/projects";
 import { loadProjectMeta } from "../services/work/agents";
 import { openSession } from "../services/lockin/manager";
 import {
@@ -879,5 +882,176 @@ export async function readKnowledgeTarget(
       };
     }
   }
+}
+
+
+/** At most this many search hits are returned (`knowledge.search`). */
+export async function sessionKnowledge(
+  workspace: Workspace,
+): Promise<KnowledgeCandidate[]> {
+  const out: KnowledgeCandidate[] = [];
+  let rows;
+  try {
+    rows = await listSessions({ workspace });
+  } catch {
+    return out;
+  }
+
+  for (const row of rows) {
+    if (row.broken) continue;
+    const folder = sessionFolderFor(workspace, row.id);
+    const opened = await openSession({ workspace, id: row.id });
+    if (opened.ok) {
+      const session = opened.value.session;
+      const metaPath = workspaceRelativePath(workspace.root, join(folder, SESSION_FILES.meta));
+      if (metaPath !== "") {
+        out.push({
+          id: knowledgeIds.session(row.id),
+          kind: "session",
+          title: row.name || row.id,
+          side: "school",
+          path: metaPath,
+          updated: session.created || row.created,
+          text: [row.name, session.prompt].join("\n"),
+        });
+      }
+      for (const source of session.sources) {
+        const absolute = confinedJoin(folder, source.storedPath);
+        if (absolute === null) continue;
+        const path = workspaceRelativePath(workspace.root, absolute);
+        if (path === "") continue;
+        const extracted = await extract(absolute);
+        if (!extracted.ok) continue;
+        out.push({
+          id: knowledgeIds.source(row.id, source.hash),
+          kind: "source",
+          title: source.name,
+          side: "school",
+          path,
+          updated: session.created || row.created,
+          text: extracted.text,
+        });
+      }
+    }
+
+    const memory = await readMemory(folder, row.id);
+    if (memory.ok && memory.value !== null) {
+      const memoryPath = workspaceRelativePath(workspace.root, join(folder, SESSION_FILES.memory));
+      if (memoryPath !== "") {
+        memory.value.points.forEach((point, index) => {
+          out.push({
+            id: knowledgeIds.memory(row.id, index),
+            kind: "memory",
+            title: `${row.name || row.id} — session memory`,
+            side: "school",
+            path: memoryPath,
+            updated: memory.value!.updated || row.created,
+            text: point,
+          });
+        });
+      }
+    }
+  }
+  return out;
+}
+
+export async function goalKnowledge(
+  workspace: Workspace,
+): Promise<KnowledgeCandidate[]> {
+  const out: KnowledgeCandidate[] = [];
+  let rows;
+  try {
+    rows = await loadGoalRows(workspace);
+  } catch {
+    return out;
+  }
+  for (const row of rows) {
+    if (row.broken !== undefined) continue;
+    const path = workspaceRelativePath(
+      workspace.root,
+      join(workspace.paths.goals, row.id, "meta.json"),
+    );
+    if (path === "") continue;
+    out.push({
+      id: knowledgeIds.goal(row.id),
+      kind: "goal",
+      title: row.name || row.id,
+      side: "skills",
+      path,
+      updated: row.lastOpened,
+      text: row.name,
+    });
+  }
+  return out;
+}
+
+export async function projectKnowledge(
+  workspace: Workspace,
+): Promise<KnowledgeCandidate[]> {
+  const out: KnowledgeCandidate[] = [];
+  let rows;
+  try {
+    rows = await loadProjects(workspace);
+  } catch {
+    return out;
+  }
+  for (const row of rows) {
+    const path = workspaceRelativePath(
+      workspace.root,
+      join(workspace.paths.workProjects, row.id, "meta.json"),
+    );
+    if (path === "") continue;
+    const meta = await loadProjectMeta(workspace, row.id);
+    const instructions = meta.ok ? meta.value.instructions : "";
+    out.push({
+      id: knowledgeIds.project(row.id),
+      kind: "project",
+      title: row.name,
+      side: "work",
+      path,
+      updated: meta.ok ? meta.value.last_opened_at : "",
+      text: [row.name, instructions, ...row.agents.map((agent) => agent.task)].join("\n"),
+    });
+  }
+  return out;
+}
+
+/**
+ * Local archive index rows, one kind per side.
+ *
+ * `archive-index/<side>.json` is a cache, not the truth: a missing or corrupt
+ * index simply contributes no archive hits.
+ */
+export async function archiveKnowledge(archiveIndex: string): Promise<KnowledgeCandidate[]> {
+  const out: KnowledgeCandidate[] = [];
+  for (const side of ["school", "skills"] as const) {
+    let raw: unknown;
+    try {
+      raw = JSON.parse(await readFile(join(archiveIndex, `${side}.json`), "utf8"));
+    } catch {
+      continue;
+    }
+    if (!isRecord(raw) || !Array.isArray(raw.entries)) continue;
+    for (const entry of raw.entries) {
+      if (!isRecord(entry)) continue;
+      const entryId = typeof entry.id === "string" ? entry.id : "";
+      if (entryId === "") continue;
+      const title =
+        typeof entry.title === "string" && entry.title.trim() !== "" ? entry.title : entryId;
+      const tags = Array.isArray(entry.tags)
+        ? entry.tags.filter((tag): tag is string => typeof tag === "string")
+        : [];
+      out.push({
+        id: knowledgeIds.archive(side, entryId),
+        kind: "archive",
+        title,
+        side,
+        path: `archive-index/${side}.json`,
+        updated: typeof entry.archivedAt === "string" ? entry.archivedAt : "",
+        text: [title, tags.join(" ")].join("\n"),
+      });
+    }
+  }
+  return out;
 }
 

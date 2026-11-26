@@ -194,13 +194,15 @@ import {
   isKnowledgeScope,
   isKnowledgeTreeSide,
   knowledgeExcerpt,
-  knowledgeIds,
   capKnowledgeBody,
+  archiveKnowledge,
+  goalKnowledge,
+  projectKnowledge,
+  sessionKnowledge,
   parseKnowledgeReadTarget,
   readKnowledgeTarget,
   knowledgeScore,
   knowledgeSort,
-  workspaceRelativePath,
   KNOWLEDGE_BODY_LIMIT,
   KNOWLEDGE_NO_TOPIC,
   readVaultNotes,
@@ -374,9 +376,7 @@ import {
 } from "../services/lockin/mistakes";
 import { UPDATE_REPO } from "../services/update";
 import { APP_VERSION } from "../version";
-import { extract } from "../services/extract/index";
 import {
-  listSessions,
   openSession,
   sessionFolderFor,
   writeMeta as writeSessionMeta,
@@ -393,7 +393,6 @@ import {
   type StatsSummary,
 } from "../stats/types";
 import { createJsonlHistoryPort } from "../storage/chat-history";
-import { confinedJoin } from "../storage/paths";
 import {
   NEVER_PLUGIN_COMMANDS,
   PLUGIN_COMMANDS,
@@ -973,176 +972,6 @@ export const PLUGIN_PERMISSION_TIMEOUT_MS = 120_000;
 /* -------------------------------------------------------------------------- */
 /* Knowledge base: read-only search and topic tree                            */
 /* -------------------------------------------------------------------------- */
-
-/** At most this many search hits are returned (`knowledge.search`). */
-async function sessionKnowledge(
-  workspace: CoreServices["workspace"],
-): Promise<KnowledgeCandidate[]> {
-  const out: KnowledgeCandidate[] = [];
-  let rows;
-  try {
-    rows = await listSessions({ workspace });
-  } catch {
-    return out;
-  }
-
-  for (const row of rows) {
-    if (row.broken) continue;
-    const folder = sessionFolderFor(workspace, row.id);
-    const opened = await openSession({ workspace, id: row.id });
-    if (opened.ok) {
-      const session = opened.value.session;
-      const metaPath = workspaceRelativePath(workspace.root, join(folder, SESSION_FILES.meta));
-      if (metaPath !== "") {
-        out.push({
-          id: knowledgeIds.session(row.id),
-          kind: "session",
-          title: row.name || row.id,
-          side: "school",
-          path: metaPath,
-          updated: session.created || row.created,
-          text: [row.name, session.prompt].join("\n"),
-        });
-      }
-      for (const source of session.sources) {
-        const absolute = confinedJoin(folder, source.storedPath);
-        if (absolute === null) continue;
-        const path = workspaceRelativePath(workspace.root, absolute);
-        if (path === "") continue;
-        const extracted = await extract(absolute);
-        if (!extracted.ok) continue;
-        out.push({
-          id: knowledgeIds.source(row.id, source.hash),
-          kind: "source",
-          title: source.name,
-          side: "school",
-          path,
-          updated: session.created || row.created,
-          text: extracted.text,
-        });
-      }
-    }
-
-    const memory = await readMemory(folder, row.id);
-    if (memory.ok && memory.value !== null) {
-      const memoryPath = workspaceRelativePath(workspace.root, join(folder, SESSION_FILES.memory));
-      if (memoryPath !== "") {
-        memory.value.points.forEach((point, index) => {
-          out.push({
-            id: knowledgeIds.memory(row.id, index),
-            kind: "memory",
-            title: `${row.name || row.id} — session memory`,
-            side: "school",
-            path: memoryPath,
-            updated: memory.value!.updated || row.created,
-            text: point,
-          });
-        });
-      }
-    }
-  }
-  return out;
-}
-
-async function goalKnowledge(
-  workspace: CoreServices["workspace"],
-): Promise<KnowledgeCandidate[]> {
-  const out: KnowledgeCandidate[] = [];
-  let rows;
-  try {
-    rows = await loadGoalRows(workspace);
-  } catch {
-    return out;
-  }
-  for (const row of rows) {
-    if (row.broken !== undefined) continue;
-    const path = workspaceRelativePath(
-      workspace.root,
-      join(workspace.paths.goals, row.id, "meta.json"),
-    );
-    if (path === "") continue;
-    out.push({
-      id: knowledgeIds.goal(row.id),
-      kind: "goal",
-      title: row.name || row.id,
-      side: "skills",
-      path,
-      updated: row.lastOpened,
-      text: row.name,
-    });
-  }
-  return out;
-}
-
-async function projectKnowledge(
-  workspace: CoreServices["workspace"],
-): Promise<KnowledgeCandidate[]> {
-  const out: KnowledgeCandidate[] = [];
-  let rows;
-  try {
-    rows = await loadProjects(workspace);
-  } catch {
-    return out;
-  }
-  for (const row of rows) {
-    const path = workspaceRelativePath(
-      workspace.root,
-      join(workspace.paths.workProjects, row.id, "meta.json"),
-    );
-    if (path === "") continue;
-    const meta = await loadProjectMeta(workspace, row.id);
-    const instructions = meta.ok ? meta.value.instructions : "";
-    out.push({
-      id: knowledgeIds.project(row.id),
-      kind: "project",
-      title: row.name,
-      side: "work",
-      path,
-      updated: meta.ok ? meta.value.last_opened_at : "",
-      text: [row.name, instructions, ...row.agents.map((agent) => agent.task)].join("\n"),
-    });
-  }
-  return out;
-}
-
-/**
- * Local archive index rows, one kind per side.
- *
- * `archive-index/<side>.json` is a cache, not the truth: a missing or corrupt
- * index simply contributes no archive hits.
- */
-async function archiveKnowledge(archiveIndex: string): Promise<KnowledgeCandidate[]> {
-  const out: KnowledgeCandidate[] = [];
-  for (const side of ["school", "skills"] as const) {
-    let raw: unknown;
-    try {
-      raw = JSON.parse(await readFile(join(archiveIndex, `${side}.json`), "utf8"));
-    } catch {
-      continue;
-    }
-    if (!isRecord(raw) || !Array.isArray(raw.entries)) continue;
-    for (const entry of raw.entries) {
-      if (!isRecord(entry)) continue;
-      const entryId = typeof entry.id === "string" ? entry.id : "";
-      if (entryId === "") continue;
-      const title =
-        typeof entry.title === "string" && entry.title.trim() !== "" ? entry.title : entryId;
-      const tags = Array.isArray(entry.tags)
-        ? entry.tags.filter((tag): tag is string => typeof tag === "string")
-        : [];
-      out.push({
-        id: knowledgeIds.archive(side, entryId),
-        kind: "archive",
-        title,
-        side,
-        path: `archive-index/${side}.json`,
-        updated: typeof entry.archivedAt === "string" ? entry.archivedAt : "",
-        text: [title, tags.join(" ")].join("\n"),
-      });
-    }
-  }
-  return out;
-}
 
 /**
  * One core, one boot.
