@@ -11,9 +11,18 @@ import 'models.dart';
 import 'protocol.dart';
 
 part 'core_store_archive.dart';
+part 'core_store_chat.dart';
 part 'core_store_knowledge.dart';
 
 class CoreStore extends ChangeNotifier {
+  /// The last `chat.send` refusal, shown in the Chill banner. Per-surface: a
+  /// refused Chill send never appears on another page.
+  String? chatSendError;
+
+  /// The last `chat.snapshot` failure, or null. The previous [chat] stays, so a
+  /// failed re-read never blanks a transcript the user is reading.
+  String? chatError;
+
   CoreStore({
     CoreConnection? connection,
     this.reconnectFactory,
@@ -2033,65 +2042,6 @@ class CoreStore extends ChangeNotifier {
     await refreshWorkspace();
     await refreshChat();
     notifyListeners();
-  }
-
-  Future<void> refreshChat() async {
-    try {
-      final json = await _connection.call(CoreMethod.chatSnapshot);
-      if (_acceptChatSnapshot(_chillChatKey, json['seq'])) {
-        chat = ChatSnapshot.fromJson(json);
-        chatError = null;
-      }
-      notifyListeners();
-    } catch (failure) {
-      // Every other read keeps the previous value on failure; this one used to
-      // set `chat = null`, so a transient `chat.snapshot` failure after a model
-      // change erased the conversation on screen and reported nothing.
-      chatError = _messageOf(failure);
-      notifyListeners();
-    }
-  }
-
-  /// Send one Chill turn (`chat.send`).
-  ///
-  /// [images] are absolute paths the **user picked**, at most four. The core
-  /// derives each media type from its extension and reads the bytes at send
-  /// time; the shell never opens the file, and nothing is persisted — the
-  /// transcript stays text only. The key is omitted when there is no image, so
-  /// a text-only turn is byte-identical to the old request.
-  /// The last `chat.send` refusal, shown in the Chill banner. Per-surface: a
-  /// refused Chill send never appears on another page.
-  String? chatSendError;
-
-  /// The last `chat.snapshot` failure, or null. The previous [chat] stays, so a
-  /// failed re-read never blanks a transcript the user is reading.
-  String? chatError;
-
-  Future<bool> sendChat(String text, {List<String> images = const []}) async {
-    try {
-      await _connection.call(CoreMethod.chatSend, {
-        'text': text,
-        if (images.isNotEmpty) 'images': images,
-      });
-      chatSendError = null;
-      notifyListeners();
-      return true;
-    } catch (failure) {
-      // Per-surface, not the global error: the chat shows it in its banner and
-      // keeps the composer text, and no other page is told about it.
-      chatSendError = _messageOf(failure);
-      notifyListeners();
-      return false;
-    }
-  }
-
-  Future<void> cancelChat() async {
-    try {
-      await _connection.call(CoreMethod.chatCancel);
-    } catch (failure) {
-      error = _messageOf(failure);
-      notifyListeners();
-    }
   }
 
   /// Open a lock-in session and load its transcript.
