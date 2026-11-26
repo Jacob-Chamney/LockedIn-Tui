@@ -72,6 +72,12 @@ requests merge.
 
 ### Changed
 
+- Knowledge search uses each vault's FTS5 index for notes instead of reading
+  every Markdown file per query. A literal substring query (`gradient` →
+  `subgradient`) is supplemented from the same index, and a corrupt index or a
+  query no indexed note matches falls back to the Markdown so a cache can never
+  hide a note. Session, source, goal, project and archive hits are unchanged.
+
 - A learner can choose an unlocked branch in the learning tree: `teach.step`
   accepts a `stepId`, refuses a locked step by naming what blocks it, and a held
   step opens no model call. The tree rows are clickable and the next step stays

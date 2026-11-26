@@ -62,6 +62,8 @@ import {
   type ProjectAgent,
 } from "../app/actions/projects";
 import { loadSessionHome, loadSessionRows } from "../app/actions/sessions";
+import { searchKnowledge as indexedKnowledgeSearch } from "../services/knowledge/search";
+import { indexFileExists } from "../storage/index";
 import {
   createSkillCourse,
   gatherSkillSources,
@@ -2926,6 +2928,53 @@ function noteCandidates(root: string, vault: string, side: "school" | "skills"):
       text: note.text,
     })),
   );
+}
+
+/**
+ * Vault note candidates from the FTS index, not a walk of every note.
+ *
+ * The index is a cache and `indexedKnowledgeSearch` rebuilds it when it is
+ * missing. Only the matched notes are read from disk, to keep the same title,
+ * `updated` value and body the reader sees. A broken index, or a query no note
+ * matches, falls back to the direct read so a cache can never hide a note.
+ */
+async function indexedNoteCandidates(
+  workspace: CoreServices["workspace"],
+  side: "school" | "skills",
+  query: string,
+): Promise<KnowledgeCandidate[]> {
+  const vault =
+    side === "school" ? workspace.paths.schoolVault : workspace.paths.skillVault;
+  // Search is read-only: a missing index is not built here. The direct read is
+  // the fallback, so a workspace that has never been indexed still answers and
+  // is left byte-identical.
+  if (!indexFileExists(workspace.paths, side)) {
+    return noteCandidates(workspace.root, vault, side);
+  }
+  let indexed;
+  try {
+    indexed = await indexedKnowledgeSearch(workspace, query, { side, limit: 200 });
+  } catch {
+    return noteCandidates(workspace.root, vault, side);
+  }
+  if (indexed.diagnostics.length > 0 || indexed.hits.length === 0) {
+    return noteCandidates(workspace.root, vault, side);
+  }
+  const out: KnowledgeCandidate[] = [];
+  for (const hit of indexed.hits) {
+    const note = await readVaultNoteFile(workspace.root, join(vault, hit.path));
+    if (note === null) continue;
+    out.push({
+      id: knowledgeIds.note(side, note.path),
+      kind: "note",
+      title: note.title,
+      side,
+      path: note.path,
+      updated: note.updated,
+      text: note.text,
+    });
+  }
+  return out;
 }
 
 /**
@@ -11775,8 +11824,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
    * There is **one read** of every source and `scope` is a projection over that
    * result, never a second pass: a `school` request cannot see a skills row
    * because the row was labelled when it was built, not filtered afterwards into
-   * existence. Nothing is written, no index is rebuilt, no model is called and
-   * no network is contacted.
+   * existence. The vault notes come from the side's FTS index (refreshed as a
+   * cache, never Markdown); no model is called and no network is contacted.
    *
    * Ranking is deterministic and lexical: a title/name prefix beats a whole-word
    * match, which beats a body substring; ties go to the most recently updated,
@@ -11829,12 +11878,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     const workspace = current.value.workspace;
 
     const candidates: KnowledgeCandidate[] = [];
-    candidates.push(
-      ...(await noteCandidates(workspace.root, workspace.paths.schoolVault, "school")),
-    );
-    candidates.push(
-      ...(await noteCandidates(workspace.root, workspace.paths.skillVault, "skills")),
-    );
+    candidates.push(...(await indexedNoteCandidates(workspace, "school", query)));
+    candidates.push(...(await indexedNoteCandidates(workspace, "skills", query)));
     candidates.push(...(await sessionKnowledge(workspace)));
     candidates.push(...(await goalKnowledge(workspace)));
     candidates.push(...(await projectKnowledge(workspace)));

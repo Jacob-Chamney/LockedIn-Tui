@@ -2359,9 +2359,12 @@ request.
     process history are never results.
   - The archive index is a **cache**: a missing or corrupt index contributes no
     `archive` hit, and deleting it cannot fail the search.
-  - Read-only: every file is opened for reading only. Nothing is written, no
-    index is rebuilt, no model is called and no network is contacted. A broken
-    session, goal or project folder becomes no hit, never an error.
+  - The vault notes are searched through the side's FTS index (with a literal
+    substring supplement, so `gradient` still finds `subgradient`). The index is
+    a cache: a missing one is built once, and a query no indexed note matches
+    falls back to the Markdown so a stale index cannot hide a new note. No
+    Markdown is rewritten, no model is called and no network is contacted. A broken session, goal or project folder becomes no hit, never an
+    error.
   - An empty workspace is `{hits: []}` — an empty state with a next action, not
     an error.
 

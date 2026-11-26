@@ -938,6 +938,40 @@ export function search(
   }
 }
 
+/**
+ * Literal substring matches from the same index.
+ *
+ * FTS5 tokenises, so `gradient` does not match `subgradient`. The product's
+ * search is lexical substring matching, so the FTS result is supplemented by a
+ * scan of the indexed `title`/`body` columns. It reads the index database, not
+ * the vault, so an unindexed file is still handled by the caller's fallback.
+ */
+export function searchSubstring(
+  index: NoteIndex,
+  query: string,
+  limit = 10,
+): Result<Hit[], IndexError> {
+  const needle = query.trim().toLowerCase()
+  if (needle === "" || limit <= 0) return ok([])
+  try {
+    const hits = index.db
+      .query(
+        `SELECT path,
+                title,
+                '' AS snippet,
+                0 AS score
+           FROM notes
+          WHERE instr(lower(title), ?) > 0 OR instr(lower(body), ?) > 0
+          ORDER BY path ASC
+          LIMIT ?`,
+      )
+      .all(needle, needle, limit) as Hit[]
+    return ok(hits)
+  } catch (error) {
+    return err(corruptError(index.dbFile, error))
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* introspection (tests, doctor)                                               */
 /* -------------------------------------------------------------------------- */

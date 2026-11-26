@@ -12,7 +12,8 @@
  *
  * Read-only over the vaults: a search opens the index, queries it and closes it.
  * A missing index is rebuilt once because the index is a cache; nothing else is
- * ever written.
+ * ever written. FTS5 tokenises, so a literal substring supplement comes from
+ * the same index.
  */
 
 import {
@@ -21,6 +22,7 @@ import {
   closeIndex,
   rebuildFromScratch,
   search,
+  searchSubstring,
   type IndexError,
 } from "../../storage/index"
 import type { Workspace } from "../../storage/workspace"
@@ -158,6 +160,9 @@ async function searchSide(
   }
 
   try {
+    // A query no indexed note matches falls back to the Markdown in the caller,
+    // so a stale index cannot hide a newly added note. The search itself never
+    // writes the workspace: opening and querying an existing index is read-only.
     const found = search(opened.value, query, limit)
     if (!found.ok) {
       diagnostics.push({
@@ -168,8 +173,10 @@ async function searchSide(
     }
 
     const hits: KnowledgeHit[] = []
+    const seen = new Set<string>()
     for (const hit of found.value) {
       if (!hitBelongsToSide(side, hit.path)) continue
+      seen.add(hit.path)
       hits.push({
         side,
         path: hit.path,
@@ -177,6 +184,23 @@ async function searchSide(
         snippet: boundSnippet(hit.snippet),
         kind: kindForPath(hit.path),
       })
+    }
+    // FTS5 tokenises, so a lexical substring that sits inside a token
+    // (`gradient` in `subgradient`) is not an FTS hit. The same index holds the
+    // body, so this is a second query, not a vault walk.
+    const substring = searchSubstring(opened.value, query, limit)
+    if (substring.ok) {
+      for (const hit of substring.value) {
+        if (!hitBelongsToSide(side, hit.path) || seen.has(hit.path)) continue
+        seen.add(hit.path)
+        hits.push({
+          side,
+          path: hit.path,
+          title: hit.title,
+          snippet: boundSnippet(hit.snippet),
+          kind: kindForPath(hit.path),
+        })
+      }
     }
     return { hits, diagnostics }
   } catch (error) {
