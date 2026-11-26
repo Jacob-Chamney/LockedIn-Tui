@@ -328,3 +328,102 @@ class PracticeRowState extends State<PracticeRow> {
 enum Phase { measure, plan, teach, practice }
 
 /// One phase in the rail: number, name, and how far into it the session is.
+
+class PhaseRow extends StatelessWidget {
+  const PhaseRow({
+    super.key,
+    required this.number,
+    required this.label,
+    required this.summary,
+    required this.selected,
+    required this.compact,
+    required this.onTap,
+  });
+
+  final int number;
+  final String label;
+  final String summary;
+  final bool selected;
+  final bool compact;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = selected ? LockedInColors.primary : LockedInColors.muted;
+    return Tooltip(
+      message: compact ? '$number $label · $summary' : '',
+      waitDuration: const Duration(milliseconds: 400),
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.symmetric(
+            horizontal: Space.xxs,
+            vertical: 1,
+          ),
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 0 : Space.xs,
+            vertical: Space.xs - 2,
+          ),
+          decoration: BoxDecoration(
+            color: selected ? LockedInColors.panel : Colors.transparent,
+            border: Border(
+              left: BorderSide(
+                color: selected ? LockedInColors.primary : Colors.transparent,
+                width: Stroke.focus,
+              ),
+            ),
+          ),
+          child: compact
+              ? Center(
+                  child: Text(
+                    '$number',
+                    style: LockedInType.key.copyWith(color: tone),
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          '$number',
+                          style: LockedInType.micro.copyWith(
+                            color: tone,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: Space.xs),
+                        Text(
+                          label,
+                          style: LockedInType.body.copyWith(
+                            fontSize: TypeScale.key,
+                            color: selected
+                                ? LockedInColors.foreground
+                                : LockedInColors.muted,
+                            fontWeight: selected
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 14, top: 1),
+                      child: Text(
+                        summary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: LockedInType.micro.copyWith(
+                          color: LockedInColors.muted,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+}
