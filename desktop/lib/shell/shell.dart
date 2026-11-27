@@ -49,6 +49,8 @@ import 'plugin_permission.dart';
 part 'shell_sidebar_keys.dart';
 part 'shell_overlays.dart';
 part 'shell_surfaces.dart';
+part 'shell_keys.dart';
+part 'shell_work.dart';
 
 /// Surface shortcuts come from the keymap registry (`Space` + a letter, as in
 /// the terminal app), so there is no second table here: the sidebar draws its
@@ -66,6 +68,174 @@ class _ShellState extends State<Shell> {
   ///
   /// `setState` is protected, so a part-file extension cannot call it directly.
   void refresh(VoidCallback fn) => setState(fn);
+
+  /// surface reads the chord that actually opens it.
+  static String _shortcutLabel(KeymapRow? row) {
+    if (row == null) return '';
+    final binding = row.binding;
+    return binding.alt ? binding.key : binding.display;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    // Below 900 px the rail is icons whatever the mode says: the labels do not
+    // fit, and a narrow window still needs its navigation.
+    _narrow = width < Breakpoints.rail;
+    final compact = _narrow || _sidebarMode == SidebarMode.icons;
+    final store = CoreScope.of(context);
+    final keymap = _keymap(store);
+    final pending = store.pendingPermission;
+    final surfaceRows = [
+      for (final surface in Surface.values)
+        keymap.rowFor('surface.${surface.name}'),
+    ].whereType<KeymapRow>().toList();
+    final paletteKey = keymap.rowFor('palette')?.binding.display ?? 'Ctrl+K';
+    // One line that fits the rail: the count of destinations and the chord that
+    // lists every action. Individual chords live in each row's tooltip.
+    final sidebarFooter = surfaceRows.isEmpty
+        ? '$paletteKey palette'
+        : '${surfaceRows.length} surfaces · $paletteKey';
+    return Focus(
+      autofocus: true,
+      onKeyEvent: _rootKey,
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Column(
+              children: [
+                TopBar(
+                  surfaceLabel: _surface.label,
+                  store: store,
+                  sidebarExpanded: _sidebarMode == SidebarMode.expanded,
+                  toggleHint: _sidebarToggleLabel(keymap),
+                  // The button resizes; only the chord also takes the keys.
+                  onToggleSidebar: () => _cycleSidebar(focus: false),
+                  onOpenSettings: _openSettings,
+                ),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Sidebar(
+                        cursorKey: _sidebarCursorKey,
+                        focusNode: _sidebarFocus,
+                        onKey: _sidebarKey,
+                        onFocusChange: _onSidebarFocusChange,
+                        focused: _sidebarFocused,
+                        cursor: _sidebarFocused ? _sidebarCursor : -1,
+                        compact: compact,
+                        active: _surface,
+                        footer: sidebarFooter,
+                        shortcuts: {
+                          for (final surface in Surface.values)
+                            surface: _shortcutLabel(
+                              keymap.rowFor('surface.${surface.name}'),
+                            ),
+                        },
+                        onSelect: _pickSidebarSurface,
+                        counts: _sidebarCounts(store),
+                        achievements: _achievementsCount(store),
+                        achievementsActive: _achievementsOpen,
+                        onAchievements: _pickSidebarAchievements,
+                        recent: _recentSessions(store),
+                        onRecent: (id) =>
+                            unawaited(_openRecentSession(store, id)),
+                      ),
+                      VerticalDivider(width: 1, color: LockedInColors.line),
+                      Expanded(
+                        // While the rail owns the keyboard the page may not
+                        // take it back: the composer's `autofocus` and the
+                        // leader's focus restore both run in the same frame,
+                        // and a request that lands second would steal the rail
+                        // mid-chord.
+                        // `_pageProbe` never takes focus; it only answers
+                        // "is the keyboard somewhere in the page". A click in
+                        // the page is the pointer's way of saying "here", so it
+                        // releases the rail and lets the click itself focus.
+                        child: Listener(
+                          onPointerDown: (_) {
+                            if (_sidebarFocused) {
+                              _leaveSidebar(restore: false);
+                            }
+                          },
+                          child: Focus(
+                            focusNode: _pageProbe,
+                            // The probe answers "is the keyboard in the page"
+                            // by being an ancestor; it must never *hold* focus,
+                            // or it swallows autofocus when a page is swapped
+                            // in (opening Achievements left `r` dead).
+                            canRequestFocus: false,
+                            child: KeyedSubtree(
+                              key: ValueKey('page-$_pageEpoch'),
+                              child: _body(store, keymap),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                StatusBar(
+                  // The tokens and cost belong to the transcript on screen,
+                  // not always to Chill's.
+                  chat: _visibleChat(store),
+                  insert: _insert,
+                  label: _statusLabel(store),
+                  hint: _statusHint(store, keymap),
+                  helpKey: keymap.rowFor('help')?.binding.display ?? '?',
+                ),
+              ],
+            ),
+            if (_paletteOpen)
+              Positioned.fill(
+                child: CommandPalette(
+                  pendingInput: _overlayPending,
+                  actions: _paletteActions(),
+                  onRun: _runAction,
+                  onClose: _closePalette,
+                ),
+              ),
+            // The command line is the typed twin of the palette: one field, a
+            // live-filtered list of the registry's actions, `Esc` to dismiss.
+            if (_commandOpen)
+              Positioned.fill(
+                child: CommandLine(
+                  pendingInput: _overlayPending,
+                  entries: commandEntries(keymap),
+                  onRun: _runCommand,
+                  onClose: _closeCommandLine,
+                ),
+              ),
+            if (_leaderOpen)
+              Positioned.fill(
+                child: LeaderOverlay(
+                  rows: keymap.leaderRows(),
+                  onRun: _runLeaderRow,
+                  onClose: _closeLeader,
+                ),
+              ),
+            // The plugin write prompt is above every other layer: the core is
+            // blocked on this one decision, so neither the palette nor a leader
+            // chord may sit between the user and the answer.
+            if (pending != null)
+              Positioned.fill(
+                child: PluginPermissionModal(
+                  key: ValueKey('plugin-permission-${pending.requestId}'),
+                  request: pending,
+                  queued: store.queuedPermissions,
+                  expired: store.permissionExpired(pending.requestId),
+                  onDismissExpired: () =>
+                      store.dismissPermission(pending.requestId),
+                  error: store.pluginPermissionError,
+                  onConfirm: (allow) =>
+                      store.confirmPermission(pending.requestId, allow),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Surface _surface = Surface.chat;
   bool _insert = false;
@@ -542,426 +712,6 @@ class _ShellState extends State<Shell> {
 
   /// The trailing shortcut a sidebar row shows: the real registry binding, so
   /// the tenth surface reads `0` (Alt+0) rather than `10`, and a rebound
-  /// surface reads the chord that actually opens it.
-  static String _shortcutLabel(KeymapRow? row) {
-    if (row == null) return '';
-    final binding = row.binding;
-    return binding.alt ? binding.key : binding.display;
-  }
-
-  bool _editingText() {
-    final context = FocusManager.instance.primaryFocus?.context;
-    if (context == null) return false;
-    if (context.widget is EditableText) return true;
-    return context.findAncestorWidgetOfExactType<EditableText>() != null;
-  }
-
-  /// Root-level key resolution through the registry, so a focused composer or
-  /// search field cannot swallow a modifier chord and no second key list exists.
-  KeyEventResult _rootKey(FocusNode node, KeyEvent event) {
-    // One press, one action. Auto-repeat used to re-dispatch: a held `Esc`
-    // closed Achievements and then left Stats as well, and a held `Ctrl+R`
-    // restarted the core over and over.
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    // A pending plugin write prompt is the strictest case: the core is waiting
-    // on that answer, so nothing else may answer for it.
-    if (CoreScope.of(context).pendingPermission != null) {
-      return KeyEventResult.ignored;
-    }
-    // The leader's second key is resolved here, synchronously with the key that
-    // opened it. The overlay's own `Focus` asks for focus in a post-frame
-    // callback, so a chord typed within one frame — a fast hand on a 120 Hz
-    // display, or a held `Space` — arrived while nothing had focus yet, and the
-    // press was dropped. `_leaderOpen` is set in the same turn as the opening
-    // key, so this path cannot miss it.
-    if (_leaderOpen) {
-      if (event.logicalKey == LogicalKeyboardKey.escape) {
-        _closeLeader();
-        return KeyEventResult.handled;
-      }
-      final leaderRow = leaderRowForKey(
-        _keymap(CoreScope.of(context)).leaderRows(),
-        event,
-      );
-      if (leaderRow != null) {
-        _runLeaderRow(leaderRow);
-        return KeyEventResult.handled;
-      }
-      // Navigation and `Enter` belong to the overlay once it holds focus; a key
-      // nothing claims stays swallowed, so the surface underneath never sees it.
-      return KeyEventResult.handled;
-    }
-    // Any other overlay owns the keyboard: its own handler runs first, and the
-    // surface underneath must not also act on the same press. The exception is
-    // the one frame before a text overlay's field holds focus: a printable
-    // character typed there is buffered for the field rather than dropped.
-    if (_overlayOpen) {
-      if ((_paletteOpen || _commandOpen) && _isPrintable(event)) {
-        setState(() => _overlayPending += event.character!);
-        return KeyEventResult.handled;
-      }
-      return KeyEventResult.ignored;
-    }
-    final row = _keymap(CoreScope.of(context)).resolve(event);
-    if (row == null) return KeyEventResult.ignored;
-    final typing = _insert || _editingText();
-    // `Esc` in a text field nobody else claimed leaves the field, not the
-    // surface: the keyboard goes back to the page, which is NORMAL mode.
-    if (row.id == 'close' && typing) {
-      FocusManager.instance.primaryFocus?.unfocus(
-        disposition: UnfocusDisposition.previouslyFocusedChild,
-      );
-      if (_insert) setState(() => _insert = false);
-      return KeyEventResult.handled;
-    }
-    // A bare chord only fires in NORMAL mode with no text field focused. That
-    // includes `:`: opening the command line from a text field meant a colon
-    // could not be typed into the lock-in instructions or a goal.
-    if (!row.binding.hasModifier && typing) return KeyEventResult.ignored;
-    _dispatchAction(row.id);
-    return KeyEventResult.handled;
-  }
-
-  /// A character a text field would accept: no chord modifier, no control key.
-  ///
-  /// `event.character` is set for the keys a field inserts and null for Enter,
-  /// Tab, the arrows and the function keys, so this never swallows a navigation
-  /// press meant for the overlay's own handler.
-  bool _isPrintable(KeyEvent event) {
-    final character = event.character;
-    if (character == null || character.isEmpty) return false;
-    if (character.codeUnitAt(0) < 0x20) return false;
-    final keyboard = HardwareKeyboard.instance;
-    return !keyboard.isControlPressed && !keyboard.isAltPressed;
-  }
-
-  /// Modified chords (`Ctrl+K`, `Ctrl+R`) resolve before any page sees them.
-  ///
-  /// A page's `Focus` handler runs before the shell's root handler, and every
-  /// page reads bare letters: `Ctrl+K` was `k` to them. On Review and the deck
-  /// that marked an item *known* on disk instead of opening the palette. An
-  /// early handler runs ahead of the focus tree, so the registry's modified
-  /// chords win everywhere, and a chord the registry does not bind (`Ctrl+S`,
-  /// `Ctrl+C`) is left for the page and the platform.
-  KeyEventResult _earlyKey(KeyEvent event) {
-    if (event is! KeyDownEvent || !mounted) return KeyEventResult.ignored;
-    final keyboard = HardwareKeyboard.instance;
-    if (!keyboard.isControlPressed && !keyboard.isAltPressed) {
-      return KeyEventResult.ignored;
-    }
-    // A dialog route owns its keys; so does an overlay or a consent prompt.
-    if (!(ModalRoute.of(context)?.isCurrent ?? true)) {
-      return KeyEventResult.ignored;
-    }
-    final store = CoreScope.of(context);
-    if (_overlayOpen || store.pendingPermission != null) {
-      return KeyEventResult.ignored;
-    }
-    final row = _keymap(store).resolve(event);
-    if (row == null || !row.binding.hasModifier) return KeyEventResult.ignored;
-    _dispatchAction(row.id);
-    return KeyEventResult.handled;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    // Below 900 px the rail is icons whatever the mode says: the labels do not
-    // fit, and a narrow window still needs its navigation.
-    _narrow = width < Breakpoints.rail;
-    final compact = _narrow || _sidebarMode == SidebarMode.icons;
-    final store = CoreScope.of(context);
-    final keymap = _keymap(store);
-    final pending = store.pendingPermission;
-    final surfaceRows = [
-      for (final surface in Surface.values)
-        keymap.rowFor('surface.${surface.name}'),
-    ].whereType<KeymapRow>().toList();
-    final paletteKey = keymap.rowFor('palette')?.binding.display ?? 'Ctrl+K';
-    // One line that fits the rail: the count of destinations and the chord that
-    // lists every action. Individual chords live in each row's tooltip.
-    final sidebarFooter = surfaceRows.isEmpty
-        ? '$paletteKey palette'
-        : '${surfaceRows.length} surfaces · $paletteKey';
-    return Focus(
-      autofocus: true,
-      onKeyEvent: _rootKey,
-      child: Scaffold(
-        body: Stack(
-          children: [
-            Column(
-              children: [
-                TopBar(
-                  surfaceLabel: _surface.label,
-                  store: store,
-                  sidebarExpanded: _sidebarMode == SidebarMode.expanded,
-                  toggleHint: _sidebarToggleLabel(keymap),
-                  // The button resizes; only the chord also takes the keys.
-                  onToggleSidebar: () => _cycleSidebar(focus: false),
-                  onOpenSettings: _openSettings,
-                ),
-                Expanded(
-                  child: Row(
-                    children: [
-                      Sidebar(
-                        cursorKey: _sidebarCursorKey,
-                        focusNode: _sidebarFocus,
-                        onKey: _sidebarKey,
-                        onFocusChange: _onSidebarFocusChange,
-                        focused: _sidebarFocused,
-                        cursor: _sidebarFocused ? _sidebarCursor : -1,
-                        compact: compact,
-                        active: _surface,
-                        footer: sidebarFooter,
-                        shortcuts: {
-                          for (final surface in Surface.values)
-                            surface: _shortcutLabel(
-                              keymap.rowFor('surface.${surface.name}'),
-                            ),
-                        },
-                        onSelect: _pickSidebarSurface,
-                        counts: _sidebarCounts(store),
-                        achievements: _achievementsCount(store),
-                        achievementsActive: _achievementsOpen,
-                        onAchievements: _pickSidebarAchievements,
-                        recent: _recentSessions(store),
-                        onRecent: (id) =>
-                            unawaited(_openRecentSession(store, id)),
-                      ),
-                      VerticalDivider(width: 1, color: LockedInColors.line),
-                      Expanded(
-                        // While the rail owns the keyboard the page may not
-                        // take it back: the composer's `autofocus` and the
-                        // leader's focus restore both run in the same frame,
-                        // and a request that lands second would steal the rail
-                        // mid-chord.
-                        // `_pageProbe` never takes focus; it only answers
-                        // "is the keyboard somewhere in the page". A click in
-                        // the page is the pointer's way of saying "here", so it
-                        // releases the rail and lets the click itself focus.
-                        child: Listener(
-                          onPointerDown: (_) {
-                            if (_sidebarFocused) {
-                              _leaveSidebar(restore: false);
-                            }
-                          },
-                          child: Focus(
-                            focusNode: _pageProbe,
-                            // The probe answers "is the keyboard in the page"
-                            // by being an ancestor; it must never *hold* focus,
-                            // or it swallows autofocus when a page is swapped
-                            // in (opening Achievements left `r` dead).
-                            canRequestFocus: false,
-                            child: KeyedSubtree(
-                              key: ValueKey('page-$_pageEpoch'),
-                              child: _body(store, keymap),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                StatusBar(
-                  // The tokens and cost belong to the transcript on screen,
-                  // not always to Chill's.
-                  chat: _visibleChat(store),
-                  insert: _insert,
-                  label: _statusLabel(store),
-                  hint: _statusHint(store, keymap),
-                  helpKey: keymap.rowFor('help')?.binding.display ?? '?',
-                ),
-              ],
-            ),
-            if (_paletteOpen)
-              Positioned.fill(
-                child: CommandPalette(
-                  pendingInput: _overlayPending,
-                  actions: _paletteActions(),
-                  onRun: _runAction,
-                  onClose: _closePalette,
-                ),
-              ),
-            // The command line is the typed twin of the palette: one field, a
-            // live-filtered list of the registry's actions, `Esc` to dismiss.
-            if (_commandOpen)
-              Positioned.fill(
-                child: CommandLine(
-                  pendingInput: _overlayPending,
-                  entries: commandEntries(keymap),
-                  onRun: _runCommand,
-                  onClose: _closeCommandLine,
-                ),
-              ),
-            if (_leaderOpen)
-              Positioned.fill(
-                child: LeaderOverlay(
-                  rows: keymap.leaderRows(),
-                  onRun: _runLeaderRow,
-                  onClose: _closeLeader,
-                ),
-              ),
-            // The plugin write prompt is above every other layer: the core is
-            // blocked on this one decision, so neither the palette nor a leader
-            // chord may sit between the user and the answer.
-            if (pending != null)
-              Positioned.fill(
-                child: PluginPermissionModal(
-                  key: ValueKey('plugin-permission-${pending.requestId}'),
-                  request: pending,
-                  queued: store.queuedPermissions,
-                  expired: store.permissionExpired(pending.requestId),
-                  onDismissExpired: () =>
-                      store.dismissPermission(pending.requestId),
-                  error: store.pluginPermissionError,
-                  onConfirm: (allow) =>
-                      store.confirmPermission(pending.requestId, allow),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// The status bar's scope name. A session is its own scope, so the bar never
-  /// says `SESSIONS` while a detail or transcript is on screen.
-  String _statusLabel(CoreStore store) {
-    if (_commandOpen) return 'COMMAND';
-    if (_achievementsOpen) return 'ACHIEVEMENTS';
-    if (_surface == Surface.sessions) {
-      if (_wizardOpen) return 'NEW LOCK-IN';
-      if (store.activeSession != null) {
-        if (store.outputKind != null) {
-          return store.outputKind == 'flashcards'
-              ? 'FLASHCARDS'
-              : 'STUDY GUIDE';
-        }
-        if (_sessionSettingsOpen) return 'SESSION SETTINGS';
-        return _sessionChatOpen ? 'SESSION CHAT' : 'SESSION';
-      }
-    }
-    if (_surface == Surface.work && store.activeProject != null) {
-      if (_workActivityOpen) return 'ACTIVITY';
-      if (_swarmOpen) return 'SWARM';
-      if (_workApprovalsOpen) return 'APPROVALS';
-      return _workChatOpen ? 'PROJECT CHAT' : 'PROJECT';
-    }
-    if (_surface == Surface.skills) {
-      if (_goalWizardOpen) return 'NEW SESSION';
-      if (store.activeSkill != null) {
-        if (_skillChatOpen) return 'TEACHING CHAT';
-        if (store.skillLessonOpen) return 'LESSON';
-        return store.skillChapterOpen ? 'CHAPTER' : 'TEACHING';
-      }
-    }
-    return _surface.label.toUpperCase();
-  }
-
-  /// The status bar's key hint for the layer that actually has focus.
-  ///
-  /// The surface hint is the default; a session, the wizard and an open project
-  /// each explain their own keys instead, so the bar never advertises a list's
-  /// controls while a transcript or form is on screen. The chat hint names the
-  /// leader so the generated table is one key away, and the key it names is the
-  /// registry's own binding, not a literal: rebinding the leader changes this
-  /// line with it.
-  String _statusHint(CoreStore store, KeymapRegistry keymap) {
-    final leader = keymap.rowFor('leader')?.binding.display ?? 'Space';
-    final leaderHint = '$leader leader';
-    // Chat's hint depends on whether a turn can be sent: naming "Enter send"
-    // over a disabled composer taught a key that did nothing.
-    if (_surface == Surface.chat) {
-      final chat = store.chat;
-      final blocked = chat?.blocked;
-      if (blocked != null) return '${blocked.reason} · $leaderHint';
-      if (!store.configured) return 'no model · $leaderHint';
-      // The composer strip owns the input keys (send, newline, attach, Esc).
-      // Repeating them here was the review's duplicated-hint finding: the same
-      // line appeared twice on one screen. The bar keeps the global chord.
-      return leaderHint;
-    }
-    // Archive's own page names restore/delete; the status bar must not hide
-    // them behind a different name for `r`.
-    if (_surface == Surface.archive) {
-      return 'j/k move · Enter restore · d delete · r refresh · Esc back';
-    }
-    if (_surface == Surface.sources) {
-      return 'a add · r refresh · Esc back';
-    }
-    if (_achievementsOpen) {
-      return 'hjkl / arrows move · Enter detail · r reload · Esc back';
-    }
-    if (_surface == Surface.knowledge && store.knowledgeDocumentOpen) {
-      return 'j/k scroll · PgUp/PgDn page · Esc back';
-    }
-    if (_surface == Surface.sessions) {
-      if (_wizardOpen) return 'Tab next · Enter continue · Esc back';
-      if (store.activeSession != null) {
-        if (store.outputKind != null) {
-          // The deck's real keys (`session_outputs.dart`): Tab flips, 1-4
-          // answers, h/l move, a/f/g/e grade, m/k mark, Shift+R rebuilds. The
-          // old line named arrow scrolling and `R` for a deck that used
-          // neither.
-          return store.outputKind == 'flashcards'
-              ? 'Tab flip · 1-4 answer · h/l move · a/f/g/e grade · Esc back'
-              : 'a answers · R rebuild · Esc back';
-        }
-        if (_sessionSettingsOpen) {
-          return 'Ctrl+S save · Esc back';
-        }
-        return _sessionChatOpen
-            ? leaderHint
-            : '↑↓ move · Space toggle · c chat · \\ leader · Esc back';
-      }
-    }
-    if (_surface == Surface.work && store.activeProject != null) {
-      if (_workActivityOpen) {
-        return 'j/k move · s kind · r re-read · Esc back';
-      }
-      if (_swarmOpen) {
-        return 'j/k move · Enter retry · n new run · x cancel · d remove · '
-            'r refresh · Esc back';
-      }
-      if (_workApprovalsOpen) {
-        return store.lastCommandOutcome != null
-            ? '↑↓ move · Space hunk · y approve · n reject · x dismiss · '
-                  '\\ leader · Esc back'
-            : '↑↓ move · Space hunk · y approve · n reject · \\ leader · '
-                  'Esc back';
-      }
-      // The project page's own keys: the statusline is where a keyboard user
-      // looks first, and `Esc back` alone hid all of them.
-      return _workChatOpen
-          ? leaderHint
-          : 'c chat · i instructions · p approvals · w swarm · l activity · r refresh · Esc back';
-    }
-    if (_surface == Surface.skills) {
-      if (_goalWizardOpen) return 'Tab next · Enter continue · Esc back';
-      if (store.activeSkill != null) {
-        if (_skillChatOpen) {
-          return leaderHint;
-        }
-        if (store.skillLessonOpen) return 'b build · R rebuild · Esc back';
-        if (store.skillChapterOpen) return 'Esc back';
-        // The teaching loop owns these keys (`skill_detail.dart`). The old
-        // line named stage/chapter keys only, so the harness it advertises
-        // looked inaccessible from the keyboard.
-        final teaching = store.teaching;
-        if (teaching != null) {
-          return teaching.measured
-              ? '1-4 jump · n next · i answer · s ask · c chat · a sources · Esc back'
-              : '1-4 jump · m measure · a sources · Esc back';
-        }
-        if (store.activeSkill?.hasStages ?? false) {
-          return '↑↓ move · Enter lesson · b build · c chat · Shift+N new chat · Esc back';
-        }
-        return '↑↓ move · Enter lesson · p practical · c chat · Esc back';
-      }
-    }
-    return _surface.hint;
-  }
-
   Widget _body(CoreStore store, KeymapRegistry keymap) {
     // Achievements is a layer over whatever surface you are on, not a detour
     // through Stats.
@@ -1190,234 +940,6 @@ class _ShellState extends State<Shell> {
   /// where the user left them when `Esc` closes the item. The stack is always
   /// present — even with no reader — so adding the layer never re-creates the
   /// page and loses that state.
-  Widget _work(CoreStore store) {
-    final project = store.activeProject;
-    if (project == null) {
-      return WorkPage(
-        projects: store.projects,
-        loading:
-            store.status == CoreStatus.connecting && store.projects.isEmpty,
-        error: store.error,
-        onRefresh: store.refreshProjects,
-        onOpen: (row) {
-          setState(() {
-            _workChatOpen = false;
-            _workApprovalsOpen = false;
-            _swarmOpen = false;
-          });
-          unawaited(_openProject(store, row.id));
-        },
-        onCreate:
-            ({
-              required String name,
-              required String folder,
-              required String mode,
-            }) async {
-              final created = await store.createProject(
-                name: name,
-                folder: folder,
-                mode: mode,
-              );
-              final opened = store.activeProjectId;
-              if (opened != null) unawaited(store.refreshWorkChanges(opened));
-              return created;
-            },
-      );
-    }
-    final projectId = store.activeProjectId;
-    final chatId = store.activeWorkChatId;
-    if (_workActivityOpen) {
-      return ActivityPage(
-        records: store.activityRecords,
-        skipped: store.activitySkipped,
-        empty: store.activityEmpty,
-        loading: store.activityLoading,
-        error: store.activityError,
-        kind: store.activityKind,
-        project: store.activityProject,
-        onBack: () => setState(() => _workActivityOpen = false),
-        onRefresh: () => unawaited(
-          store.refreshActivity(
-            kind: store.activityKind,
-            project: store.activityProject,
-          ),
-        ),
-        onKind: (kind) => unawaited(
-          store.refreshActivity(kind: kind, project: store.activityProject),
-        ),
-      );
-    }
-    if (_swarmOpen) {
-      return SwarmPage(
-        project: project,
-        runs: store.swarmRuns,
-        board: store.activeSwarm,
-        loading: store.swarmLoading,
-        error: store.swarmError,
-        onBack: () => setState(() => _swarmOpen = false),
-        onRefresh: projectId == null
-            ? null
-            : () => unawaited(store.refreshSwarms(projectId)),
-        onOpenRun: projectId == null
-            ? null
-            : (runId) => unawaited(store.openSwarm(projectId, runId)),
-        onNewRun: projectId == null
-            ? null
-            : ({
-                required String objective,
-                required List<SwarmPlanEntry> plan,
-                required int parallel,
-              }) => store.runSwarm(
-                projectId,
-                objective: objective,
-                plan: plan,
-                parallel: parallel,
-              ),
-        onCancel: projectId == null
-            ? null
-            : (runId) => store.cancelSwarm(projectId, runId),
-        onRemove: projectId == null
-            ? null
-            : (runId) => store.removeSwarm(projectId, runId),
-        onRetry: projectId == null
-            ? null
-            : (runId, taskId) => store.retrySwarmTask(projectId, runId, taskId),
-        onVerify: projectId == null
-            ? null
-            : (runId, taskId, verified) => store.verifySwarmTask(
-                projectId,
-                runId,
-                taskId,
-                verified: verified,
-              ),
-      );
-    }
-    if (_workApprovalsOpen) {
-      return WorkApprovalsView(
-        approvals: store.workApprovals,
-        projectName: project.name,
-        permissions: store.workPermissions,
-        loading: store.approvalsLoading,
-        error: store.approvalsError,
-        onBack: () => setState(() => _workApprovalsOpen = false),
-        onDecideWrite: projectId == null
-            ? null
-            : (id, decision, {hunks}) =>
-                  store.decideWrite(id, decision, hunks: hunks),
-        onDecideCommand: projectId == null
-            ? null
-            : (id, decision) => store.decideCommand(id, decision),
-        lastCommand: store.lastCommandOutcome,
-        onDismissLastCommand: store.dismissCommandOutcome,
-      );
-    }
-    if (_workChatOpen && chatId != null) {
-      final projectDraftKey = projectId == null
-          ? null
-          : 'project:$projectId:$chatId';
-      return WorkChatView(
-        project: project,
-        chatId: chatId,
-        chat: store.workChat,
-        loading: store.status == CoreStatus.connecting,
-        error: store.workChatError ?? store.error,
-        initialText: projectDraftKey == null
-            ? null
-            : _chatDrafts[projectDraftKey],
-        onDraftChanged: projectDraftKey == null
-            ? null
-            : (text) => _chatDrafts[projectDraftKey] = text,
-        onBack: () => setState(() => _workChatOpen = false),
-        onSend: projectId == null
-            ? null
-            : (text) async {
-                final accepted = await store.sendWorkChat(
-                  projectId,
-                  chatId,
-                  text,
-                );
-                if (accepted && projectDraftKey != null) {
-                  _chatDrafts.remove(projectDraftKey);
-                }
-                return accepted;
-              },
-        sendError: store.workChatError,
-        onCancel: projectId == null
-            ? null
-            : () => unawaited(store.cancelWorkChat(projectId, chatId)),
-        onRetry: projectId == null
-            ? null
-            : () => unawaited(store.openWorkChat(projectId, chatId: chatId)),
-        onModeChanged: (insert) {
-          if (_insert != insert) setState(() => _insert = insert);
-        },
-      );
-    }
-    return WorkDetailView(
-      project: project,
-      loading: store.status == CoreStatus.connecting,
-      error: store.error,
-      chatCount: store.projectChats.length,
-      latestChatId: store.projectChats.isEmpty ? null : store.projectChats.last,
-      changes: store.workChanges,
-      changesLoading: store.workChangesLoading,
-      changesError: store.workChangesError,
-      approvals: store.workApprovals,
-      approvalsLoading: store.approvalsLoading,
-      approvalsError: store.approvalsError,
-      onOpenApprovals: projectId == null
-          ? null
-          : () => setState(() => _workApprovalsOpen = true),
-      swarmRuns: store.swarmRuns,
-      swarmLoading: store.swarmLoading,
-      swarmError: store.swarmError,
-      onOpenSwarm: projectId == null
-          ? null
-          : () => unawaited(_openSwarm(store, projectId)),
-      activityCount: store.activityRecords.length,
-      activityLoading: store.activityLoading,
-      activityError: store.activityError,
-      onOpenActivity: projectId == null
-          ? null
-          : () => unawaited(_openActivity(store, projectId)),
-      onBack: () {
-        setState(() {
-          _swarmOpen = false;
-          _workActivityOpen = false;
-        });
-        store.closeProject();
-        if (_workApprovalsOpen) setState(() => _workApprovalsOpen = false);
-      },
-      onRetry: () {
-        final id = store.activeProjectId;
-        if (id != null) unawaited(store.openProject(id));
-      },
-      onOpenChat: projectId == null
-          ? null
-          : () => unawaited(_openWorkChat(store, projectId)),
-      onRefreshChanges: projectId == null
-          ? null
-          : () => unawaited(store.refreshWorkChanges(projectId)),
-      onSaveAgent: projectId == null
-          ? null
-          : (agent) => store.saveAgent(projectId, agent),
-      onDeleteAgent: projectId == null
-          ? null
-          : (agentId) => store.deleteAgent(projectId, agentId),
-      onSetDefaultAgent: projectId == null
-          ? null
-          : (agentId) => store.setDefaultAgent(projectId, agentId),
-      onSaveInstructions: projectId == null
-          ? null
-          : (text) => store.saveProjectInstructions(projectId, text),
-    );
-  }
-
-  /// Open a project, then read its working tree without blocking the detail.
-  ///
-  /// The detail paints as soon as `work.open` answers; `work.changes` is a
-  /// second, page-local read that fills the CHANGES card when it lands. A failed
-  /// open leaves the user where they were and the changes read is skipped.
   Future<void> _openProject(CoreStore store, String id) async {
     await store.openProject(id);
     if (!mounted) return;
