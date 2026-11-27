@@ -189,8 +189,8 @@ class _SkillsPageState extends State<SkillsPage> {
   ///
   /// An archive moves the goal folder, so it is destructive and needs the named
   /// confirmation first. `Cancel`, `Esc` or a dismissal changes nothing.
-  Future<void> _archiveSelected() async {
-    final row = _selectedRow;
+  Future<void> _archiveSelected([SkillRow? target]) async {
+    final row = target ?? _selectedRow;
     final archive = widget.onArchive;
     if (row == null || archive == null || _dialogOpen) return;
     _dialogOpen = true;
@@ -226,8 +226,8 @@ class _SkillsPageState extends State<SkillsPage> {
   ///
   /// The dialog names the goal and lists what goes, so `d` is never a silent
   /// delete. `Cancel`, `Esc` or a dismissal changes nothing.
-  Future<void> _deleteSelected() async {
-    final row = _selectedRow;
+  Future<void> _deleteSelected([SkillRow? target]) async {
+    final row = target ?? _selectedRow;
     final delete = widget.onDelete;
     if (row == null || delete == null || _dialogOpen) return;
     _dialogOpen = true;
@@ -258,8 +258,8 @@ class _SkillsPageState extends State<SkillsPage> {
   ///
   /// Export changes nothing, but it writes a file and takes a while, so it asks
   /// first and then reports the path the core chose.
-  Future<void> _exportSelected() async {
-    final row = _selectedRow;
+  Future<void> _exportSelected([SkillRow? target]) async {
+    final row = target ?? _selectedRow;
     final export = widget.onExport;
     if (row == null || export == null || _dialogOpen) return;
     _dialogOpen = true;
@@ -415,6 +415,39 @@ class _SkillsPageState extends State<SkillsPage> {
           );
         },
       ),
+    );
+  }
+
+  /// The pointer path for a goal row's verbs; the header buttons act on the
+  /// selection, this menu on the row under the pointer.
+  Widget _rowMenu(int index, SkillRow row) {
+    if (!_hasActions) return const SizedBox.shrink();
+    return PopupMenuButton<String>(
+      key: ValueKey('skill-row-menu-${row.id}'),
+      tooltip: 'row actions',
+      enabled: _actionId == null,
+      iconSize: 16,
+      padding: EdgeInsets.zero,
+      onSelected: (value) {
+        if (_actionId != null) return;
+        setState(() => _selectedIndex = index);
+        switch (value) {
+          case 'archive':
+            unawaited(_archiveSelected(row));
+          case 'export':
+            unawaited(_exportSelected(row));
+          case 'delete':
+            unawaited(_deleteSelected(row));
+        }
+      },
+      itemBuilder: (context) => [
+        if (widget.onArchive != null)
+          const PopupMenuItem(value: 'archive', child: Text('archive')),
+        if (widget.onExport != null)
+          const PopupMenuItem(value: 'export', child: Text('export')),
+        if (widget.onDelete != null)
+          const PopupMenuItem(value: 'delete', child: Text('delete')),
+      ],
     );
   }
 
@@ -579,6 +612,7 @@ class _SkillsPageState extends State<SkillsPage> {
                   showChapters: showChapters,
                   showOpened: showOpened,
                   busy: _actionId == skill.id,
+                  trailing: _rowMenu(index, skill),
                   onTap: () {
                     if (_actionId != null) return;
                     setState(() => _selectedIndex = index);
@@ -613,6 +647,7 @@ class _SkillRowTile extends StatelessWidget {
     required this.selected,
     required this.showChapters,
     required this.showOpened,
+    this.trailing,
     required this.onTap,
     this.busy = false,
   });
@@ -627,6 +662,9 @@ class _SkillRowTile extends StatelessWidget {
   /// shows `working…` instead of its stage count, so the user can see the core
   /// is running and the verbs are not offered twice.
   final bool busy;
+
+  /// The row's pointer verbs (a menu). Null draws nothing.
+  final Widget? trailing;
 
   /// A curriculum goal's stages, or empty for a course (which has chapters
   /// instead). Showing both made a healthy course read as incomplete.
@@ -819,6 +857,7 @@ class _SkillRowTile extends StatelessWidget {
                   ),
                 ),
               ],
+              if (trailing != null) ...[const SizedBox(width: 4), trailing!],
             ],
           ),
         ),
