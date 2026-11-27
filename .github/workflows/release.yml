@@ -222,6 +222,9 @@ jobs:
           bun-version: 1.4.4
       - name: Core dependencies
         run: bun install --frozen-lockfile
+      - name: Linux build dependencies
+        if: matrix.build == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libblkid-dev liblzma-dev
       - name: Shell dependencies
         working-directory: desktop
         run: flutter pub get
@@ -254,7 +257,7 @@ jobs:
         if: matrix.build == 'windows'
         shell: pwsh
         run: |
-          set -e
+          $ErrorActionPreference = "Stop"
           $version = "${{ needs.version.outputs.version }}"
           ./scripts/desktop-package.ps1 -NoBuild
           ./scripts/desktop-installer.ps1 -Verify
