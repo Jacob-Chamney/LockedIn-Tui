@@ -72,6 +72,10 @@ void main() {
   testWidgets('the detail action opens the newest chat too', (tester) async {
     final store = await openProject(tester);
 
+    // The sub-navigation row above the body can push the card's action below
+    // the fold on a short window.
+    await tester.ensureVisible(find.byKey(const ValueKey('work-open-chat')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('work-open-chat')));
     await tester.pumpAndSettle();
 

@@ -179,6 +179,7 @@ extension _SessionDetailBody on _SessionDetailViewState {
   /// `includeSteps` is true on a narrow window, where the step list has no
   /// column of its own and follows the current step instead.
   Widget _centrePane(SessionDetail detail, {required bool includeSteps}) {
+    final hasPdf = detail.sources.any((source) => source.kind == 'pdf');
     return ListView(
       key: SessionDetailView.pageScrollKey,
       controller: _pageScroll,
@@ -204,14 +205,35 @@ extension _SessionDetailBody on _SessionDetailViewState {
                   const SizedBox(height: Space.md),
                   _stepsPane(detail),
                 ],
+                // Outputs are the point of a session, so they sit under the
+                // step instead of being buried past the prompt, sources,
+                // figures, memory and mistakes.
+                if (widget.onOpenOutput != null ||
+                    widget.onGenerateDocument != null) ...[
+                  const SizedBox(height: Space.md),
+                  _studyToolsCard(),
+                ],
                 const SizedBox(height: Space.lg),
                 _promptCard(detail),
                 const SizedBox(height: Space.md),
                 _sourcesCard(detail),
-                if (widget.onExtractFigure != null ||
-                    widget.figures.isNotEmpty) ...[
+                // The crop form is four number fields and a page: it belongs
+                // on screen only when the session actually carries a PDF. A
+                // text-only session used to show it above the fold while its
+                // own outputs sat at the bottom.
+                if (widget.figures.isNotEmpty ||
+                    (widget.onExtractFigure != null && hasPdf)) ...[
                   const SizedBox(height: Space.md),
                   _figuresCard(),
+                ] else if (widget.onExtractFigure != null) ...[
+                  const SizedBox(height: Space.md),
+                  Text(
+                    'figures come from a PDF source · add one to crop a diagram',
+                    key: const ValueKey('figures-missing-pdf'),
+                    style: LockedInType.label.copyWith(
+                      color: LockedInColors.muted,
+                    ),
+                  ),
                 ],
                 const SizedBox(height: Space.md),
                 _memoryCard(detail),
@@ -221,8 +243,6 @@ extension _SessionDetailBody on _SessionDetailViewState {
                   const SizedBox(height: Space.md),
                   _coverageCard(),
                 ],
-                const SizedBox(height: Space.md),
-                _studyToolsCard(),
                 const SizedBox(height: Space.lg),
                 const Rule(),
                 const SizedBox(height: Space.xs),

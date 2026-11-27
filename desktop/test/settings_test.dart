@@ -906,4 +906,32 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
+  testWidgets('the section rail marks the section on screen', (tester) async {
+    await pumpPage(
+      tester,
+      SettingsPage(settings: populatedSettings(), loading: false),
+      size: const Size(900, 600),
+    );
+
+    final active = find.byKey(const ValueKey('settings-section-active'));
+    expect(active, findsOneWidget);
+    expect(
+      find.descendant(of: active, matching: find.text('user')),
+      findsOneWidget,
+      reason: 'the first group is on screen',
+    );
+
+    await tester.drag(
+      find.byKey(const ValueKey('settings-scroll')),
+      const Offset(0, -900),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(of: active, matching: find.text('user')),
+      findsNothing,
+      reason: 'scrolling moves the active section',
+    );
+    expect(tester.takeException(), isNull);
+  });
 }

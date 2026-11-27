@@ -756,6 +756,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _header(context),
+          _subnav(),
           if (widget.loading)
             LinearProgressIndicator(
               minHeight: 2,
@@ -812,6 +813,58 @@ class _WorkDetailViewState extends State<WorkDetailView> {
             const SizedBox(width: 10),
             const _ArchivedBadge(),
           ],
+        ],
+      ),
+    );
+  }
+
+  /// The project's layers as one row of buttons: chat, approvals, the swarm
+  /// board and the activity log.
+  ///
+  /// The detail used to be a single scroll of eight stacked sections, so chat
+  /// (the reason a project exists) sat between instructions and the swarm
+  /// board and the only path to approvals was a key in the status bar.
+  Widget _subnav() {
+    final actions = <Widget>[
+      if (widget.onOpenChat != null)
+        _navAction('work-nav-chat', 'chat', 'c', widget.onOpenChat),
+      if (widget.onOpenApprovals != null)
+        _navAction(
+          'work-nav-approvals',
+          'approvals',
+          'p',
+          widget.onOpenApprovals,
+        ),
+      if (widget.onOpenSwarm != null)
+        _navAction('work-nav-swarm', 'swarm', 'w', widget.onOpenSwarm),
+      if (widget.onOpenActivity != null)
+        _navAction('work-nav-activity', 'activity', 'l', widget.onOpenActivity),
+    ];
+    if (actions.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: LockedInColors.line)),
+      ),
+      child: Wrap(spacing: 4, runSpacing: 4, children: actions),
+    );
+  }
+
+  Widget _navAction(
+    String keyName,
+    String label,
+    String chord,
+    VoidCallback? onPressed,
+  ) {
+    return TextButton(
+      key: ValueKey(keyName),
+      onPressed: onPressed,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label),
+          const SizedBox(width: Space.xs),
+          KeyCap(chord),
         ],
       ),
     );

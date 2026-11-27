@@ -101,6 +101,40 @@ Future<void> pumpReview(
 }
 
 void main() {
+  testWidgets('known is the success tone, not another muted label', (
+    tester,
+  ) async {
+    await pumpReview(tester, queue: reviewFixture(), onMark: (_, _) async {});
+
+    final known = tester.widget<TextButton>(
+      find.byKey(const ValueKey('review-known-step:physics:1')),
+    );
+    expect(known.style?.foregroundColor?.resolve({}), LockedInColors.success);
+    final missed = tester.widget<TextButton>(
+      find.byKey(const ValueKey('review-missed-step:physics:1')),
+    );
+    expect(missed.style?.foregroundColor?.resolve({}), LockedInColors.warning);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a nudge with nothing due is one quiet line', (tester) async {
+    final quiet = ReviewQueue.fromJson({
+      'items': <Object>[],
+      'nudge': {
+        'intensity': 'balanced',
+        'threshold': 3,
+        'due': <String>[],
+        'suggestions': <String>[],
+      },
+      'counts': {'total': 0, 'byKind': <String, int>{}},
+    });
+    await pumpReview(tester, queue: quiet);
+
+    expect(find.byKey(const ValueKey('review-nudge-quiet')), findsOneWidget);
+    expect(find.textContaining('nothing due'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a row opens its own surface on click or Enter', (tester) async {
     final opened = <String>[];
     await pumpReview(

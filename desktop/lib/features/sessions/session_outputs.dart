@@ -49,6 +49,7 @@ class SessionOutputView extends StatefulWidget {
     this.deckScheduleLoading = false,
     this.deckScheduleError,
     this.onGradeCard,
+    this.onResetSchedule,
     this.onRetry,
     this.onBack,
   });
@@ -110,6 +111,12 @@ class SessionOutputView extends StatefulWidget {
 
   /// The last schedule failure, shown inside the deck.
   final String? deckScheduleError;
+
+  /// Forget the deck's spaced-repetition schedule (`session.deck.reset`).
+  ///
+  /// This is the schedule, not the deck: `M:`/`K:` stay in the Markdown. The
+  /// pointer path for the deck's `reset schedule` action; null keeps it hidden.
+  final Future<void> Function()? onResetSchedule;
 
   /// Grade one card (`session.deck.grade`), by its 0-based deck index.
   final Future<void> Function(int index, String grade)? onGradeCard;
@@ -880,6 +887,37 @@ class _SessionOutputViewState extends State<SessionOutputView> {
       key: const ValueKey('session-output-deck'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            TextButton(
+              key: const ValueKey('deck-shuffle'),
+              onPressed: () => setState(deck.shuffle),
+              child: const Text('shuffle s'),
+            ),
+            TextButton(
+              key: const ValueKey('deck-missed-only'),
+              onPressed: () => setState(deck.toggleMissedOnly),
+              child: Text(deck.missedOnly ? 'show all M' : 'missed only M'),
+            ),
+            if (widget.onResetSchedule != null)
+              TextButton(
+                key: const ValueKey('deck-reset-schedule'),
+                onPressed: widget.deckScheduleLoading
+                    ? null
+                    : () => unawaited(widget.onResetSchedule!()),
+                child: const Text('reset schedule'),
+              ),
+            TextButton(
+              key: const ValueKey('deck-reset'),
+              onPressed: () => setState(deck.reset),
+              child: const Text('shuffle back r'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
         Row(
           children: [
             _deckChip(
@@ -992,34 +1030,82 @@ class _SessionOutputViewState extends State<SessionOutputView> {
             ],
           ),
         ),
-        if (widget.onGradeCard != null && _scheduled(card) != null) ...[
-          const SizedBox(height: 12),
-          Text(
-            _nextReviewLine(_scheduled(card)!),
-            key: const ValueKey('deck-next-review'),
-            style: TextStyle(
-              color: LockedInColors.muted,
-              fontSize: TypeScale.label,
+        // One footer per stage of the card. Before the answer, the only
+        // useful verbs are turn it over and move; after it, grade what you
+        // recalled. The old footer stacked three rows (grade, nav, deck tools)
+        // plus a second key legend under them, fourteen controls on one card.
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            OutlinedButton(
+              key: const ValueKey('deck-prev'),
+              onPressed: deck.index > 0 ? () => setState(deck.previous) : null,
+              child: const Text('← prev'),
             ),
-          ),
-          const SizedBox(height: 6),
+            FilledButton(
+              key: const ValueKey('deck-flip'),
+              onPressed: () => setState(deck.flip),
+              child: Text(revealed ? 'hide answer' : 'show answer'),
+            ),
+            OutlinedButton(
+              key: const ValueKey('deck-next'),
+              onPressed: deck.index < deck.length - 1
+                  ? () => setState(deck.next)
+                  : null,
+              child: const Text('next →'),
+            ),
+          ],
+        ),
+        if (revealed) ...[
+          if (widget.onGradeCard != null && _scheduled(card) != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _nextReviewLine(_scheduled(card)!),
+              key: const ValueKey('deck-next-review'),
+              style: TextStyle(
+                color: LockedInColors.muted,
+                fontSize: TypeScale.label,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final (grade, label) in const [
+                  ('again', 'again a'),
+                  ('hard', 'hard f'),
+                  ('good', 'good g'),
+                  ('easy', 'easy e'),
+                ])
+                  OutlinedButton(
+                    key: ValueKey('deck-grade-$grade'),
+                    onPressed: widget.deckScheduleLoading
+                        ? null
+                        : () => unawaited(_grade(grade)),
+                    child: Text(label),
+                  ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 8),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 4,
+            runSpacing: 4,
             children: [
-              for (final (grade, label) in const [
-                ('again', 'a again'),
-                ('hard', 'f hard'),
-                ('good', 'g good'),
-                ('easy', 'e easy'),
-              ])
-                OutlinedButton(
-                  key: ValueKey('deck-grade-$grade'),
-                  onPressed: widget.deckScheduleLoading
-                      ? null
-                      : () => unawaited(_grade(grade)),
-                  child: Text(label),
-                ),
+              TextButton(
+                key: const ValueKey('deck-missed'),
+                onPressed: _marking ? null : () => unawaited(_mark('missed')),
+                child: const Text('missed m'),
+              ),
+              TextButton(
+                key: const ValueKey('deck-known'),
+                onPressed: _marking ? null : () => unawaited(_mark('known')),
+                child: const Text('known k'),
+              ),
             ],
           ),
         ],
@@ -1034,69 +1120,11 @@ class _SessionOutputViewState extends State<SessionOutputView> {
             ),
           ),
         ],
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            OutlinedButton(
-              key: const ValueKey('deck-prev'),
-              onPressed: deck.index > 0 ? () => setState(deck.previous) : null,
-              child: const Text('← prev'),
-            ),
-            FilledButton(
-              key: const ValueKey('deck-flip'),
-              onPressed: () => setState(deck.flip),
-              child: Text(revealed ? 'show question' : 'flip'),
-            ),
-            OutlinedButton(
-              key: const ValueKey('deck-next'),
-              onPressed: deck.index < deck.length - 1
-                  ? () => setState(deck.next)
-                  : null,
-              child: const Text('next →'),
-            ),
-            OutlinedButton(
-              key: const ValueKey('deck-missed'),
-              onPressed: _marking ? null : () => unawaited(_mark('missed')),
-              child: const Text('m missed'),
-            ),
-            OutlinedButton(
-              key: const ValueKey('deck-known'),
-              onPressed: _marking ? null : () => unawaited(_mark('known')),
-              child: const Text('k known'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            OutlinedButton(
-              key: const ValueKey('deck-shuffle'),
-              onPressed: () => setState(deck.shuffle),
-              child: const Text('s shuffle'),
-            ),
-            OutlinedButton(
-              key: const ValueKey('deck-reset'),
-              onPressed: () => setState(deck.reset),
-              child: const Text('r reset'),
-            ),
-            OutlinedButton(
-              key: const ValueKey('deck-missed-only'),
-              onPressed: () => setState(deck.toggleMissedOnly),
-              child: Text(
-                deck.missedOnly ? 'M show all cards' : 'M missed only',
-              ),
-            ),
-          ],
-        ),
         if (_marking) ...[
           const SizedBox(height: 10),
           Text(
             'marking…',
-            key: ValueKey('deck-marking'),
+            key: const ValueKey('deck-marking'),
             style: TextStyle(
               color: LockedInColors.muted,
               fontSize: TypeScale.label,
@@ -1114,19 +1142,6 @@ class _SessionOutputViewState extends State<SessionOutputView> {
           style: TextStyle(
             color: LockedInColors.muted,
             fontSize: TypeScale.label,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          choiceCard
-              ? '1–4 answer · Enter next · h/l move · k known · m missed · '
-                    's shuffle · r reset · M missed only · d markdown'
-              : 'Tab flip · h/l move · k known · m missed · s shuffle · '
-                    'r reset · M missed only · d markdown',
-          style: TextStyle(
-            color: LockedInColors.muted,
-            fontSize: TypeScale.label,
-            height: 1.45,
           ),
         ),
         const SizedBox(height: 10),

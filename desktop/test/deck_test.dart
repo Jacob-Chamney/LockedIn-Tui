@@ -150,6 +150,7 @@ SessionOutputView deckView({
   bool deckScheduleLoading = false,
   String? deckScheduleError,
   Future<void> Function(int index, String grade)? onGradeCard,
+  Future<void> Function()? onResetSchedule,
   VoidCallback? onBack,
 }) {
   return SessionOutputView(
@@ -168,6 +169,7 @@ SessionOutputView deckView({
     deckScheduleLoading: deckScheduleLoading,
     deckScheduleError: deckScheduleError,
     onGradeCard: onGradeCard,
+    onResetSchedule: onResetSchedule,
     onBack: onBack,
   );
 }
@@ -524,7 +526,7 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pumpAndSettle();
       // The button names the other face, so its label is the flip state.
-      expect(find.text('show question'), findsOneWidget);
+      expect(find.text('hide answer'), findsOneWidget);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
       await tester.pumpAndSettle();
@@ -532,8 +534,8 @@ void main() {
       expect(find.text('Which quantity is conserved?'), findsNothing);
       expect(find.text('What does the learning rate control?'), findsOneWidget);
       // Face-down again: the next card's answer is not on screen yet.
-      expect(find.text('flip'), findsOneWidget);
-      expect(find.text('show question'), findsNothing);
+      expect(find.text('show answer'), findsOneWidget);
+      expect(find.text('hide answer'), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
@@ -696,6 +698,9 @@ void main() {
       );
 
       expect(find.text('due 2/2'), findsOneWidget);
+      // Grading is the back stage: the front asks for the answer first.
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
       expect(find.textContaining('not reviewed yet'), findsOneWidget);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
@@ -703,7 +708,10 @@ void main() {
 
       expect(gradedIndex, 0);
       expect(graded, 'again');
-      expect(find.byKey(const ValueKey('deck-grade-good')), findsOneWidget);
+      // Grading moves to the next card, which opens on its front: the grade
+      // row belongs to the answer side.
+      expect(find.byKey(const ValueKey('deck-next')), findsOneWidget);
+      expect(find.text('show answer'), findsOneWidget);
     });
 
     testWidgets('a schedule failure is shown beside the deck', (tester) async {
@@ -1005,6 +1013,74 @@ void main() {
       expect(find.text('Charge.'), findsOneWidget);
       await tester.sendKeyEvent(LogicalKeyboardKey.digit2);
       await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('the deck footer', () {
+    testWidgets('asks for the answer before offering a grade', (tester) async {
+      await pumpDeck(
+        tester,
+        deckView(
+          // A flip card: a four-choice card answers on its front, so it tests
+          // a different path.
+          markdown: _oneCard(),
+          deckSchedule: const DeckSchedule(
+            due: 1,
+            total: 1,
+            cards: [
+              DeckCardSchedule(
+                index: 0,
+                question: 'What does the learning rate control?',
+                due: true,
+                dueAt: '2026-11-24T10:00:00.000Z',
+                intervalDays: 0,
+                ease: 2.5,
+                reps: 0,
+                lapses: 0,
+              ),
+            ],
+          ),
+          onMarkCard: (_, _) async {},
+          onGradeCard: (_, _) async {},
+        ),
+      );
+
+      // Front: turn it over, or move. The grade row is the answer side.
+      expect(find.text('show answer'), findsOneWidget);
+      expect(find.byKey(const ValueKey('deck-grade-good')), findsNothing);
+      expect(find.byKey(const ValueKey('deck-known')), findsNothing);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+
+      expect(find.text('hide answer'), findsOneWidget);
+      expect(find.byKey(const ValueKey('deck-grade-good')), findsOneWidget);
+      expect(find.byKey(const ValueKey('deck-known')), findsOneWidget);
+      // The three-row footer and its second key legend are gone.
+      expect(find.textContaining('h/l move · k known'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('reset schedule asks the host and keeps the deck', (
+      tester,
+    ) async {
+      var resets = 0;
+      await pumpDeck(
+        tester,
+        deckView(
+          deckSchedule: DeckSchedule.empty,
+          onMarkCard: (_, _) async {},
+          onGradeCard: (_, _) async {},
+          onResetSchedule: () async => resets += 1,
+        ),
+      );
+
+      await tester.tap(find.byKey(const ValueKey('deck-reset-schedule')));
+      await tester.pumpAndSettle();
+
+      expect(resets, 1);
+      expect(find.byKey(const ValueKey('session-output-deck')), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

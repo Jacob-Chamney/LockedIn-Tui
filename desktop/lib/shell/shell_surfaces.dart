@@ -195,6 +195,9 @@ extension _ShellSurfaces on _ShellState {
           onGradeCard: sessionId == null
               ? null
               : (index, grade) => store.gradeDeckCard(sessionId, index, grade),
+          onResetSchedule: sessionId == null
+              ? null
+              : () => store.resetDeckSchedule(sessionId),
           onRetry: sessionId == null ? null : store.retryOutput,
           onBack: store.closeOutput,
         );
