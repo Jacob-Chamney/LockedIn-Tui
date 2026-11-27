@@ -384,6 +384,8 @@ export type CoreOptions = {
   boot: CoreBoot;
   /** Writes an event to the shell; `main.ts` points this at stdout. */
   notify?: (notification: CoreNotification) => void;
+  /** Injectable clock, so a proposal-expiry test does not sleep. */
+  now?: () => number;
 };
 
 export type CoreServer = {
@@ -594,6 +596,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     notify: (notification) => options.notify?.(notification),
     activitySink,
     permissions: workPermissionsStored,
+    ...(options.now === undefined ? {} : { now: options.now }),
   });
   const {
     workWritePropose,

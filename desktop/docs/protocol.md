@@ -1154,7 +1154,10 @@ on purpose:
 not decided on, so it is never written to disk. The core keeps the whole value
 (including `newContent` and the exact argv) in an in-memory map keyed by a fresh
 `id`; **a core restart forgets every proposal** and the shell must propose
-again. `decide` consumes the proposal on both paths (approve/deny and
+again. A proposal also **expires ten minutes after it was made**: a decision
+after that is one refusal (`the write proposal "…" expired; propose it again`,
+`retryable: false`), the proposal is consumed, and `work.approvals.list` stops
+showing it, so a row the user forgot cannot be approved hours later. `decide` consumes the proposal on both paths (approve/deny and
 reject/deny), so a second decide on the same id is the documented "no pending
 proposal" refusal, never a replay:
 

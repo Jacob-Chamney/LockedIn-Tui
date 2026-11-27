@@ -40,6 +40,16 @@ export const WORK_WRITE_OPT_IN_OFF =
 export const WORK_COMMAND_OPT_IN_OFF =
   "Commands are switched off in Settings → Work; turn them on to approve a command.";
 
+/**
+ * How long a pending proposal stays approvable.
+ *
+ * A proposal is a value nobody decided on; a row the user forgot should not be
+ * approvable hours later. Ten minutes is long enough to read a diff, and matches
+ * the plugin prompt's own bounded wait in spirit. Expiry is a refusal, not a
+ * silent re-propose: the shell shows the sentence and the user proposes again.
+ */
+export const PROPOSAL_TTL_MS = 10 * 60_000;
+
 /** What an approval handler needs from the core beyond the session doors. */
 export type WorkApprovalContext<C extends SessionServices> = SessionHandlerContext<C> & {
   notify: (notification: {
@@ -55,6 +65,8 @@ export type WorkApprovalContext<C extends SessionServices> = SessionHandlerConte
   ) => Promise<{ error: JsonRpcFailure } | { projectId: string; meta: ProjectMeta }>;
   activitySink: (current: C) => ((record: ActivityRecord) => Promise<void>) | undefined;
   permissions: (current: C) => WorkPermissions;
+  /** Injectable clock, so a TTL test does not sleep. */
+  now?: () => number;
 };
   /* ------------------------------------------------------------------------ */
   /* Write and command approvals                                             */
@@ -89,6 +101,10 @@ export function createWorkApprovalHandlers<C extends SessionServices>(
   ) => Promise<{ error: string } | { agent: AgentProfile }>;
 } {
   const { services, resolveProject, notify, activitySink, permissions } = ctx;
+  const now = ctx.now ?? Date.now;
+
+  /** Drop one stored proposal once it is older than the window. */
+  const expired = (createdAt: number): boolean => now() - createdAt > PROPOSAL_TTL_MS;
 
   /**
    * Pending proposals live in **this process only**.
@@ -103,12 +119,15 @@ export function createWorkApprovalHandlers<C extends SessionServices>(
   type StoredWriteProposal = {
     id: string;
     projectId: string;
+    /** When it was proposed: an approval older than [PROPOSAL_TTL_MS] is stale. */
+    createdAt: number;
     proposal: ProposedWrite;
   };
 
   type StoredCommandProposal = {
     id: string;
     projectId: string;
+    createdAt: number;
     command: ProposedCommand;
   };
 
@@ -136,6 +155,17 @@ export function createWorkApprovalHandlers<C extends SessionServices>(
 
   const missingCommandProposal = (id: RpcId, proposalId: string): JsonRpcFailure => {
     const message = `there is no pending command proposal "${proposalId}"; propose it again`;
+    return failure(id, BOOT_FAILED, message, { kind: "command", id: proposalId, message }, false);
+  };
+
+  /** A proposal older than the window: refused once, and dropped. */
+  const expiredWriteProposal = (id: RpcId, proposalId: string): JsonRpcFailure => {
+    const message = `the write proposal "${proposalId}" expired; propose it again`;
+    return failure(id, BOOT_FAILED, message, { kind: "write", id: proposalId, message }, false);
+  };
+
+  const expiredCommandProposal = (id: RpcId, proposalId: string): JsonRpcFailure => {
+    const message = `the command proposal "${proposalId}" expired; propose it again`;
     return failure(id, BOOT_FAILED, message, { kind: "command", id: proposalId, message }, false);
   };
 
@@ -176,13 +206,13 @@ export function createWorkApprovalHandlers<C extends SessionServices>(
    */
   const addWriteProposal = (projectId: string, proposal: ProposedWrite): string => {
     const proposalId = randomUUID();
-    writeProposals.set(proposalId, { id: proposalId, projectId, proposal });
+    writeProposals.set(proposalId, { id: proposalId, projectId, createdAt: now(), proposal });
     return proposalId;
   };
 
   const addCommandProposal = (projectId: string, command: ProposedCommand): string => {
     const proposalId = randomUUID();
-    commandProposals.set(proposalId, { id: proposalId, projectId, command });
+    commandProposals.set(proposalId, { id: proposalId, projectId, createdAt: now(), command });
     return proposalId;
   };
 
@@ -228,7 +258,12 @@ export function createWorkApprovalHandlers<C extends SessionServices>(
     }
 
     const proposalId = randomUUID();
-    writeProposals.set(proposalId, { id: proposalId, projectId, proposal: proposed.value });
+    writeProposals.set(proposalId, {
+      id: proposalId,
+      projectId,
+      createdAt: now(),
+      proposal: proposed.value,
+    });
     return success(id, {
       id: proposalId,
       path: proposed.value.path,
@@ -286,6 +321,10 @@ export function createWorkApprovalHandlers<C extends SessionServices>(
 
     const proposalId = rawProposal.trim();
     const stored = writeProposals.get(proposalId);
+    if (stored !== undefined && expired(stored.createdAt)) {
+      writeProposals.delete(proposalId);
+      return expiredWriteProposal(id, proposalId);
+    }
     if (stored === undefined) return missingWriteProposal(id, proposalId);
 
     const current = await services();
@@ -419,7 +458,7 @@ export function createWorkApprovalHandlers<C extends SessionServices>(
       ...(rawReason === undefined ? {} : { reason: rawReason.trim() }),
     });
     const proposalId = randomUUID();
-    commandProposals.set(proposalId, { id: proposalId, projectId, command });
+    commandProposals.set(proposalId, { id: proposalId, projectId, createdAt: now(), command });
     return success(id, {
       id: proposalId,
       argv: command.argv,
@@ -457,6 +496,10 @@ export function createWorkApprovalHandlers<C extends SessionServices>(
 
     const proposalId = rawProposal.trim();
     const stored = commandProposals.get(proposalId);
+    if (stored !== undefined && expired(stored.createdAt)) {
+      commandProposals.delete(proposalId);
+      return expiredCommandProposal(id, proposalId);
+    }
     if (stored === undefined) return missingCommandProposal(id, proposalId);
 
     const current = await services();
@@ -551,6 +594,12 @@ export function createWorkApprovalHandlers<C extends SessionServices>(
     }
     const projectFilter = typeof rawProject === "string" ? rawProject.trim() : undefined;
 
+    for (const entry of [...writeProposals.values()]) {
+      if (expired(entry.createdAt)) writeProposals.delete(entry.id);
+    }
+    for (const entry of [...commandProposals.values()]) {
+      if (expired(entry.createdAt)) commandProposals.delete(entry.id);
+    }
     const writes = [...writeProposals.values()]
       .filter((entry) => projectFilter === undefined || entry.projectId === projectFilter)
       .map((entry) => ({
