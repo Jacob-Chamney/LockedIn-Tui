@@ -216,7 +216,8 @@ void main() {
     expect(find.text('/home/friend/LockedIn-archive'), findsOneWidget);
     expect(find.text('20 messages'), findsOneWidget);
     expect(find.text('filesystem, web-search'), findsOneWidget);
-    expect(find.text('1 loaded · 1 disabled'), findsOneWidget);
+    // The TUI-era "UI plugins" row is gone: this shell has no UI plugin loader.
+    expect(find.text('UI plugins'), findsNothing);
 
     // Every populated row shows a real value, so nothing reads "not set".
     expect(find.text('not set'), findsNothing);

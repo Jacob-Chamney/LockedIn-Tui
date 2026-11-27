@@ -126,4 +126,30 @@ void main() {
       expect(store.chat?.messages.single.text, 'after restart');
     },
   );
+  test('a failed Chill turn is a banner, not a shell-wide error', () async {
+    final core = FakeCore();
+    final store = CoreStore(connection: core);
+    addTearDown(store.dispose);
+    await store.start();
+
+    core.emitEvent('chat.error', {'message': 'the provider rejected the key'});
+    await Future<void>.delayed(Duration.zero);
+
+    // Every other surface renders `error`; a Chill failure is Chill's only.
+    expect(store.error, isNull);
+    expect(store.chatSendError, 'the provider rejected the key');
+
+    // A new turn clears the banner.
+    core.emitEvent('chat.state', {...frame('', 1), 'status': 'streaming'});
+    await Future<void>.delayed(Duration.zero);
+    expect(store.chatSendError, isNull);
+
+    // And a completed turn drops a stale one.
+    core.emitEvent('chat.error', {'message': 'rate limited'});
+    await Future<void>.delayed(Duration.zero);
+    expect(store.chatSendError, 'rate limited');
+    core.emitEvent('chat.done', {'outcome': 'done'});
+    await Future<void>.delayed(Duration.zero);
+    expect(store.chatSendError, isNull);
+  });
 }

@@ -541,6 +541,9 @@ extension _ShellSurfaces on _ShellState {
           ? null
           : (question, urls) =>
                 unawaited(store.startResearch(skillId, question, urls)),
+      onCancelResearch: skillId == null
+          ? null
+          : () => unawaited(store.cancelRunningResearch(skillId)),
       onOpenResearch: skillId == null
           ? null
           : (id) => unawaited(store.openResearch(skillId, id)),

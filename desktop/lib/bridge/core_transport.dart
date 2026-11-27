@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import 'core_methods.g.dart';
 import 'protocol.dart';
 
 /// The transport surface a [CoreStore] needs. `CoreClient` is the real one;
@@ -141,7 +142,7 @@ class CoreClient implements CoreConnection {
   /// `session.create` is deliberately **not** in `_longRunning`: its timeout is
   /// what gives the wizard a way out, and its request id makes the retry safe.
   static Duration? deadlineFor(String method) {
-    if (method == 'session.create') return createDeadline;
+    if (method == CoreMethod.sessionCreate) return createDeadline;
     if (_longRunning.contains(method)) return null;
     return quickCallDeadline;
   }
@@ -152,25 +153,25 @@ class CoreClient implements CoreConnection {
   /// validation), an approved command (the service allows 120 s), source
   /// extraction and copying, zip exports, and the archive's network transfers.
   static const _longRunning = <String>{
-    'session.generateSteps',
-    'session.document',
-    'session.output.build',
-    'session.instructions.import',
-    'session.instructions.reextract',
-    'session.archive',
-    'session.export',
-    'source.add',
-    'skill.create',
-    'skill.lesson.build',
-    'skill.sources.add',
-    'skill.archive',
-    'skill.export',
-    'archive.list',
-    'archive.restore',
-    'archive.remove',
-    'work.command.decide',
-    'provider.link',
-    'mcp.refresh',
+    CoreMethod.sessionGenerateSteps,
+    CoreMethod.sessionDocument,
+    CoreMethod.sessionOutputBuild,
+    CoreMethod.sessionInstructionsImport,
+    CoreMethod.sessionInstructionsReextract,
+    CoreMethod.sessionArchive,
+    CoreMethod.sessionExport,
+    CoreMethod.sourceAdd,
+    CoreMethod.skillCreate,
+    CoreMethod.skillLessonBuild,
+    CoreMethod.skillSourcesAdd,
+    CoreMethod.skillArchive,
+    CoreMethod.skillExport,
+    CoreMethod.archiveList,
+    CoreMethod.archiveRestore,
+    CoreMethod.archiveRemove,
+    CoreMethod.workCommandDecide,
+    CoreMethod.providerLink,
+    CoreMethod.mcpRefresh,
   };
 
   void _handleLine(String line) {

@@ -265,12 +265,6 @@ List<SettingGroup> buildGroups(
           ..._policyCellRows(mcpServers, mcpPolicy)
         else
           for (final command in _policyCommands) _policyRow(command, mcpPolicy),
-        SettingRow(
-          id: 'ui-plugins',
-          label: 'UI plugins',
-          value: _uiPlugins(settings),
-          hint: 'loaded from the plugin folders',
-        ),
       ],
     ),
     SettingGroup(title: 'DECISION LAYER', rows: _decisionRows(decision)),
@@ -482,20 +476,12 @@ String _providers(SettingsView settings) =>
     ? 'not set'
     : 'configured';
 
-String _uiPlugins(SettingsView settings) {
-  final parts = <String>[
-    if (settings.pluginDirs.isNotEmpty) '${settings.pluginDirs.length} loaded',
-    if (settings.disabledPlugins.isNotEmpty)
-      '${settings.disabledPlugins.length} disabled',
-  ];
-  return parts.isEmpty ? 'none' : parts.join(' · ');
-}
-
 /// Commands with a policy row, in the order the product documents them.
 const _policyCommands = <String>[
   'chill',
   'lockin',
   'skill',
+  'work',
   'flashcards',
   'study-guide',
 ];

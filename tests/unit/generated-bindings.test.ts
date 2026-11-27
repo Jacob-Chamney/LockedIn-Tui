@@ -7,7 +7,7 @@
  * test fails when the checked-in file is stale or a raw method literal returns.
  */
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import {
@@ -43,13 +43,33 @@ describe("generated Dart bindings", () => {
     }
   });
 
-  test("the shell never calls a method by a raw literal", () => {
-    // The transport moved out of core_client.dart; the barrel re-exports both.
-    const store = read("desktop/lib/bridge/core_store.dart");
-    const transport = read("desktop/lib/bridge/core_transport.dart");
-    expect(store).not.toContain("_connection.call('");
-    expect(store).toContain("import 'core_methods.g.dart';");
-    // The envelope methods are not data capabilities; they stay explicit.
-    expect(transport).toContain("call('initialize'");
+  test("every bridge file calls a capability by its constant", () => {
+    // The store was split into part files, and this test only looked at the
+    // barrel: two raw `teach.practice` strings and the transport's deadline
+    // table slipped through. Every Dart file under `bridge/` is scanned now,
+    // except the generated catalogue and comments.
+    const capabilities = new Set(capabilitiesFrom(read(CAPABILITIES_SOURCE)));
+    const directory = join(ROOT, "desktop/lib/bridge");
+    const files = readdirSync(directory)
+      .filter((name) => name.endsWith(".dart"))
+      .filter((name) => name !== "core_methods.g.dart")
+      .sort();
+
+    const offenders: string[] = [];
+    for (const name of files) {
+      const lines = readFileSync(join(directory, name), "utf8").split("\n");
+      lines.forEach((line, index) => {
+        if (line.trimStart().startsWith("//")) return;
+        for (const capability of capabilities) {
+          if (
+            line.includes(`'${capability}'`) ||
+            line.includes(`"${capability}"`)
+          ) {
+            offenders.push(`${name}:${index + 1}: ${capability}`);
+          }
+        }
+      });
+    }
+    expect(offenders).toEqual([]);
   });
 });

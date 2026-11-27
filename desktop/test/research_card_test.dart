@@ -149,4 +149,34 @@ void main() {
     await tester.pump();
     expect(closed, 1);
   });
+  testWidgets('a running brief offers Cancel and calls the host once', (
+    tester,
+  ) async {
+    var cancels = 0;
+    await _pump(
+      tester,
+      SkillDetailView(
+        detail: _detail,
+        researchRunning: true,
+        onResearch: (_, _) {},
+        onCancelResearch: () => cancels += 1,
+      ),
+    );
+    await _openResearch(tester);
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('research-cancel')),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    // A spinner with no way out is a dead end.
+    final run = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('research-run')),
+    );
+    expect(run.onPressed, isNull);
+    await tester.tap(find.byKey(const ValueKey('research-cancel')));
+    await tester.pump();
+    expect(cancels, 1);
+    expect(tester.takeException(), isNull);
+  });
 }

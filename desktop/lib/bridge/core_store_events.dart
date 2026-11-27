@@ -12,6 +12,7 @@ extension CoreStoreEvents on CoreStore {
       if (goalId is String && goalId == activeSkillId) {
         if (status == 'done' || status == 'failed' || status == 'cancelled') {
           researchRunning = false;
+          researchRunId = null;
         }
         if (status == 'failed') {
           researchError = params['message'] is String
@@ -258,14 +259,29 @@ extension CoreStoreEvents on CoreStore {
     if (method == 'chat.state' && params is Map) {
       if (!_acceptChatEvent(CoreStore._chillChatKey, params['seq'])) return;
       chat = ChatSnapshot.fromJson(Map<String, dynamic>.from(params));
+      // A new turn clears the last failure's banner. The transcript's own
+      // `error` field still carries a failed turn, so the bubble stays.
+      if (chat!.streaming) chatSendError = null;
       notifyListeners();
       return;
     }
     if (method == 'chat.error' &&
         params is Map &&
         params['message'] is String) {
-      error = params['message'] as String;
+      // A failed Chill turn is a banner on Chill, not a shell-wide error: it
+      // used to set `error`, which every other surface renders, and nothing
+      // cleared it until an unrelated request failed.
+      chatSendError = params['message'] as String;
       notifyListeners();
+      return;
+    }
+    if (method == 'chat.done') {
+      // The final `chat.state` carries the transcript; `done` only drops a
+      // stale failure banner.
+      if (chatSendError != null) {
+        chatSendError = null;
+        notifyListeners();
+      }
       return;
     }
     if (method == 'core.exit') {

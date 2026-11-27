@@ -142,4 +142,28 @@ void main() {
     expect(store.stats?.range, '7d');
     expect(store.stats?.scope, 'school');
   });
+  test('a running brief can be cancelled through research.cancel', () async {
+    final core = FakeCore();
+    final store = CoreStore(connection: core);
+    addTearDown(store.dispose);
+    await store.start();
+
+    final started = await store.startResearch(
+      FakeCore.skillId,
+      'What does a call save?',
+      ['https://example.org/a'],
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(started, isTrue);
+    expect(store.researchRunning, isTrue);
+    expect(store.researchRunId, 'research-1');
+
+    await store.cancelRunningResearch(FakeCore.skillId);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(core.calls, contains('research.cancel'));
+    expect(store.researchRunning, isFalse);
+    expect(store.researchRunId, isNull);
+  });
 }

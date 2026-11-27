@@ -69,13 +69,12 @@ const _policy = PluginPolicy(<String, Map<String, String>>{
   'lockin': {'notes': 'explicit'},
 });
 
-/// Row indices in [settingsSnapshot] with two MCP servers and five policy rows:
-/// USER 0-1, MODELS 2-6, USAGE 7-10, STORAGE 11-14, PLUGINS 15-23.
+/// Row indices in [settingsSnapshot] with two MCP servers and six policy
+/// commands: USER 0-1, MODELS 2-6, USAGE 7-10, STORAGE 11-14, PLUGINS 15-29.
 const _rowIndex = <String, int>{
   'mcp-servers': 15,
   'mcp-server-notes': 16,
   'mcp-server-wiki': 17,
-  'ui-plugins': 23,
 };
 
 Future<void> pumpPage(
@@ -180,7 +179,12 @@ void main() {
     // invented value.
     expect(find.text('notes: on · wiki: off'), findsOneWidget);
     expect(find.text('notes: explicit'), findsOneWidget);
-    expect(find.text('default'), findsNWidgets(3));
+    expect(find.text('default'), findsNWidgets(4));
+    // Work is a first-class plugin command too.
+    expect(
+      find.byKey(const ValueKey('settings-row-mcp-policy-work')),
+      findsOneWidget,
+    );
     expect(find.text('skill'), findsOneWidget);
     expect(find.text('flashcards'), findsOneWidget);
     expect(find.text('study-guide'), findsOneWidget);
@@ -199,7 +203,35 @@ void main() {
       ),
     );
 
-    expect(find.text('default'), findsNWidgets(5));
+    expect(find.text('default'), findsNWidgets(6));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an editable matrix includes a work cell per server', (
+    tester,
+  ) async {
+    await pumpPage(
+      tester,
+      SettingsPage(
+        settings: settingsSnapshot(),
+        loading: false,
+        mcpServers: const [_notesServer, _wikiServer],
+        mcpPolicy: _policy,
+        onSetMcpPolicy: (_, _, _) async {},
+      ),
+    );
+
+    for (final id in [
+      'mcp-policy-work-notes',
+      'mcp-policy-work-wiki',
+      'mcp-policy-flashcards-notes',
+    ]) {
+      expect(
+        find.byKey(ValueKey('settings-row-$id')),
+        findsOneWidget,
+        reason: 'missing $id',
+      );
+    }
     expect(tester.takeException(), isNull);
   });
 
@@ -239,7 +271,7 @@ void main() {
     expect(find.text('add a server in config.toml'), findsOneWidget);
     expect(find.textContaining('external explanation'), findsOneWidget);
     // The section still teaches the policy shape rather than rendering blank.
-    expect(find.text('default'), findsNWidgets(5));
+    expect(find.text('default'), findsNWidgets(6));
     expect(tester.takeException(), isNull);
   });
 
