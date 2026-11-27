@@ -292,6 +292,99 @@ describe("boot wiring", () => {
     expect(outcome.kind).toBe("sent")
   })
 
+  test("linking a key rebuilds the chat service, and selects no model", async () => {
+    const root = join(mkdtempSync(join(tmpdir(), "boot-link-")), "ws")
+    const dataDir = mkdtempSync(join(tmpdir(), "boot-link-data-"))
+    const first = await boot({ workspaceRoot: root, dataDir })
+    if (!first.ok) throw new Error(first.error.message)
+
+    const patched = await patchConfig(first.value.workspace.paths, {
+      models: { chat: "openai/gpt-4.1-mini" },
+    })
+    if (!patched.ok) throw new Error(patched.error.message)
+
+    // No key yet: the controller is the unavailable stub.
+    const linked: string[] = []
+    // The keychain starts empty; a successful link is what makes the key
+    // readable, which is exactly the ordering the rebuild depends on.
+    let storedKey: string | null = null
+    const second = await boot({
+      workspaceRoot: root,
+      dataDir,
+      readKey: async () => storedKey,
+      linkKey: async ({ providerId }) => {
+        linked.push(providerId)
+        storedKey = "/tmp/lockedin-test-key"
+        return {
+          ok: true,
+          value: {
+            providerId: "openai",
+            models: ["gpt-4.1-mini"],
+            secretRef: "lockedin/openai",
+            requests: 1,
+            modelSelected: null,
+          },
+        }
+      },
+    })
+    if (!second.ok) throw new Error(second.error.message)
+    const booted = second.value
+    expect((await booted.controller.send("hello")).kind).toBe("no-model")
+
+    // Linking rebuilds for a real provider, so the next turn has a service.
+    const outcome = await booted.linkProvider({ providerId: "openai", key: FAKE_KEY })
+    expect(outcome.ok).toBe(true)
+    expect(linked).toEqual(["openai"])
+    const after = await booted.controller.send("hello")
+    expect(after.kind).not.toBe("no-model")
+
+    // Linking never picks a model: the configured one stays what Settings set.
+    expect(booted.config.models.chat).toBe("openai/gpt-4.1-mini")
+  });
+
+  test("linking a custom endpoint does not rebuild (it reads no key)", async () => {
+    const root = join(mkdtempSync(join(tmpdir(), "boot-link-custom-")), "ws")
+    const dataDir = mkdtempSync(join(tmpdir(), "boot-link-custom-data-"))
+    const first = await boot({ workspaceRoot: root, dataDir })
+    if (!first.ok) throw new Error(first.error.message)
+    const sent: string[] = []
+    let builds = 0
+    const second = await boot({
+      workspaceRoot: root,
+      dataDir,
+      createService: () => {
+        builds += 1
+        // The controller is what the test inspects; a null service is the
+        // no-model state and needs no network.
+        return null
+      },
+      linkKey: async () => {
+        sent.push("link")
+        return {
+          ok: true,
+          value: {
+            providerId: "custom",
+            models: ["llama3.2"],
+            secretRef: "",
+            requests: 1,
+            modelSelected: null,
+          },
+        }
+      },
+    })
+    if (!second.ok) throw new Error(second.error.message)
+    const before = builds
+    const outcome = await second.value.linkProvider({
+      providerId: "custom",
+      key: "",
+      baseUrl,
+    })
+    expect(outcome.ok).toBe(true)
+    expect(sent).toEqual(["link"])
+    // A custom endpoint reads no key, so there is nothing to rebuild.
+    expect(builds).toBe(before)
+  });
+
   test("no model still boots and reports no model configured", async () => {
     const root = join(mkdtempSync(join(tmpdir(), "boot-empty-")), "ws")
     const dataDir = mkdtempSync(join(tmpdir(), "boot-empty-data-"))
