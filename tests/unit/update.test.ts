@@ -10,6 +10,7 @@ import {
   compareVersions,
   installUpdate,
   parseChecksums,
+  desktopAssetName,
   replaceBinary,
   updateAssetName,
   type UpdateInfo,
@@ -89,6 +90,18 @@ describe("versions and asset names", () => {
     expect(updateAssetName("1.2.3", "freebsd", "x64")).toBeNull()
   })
 
+  test("map desktop bundles only where the release builds one", () => {
+    expect(desktopAssetName("1.2.3", "linux", "x64")).toBe(
+      "lockedin-desktop-1.2.3-linux-x64.tar.gz",
+    )
+    expect(desktopAssetName("1.2.3", "win32", "x64")).toBe(
+      "lockedin-desktop-1.2.3-windows-x64-setup.exe",
+    )
+    // No macOS bundle and no arm64 desktop artifact yet.
+    expect(desktopAssetName("1.2.3", "darwin", "arm64")).toBeNull()
+    expect(desktopAssetName("1.2.3", "linux", "arm64")).toBeNull()
+  });
+
   test("parse a release checksum list", () => {
     const sums = parseChecksums(
       `${"a".repeat(64)}  lockedin-1.0.0-bun-linux-x64\n` +
@@ -134,6 +147,84 @@ describe("checking", () => {
     })
     expect(result).toEqual({ kind: "current", current: "2026.11.12", latest: "1.6.0" })
   })
+
+  test("the desktop app checks for its own bundle, not the core binary", async () => {
+    const linux = await checkForUpdate({
+      current: "1.0.0",
+      platform: "linux",
+      arch: "x64",
+      app: "desktop",
+      fetch: responder({
+        [API]: () => release("1.2.0", "lockedin-desktop-1.2.0-linux-x64.tar.gz"),
+      }),
+    })
+    expect(linux.kind).toBe("available")
+    if (linux.kind !== "available") return
+    expect(linux.info.asset).toBe("lockedin-desktop-1.2.0-linux-x64.tar.gz");
+
+    const windows = await checkForUpdate({
+      current: "1.0.0",
+      platform: "win32",
+      arch: "x64",
+      app: "desktop",
+      fetch: responder({
+        [API]: () =>
+          release("1.2.0", "lockedin-desktop-1.2.0-windows-x64-setup.exe"),
+      }),
+    })
+    expect(windows.kind).toBe("available")
+    if (windows.kind === "available") {
+      expect(windows.info.asset).toBe(
+        "lockedin-desktop-1.2.0-windows-x64-setup.exe",
+      )
+    }
+
+    // A platform with no bundle says so, instead of naming a core binary the
+    // app can never install.
+    const mac = await checkForUpdate({
+      current: "1.0.0",
+      platform: "darwin",
+      arch: "arm64",
+      app: "desktop",
+      fetch: responder({ [API]: () => release("1.2.0", "SHA256SUMS") }),
+    })
+    expect(mac.kind).toBe("unavailable")
+    if (mac.kind === "unavailable") {
+      expect(mac.message).toContain("no desktop app")
+      expect(mac.message).toContain("core installer")
+    }
+  });
+
+  test("the desktop app refuses to install its own bundle as a binary", async () => {
+    const directory = await temporary();
+    const target = join(directory, "lockedin-core");
+    await writeFile(target, "old core");
+    const result = await installUpdate(
+      {
+        version: "1.2.0",
+        asset: "lockedin-desktop-1.2.0-linux-x64.tar.gz",
+        assetUrl:
+          "https://github.com/Jacob-Chamney/LockedIn-Tui/releases/download/v1.2.0/lockedin-desktop-1.2.0-linux-x64.tar.gz",
+        checksumUrl:
+          "https://github.com/Jacob-Chamney/LockedIn-Tui/releases/download/v1.2.0/SHA256SUMS",
+        releaseUrl:
+          "https://github.com/Jacob-Chamney/LockedIn-Tui/releases/tag/v1.2.0",
+      },
+      {
+        current: "1.0.0",
+        platform: "linux",
+        arch: "x64",
+        execPath: target,
+        app: "desktop",
+        fetch: responder({}),
+      },
+    );
+    expect(result.kind).toBe("unavailable");
+    if (result.kind === "unavailable") {
+      expect(result.message).toContain("does not install its own bundle");
+    }
+    expect(await readFile(target, "utf8")).toBe("old core");
+  });
 
   test("a missing release, server error or missing asset is unavailable, not a failure", async () => {
     const missing = await checkForUpdate({

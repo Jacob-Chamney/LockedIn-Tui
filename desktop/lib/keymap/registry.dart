@@ -416,6 +416,13 @@ List<ActionSpec> defaultActionCatalogue() => [
     defaultBinding: Binding.direct('r', control: true),
   ),
   const ActionSpec(
+    id: 'clear-chat',
+    label: 'clear chat',
+    hint: 'empty the Chill transcript and history',
+    group: ActionGroup.global,
+    defaultBinding: Binding.direct('l', control: true),
+  ),
+  const ActionSpec(
     id: 'leader',
     label: 'leader',
     hint: 'show every binding',

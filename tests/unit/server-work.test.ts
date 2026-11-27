@@ -222,3 +222,46 @@ describe("work.create", () => {
     expect(unknown.code).toBe(BOOT_FAILED);
   });
 });
+describe("work.remove", () => {
+  test("asks first, then deletes metadata and keeps the project folder", async () => {
+    const { server } = fakeCore();
+    const folder = join(base, "app");
+    await mkdir(folder, { recursive: true });
+    await mkdir(workProjects, { recursive: true });
+    const created = await resultOf(server, "work.create", {
+      name: "My app",
+      folder,
+      mode: "chat",
+    });
+    const id = String(created.id);
+
+    // Without confirmation the reply is the plan; nothing moves.
+    const plan = await resultOf(server, "work.remove", { id });
+    expect(plan.removed).toBe(false);
+    // The service stores the resolved root; on Windows that can differ from the
+    // short temp path the test passed in. The plan names the root it removes.
+    expect(String(plan.message)).toContain(String(plan.root));
+    expect(existsSync(join(workProjects, id))).toBe(true);
+    expect(existsSync(folder)).toBe(true);
+
+    const done = await resultOf(server, "work.remove", { id, confirmed: true });
+    expect(done.removed).toBe(true);
+    expect(done.name).toBe("My app");
+    expect(existsSync(join(workProjects, id))).toBe(false);
+    // Metadata only: the registered folder is untouched.
+    expect(existsSync(folder)).toBe(true);
+  });
+
+  test("a blank id is invalid and an unknown project is a typed refusal", async () => {
+    const { server } = fakeCore();
+    const blank = await errorOf(server, "work.remove", { id: " " });
+    expect(blank.code).toBe(-32602);
+    expect(blank.message).toContain("project id");
+
+    const unknown = await errorOf(server, "work.remove", { id: "nope" });
+    expect(unknown.code).toBe(BOOT_FAILED);
+    expect(unknown.retryable).toBe(false);
+    expect(unknown.data).toMatchObject({ kind: "project", projectId: "nope" });
+  });
+});
+

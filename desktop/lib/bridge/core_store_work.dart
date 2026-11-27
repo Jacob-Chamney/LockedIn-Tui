@@ -133,6 +133,31 @@ extension CoreStoreWork on CoreStore {
     await refreshActivity(project: projectId);
   }
 
+  /// Remove one project's metadata (`work.remove`).
+  ///
+  /// The core deletes only `work/projects/<id>/`; the project folder is never
+  /// opened, moved or deleted. The shell confirms first and sends
+  /// `confirmed: true`; on success the open project is closed and the list is
+  /// re-read, so the row disappears without a second request from the page.
+  Future<bool> removeProject(String id) async {
+    final projectId = id.trim();
+    if (projectId.isEmpty) return false;
+    try {
+      final json = await _connection.call(CoreMethod.workRemove, {
+        'id': projectId,
+        'confirmed': true,
+      });
+      if (json['removed'] != true) return false;
+      if (activeProjectId == projectId) closeProject();
+      await refreshProjects();
+      return true;
+    } catch (failure) {
+      error = _messageOf(failure);
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Return from a project detail to the Work list.
   ///
   /// The project's chat list and active chat go with it: they are properties of

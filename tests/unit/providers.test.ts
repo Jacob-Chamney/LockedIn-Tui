@@ -178,6 +178,30 @@ describe("link flow", () => {
     expect(store.entries.size).toBe(0)
   })
 
+  test("a provider with no adapter is refused before the keychain or network", async () => {
+    const store = createMemorySecretStore()
+    const { impl, calls } = fakeFetch([])
+    const result = await linkProviderKey({
+      providerId: "anthropic",
+      spec: spec("anthropic"),
+      key: "sk-ant-spike-" + "a".repeat(16),
+      store,
+      fetchImpl: impl,
+    })
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.kind).toBe("config")
+      if (result.error.kind === "config") {
+        expect(result.error.message).toContain("no adapter")
+        expect(result.error.message).toContain("OpenRouter")
+      }
+    }
+    // A key this build cannot use must never reach the network or the store.
+    expect(calls).toEqual([])
+    expect(store.entries.size).toBe(0)
+  })
+
   test("a good key is validated once, stored once, and selects no model", async () => {
     const store = createMemorySecretStore()
     const { impl, calls } = fakeFetch(["gpt-4.1-mini", "gpt-4.1"])

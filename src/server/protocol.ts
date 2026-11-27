@@ -148,6 +148,7 @@ export const CAPABILITIES = [
   "chat.snapshot",
   "chat.send",
   "chat.cancel",
+  "chat.clear",
   "session.chat.snapshot",
   "session.chat.send",
   "session.chat.cancel",
@@ -162,6 +163,7 @@ export const CAPABILITIES = [
   "work.list",
   "work.open",
   "work.create",
+  "work.remove",
   "work.templates.list",
   "work.agent.save",
   "work.agent.delete",
@@ -805,7 +807,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     services,
     notify: (notification) => options.notify?.(notification),
   });
-  const { chatSnapshot, chatSend, chatCancel } = chillChat.handlers;
+  const { chatSnapshot, chatSend, chatCancel, chatClear } = chillChat.handlers;
 
   const reviewKnowledge = createReviewKnowledgeHandlers({
     services,
@@ -853,6 +855,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     workAgentDelete,
     workDefaultAgent,
     workChanges,
+    workRemove,
   } = workProject;
 
 
@@ -1007,6 +1010,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         return chatSend(id, params);
       case "chat.cancel":
         return chatCancel(id);
+      case "chat.clear":
+        return chatClear(id);
       case "session.open":
         return sessionOpen(id, params);
       case "session.coverage":
@@ -1103,6 +1108,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         return workOpen(id, params);
       case "work.create":
         return workCreate(id, params);
+      case "work.remove":
+        return workRemove(id, params);
       case "work.instructions.save":
         return workInstructionsSave(id, params);
       case "work.templates.list":

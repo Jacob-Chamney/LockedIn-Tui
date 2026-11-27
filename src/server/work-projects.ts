@@ -12,7 +12,11 @@ import {
   makeProjectId,
   setProjectInstructions,
 } from "../app/actions/projects";
-import { listProjects, type ProjectMeta } from "../services/work/register";
+import {
+  listProjects,
+  remove as removeProjectMetadata,
+  type ProjectMeta,
+} from "../services/work/register";
 import { changes as readChanges } from "../services/work/changes";
 import { parseAgentSave, takenAgentIds } from "./agent-input";
 import {
@@ -122,6 +126,7 @@ export function createWorkProjectHandlers<C extends SessionServices>(
   workAgentDelete: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
   workDefaultAgent: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
   workChanges: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
+  workRemove: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
 } {
   const { services } = ctx;
 
@@ -200,6 +205,53 @@ export function createWorkProjectHandlers<C extends SessionServices>(
       lastOpened: home.lastOpened,
     };
     return success(id, { project: detail });
+  };
+
+  /**
+   * Remove one project's **metadata only** (`docs/product.md` §8.1).
+   *
+   * The project root is never opened, moved or deleted. `confirmed` is the
+   * shell's named confirmation: without it the service returns the plan and
+   * message and deletes nothing, so a caller that forgot to ask cannot remove
+   * a registration by accident.
+   */
+  const workRemove = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const raw = params.id;
+    if (typeof raw !== "string" || raw.trim() === "") {
+      return invalid(id, "work.remove requires a project id");
+    }
+    if (params.confirmed !== undefined && typeof params.confirmed !== "boolean") {
+      return invalid(id, "work.remove: confirmed must be a boolean");
+    }
+
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+
+    const removed = await removeProjectMetadata({
+      workspace: current.value.workspace,
+      id: raw.trim(),
+      ...(params.confirmed === true ? { approve: () => true } : {}),
+    });
+    if (!removed.ok) {
+      const message = oneLine(removed.error.message);
+      return failure(
+        id,
+        BOOT_FAILED,
+        message,
+        { kind: "project", projectId: raw.trim(), message },
+        false,
+      );
+    }
+    return success(id, {
+      removed: removed.value.removed,
+      id: removed.value.plan.id,
+      name: removed.value.plan.name,
+      root: removed.value.plan.root,
+      message: removed.value.plan.message,
+    });
   };
 
   /**
@@ -587,5 +639,6 @@ export function createWorkProjectHandlers<C extends SessionServices>(
     workAgentDelete,
     workDefaultAgent,
     workChanges,
+    workRemove,
   };
 }

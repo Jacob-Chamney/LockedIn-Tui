@@ -18,7 +18,25 @@ extension CoreStoreChat on CoreStore {
     }
   }
 
-  /// Send one Chill turn (`chat.send`).
+  /// Empty the Chill transcript and its local history (`chat.clear`).
+  ///
+  /// The core refuses while a reply streams, with its own one-line sentence;
+  /// that refusal is shown in the Chill banner. A cleared transcript arrives as
+  /// a normal `chat.state` frame, so the shell never empties it locally.
+  Future<bool> clearChat() async {
+    try {
+      await _connection.call(CoreMethod.chatClear);
+      chatSendError = null;
+      notifyListeners();
+      return true;
+    } catch (failure) {
+      chatSendError = _messageOf(failure);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Send one Chill turn (`chat.send`).  /// Send one Chill turn (`chat.send`).
   ///
   /// [images] are absolute paths the **user picked**, at most four. The core
   /// derives each media type from its extension and reads the bytes at send

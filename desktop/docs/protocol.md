@@ -8,7 +8,7 @@ to stderr.
 
 ```json
 → {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol":1,"client":"flutter"}}
-← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","session.deck.state","session.deck.grade","session.deck.reset","session.figure.list","session.figure.extract","session.figure.read","session.figure.annotate","session.figure.remove","session.mistake.list","session.mistake.record","session.mistake.promote","session.mistake.correct","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","keybinds.get","keybinds.set","chat.snapshot","chat.send","chat.cancel","session.chat.snapshot","session.chat.send","session.chat.cancel","session.chat.context","session.chat.compact","session.chat.uncompact","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","work.list","work.open","work.create","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.instructions.save","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","work.swarm.verify","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","teach.state","teach.measure","teach.step","teach.check","teach.practice","teach.practice.result","teach.side.snapshot","teach.side.send","teach.side.clear","research.start","research.list","research.read","research.cancel","prompts.list","prompts.set","update.info","update.check","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read","knowledge.graph"]}}
+← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","session.deck.state","session.deck.grade","session.deck.reset","session.figure.list","session.figure.extract","session.figure.read","session.figure.annotate","session.figure.remove","session.mistake.list","session.mistake.record","session.mistake.promote","session.mistake.correct","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","keybinds.get","keybinds.set","chat.snapshot","chat.send","chat.cancel","chat.clear","session.chat.snapshot","session.chat.send","session.chat.cancel","session.chat.context","session.chat.compact","session.chat.uncompact","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","work.list","work.open","work.create","work.remove","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.instructions.save","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","work.swarm.verify","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","teach.state","teach.measure","teach.step","teach.check","teach.practice","teach.practice.result","teach.side.snapshot","teach.side.send","teach.side.clear","research.start","research.list","research.read","research.cancel","prompts.list","prompts.set","update.info","update.check","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read","knowledge.graph"]}}
 ```
 
 - `protocol` is an integer. A mismatch is a blocking shell error, not a retry.
@@ -97,6 +97,7 @@ Implemented today (`src/server/protocol.ts`, capability names in the handshake):
 | `chat.snapshot` | — | `ChatSnapshot` |
 | `chat.send` | `{text, images?}` | `{turnId}` + `chat.state` / `chat.done` / `chat.error` events |
 | `chat.cancel` | — | `{ok: true}` |
+| `chat.clear` | — | `{ok: true}` |
 | `session.chat.snapshot` | `{id}` | `ChatSnapshot` |
 | `session.chat.send` | `{id, text}` | `{turnId: id}` + `session.chat.state` / `session.chat.done` / `session.chat.error` events |
 | `session.chat.cancel` | `{id}` | `{ok: true}` |
@@ -110,6 +111,7 @@ Implemented today (`src/server/protocol.ts`, capability names in the handshake):
 | `work.list` | — | `{projects: ProjectRow[]}` |
 | `work.open` | `{id}` | `{project: WorkProjectDetail}` |
 | `work.create` | `{name, folder, mode}` | `{id, name}` |
+| `work.remove` | `{id, confirmed?}` | `{removed, id, name, root, message}` |
 | `work.templates.list` | `{projectId?}` | `{templates: AgentTemplateRow[]}` |
 | `work.agent.save` | `{projectId, agent}` | `{id}` |
 | `work.agent.delete` | `{projectId, agentId}` | `{ok: true}` |
@@ -870,7 +872,15 @@ Implemented today (`src/server/protocol.ts`, capability names in the handshake):
   shows the message once and offers an explicit re-read. There is no `-32602`
   because the method has no parameters, and no automatic retry. A boot refusal is
   the shared boot shape.
-- `session.chat.*`: one controller per session, built on first use. History is
+- `chat.clear`: `:clear` for Chill (`docs/product.md` §3.1). The core empties
+  the transcript and writes an empty local history through its own port, then
+  emits a normal `chat.state` with no messages. It refuses while a reply is
+  streaming — the rule lives in the controller, and the single sentence says to
+  stop the reply first — as `-32000`, `retryable: false`,
+  `data: {kind: "busy", context: "chat", message}`. A cleared transcript is not
+  an error, and nothing else on disk is touched.
+
+- `session.chat.*`: one controller per session- `session.chat.*`: one controller per session, built on first use. History is
   the session's own `chat.jsonl`, scoped by `ui.chill_history_limit`; tools and
   context are the session's read-only `sources/` toolbox. `send` requires a
   non-empty `text` (`-32602`) and a known session (`-32000`). `turnId` is the
@@ -977,7 +987,18 @@ invented row.
   deleted. `instructions` is optional and saved with the registration; agent
   profiles are added with `work.agent.save`. A refusal is `-32000`,
   `retryable: false`, `data: {kind: "project-create", message}`.
-- `work.instructions.save` `{projectId, instructions}` → `{instructions}`.
+- `work.remove` `{id, confirmed?}` → `{removed, id, name, root, message}`.
+  Removes **metadata only**: the core deletes `work/projects/<id>/` and never
+  opens, moves or deletes the registered folder. Without `confirmed: true` the
+  reply is the plan (`removed: false`) with the service's sentence naming the
+  project and its root, so a caller that forgot to ask cannot remove anything;
+  the shell confirms by name and re-sends with `confirmed: true`. A blank or
+  non-string `id`, or a non-boolean `confirmed`, is `-32602`. An unknown
+  project or a failed delete is `-32000`, `retryable: false`,
+  `data: {kind: "project", projectId, message}`, and nothing is left half
+  removed. The registered folder is untouched on both paths.
+
+- `work.instructions.save` `{projectId, instructions}` → `{instructions}`.- `work.instructions.save` `{projectId, instructions}` → `{instructions}`.
   Replaces the project's standing instructions in
   `work/projects/<id>/meta.json`; every other key is preserved and nothing
   inside the project root is read or written. The same 20,000-character rule as

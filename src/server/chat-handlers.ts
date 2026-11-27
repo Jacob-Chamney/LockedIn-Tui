@@ -44,6 +44,7 @@ export function createChillChatHandlers<C extends SessionServices>(
     chatSnapshot: (id: RpcId) => Promise<JsonRpcResponse>;
     chatSend: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
     chatCancel: (id: RpcId) => Promise<JsonRpcResponse>;
+    chatClear: (id: RpcId) => Promise<JsonRpcResponse>;
   };
   /** Rebuild the controller after a model change (settings.patch owns the call). */
   rebuild: (current: C) => Promise<void>;
@@ -168,6 +169,34 @@ export function createChillChatHandlers<C extends SessionServices>(
     return success(id, { ok: true });
   };
 
+  /**
+   * `:clear` — empty the Chill transcript and its local history.
+   *
+   * The controller owns the rule: a streaming reply cannot be cleared from
+   * under the stream, so it refuses and the shell shows the one sentence. The
+   * write goes through the history port, and the cleared transcript is emitted
+   * as a normal state frame.
+   */
+  const chatClear = async (id: RpcId): Promise<JsonRpcResponse> => {
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const controller = await ensureChat(current.value);
+    if (!controller) {
+      return failure(id, -32601, "Chat is not available in this build", undefined, false);
+    }
+    const cleared = controller.clearTranscript();
+    if (!cleared.ok) {
+      return failure(
+        id,
+        BOOT_FAILED,
+        cleared.reason,
+        { kind: "busy", context: "chat", message: cleared.reason },
+        false,
+      );
+    }
+    return success(id, { ok: true });
+  };
+
   /** Rebuild the controller after a model change. */
   const rebuild = async (current: C): Promise<void> => {
     if (!current.createChat || !current.history) return;
@@ -185,6 +214,7 @@ export function createChillChatHandlers<C extends SessionServices>(
       chatSnapshot: chatSnapshotResponse,
       chatSend,
       chatCancel,
+      chatClear,
     },
     rebuild,
   };
