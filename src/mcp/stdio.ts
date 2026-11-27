@@ -211,6 +211,7 @@ export function createMcpHost(configs: readonly McpServerConfig[]): McpHost {
         core: config?.core === true,
         serverId: id,
         ...(options.explicitCall === undefined ? {} : { explicitCall: options.explicitCall }),
+        ...(options.cell === undefined ? {} : { cell: options.cell }),
         ...(options.approval === undefined ? {} : { approval: options.approval }),
       })
       if (verdict.kind !== "allow") return { ok: false, error: { ...verdict.error, server: id } }

@@ -13,6 +13,7 @@
 import type { ChatMode } from "../../llm/chat"
 import type { ToolResolver, ToolSpec } from "../../llm/tools"
 import { decidePolicy, coreServersFor } from "../../mcp/policy"
+import type { PluginCommand, PluginPolicyCell } from "../../storage/config-schema"
 import { createMcpHost, type McpHost } from "../../mcp/stdio"
 import type { McpServerConfig, McpTool } from "../../mcp/types"
 import type { ChatToolSource } from "./projects"
@@ -74,12 +75,25 @@ export type PluginRuntime = {
   dispose(): Promise<void>
 }
 
+/** The policy row one chat mode belongs to (`plugins.policy.<command>`). */
+export function pluginCommandFor(mode: ChatMode): PluginCommand {
+  return mode
+}
+
 export type PluginRuntimeOptions = {
   /**
    * Test seam: use this host instead of spawning stdio servers. Production
    * never passes one, so a real runtime always talks to the configured servers.
    */
   host?: McpHost
+  /**
+   * The stored policy cell for one command and server.
+   *
+   * Boot resolves it from `config.toml`, so the matrix in Settings decides what
+   * a chat may use. Absent means "no configuration": the mode rules alone apply
+   * (a test, or a runtime built without a config).
+   */
+  policyFor?: (mode: ChatMode, server: string) => PluginPolicyCell | undefined
 }
 
 function rowFor(
@@ -116,6 +130,7 @@ export function createPluginRuntime(
    * asks once per call and nothing survives the call it approved.
    */
   let installedApproval: PluginWriteApprover | null = null
+  const policyFor = options.policyFor
 
   const rows = (): PluginRow[] =>
     configs.map((config) =>
@@ -182,6 +197,11 @@ export function createPluginRuntime(
         const coreForMode = coreServersFor(mode).includes(config.id)
         if (config.enabled === false) continue
         if (!host.state(config.id).alive) continue
+        const cell = policyFor?.(mode, config.id)
+        // A cell of `off` hides every tool of that server for this command, and
+        // `explicit` hides them unless this turn asked for the plugin by name.
+        if (cell === "off") continue
+        if (cell === "explicit" && !explicitCall && !coreServersFor(mode).includes(config.id)) continue
         for (const tool of tools.get(config.id) ?? []) {
           // Product invariant: Chill is read-only, so a write tool is never
           // offered there however the policy is configured or the gate set.
@@ -194,6 +214,7 @@ export function createPluginRuntime(
             core: config.core === true || coreForMode,
             serverId: config.id,
             explicitCall,
+            ...(cell === undefined ? {} : { cell }),
           })
           // `off` and the mode rules win over any gate: a write tool the policy
           // refuses is never offered, so it can never be approved into running.
@@ -252,6 +273,7 @@ export function createPluginRuntime(
         const result = await host.call(entry.id, entry.tool.name, input, {
           mode,
           explicitCall,
+          ...(policyFor?.(mode, entry.id) === undefined ? {} : { cell: policyFor(mode, entry.id) }),
           ...(entry.tool.readOnly ? {} : { approval: { granted: true } }),
         })
         return result.ok

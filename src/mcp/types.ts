@@ -70,6 +70,8 @@ export type CallOptions = {
   mode: PluginMode
   /** The user invoked this plugin explicitly; required in lock-in. */
   explicitCall?: boolean
+  /** The stored policy cell for this command and server, when the caller resolved one. */
+  cell?: import("../storage/config-schema").PluginPolicyCell
   /** Present only after the user answered the permission prompt. */
   approval?: Approval
   signal?: AbortSignal

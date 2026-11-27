@@ -1643,7 +1643,7 @@ credential. Only `mcp.policy.set` writes, and it writes configuration only.
   ← {"jsonrpc":"2.0","id":12,"result":{"policy":{"chill":{"notes":"on"},"lockin":{"notes":"off"}}}}
   ```
 
-  - `command` is one of `chill · lockin · flashcards · study-guide · skill` and
+  - `command` is one of `chill · lockin · flashcards · study-guide · skill · work` and
     `value` one of `on · explicit · off`; anything else is `-32602` naming the
     accepted set. `server` must be a non-empty string.
   - `on` is **refused** for `flashcards` and `study-guide` with the config
@@ -1667,7 +1667,11 @@ credential. Only `mcp.policy.set` writes, and it writes configuration only.
     perform itself; there is no change event yet.
   - Defaults when a cell is absent are the policy engine's, not this
     transport's: `chill = on`, `lockin = explicit`, `skill = on`,
-    `flashcards = off`, `study-guide = off`. The core never invents a cell, so
+    `work = explicit`, `flashcards = off`, `study-guide = off`. The resolved
+    cell is enforced by the policy engine: `off` hides the server's tools for
+    that command, `explicit` offers them only to a turn that asks for the plugin
+    by name, and `on` offers them whenever the server is enabled. The core never
+    invents a cell, so
     `mcp.policy.get` keeps returning exactly what `config.toml` stores.
 - Tool output obtained through a plugin is labelled **external explanation** in
   every surface and never counts as a source (`docs/product.md` §11). This list

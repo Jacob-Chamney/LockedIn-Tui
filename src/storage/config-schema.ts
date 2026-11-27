@@ -60,13 +60,20 @@ export type PluginPolicyCell = "on" | "explicit" | "off"
 export const PLUGIN_POLICY_VALUES: readonly PluginPolicyCell[] = ["on", "explicit", "off"]
 
 /** Commands that have a plugin policy row. */
-export type PluginCommand = "chill" | "lockin" | "flashcards" | "study-guide" | "skill"
+export type PluginCommand =
+  | "chill"
+  | "lockin"
+  | "flashcards"
+  | "study-guide"
+  | "skill"
+  | "work"
 export const PLUGIN_COMMANDS: readonly PluginCommand[] = [
   "chill",
   "lockin",
   "flashcards",
   "study-guide",
   "skill",
+  "work",
 ]
 
 /**
@@ -82,6 +89,9 @@ export const DEFAULT_PLUGIN_POLICY: Record<PluginCommand, PluginPolicyCell> = {
   flashcards: "off",
   "study-guide": "off",
   skill: "on",
+  // A Work chat reads a real repository: a plugin is offered only when the
+  // turn asks for it, the same rule lock-in uses.
+  work: "explicit",
 }
 
 /** Server fields that would put a credential in config. */
