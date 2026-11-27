@@ -25,6 +25,9 @@ class PluginPermissionModal extends StatefulWidget {
     this.queued = 0,
     this.expired = false,
     this.onDismissExpired,
+    this.armDelay = const Duration(milliseconds: 150),
+    this.clock,
+    this.onArm,
   });
 
   /// True once the core's own 120 s window passed: the call was denied and
@@ -33,6 +36,19 @@ class PluginPermissionModal extends StatefulWidget {
 
   /// Drop an expired prompt. Nothing is sent to the core.
   final VoidCallback? onDismissExpired;
+
+  /// How long Allow stays disarmed after the prompt paints.
+  ///
+  /// A held key that arrives with the prompt must not approve a write. Deny is
+  /// safe at any moment (it applies nothing), so only Allow waits. The test
+  /// passes a zero delay, or drives [clock] itself.
+  final Duration armDelay;
+
+  /// Injectable clock for the arming timer; production uses `DateTime.now`.
+  final DateTime Function()? clock;
+
+  /// Called when the arming delay elapses, so a test can await it.
+  final VoidCallback? onArm;
 
   /// How many more prompts are waiting behind this one. Each is answered on
   /// its own: there is no bulk approve.
@@ -68,9 +84,26 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
   var _answering = false;
   String? _failure;
 
+  /// When the prompt became visible; the arming delay is measured from here.
+  late final DateTime _shownAt;
+
+  /// False until [PluginPermissionModal.armDelay] has passed.
+  var _armed = false;
+  Timer? _armTimer;
+
   @override
   void initState() {
     super.initState();
+    _shownAt = (widget.clock ?? DateTime.now)();
+    if (widget.armDelay == Duration.zero) {
+      _armed = true;
+    } else {
+      _armTimer = Timer(widget.armDelay, () {
+        if (!mounted) return;
+        setState(() => _armed = true);
+        widget.onArm?.call();
+      });
+    }
     // A node-level handler runs before any ancestor, so the surface underneath
     // never sees a press meant for this decision.
     _focus.onKeyEvent = _onKey;
@@ -81,6 +114,7 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
 
   @override
   void dispose() {
+    _armTimer?.cancel();
     _focus.onKeyEvent = null;
     _focus.dispose();
     super.dispose();
@@ -88,8 +122,14 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
 
   String get _message => widget.error ?? _failure ?? '';
 
+  /// Allow needs the arming delay; Deny never does.
+  bool get _armedForAllow =>
+      _armed ||
+      (widget.clock ?? DateTime.now)().difference(_shownAt) >= widget.armDelay;
+
   Future<void> _confirm(bool allow) async {
     if (_answering) return;
+    if (allow && !_armedForAllow) return;
     setState(() {
       _answering = true;
       _failure = null;
@@ -121,6 +161,8 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
     if (_answering) return KeyEventResult.handled;
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.keyY) {
+      // A held key arriving with the prompt must not approve a write. The
+      // button stays disabled until the delay passes; the key does nothing.
       unawaited(_confirm(true));
       return KeyEventResult.handled;
     }
@@ -346,6 +388,8 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
                                     ? 'expired · the tool did not run'
                                     : _answering
                                     ? 'answering…'
+                                    : !_armedForAllow
+                                    ? 'allow arms in a moment · n deny · Esc deny'
                                     : 'y allow · n deny · Esc deny',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -381,7 +425,10 @@ class _PluginPermissionModalState extends State<PluginPermissionModal> {
                                     LockedInColors.warning,
                                   ),
                                 ),
-                                onPressed: _answering
+                                // Allow stays disabled through the arming
+                                // delay: a held key or a click that lands with
+                                // the prompt must not approve a write.
+                                onPressed: _answering || !_armedForAllow
                                     ? null
                                     : () => unawaited(_confirm(true)),
                                 child: const Text('Allow'),
