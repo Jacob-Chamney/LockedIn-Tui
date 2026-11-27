@@ -638,65 +638,30 @@ class _ShellState extends State<Shell> {
   /// palette itself. The sidebar draws the same [Surface] values, and the core
   /// commands run through [_dispatchAction] so there is one handler per action,
   /// not one per surface that offers it.
+  /// Every palette row is a registry action, plus the palette's own dismissal.
+  ///
+  /// This used to be a hand-written list beside the registry — the exact second
+  /// key/label table `docs/design.md` §7.2 forbids. A row's label, hint and
+  /// chord now come from the catalogue, so a rebind or a new action appears in
+  /// the palette without an edit here, and `_dispatchAction` remains the one
+  /// handler for every id (`leader` and `close` are excluded: one opens the
+  /// overlay, the other would promise a key the algorithm spends).
   List<PaletteAction> _paletteActions() {
-    // Every row that is a registry action shows that action's chord, so the
-    // palette teaches the shortcut it stands for (`docs/design.md` §7.2).
     final keymap = _keymap(CoreScope.of(context));
-    String? chord(String id) => keymap.rowFor(id)?.binding.display;
     return [
-      for (final surface in Surface.values)
-        PaletteAction(
-          id: 'surface.${surface.name}',
-          label: surface.label,
-          hint: surface.hint,
-          icon: surface.icon,
-          binding: chord('surface.${surface.name}'),
-          run: () => _select(surface),
-        ),
-      PaletteAction(
-        // The registry's one `commands` action: the palette row is a name for
-        // it, not a second implementation, and the binding is the same.
-        id: 'commands',
-        label: 'commands',
-        hint: 'type : to run a command by name',
-        icon: Icons.terminal,
-        binding: chord('commands'),
-        run: () => _dispatchAction('commands'),
-      ),
-      PaletteAction(
-        id: 'core.refresh',
-        label: 'refresh',
-        hint: 'reload workspace and settings',
-        icon: Icons.refresh,
-        run: () => _dispatchAction('refresh'),
-      ),
-      PaletteAction(
-        id: 'core.retry',
-        label: 'retry',
-        hint: 'reconnect the core',
-        icon: Icons.restart_alt,
-        run: () => _dispatchAction('retry'),
-      ),
-      PaletteAction(
-        // The registry's one `achievements` action: the palette row is a name
-        // for it, not a second implementation, and the binding is the same.
-        id: 'achievements',
-        label: 'achievements',
-        hint: 'what you have unlocked',
-        icon: Icons.emoji_events_outlined,
-        binding: chord('achievements'),
-        run: () => _dispatchAction('achievements'),
-      ),
-      PaletteAction(
-        id: 'sidebar',
-        label: 'sidebar',
-        hint: _sidebarMode == SidebarMode.icons
-            ? 'expand the rail and take its keys'
-            : 'shrink the rail to icons',
-        icon: Icons.vertical_split_outlined,
-        binding: chord('sidebar'),
-        run: () => _dispatchAction('sidebar'),
-      ),
+      for (final row in keymap.rows)
+        if (row.id != 'leader' && row.id != 'close')
+          PaletteAction(
+            id: row.id,
+            // A surface's label, glyph and hint come from the same enum the
+            // rail draws, so the palette and the rail cannot disagree; every
+            // other row reads the catalogue.
+            label: _paletteSurfaceFor(row.id)?.label ?? row.label,
+            hint: _paletteSurfaceFor(row.id)?.hint ?? row.hint,
+            icon: _paletteIcon(row.id),
+            binding: row.binding.display,
+            run: () => _dispatchAction(row.id),
+          ),
       const PaletteAction(
         id: 'palette.close',
         label: 'close',
@@ -707,6 +672,40 @@ class _ShellState extends State<Shell> {
       ),
     ];
   }
+
+  /// The surface one action names, or null for a non-surface action.
+  static Surface? _paletteSurfaceFor(String id) {
+    if (!id.startsWith('surface.')) return null;
+    final name = id.substring('surface.'.length);
+    for (final surface in Surface.values) {
+      if (surface.name == name) return surface;
+    }
+    return null;
+  }
+
+  /// The icon one action draws. Presentation only: no key, label or order
+  /// lives here, so a new action falls back rather than disappearing.
+  static IconData _paletteIcon(String id) =>
+      _paletteSurfaceFor(id)?.icon ??
+      _paletteIcons[id] ??
+      Icons.arrow_forward_outlined;
+
+  static const _paletteIcons = <String, IconData>{
+    'palette': Icons.search,
+    'commands': Icons.terminal,
+    'refresh': Icons.refresh,
+    'retry': Icons.restart_alt,
+    'help': Icons.help_outline,
+    'leader-alt': Icons.keyboard_outlined,
+    'achievements': Icons.emoji_events_outlined,
+    'new-lock-in': Icons.add_circle_outline,
+    'flashcards': Icons.style_outlined,
+    'work-agents': Icons.groups_outlined,
+    'work-chats': Icons.forum_outlined,
+    'work-swarms': Icons.hub_outlined,
+    'work-changes': Icons.difference_outlined,
+    'sidebar': Icons.vertical_split_outlined,
+  };
 
   static void _noop() {}
 

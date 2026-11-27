@@ -295,7 +295,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               for (var row = 0; row < filtered.length; row++)
-                                _PaletteRow(
+                                PaletteRow(
                                   key: row == index
                                       ? selectedKey
                                       : ValueKey(
@@ -337,8 +337,8 @@ class _CommandPaletteState extends State<CommandPalette> {
   }
 }
 
-class _PaletteRow extends StatelessWidget {
-  const _PaletteRow({
+class PaletteRow extends StatelessWidget {
+  const PaletteRow({
     super.key,
     required this.action,
     required this.selected,

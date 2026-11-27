@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lockedin_desktop/keymap/registry.dart';
 import 'package:lockedin_desktop/shell/palette.dart';
 import 'package:lockedin_desktop/shell/chrome.dart';
 import 'package:material_ui/material_ui.dart';
@@ -75,6 +76,26 @@ void main() {
     expect(find.text('↑↓ move · Enter run · Esc close'), findsOneWidget);
     expect(inPalette('Chat'), findsOneWidget);
     expect(rowOfText('Chat'), findsOneWidget);
+  });
+
+  testWidgets('the palette is the catalogue: one row per action, no hand list', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    await pressCtrlK(tester);
+
+    final keymap = KeymapRegistry(catalogue: shellActionCatalogue());
+    final expected = keymap.rows
+        .where((row) => row.id != 'leader' && row.id != 'close')
+        .length;
+    // Every catalogue action, plus the palette's own `close` row. This is the
+    // regression guard against a second hand-written list growing back: adding
+    // an action to the catalogue adds a row here without an edit.
+    expect(find.byType(PaletteRow), findsNWidgets(expected + 1));
+
+    // The visible rows carry the registry's chord, not a literal: the first
+    // surface row shows the same `Space c` the leader overlay prints.
+    expect(inPalette('Space c'), findsOneWidget);
   });
 
   testWidgets('typing sta filters to Stats and Enter opens it', (tester) async {
