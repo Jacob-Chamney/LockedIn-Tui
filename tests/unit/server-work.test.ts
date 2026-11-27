@@ -238,7 +238,9 @@ describe("work.remove", () => {
     // Without confirmation the reply is the plan; nothing moves.
     const plan = await resultOf(server, "work.remove", { id });
     expect(plan.removed).toBe(false);
-    expect(String(plan.message)).toContain(folder);
+    // The service stores the resolved root; on Windows that can differ from the
+    // short temp path the test passed in. The plan names the root it removes.
+    expect(String(plan.message)).toContain(String(plan.root));
     expect(existsSync(join(workProjects, id))).toBe(true);
     expect(existsSync(folder)).toBe(true);
 
