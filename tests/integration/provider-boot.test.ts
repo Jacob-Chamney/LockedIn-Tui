@@ -13,6 +13,7 @@ import { join } from "node:path"
 import { createProviderService, modelNameOf, type ProviderService } from "../../src/llm/provider"
 import { boot } from "../../src/app/boot"
 import { patchConfig } from "../../src/storage/config"
+import { createMemorySecretStore } from "../contract/fakes/memory-secret-store"
 
 const FAKE_KEY = "sk-spike-0123456789abcdef0123456789abcdef"
 
@@ -32,6 +33,19 @@ function sse(delta: Record<string, unknown>, finish: string | null = null): stri
 const server = Bun.serve({
   port: 0,
   async fetch(req) {
+    const url = new URL(req.url)
+    // Key validation asks for the model list first (`docs/product.md` §10.1),
+    // so the fake server answers it, and only a bearer of the good key.
+    if (url.pathname.endsWith("/models")) {
+      const auth = req.headers.get("authorization") ?? ""
+      if (auth !== `Bearer ${FAKE_KEY}`) {
+        return new Response(JSON.stringify({ error: { message: "bad key" } }), {
+          status: 401,
+          headers: { "content-type": "application/json" },
+        })
+      }
+      return Response.json({ data: [{ id: "gpt-4.1-mini" }, { id: "gpt-4.1" }] })
+    }
     const payload = (await req.json().catch(() => ({}))) as { model?: string; messages?: unknown[] }
     log.push({ model: payload.model ?? "", messages: payload.messages ?? [] })
     const parts = [
@@ -383,6 +397,97 @@ describe("boot wiring", () => {
     expect(sent).toEqual(["link"])
     // A custom endpoint reads no key, so there is nothing to rebuild.
     expect(builds).toBe(before)
+  });
+
+
+  test("the real link path stores the key in the keychain, then chat works", async () => {
+    const root = join(mkdtempSync(join(tmpdir(), "boot-link-real-")), "ws")
+    const dataDir = mkdtempSync(join(tmpdir(), "boot-link-real-data-"))
+    const first = await boot({ workspaceRoot: root, dataDir })
+    if (!first.ok) throw new Error(first.error.message)
+    const patched = await patchConfig(first.value.workspace.paths, {
+      models: { chat: "openai/gpt-4.1-mini", base_url: baseUrl },
+    })
+    if (!patched.ok) throw new Error(patched.error.message)
+
+    // No key yet, and the in-memory store stands in for the OS keychain: the
+    // whole path runs — format check, one authenticated request, then the write.
+    const store = createMemorySecretStore()
+    const second = await boot({
+      workspaceRoot: root,
+      dataDir,
+      secretStore: store,
+      readKey: async (ref) => store.entries.get(ref) ?? null,
+    })
+    if (!second.ok) throw new Error(second.error.message)
+    const booted = second.value
+
+    const outcome = await booted.linkProvider({
+      providerId: "openai",
+      key: FAKE_KEY,
+      baseUrl,
+    })
+    expect(outcome.ok).toBe(true)
+    if (!outcome.ok) return
+    expect(outcome.value.models).toEqual(["gpt-4.1-mini", "gpt-4.1"])
+    // Linking never picks a model, and the key is namespaced in the store.
+    expect(outcome.value.modelSelected).toBeNull()
+    expect(outcome.value.secretRef).toBe("lockedin/openai")
+    expect(store.entries.get("lockedin/openai")).toBe(FAKE_KEY);
+
+    // The rebuild read the key back through the reader, so the next turn sends.
+    const after = await booted.controller.send("hello")
+    expect(after.kind).toBe("sent")
+  });
+
+  test("a rejected key is one auth error and stores nothing", async () => {
+    const root = join(mkdtempSync(join(tmpdir(), "boot-link-bad-")), "ws")
+    const dataDir = mkdtempSync(join(tmpdir(), "boot-link-bad-data-"))
+    const first = await boot({ workspaceRoot: root, dataDir })
+    if (!first.ok) throw new Error(first.error.message)
+
+    const store = createMemorySecretStore()
+    const second = await boot({ workspaceRoot: root, dataDir, secretStore: store })
+    if (!second.ok) throw new Error(second.error.message)
+
+    const outcome = await second.value.linkProvider({
+      providerId: "openai",
+      key: "sk-wrong-key-but-well-formed-000000",
+      baseUrl,
+    })
+    expect(outcome.ok).toBe(false)
+    if (outcome.ok) return
+    expect(outcome.error.kind).toBe("auth")
+    expect(store.entries.size).toBe(0)
+    expect(store.calls.set).toBe(0)
+  });
+
+  test("a locked keychain refuses before any request is sent", async () => {
+    const root = join(mkdtempSync(join(tmpdir(), "boot-link-locked-")), "ws")
+    const dataDir = mkdtempSync(join(tmpdir(), "boot-link-locked-data-"))
+    const first = await boot({ workspaceRoot: root, dataDir })
+    if (!first.ok) throw new Error(first.error.message)
+
+    const store = createMemorySecretStore({ mode: "locked" })
+    const second = await boot({ workspaceRoot: root, dataDir, secretStore: store })
+    if (!second.ok) throw new Error(second.error.message)
+
+    const before = log.length
+    const outcome = await second.value.linkProvider({
+      providerId: "openai",
+      key: FAKE_KEY,
+      baseUrl,
+    })
+    expect(outcome.ok).toBe(false)
+    if (outcome.ok) return
+    expect(outcome.error.kind).toBe("keychain")
+    if (outcome.error.kind === "keychain") {
+      // The hint names the fix, not just the failure.
+      expect(outcome.error.hint.toLowerCase()).toMatch(/unlock|keyring/)
+    }
+    // The cheap local probe runs first, so nothing reached the provider.
+    expect(log.length).toBe(before)
+    expect(store.entries.size).toBe(0)
   });
 
   test("no model still boots and reports no model configured", async () => {
