@@ -84,6 +84,9 @@ export function createArchiveHandlers<C extends SessionServices>(
     archiveList: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
     archiveRestore: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
     archiveRemove: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
+    archiveGithubTokenStatus: (id: RpcId) => Promise<JsonRpcResponse>;
+    archiveGithubTokenLink: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
+    archiveGithubTokenClear: (id: RpcId) => Promise<JsonRpcResponse>;
   };
 } {
   const { services, settingsView, dropSessionChat, resolveSession } = ctx;
@@ -282,6 +285,62 @@ export function createArchiveHandlers<C extends SessionServices>(
    * files are a cache, so a missing or corrupt index still lists the archived
    * folders rather than failing the request.
    */
+  /**
+   * The GitHub archive token (`docs/product.md` §9).
+   *
+   * The token lives in the OS keychain only. Status never returns it; link
+   * validates once and stores it; clear removes it. None of these touches config
+   * or the archive backend, and none pushes anything.
+   */
+  const tokenFailure = (id: RpcId, message: string): JsonRpcResponse =>
+    failure(id, BOOT_FAILED, oneLine(message), { kind: "archive", message: oneLine(message) }, false);
+
+  const archiveGithubTokenStatus = async (id: RpcId): Promise<JsonRpcResponse> => {
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const status = current.value.githubTokenStatus;
+    if (!status) {
+      return failure(id, -32601, "GitHub token storage is not available in this build", undefined, false);
+    }
+    const result = await status();
+    if (!result.ok) return tokenFailure(id, result.error.message);
+    return success(id, { linked: result.value.linked });
+  };
+
+  const archiveGithubTokenLink = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const raw = params.token;
+    if (typeof raw !== "string" || raw.trim() === "") {
+      return invalid(id, "archive.github.token.link requires a token");
+    }
+    if (raw.length > 512) {
+      return invalid(id, "archive.github.token.link: the token is too long");
+    }
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const link = current.value.linkGithubToken;
+    if (!link) {
+      return failure(id, -32601, "GitHub token storage is not available in this build", undefined, false);
+    }
+    const linked = await link(raw.trim());
+    if (!linked.ok) return tokenFailure(id, linked.error.message);
+    return success(id, { linked: true, login: linked.value.login });
+  };
+
+  const archiveGithubTokenClear = async (id: RpcId): Promise<JsonRpcResponse> => {
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const clear = current.value.clearGithubToken;
+    if (!clear) {
+      return failure(id, -32601, "GitHub token storage is not available in this build", undefined, false);
+    }
+    const cleared = await clear();
+    if (!cleared.ok) return tokenFailure(id, cleared.error.message);
+    return success(id, { linked: false });
+  };
+
   const archiveList = async (id: RpcId): Promise<JsonRpcResponse> => {
     const current = await services();
     if (!current.ok) return bootFailureResponse(id, current.error);
@@ -593,6 +652,9 @@ export function createArchiveHandlers<C extends SessionServices>(
       archiveList,
       archiveRestore,
       archiveRemove,
+      archiveGithubTokenStatus,
+      archiveGithubTokenLink,
+      archiveGithubTokenClear,
     },
   };
 }

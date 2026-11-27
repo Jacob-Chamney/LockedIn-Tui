@@ -541,3 +541,68 @@ class McpServerActions extends StatelessWidget {
     );
   }
 }
+
+/// The archive credential controls under `STORAGE`.
+///
+/// The token itself never reaches the shell; this only says whether one is
+/// linked and offers the two writes.
+class ArchiveActions extends StatelessWidget {
+  const ArchiveActions({
+    super.key,
+    this.linked,
+    this.loading = false,
+    this.error,
+    this.onLink,
+    this.onClear,
+  });
+
+  final bool? linked;
+  final bool loading;
+  final String? error;
+  final VoidCallback? onLink;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final isLinked = linked == true;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (!isLinked && onLink != null)
+                FilledButton.icon(
+                  key: const ValueKey('github-token-link'),
+                  onPressed: loading ? null : onLink,
+                  icon: const Icon(Icons.link, size: 16),
+                  label: const Text('link GitHub token'),
+                ),
+              if (isLinked && onClear != null)
+                OutlinedButton.icon(
+                  key: const ValueKey('github-token-clear'),
+                  onPressed: loading ? null : onClear,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: LockedInColors.warning,
+                  ),
+                  icon: const Icon(Icons.link_off, size: 16),
+                  label: const Text('clear token'),
+                ),
+            ],
+          ),
+          if (error != null && error!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              error!,
+              key: const ValueKey('github-token-action-error'),
+              style: LockedInType.label.copyWith(color: LockedInColors.error),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}

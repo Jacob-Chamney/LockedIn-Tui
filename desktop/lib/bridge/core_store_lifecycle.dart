@@ -206,6 +206,9 @@ extension CoreStoreLifecycle on CoreStore {
     learningGraphError = null;
     prompts = const [];
     promptsError = null;
+    githubTokenLinked = null;
+    githubTokenLoading = false;
+    githubTokenError = null;
     appVersion = null;
     updateRepo = null;
     updateState = null;

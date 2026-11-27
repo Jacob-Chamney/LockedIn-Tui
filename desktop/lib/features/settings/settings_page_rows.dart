@@ -121,6 +121,24 @@ extension _SettingsRows on _SettingsBodyState {
           );
         }
       }
+      if (group.title == 'STORAGE') {
+        if (widget.onLinkGithubToken != null ||
+            widget.onClearGithubToken != null) {
+          widgets.add(
+            ArchiveActions(
+              linked: widget.githubTokenLinked,
+              loading: widget.githubTokenLoading,
+              error: _githubActionError ?? widget.githubTokenError,
+              onLink: widget.onLinkGithubToken == null
+                  ? null
+                  : _linkGithubToken,
+              onClear: widget.onClearGithubToken == null
+                  ? null
+                  : _clearGithubToken,
+            ),
+          );
+        }
+      }
       if (group.title == 'KEYBINDS') {
         widgets.add(KeybindFooter(editable: widget.onSetKeybind != null));
       }

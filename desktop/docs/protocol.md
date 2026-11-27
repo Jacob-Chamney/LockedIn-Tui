@@ -8,7 +8,7 @@ to stderr.
 
 ```json
 → {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol":1,"client":"flutter"}}
-← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","session.deck.state","session.deck.grade","session.deck.reset","session.figure.list","session.figure.extract","session.figure.read","session.figure.annotate","session.figure.remove","session.mistake.list","session.mistake.record","session.mistake.promote","session.mistake.correct","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","keybinds.get","keybinds.set","chat.snapshot","chat.send","chat.cancel","chat.clear","session.chat.snapshot","session.chat.send","session.chat.cancel","session.chat.context","session.chat.compact","session.chat.uncompact","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","work.list","work.open","work.create","work.remove","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.instructions.save","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","work.swarm.verify","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","mcp.server.get","mcp.server.set","mcp.server.remove","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","teach.state","teach.measure","teach.step","teach.check","teach.practice","teach.practice.result","teach.side.snapshot","teach.side.send","teach.side.clear","research.start","research.list","research.read","research.cancel","prompts.list","prompts.set","update.info","update.check","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read","knowledge.graph"]}}
+← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","session.deck.state","session.deck.grade","session.deck.reset","session.figure.list","session.figure.extract","session.figure.read","session.figure.annotate","session.figure.remove","session.mistake.list","session.mistake.record","session.mistake.promote","session.mistake.correct","archive.list","archive.restore","archive.remove","archive.github.token.status","archive.github.token.link","archive.github.token.clear","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","keybinds.get","keybinds.set","chat.snapshot","chat.send","chat.cancel","chat.clear","session.chat.snapshot","session.chat.send","session.chat.cancel","session.chat.context","session.chat.compact","session.chat.uncompact","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","work.list","work.open","work.create","work.remove","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.instructions.save","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","work.swarm.verify","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","mcp.server.get","mcp.server.set","mcp.server.remove","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","teach.state","teach.measure","teach.step","teach.check","teach.practice","teach.practice.result","teach.side.snapshot","teach.side.send","teach.side.clear","research.start","research.list","research.read","research.cancel","prompts.list","prompts.set","update.info","update.check","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read","knowledge.graph"]}}
 ```
 
 - `protocol` is an integer. A mismatch is a blocking shell error, not a retry.
@@ -86,6 +86,9 @@ Implemented today (`src/server/protocol.ts`, capability names in the handshake):
 | `archive.list` | — | `{rows: ArchiveListRow[]}` |
 | `archive.restore` | `{id, side}` | `{action: "restore", side, id}` |
 | `archive.remove` | `{id, side}` | `{action: "delete", side, id}` |
+| `archive.github.token.status` | — | `{linked: boolean}` |
+| `archive.github.token.link` | `{token}` | `{linked: true, login}` |
+| `archive.github.token.clear` | — | `{linked: false}` |
 | `source.list` | `{sessionId}` | `{sources: SourceRow[]}` |
 | `source.add` | `{sessionId, paths}` | `{added, skipped}` |
 | `stats.summary` | `{range, scope}` | `StatsSummary` |
@@ -735,7 +738,17 @@ Implemented today (`src/server/protocol.ts`, capability names in the handshake):
 
   There is no automatic retry on either side; the shell sends a new request
   after the user acts.
-- `archive.remove`: delete one **archived** item. This is the picker's delete
+- `archive.github.token.status`, `archive.github.token.link` `{token}` and
+  `archive.github.token.clear` manage the GitHub archive credential. The token
+  lives in the OS keychain only: status returns `{linked}` and never the value;
+  link performs one `GET https://api.github.com/user` with the token, reports a
+  401 as `GitHub rejected the token`, and stores it only after a successful
+  check; clear deletes the entry. A blank or non-string token, or one over 512
+  characters, is `-32602`. Every failure is one `-32000`, `retryable: false`,
+  `data: {kind: "archive", message}`. Nothing here writes config, starts a push
+  or checks repository privacy — that check happens before every push.
+
+- `archive.remove`: delete one **archived** item.- `archive.remove`: delete one **archived** item. This is the picker's delete
   verb (`docs/product.md` §9) and it is **destructive**: the shell confirms
   first, naming the item and saying that the archive copy goes, and this method
   is the execution half of that confirmation. It never deletes the live session

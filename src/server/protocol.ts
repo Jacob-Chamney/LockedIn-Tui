@@ -135,6 +135,9 @@ export const CAPABILITIES = [
   "archive.list",
   "archive.restore",
   "archive.remove",
+  "archive.github.token.status",
+  "archive.github.token.link",
+  "archive.github.token.clear",
   "source.list",
   "source.add",
   "stats.summary",
@@ -281,6 +284,14 @@ export type CoreServices = Pick<Booted, "workspace" | "settings"> & {
   removeMcpServer?: (
     name: string,
   ) => Promise<Result<import("../app/actions/plugins").PluginRow[], { message: string }>>;
+  /** Whether a GitHub archive token is in the keychain (never the token). */
+  githubTokenStatus?: () => Promise<Result<{ linked: boolean }, { message: string }>>;
+  /** Validate one token and store it in the keychain. */
+  linkGithubToken?: (
+    token: string,
+  ) => Promise<Result<{ login: string }, { message: string }>>;
+  /** Remove the stored GitHub token. */
+  clearGithubToken?: () => Promise<Result<void, { message: string }>>;
   /** Present on a real boot; protocol tests may omit it. */
   controller?: Booted["controller"];
   /** A fresh controller using the current config, after a settings patch. */
@@ -806,6 +817,9 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     archiveList,
     archiveRestore,
     archiveRemove,
+    archiveGithubTokenStatus,
+    archiveGithubTokenLink,
+    archiveGithubTokenClear,
   } = archiveSurface.handlers;
 
   const mcpSurface = createMcpHandlers({
@@ -1082,6 +1096,12 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         return archiveRestore(id, params);
       case "archive.remove":
         return archiveRemove(id, params);
+      case "archive.github.token.status":
+        return archiveGithubTokenStatus(id);
+      case "archive.github.token.link":
+        return archiveGithubTokenLink(id, params);
+      case "archive.github.token.clear":
+        return archiveGithubTokenClear(id);
       case "source.list":
         return sourceList(id, params);
       case "source.add":

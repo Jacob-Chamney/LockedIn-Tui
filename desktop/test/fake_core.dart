@@ -1502,6 +1502,9 @@ class FakeCore implements CoreConnection {
 
   /// The `mcp.list` answer: two servers, one with a read tool and one with a
   /// write tool, plus a stored policy for two commands.
+  /// Whether a GitHub archive token is "stored" by the fake.
+  bool githubTokenLinked = false;
+
   /// A mutable copy for the server-editing methods.
   late final _mcpServerRows = [
     for (final row in _mcpServers) Map<String, dynamic>.from(row),
@@ -3015,6 +3018,24 @@ class FakeCore implements CoreConnection {
       }
       _mcpServerRows.removeAt(index);
       return {'servers': _mcpServerRows, 'policy': _mcpPolicy};
+    }
+    if (method == 'archive.github.token.status') {
+      return {'linked': githubTokenLinked};
+    }
+    if (method == 'archive.github.token.link') {
+      final token = params?['token'];
+      if (token is! String || token.trim().length < 20) {
+        throw const RpcException(
+          -32000,
+          'that does not look like a GitHub token',
+        );
+      }
+      githubTokenLinked = true;
+      return {'linked': true, 'login': 'friend'};
+    }
+    if (method == 'archive.github.token.clear') {
+      githubTokenLinked = false;
+      return {'linked': false};
     }
     if (method == 'mcp.list') {
       return {'servers': _mcpServerRows, 'policy': _mcpPolicy};
