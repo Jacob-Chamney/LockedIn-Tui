@@ -880,7 +880,7 @@ Implemented today (`src/server/protocol.ts`, capability names in the handshake):
   `data: {kind: "busy", context: "chat", message}`. A cleared transcript is not
   an error, and nothing else on disk is touched.
 
-- `session.chat.*`: one controller per session- `session.chat.*`: one controller per session, built on first use. History is
+- `session.chat.*`: one controller per session, built on first use. History is
   the session's own `chat.jsonl`, scoped by `ui.chill_history_limit`; tools and
   context are the session's read-only `sources/` toolbox. `send` requires a
   non-empty `text` (`-32602`) and a known session (`-32000`). `turnId` is the
@@ -998,7 +998,7 @@ invented row.
   `data: {kind: "project", projectId, message}`, and nothing is left half
   removed. The registered folder is untouched on both paths.
 
-- `work.instructions.save` `{projectId, instructions}` → `{instructions}`.- `work.instructions.save` `{projectId, instructions}` → `{instructions}`.
+- `work.instructions.save` `{projectId, instructions}` → `{instructions}`.
   Replaces the project's standing instructions in
   `work/projects/<id>/meta.json`; every other key is preserved and nothing
   inside the project root is read or written. The same 20,000-character rule as
