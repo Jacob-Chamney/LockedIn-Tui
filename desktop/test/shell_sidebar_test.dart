@@ -413,4 +413,34 @@ void main() {
     // Back to icons: the second chord was not swallowed.
     expect(find.text('LEARN'), findsNothing);
   });
+
+  testWidgets('Ctrl+J does not move the rail cursor (a modified chord)', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    await expandSidebar(tester);
+    final before = tester.getTopLeft(
+      find.descendant(
+        of: find.byKey(const ValueKey('sidebar-row-cursor')),
+        matching: find.text('Chat'),
+      ),
+    );
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyJ, character: 'j');
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    // Settled by the review's unconfirmed list: some toolkits report a Ctrl
+    // chord with a printable character, and `j` must still not be navigation.
+    expect(
+      tester.getTopLeft(
+        find.descendant(
+          of: find.byKey(const ValueKey('sidebar-row-cursor')),
+          matching: find.text('Chat'),
+        ),
+      ),
+      before,
+    );
+    expect(find.byKey(const ValueKey('sidebar-row-cursor')), findsOneWidget);
+    expect(find.text('PRODUCTIVITY'), findsOneWidget);
+  });
 }

@@ -611,6 +611,48 @@ void main() {
     expect(find.byKey(const ValueKey('knowledge-reader')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('a 635-pane drops the kind chip (pane, not window)', (
+    tester,
+  ) async {
+    final document = await readFixture('note:school/vault/concepts/entropy.md');
+    tester.view.physicalSize = const Size(900, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: lockedInTheme(),
+        home: Scaffold(
+          // The pane is narrower than the window: only a pane-measured header
+          // can notice, which is what the review asked to settle.
+          body: Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(
+              width: 635,
+              height: 800,
+              child: KnowledgeReader(
+                documentId: 'note:school/vault/concepts/entropy.md',
+                document: document,
+                loading: false,
+                error: null,
+                hitIds: const ['note:school/vault/concepts/entropy.md'],
+                hitIndex: 0,
+                onNavigate: (_) {},
+                onRetry: () {},
+                onBack: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('knowledge-reader')), findsOneWidget);
+    expect(find.text('NOTE'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 /// A reader whose parent owns the hit index, so `[`/`]` really move through a

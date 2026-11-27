@@ -159,6 +159,14 @@ extension _ShellSidebarKeys on _ShellState {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    // A modified chord is not a letter: `Ctrl+J` used to walk the rail because
+    // the handler read `j` and ignored the modifier (the same class of bug the
+    // review found in Settings). Every key below is unmodified.
+    if (HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.isAltPressed ||
+        HardwareKeyboard.instance.isMetaPressed) {
+      return KeyEventResult.ignored;
+    }
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.keyJ) {
       _moveSidebar(1);

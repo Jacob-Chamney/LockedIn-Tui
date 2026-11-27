@@ -192,6 +192,86 @@ Future<void> pumpPage(
 }
 
 void main() {
+  testWidgets('a 620 pane inside a 900 window renders the compact header', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: lockedInTheme(),
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(
+              width: 620,
+              height: 700,
+              child: SessionDetailView(
+                detail: detailWithSteps(
+                  markdown: _stepsBothUnchecked,
+                  done: 0,
+                  total: 2,
+                ),
+                loading: false,
+                onToggleStep: (_) async {},
+                onOpenSettings: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Settled: at 620 the header is still the wide variant (the compact
+    // threshold is 560) and it fits — no overflow, no clipped control.
+    expect(find.byKey(const ValueKey('session-settings-open')), findsOneWidget);
+    expect(find.text('Edit instructions'), findsOneWidget);
+    expect(find.text('Open chat'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a 555 pane inside a 900 window renders the icon header', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: lockedInTheme(),
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(
+              width: 555,
+              height: 700,
+              child: SessionDetailView(
+                detail: detailWithSteps(
+                  markdown: _stepsBothUnchecked,
+                  done: 0,
+                  total: 2,
+                ),
+                loading: false,
+                onToggleStep: (_) async {},
+                onOpenSettings: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Below the hint threshold the pane-measured header folds to the icon even
+    // though the window still claims 900.
+    expect(find.byKey(const ValueKey('session-settings-open')), findsOneWidget);
+    expect(find.text('Edit instructions'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('initialStep puts the cursor on the named step', (tester) async {
     await pumpPage(
       tester,

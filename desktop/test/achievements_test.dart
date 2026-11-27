@@ -128,6 +128,40 @@ String _hint(WidgetTester tester) =>
     '';
 
 void main() {
+  testWidgets('a star low in the sky puts its label above, inside 400', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      AchievementsPage(rows: _rows, earned: 3, total: 6),
+      size: const Size(800, 400),
+    );
+
+    // Every row in catalogue order, so the lowest star is the last one placed.
+    String? lowest;
+    double lowestDy = -1;
+    for (final row in _rows) {
+      final star = _star(row.id);
+      final dy = tester.getCenter(star).dy;
+      if (dy > lowestDy) {
+        lowestDy = dy;
+        lowest = row.id;
+      }
+    }
+    expect(lowest, isNotNull);
+    // Select that star directly: the arrows walk by compass, not by index.
+    final target = lowest!;
+    await tester.tap(_star(target));
+    await tester.pumpAndSettle();
+    final label = find.byKey(ValueKey('achievement-star-label-$target'));
+    expect(label, findsOneWidget);
+    // The review's arithmetic claim, settled: the label flips above the star
+    // near the bottom edge, so its box stays inside the 400-px sky.
+    expect(tester.getBottomLeft(label).dy, lessThanOrEqualTo(400));
+    expect(tester.getRect(label).top, greaterThanOrEqualTo(0));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the header counts and every achievement is a star', (
     tester,
   ) async {
