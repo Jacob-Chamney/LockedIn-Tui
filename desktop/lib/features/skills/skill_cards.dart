@@ -76,18 +76,34 @@ extension _SkillCards on _SkillDetailViewState {
           const SizedBox(height: Space.xs),
           Align(
             alignment: Alignment.centerLeft,
-            child: FilledButton(
-              key: const ValueKey('research-run'),
-              onPressed: !canRun || widget.researchRunning
-                  ? null
-                  : _runResearch,
-              style: FilledButton.styleFrom(
-                backgroundColor: LockedInColors.primary,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
-              ),
-              child: Text(
-                widget.researchRunning ? 'researching…' : 'research this',
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FilledButton(
+                  key: const ValueKey('research-run'),
+                  onPressed: !canRun || widget.researchRunning
+                      ? null
+                      : _runResearch,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: LockedInColors.primary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  ),
+                  child: Text(
+                    widget.researchRunning ? 'researching…' : 'research this',
+                  ),
+                ),
+                // A running brief is a long fetch and a model call; a spinner
+                // with no way out is a dead end (`docs/design.md` §8).
+                if (widget.researchRunning &&
+                    widget.onCancelResearch != null) ...[
+                  const SizedBox(width: Space.xs),
+                  OutlinedButton(
+                    key: const ValueKey('research-cancel'),
+                    onPressed: widget.onCancelResearch,
+                    child: const Text('Cancel'),
+                  ),
+                ],
+              ],
             ),
           ),
           if (widget.research.isNotEmpty) ...[

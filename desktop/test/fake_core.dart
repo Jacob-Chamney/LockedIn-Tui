@@ -2607,6 +2607,28 @@ class FakeCore implements CoreConnection {
         'tokens': {...themeTokens},
       };
     }
+    if (method == 'research.start') {
+      _events.add({
+        'method': 'research.updated',
+        'params': {
+          'goalId': params?['goalId'],
+          'id': 'research-1',
+          'status': 'running',
+        },
+      });
+      return {'id': 'research-1', 'status': 'running'};
+    }
+    if (method == 'research.cancel') {
+      _events.add({
+        'method': 'research.updated',
+        'params': {
+          'goalId': params?['goalId'],
+          'id': params?['id'] ?? 'research-1',
+          'status': 'cancelled',
+        },
+      });
+      return {'cancelled': true};
+    }
     if (method == 'theme.custom.set') {
       final raw = params?['tokens'];
       if (raw is! Map) {

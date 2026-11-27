@@ -162,6 +162,57 @@ extension CoreStoreLifecycle on CoreStore {
     _clearSkillSources();
     _clearChapter();
     _clearSkillLesson();
+
+    // The teaching harness. Every one of these is a read of the dead process's
+    // workspace; a stale plan or verdict must not survive a reconnect.
+    teaching = null;
+    teachingLoading = false;
+    teachingError = null;
+    teachingVerdict = null;
+    teachingSide = const [];
+    teachingSideLoading = false;
+    teachingSideError = null;
+    _teachingTicket += 1;
+
+    // Background research briefs.
+    research = const [];
+    researchLoading = false;
+    researchRunning = false;
+    researchRunId = null;
+    researchError = null;
+    researchMarkdown = null;
+    researchOpenId = null;
+    _researchTicket += 1;
+
+    // Session figures, the deck's schedule and the compaction meter.
+    figures = const [];
+    figuresLoading = false;
+    figureBusy = false;
+    figureError = null;
+    _figureTicket += 1;
+    deckSchedule = null;
+    deckScheduleLoading = false;
+    deckScheduleError = null;
+    _deckTicket += 1;
+    sessionContext = null;
+    sessionContextLoading = false;
+    sessionContextError = null;
+    _contextTicket += 1;
+
+    // Reference surfaces and update metadata. `appVersion` is the running
+    // build, but it is read from the core, so a new process re-reads it.
+    learningGraph = null;
+    learningGraphLoading = false;
+    learningGraphError = null;
+    prompts = const [];
+    promptsError = null;
+    appVersion = null;
+    updateRepo = null;
+    updateState = null;
+    updateChecking = false;
+    updateError = null;
+    _instructionsLoadTicket += 1;
+    _statsTicket += 1;
   }
 
   Future<void> _reconnect(CoreConnection Function() reconnect) async {

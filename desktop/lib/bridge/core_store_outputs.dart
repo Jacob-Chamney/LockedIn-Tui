@@ -218,21 +218,49 @@ extension CoreStoreOutputs on CoreStore {
     final text = question.trim();
     if (id.isEmpty || text.isEmpty || urls.isEmpty) return false;
     researchRunning = true;
+    researchRunId = null;
     researchError = null;
     notifyListeners();
     try {
-      await _connection.call(CoreMethod.researchStart, {
+      final json = await _connection.call(CoreMethod.researchStart, {
         'goalId': id,
         'question': text,
         'urls': urls,
       });
+      researchRunId = json['id'] is String ? json['id'] as String : null;
       return true;
     } catch (failure) {
       researchRunning = false;
+      researchRunId = null;
       researchError = _messageOf(failure);
       notifyListeners();
       return false;
     }
+  }
+
+  /// Cancel the running brief (`research.cancel`).
+  ///
+  /// The core discards the result; the job's own `research.updated` terminal
+  /// event clears [researchRunning]. A refusal clears the run here so the card
+  /// is never stuck on `researching…` with no way out.
+  Future<void> cancelRunningResearch(String goalId) async {
+    final id = goalId.trim();
+    final run = researchRunId;
+    if (id.isEmpty || run == null) return;
+    try {
+      await _connection.call(CoreMethod.researchCancel, {
+        'goalId': id,
+        'id': run,
+      });
+      researchRunning = false;
+      researchRunId = null;
+      researchError = null;
+    } catch (failure) {
+      researchRunning = false;
+      researchRunId = null;
+      researchError = _messageOf(failure);
+    }
+    notifyListeners();
   }
 
   /// Open one saved brief (`research.read`).

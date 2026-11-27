@@ -1034,6 +1034,10 @@ class CoreStore extends ChangeNotifier {
   /// True while a brief is being fetched and written.
   bool researchRunning = false;
 
+  /// The id of the running brief (`research.cancel` takes it). Null when no
+  /// brief is in flight.
+  String? researchRunId;
+
   /// The last research failure, shown in the card.
   String? researchError;
 

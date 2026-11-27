@@ -16,6 +16,116 @@ import 'fake_core.dart';
 /// Loading every projection into one store and then retrying **that** store is
 /// what keeps the list honest: a field added to the store with no line in
 /// `_resetForNewProcess` fails here rather than shipping a stale screen.
+/// FakeCore plus the projections the reset test needs and the shared fake does
+/// not serve (teaching, research, figures, prompts, graph, context, update).
+class _RichCore extends FakeCore {
+  _RichCore({super.fail});
+
+  @override
+  Future<Map<String, dynamic>> call(
+    String method, [
+    Map<String, dynamic>? params,
+  ]) {
+    switch (method) {
+      case 'teach.state':
+        return Future.value({
+          'record': {
+            'goal': 'Read disassembly output confidently',
+            'prior': 'I know C',
+            'held': ['Registers hold values'],
+            'gaps': <String>[],
+            'plan': [
+              {'id': 'step-1', 'title': 'Read one instruction'},
+            ],
+            'checks': <Object>[],
+          },
+        });
+      case 'research.list':
+        return Future.value({
+          'items': [
+            {
+              'id': 'research-1',
+              'question': 'What does a call save?',
+              'created': '2026-11-20T10:00:00Z',
+              'sources': [
+                {'url': 'https://example.org/a', 'title': 'A'},
+              ],
+            },
+          ],
+        });
+      case 'research.read':
+        return Future.value({
+          'item': {
+            'id': 'research-1',
+            'question': 'What does a call save?',
+            'created': '2026-11-20T10:00:00Z',
+            'sources': <Object>[],
+          },
+          'markdown': '# Brief\n\nA saved answer.\n',
+        });
+      case 'session.figure.list':
+        return Future.value({
+          'figures': [
+            {
+              'id': 'figure-1',
+              'source': 'sources/notes.pdf',
+              'page': 2,
+              'caption': 'A stack frame',
+              'note': '',
+              'file': 'figure-1.png',
+              'createdAt': '2026-11-20T10:00:00Z',
+            },
+          ],
+        });
+      case 'prompts.list':
+        return Future.value({
+          'items': [
+            {
+              'id': 'measure',
+              'label': 'measure and plan',
+              'description': 'The measurement prompt',
+              'note': 'prefer short sentences',
+              'custom': true,
+            },
+          ],
+        });
+      case 'knowledge.graph':
+        return Future.value({
+          'graph': {
+            'nodes': <Object>[],
+            'edges': <Object>[],
+            'counts': <String, int>{},
+            'diagnostics': <Object>[],
+            'truncated': false,
+          },
+        });
+      case 'session.chat.context':
+        return Future.value({
+          'messages': 12,
+          'kept': 8,
+          'summaryChars': 210,
+          'through': 4,
+          'tokens': 1840,
+          'window': 128000,
+          'fraction': 0.014,
+          'compactable': true,
+        });
+      case 'update.info':
+        return Future.value({
+          'current': '2026.11.27',
+          'repo': 'Jacob-Chamney/LockedIn-Tui',
+        });
+      case 'update.check':
+        return Future.value({
+          'current': '2026.11.27',
+          'kind': 'current',
+          'latest': '2026.11.27',
+        });
+    }
+    return super.call(method, params);
+  }
+}
+
 void main() {
   /// Fill every projection the store can hold from a live core.
   Future<void> loadEveryProjection(CoreStore store) async {
@@ -46,10 +156,21 @@ void main() {
     await store.refreshWorkChanges(FakeCore.projectId);
     await store.openSkill(FakeCore.skillId);
     await store.loadKnowledgeTree();
+
+    // The projections added after the reset list was first written.
+    await store.readTeaching(FakeCore.skillId);
+    await store.readResearch(FakeCore.skillId);
+    await store.openResearch(FakeCore.skillId, 'research-1');
+    await store.readFigures(FakeCore.sessionId);
+    await store.refreshPrompts();
+    await store.readLearningGraph();
+    await store.readSessionContext(FakeCore.sessionId);
+    await store.refreshUpdateInfo();
+    await store.checkForUpdates();
   }
 
   test('every projection the fixture fills really holds data', () async {
-    final store = CoreStore(connection: FakeCore());
+    final store = CoreStore(connection: _RichCore());
     addTearDown(store.dispose);
     await loadEveryProjection(store);
 
@@ -81,14 +202,26 @@ void main() {
     expect(store.activeSkillId, FakeCore.skillId);
     expect(store.outputKind, 'study-guide');
     expect(store.coverage, isNotNull);
+
+    // The late projections must hold data too, or their reset assertions
+    // below would pass for the wrong reason.
+    expect(store.teaching, isNotNull);
+    expect(store.research, isNotEmpty);
+    expect(store.researchMarkdown, isNotNull);
+    expect(store.figures, isNotEmpty);
+    expect(store.prompts, isNotEmpty);
+    expect(store.learningGraph, isNotNull);
+    expect(store.sessionContext, isNotNull);
+    expect(store.appVersion, '2026.11.27');
+    expect(store.updateState, isNotNull);
   });
 
   test('a retry clears every projection the dead process filled', () async {
     // The replacement process fails to boot, so nothing can be re-read: what
     // the store holds after `retry()` is exactly what the reset produced.
     final store = CoreStore(
-      connection: FakeCore(),
-      reconnectFactory: () => FakeCore(fail: true),
+      connection: _RichCore(),
+      reconnectFactory: () => _RichCore(fail: true),
     );
     addTearDown(store.dispose);
     await loadEveryProjection(store);
@@ -153,14 +286,39 @@ void main() {
     expect(store.documentLoading, isFalse);
     expect(store.skillLessonOpen, isFalse);
 
+    // The teaching harness, research, figures, deck, context, graph, prompts
+    // and update metadata.
+    expect(store.teaching, isNull);
+    expect(store.teachingError, isNull);
+    expect(store.teachingVerdict, isNull);
+    expect(store.teachingSide, isEmpty);
+    expect(store.research, isEmpty);
+    expect(store.researchError, isNull);
+    expect(store.researchMarkdown, isNull);
+    expect(store.researchOpenId, isNull);
+    expect(store.figures, isEmpty);
+    expect(store.figureError, isNull);
+    expect(store.deckSchedule, isNull);
+    expect(store.deckScheduleError, isNull);
+    expect(store.sessionContext, isNull);
+    expect(store.sessionContextError, isNull);
+    expect(store.learningGraph, isNull);
+    expect(store.learningGraphError, isNull);
+    expect(store.prompts, isEmpty);
+    expect(store.promptsError, isNull);
+    expect(store.appVersion, isNull);
+    expect(store.updateState, isNull);
+    expect(store.updateChecking, isFalse);
+    expect(store.updateError, isNull);
+
     // The store is honest about which process it is talking to.
     expect(store.status, CoreStatus.failed);
   });
 
   test('a retry against a healthy core re-reads every projection', () async {
     final store = CoreStore(
-      connection: FakeCore(),
-      reconnectFactory: FakeCore.new,
+      connection: _RichCore(),
+      reconnectFactory: _RichCore.new,
     );
     addTearDown(store.dispose);
     await loadEveryProjection(store);

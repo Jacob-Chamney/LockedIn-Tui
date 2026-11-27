@@ -80,6 +80,7 @@ class SkillDetailView extends StatefulWidget {
     this.researchMarkdown,
     this.researchOpenId,
     this.onResearch,
+    this.onCancelResearch,
     this.onOpenResearch,
     this.onCloseResearch,
     this.onPractise,
@@ -222,6 +223,10 @@ class SkillDetailView extends StatefulWidget {
 
   /// Start one brief: `(question, urls)`.
   final void Function(String question, List<String> urls)? onResearch;
+
+  /// Cancel the running brief (`research.cancel`). Null keeps the card
+  /// read-only and hides the button.
+  final VoidCallback? onCancelResearch;
   final void Function(String id)? onOpenResearch;
   final VoidCallback? onCloseResearch;
 

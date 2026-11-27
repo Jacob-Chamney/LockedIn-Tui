@@ -143,7 +143,7 @@ void main() {
     expect(rowValue('mcp-policy-chill-wiki', 'off'), findsOneWidget);
     expect(rowValue('mcp-policy-lockin-notes', 'explicit'), findsOneWidget);
     expect(rowValue('mcp-policy-lockin-wiki', 'default'), findsOneWidget);
-    expect(find.text('default'), findsNWidgets(7));
+    expect(find.text('default'), findsNWidgets(9));
 
     // A stored cell for a server that is not configured gets no row, so the
     // page never offers a write the core would refuse.

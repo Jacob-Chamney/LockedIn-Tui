@@ -98,7 +98,7 @@ extension CoreStoreTeaching on CoreStore {
   /// One model call, no retry. Refused until a step has passed its check: a
   /// session cannot practise what it never landed.
   Future<bool> practiseTeaching(String goalId) async {
-    return _teachingCall(goalId, 'teach.practice', {});
+    return _teachingCall(goalId, CoreMethod.teachPractice, {});
   }
 
   /// Record one practice verdict (`solved` or `missed`).
@@ -107,7 +107,7 @@ extension CoreStoreTeaching on CoreStore {
     String problemId,
     String verdict,
   ) async {
-    return _teachingCall(goalId, 'teach.practice.result', {
+    return _teachingCall(goalId, CoreMethod.teachPracticeResult, {
       'problemId': problemId,
       'verdict': verdict,
     });
