@@ -13,8 +13,8 @@ import type { JsonRpcFailure, RpcId } from "./rpc";
  */
 export type SessionServices = {
   workspace: Workspace;
-  /** The live settings; only the history limit is read here. */
-  settings: { historyLimit: number };
+  /** The live settings. */
+  settings: import("../types/settings").SettingsView;
   generate?: Booted["generate"];
   createChat?: Booted["createChat"];
   /** A test-injected swarm worker runner; production builds the read-only one. */
