@@ -14,6 +14,7 @@ import { mkdir, mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { PROPOSAL_TTL_MS } from "../../src/server/work-approvals";
 import {
   createProject,
   createProjectAgent,
@@ -72,13 +73,17 @@ function services(): CoreServices {
   } as CoreServices;
 }
 
-function fakeCore(): { server: CoreServer; counter: { calls: number } } {
+function fakeCore(clock?: { now: () => number }): {
+  server: CoreServer;
+  counter: { calls: number };
+} {
   const counter = { calls: 0 };
   const server = createCoreServer({
     boot: async () => {
       counter.calls += 1;
       return { ok: true, value: services() } as Result<CoreServices, BootFailure>;
     },
+    ...(clock === undefined ? {} : { now: clock.now }),
   });
   return { server, counter };
 }
@@ -512,5 +517,91 @@ describe("work approvals — permission gates", () => {
       path: "notes.md",
     });
     expect(await readFile(join(project.root, "notes.md"), "utf8")).toBe("# Notes\n");
+  });
+});
+
+describe("proposal TTL", () => {
+  test("a write proposed before the window is refused and dropped", async () => {
+    const project = await registeredProject("Stale crew");
+    let clock = 1_000;
+    const { server } = fakeCore({ now: () => clock });
+
+    const proposed = await resultOf(server, "work.write.propose", {
+      projectId: project.id,
+      path: "notes.md",
+      newContent: "# Notes\n",
+    });
+    clock += PROPOSAL_TTL_MS + 1;
+
+    const error = await errorOf(server, "work.write.decide", {
+      id: proposed.id,
+      decision: "approve",
+    });
+    expect(error.code).toBe(BOOT_FAILED);
+    expect(error.retryable).toBe(false);
+    expect(error.message).toContain("expired");
+    expect(existsSync(join(project.root, "notes.md"))).toBe(false);
+
+    // Consumed by the refusal: a second decide is the "no pending proposal" one.
+    const again = await errorOf(server, "work.write.decide", {
+      id: proposed.id,
+      decision: "approve",
+    });
+    expect(again.message).toContain("no pending write proposal");
+  });
+
+  test("a proposal inside the window still decides", async () => {
+    const project = await registeredProject("Fresh crew");
+    let clock = 5_000;
+    const { server } = fakeCore({ now: () => clock });
+
+    const proposed = await resultOf(server, "work.write.propose", {
+      projectId: project.id,
+      path: "notes.md",
+      newContent: "# Notes\n",
+    });
+    clock += PROPOSAL_TTL_MS - 1;
+    const decided = await resultOf(server, "work.write.decide", {
+      id: proposed.id,
+      decision: "approve",
+    });
+    expect(decided.applied).toBe(true);
+    expect(existsSync(join(project.root, "notes.md"))).toBe(true);
+  });
+
+  test("the approvals list hides an expired proposal", async () => {
+    const project = await registeredProject("Listed crew");
+    let clock = 9_000;
+    const { server } = fakeCore({ now: () => clock });
+
+    await resultOf(server, "work.write.propose", {
+      projectId: project.id,
+      path: "notes.md",
+      newContent: "# Notes\n",
+    });
+    const fresh = await resultOf(server, "work.approvals.list", { projectId: project.id });
+    expect((fresh.writes as unknown[]).length).toBe(1);
+
+    clock += PROPOSAL_TTL_MS + 1;
+    const stale = await resultOf(server, "work.approvals.list", { projectId: project.id });
+    expect(stale.writes).toEqual([]);
+  });
+
+  test("a command proposal expires the same way", async () => {
+    const project = await registeredProject("Stale command crew", { permissions: "commands" });
+    let clock = 2_000;
+    const { server } = fakeCore({ now: () => clock });
+
+    const proposed = await resultOf(server, "work.command.propose", {
+      projectId: project.id,
+      argv: ["printf", "ok"],
+    });
+    clock += PROPOSAL_TTL_MS + 1;
+    const error = await errorOf(server, "work.command.decide", {
+      id: proposed.id,
+      decision: "approve",
+    });
+    expect(error.message).toContain("expired");
+    expect(error.data).toMatchObject({ kind: "command" });
   });
 });
