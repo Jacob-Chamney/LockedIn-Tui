@@ -14,6 +14,7 @@
  * write-capable and needs an approval.
  */
 import type { Approval, PluginError, PluginMode, PluginResult, McpTool } from "./types"
+import type { PluginPolicyCell } from "../storage/config-schema"
 
 export type PolicyVerdict =
   | { kind: "allow" }
@@ -29,6 +30,14 @@ export type PolicyContext = {
   serverId?: string
   /** The user invoked it explicitly from the command line. */
   explicitCall?: boolean
+  /**
+   * The stored policy cell for this command and server (`plugins.policy`).
+   *
+   * `off` denies, `explicit` needs an explicit call, `on` allows. Absent means
+   * the caller did not resolve a cell, and the mode rules below stand alone —
+   * which is what a test or a host call without config does.
+   */
+  cell?: PluginPolicyCell
   approval?: Approval
 }
 
@@ -53,6 +62,25 @@ export function decidePolicy(mode: PluginMode, tool: Pick<McpTool, "readOnly">, 
       "This output is built only from the session sources; plugins are disabled.",
       "Ask in chat or in a skill session instead.",
     )
+  }
+
+  // The stored matrix is a real setting, so it is honoured before the mode
+  // rules: `off` always denies (a core plugin included), and `explicit` needs
+  // the turn to have asked for the plugin by name.
+  if (context.cell === "off") {
+    return deny(
+      "This plugin is switched off for this command in Settings.",
+      "Turn it on in Settings → Plugins, or call it explicitly with the policy set to explicit.",
+    )
+  }
+  if (context.cell === "explicit" && context.explicitCall !== true) {
+    const core = context.core === true && context.serverId !== undefined && coreServersFor(mode).includes(context.serverId)
+    if (!core) {
+      return deny(
+        "This plugin is set to explicit for this command, so it only runs when you invoke it.",
+        "Invoke the plugin from the chat command line, or set it to on in Settings → Plugins.",
+      )
+    }
   }
 
   const coreForMode =

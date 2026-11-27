@@ -29,9 +29,10 @@ import { runRecord, spentFromUsage, type RunScope, type UsageStore, createUsageS
 import { estimateCostMicroUsd, priceFor } from "../llm/pricing";
 import { ZERO_USAGE, type Usage } from "../llm/events";
 import { createChatController, type ChatController, type HistoryPort, type HistoryRecord, type ToolContext } from "./chat-controller";
-import { createPluginRuntime, type PluginRuntime } from "./actions/plugins";
+import { createPluginRuntime, pluginCommandFor, type PluginRuntime } from "./actions/plugins";
 import { coreServersFor } from "../mcp/policy";
 import { loadConfig } from "../storage/config";
+import { pluginPolicyFor } from "../storage/config-schema";
 import { defaultWorkspaceRoot, workspacePaths } from "../storage/paths";
 import {
   createWorkspace,
@@ -360,7 +361,12 @@ export async function boot(options: BootOptions = {}): Promise<Result<Booted, Bo
     diagnostics.push(`${seed.unpriced} recorded run(s) have no price; spend may be underestimated`)
   }
 
-  const pluginRuntime = createPluginRuntime(pluginServerConfigs(config.plugins))
+  const pluginRuntime = createPluginRuntime(pluginServerConfigs(config.plugins), {
+    // The stored matrix is the setting the Plugins page edits, so the same
+    // config object answers every policy question a chat asks.
+    policyFor: (mode, server) =>
+      pluginPolicyFor(config.plugins, pluginCommandFor(mode), server),
+  })
   // Never block the first frame on a child process.
   void pluginRuntime.start().catch(() => {})
   const budget = createBudgetGate({ config: () => budgetConfigFrom(config), now })

@@ -272,3 +272,26 @@ describe("the plugins master switch stops the servers", () => {
     expect(list).toEqual([{ id: "notes", command: "mcp-notes", args: ["a"], enabled: false, core: false }])
   })
 })
+
+describe("the work policy row", () => {
+  test("work defaults to explicit, and its cell round-trips", async () => {
+    expect(DEFAULT_PLUGIN_POLICY.work).toBe("explicit")
+    const fresh = await workspace("work-policy")
+    const paths = (await import("../../src/storage/paths")).workspacePaths(fresh.root, fresh.dataDir)
+
+    unwrap(
+      await patchConfig(paths, {
+        plugins: {
+          servers: { notes: { transport: "stdio", command: "npx", args: [], enabled: true } },
+          policy: { work: { notes: "off" } },
+        },
+      }),
+    )
+
+    const reloaded = unwrap(await loadConfig(paths))
+    expect(reloaded.config.plugins.policy.work).toEqual({ notes: "off" })
+    expect(pluginPolicyFor(reloaded.config.plugins, "work", "notes")).toBe("off")
+    // an absent cell falls back to the documented default, not to chill's
+    expect(pluginPolicyFor(reloaded.config.plugins, "work", "other")).toBe("explicit")
+  })
+})

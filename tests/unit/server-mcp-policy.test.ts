@@ -190,8 +190,22 @@ describe("mcp.policy.set validation", () => {
     });
     expect(error.code).toBe(-32602);
     expect(error.message).toContain("reader");
-    expect(error.message).toContain("chill, lockin, flashcards, study-guide, skill");
+    expect(error.message).toContain("chill, lockin, flashcards, study-guide, skill, work");
     expect(calls).toEqual([]);
+  });
+
+  test("work is a policy row, and its cell is stored", async () => {
+    const { savePolicy, calls } = fakeSavePolicy();
+    const server = fakeCore(fakeServices({ savePolicy }));
+    const result = await resultOf(server, "mcp.policy.set", {
+      command: "work",
+      server: "notes",
+      value: "explicit",
+    });
+    expect((result.policy as Record<string, Record<string, string>>).work).toEqual({
+      notes: "explicit",
+    });
+    expect(calls).toEqual([{ command: "work", server: "notes", value: "explicit" }]);
   });
 
   test("an unknown value is -32602 naming the accepted set", async () => {

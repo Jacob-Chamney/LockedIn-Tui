@@ -98,3 +98,46 @@ test("setEnabled starts and stops without recreating the host", async () => {
   await runtime.setEnabled("notes", false)
   expect(runtime.rows()[0]?.status).toBe("stopped")
 })
+
+test("a stored cell of off hides every tool for that command", async () => {
+  runtime = createPluginRuntime(
+    [{ id: "notes", command: process.execPath, args: [SERVER] }],
+    { policyFor: (mode) => (mode === "chill" ? "off" : undefined) },
+  )
+  await runtime.start()
+  expect(runtime.sourceFor("chill")).toBeNull()
+  // Another command with no cell keeps the mode default.
+  expect(runtime.sourceFor("skill")?.specs.map((spec) => spec.name).sort()).toEqual([
+    "read_note",
+    "slow_tool",
+  ])
+})
+
+test("a stored cell of explicit hides tools until the turn asks for them", async () => {
+  runtime = createPluginRuntime(
+    [{ id: "notes", command: process.execPath, args: [SERVER] }],
+    { policyFor: (mode) => (mode === "work" ? "explicit" : "on") },
+  )
+  await runtime.start()
+  expect(runtime.sourceFor("work")).toBeNull()
+  const explicit = runtime.sourceFor("work", { explicitCall: true })
+  if (explicit === null) throw new Error("expected explicit work tools")
+  expect(explicit.specs.map((spec) => spec.name).sort()).toEqual(["read_note", "slow_tool"])
+  // `on` for another command needs no opt-in.
+  expect(runtime.sourceFor("chill")?.specs.map((spec) => spec.name).sort()).toEqual([
+    "read_note",
+    "slow_tool",
+  ])
+})
+
+test("an off cell also refuses a call the runtime is asked to make directly", async () => {
+  runtime = createPluginRuntime(
+    [{ id: "notes", command: process.execPath, args: [SERVER] }],
+    { policyFor: () => "off" },
+  )
+  await runtime.start()
+  // The gate is consulted twice: when tools are offered, and again by the host
+  // before anything is sent. Both must refuse, so a stale spec cannot call.
+  const source = runtime.sourceFor("chill", { explicitCall: true })
+  expect(source).toBeNull()
+})
