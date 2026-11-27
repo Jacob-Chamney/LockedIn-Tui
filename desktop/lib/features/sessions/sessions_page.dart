@@ -367,8 +367,8 @@ class _SessionsPageState extends State<SessionsPage> {
   ///
   /// An archive moves the live folder, so it is destructive and needs the named
   /// confirmation first. `Cancel`, `Esc` or a dismissal changes nothing.
-  Future<void> _archiveSelected() async {
-    final row = _selectedRow;
+  Future<void> _archiveSelected([SessionRow? target]) async {
+    final row = target ?? _selectedRow;
     final archive = widget.onArchive;
     if (row == null || archive == null || _dialogOpen) return;
     _dialogOpen = true;
@@ -401,8 +401,8 @@ class _SessionsPageState extends State<SessionsPage> {
   ///
   /// The dialog names the session and lists what goes with it, so `d` is never a
   /// silent delete. `Cancel`, `Esc` or a dismissal changes nothing.
-  Future<void> _deleteSelected() async {
-    final row = _selectedRow;
+  Future<void> _deleteSelected([SessionRow? target]) async {
+    final row = target ?? _selectedRow;
     final delete = widget.onDelete;
     if (row == null || delete == null || _dialogOpen) return;
     _dialogOpen = true;
@@ -430,8 +430,8 @@ class _SessionsPageState extends State<SessionsPage> {
 
   /// Exports the selected session. Export changes nothing, so it asks nothing;
   /// the success line carries the path the core chose.
-  Future<void> _exportSelected() async {
-    final row = _selectedRow;
+  Future<void> _exportSelected([SessionRow? target]) async {
+    final row = target ?? _selectedRow;
     final export = widget.onExport;
     if (row == null || export == null || _actionId != null) return;
     setState(() {
@@ -590,6 +590,42 @@ class _SessionsPageState extends State<SessionsPage> {
     );
   }
 
+  /// The pointer path for a row's verbs.
+  ///
+  /// The header buttons act on the selected row; this menu acts on the row the
+  /// user pointed at, so archiving a session no longer means opening it first
+  /// just to select it. Both paths run the same confirmation.
+  Widget _rowMenu(int index, SessionRow row) {
+    if (!_hasActions) return const SizedBox.shrink();
+    return PopupMenuButton<String>(
+      key: ValueKey('session-row-menu-${row.id}'),
+      tooltip: 'row actions',
+      enabled: _actionId == null,
+      iconSize: 16,
+      padding: EdgeInsets.zero,
+      onSelected: (value) {
+        if (_actionId != null) return;
+        setState(() => _selectedIndex = index);
+        switch (value) {
+          case 'archive':
+            unawaited(_archiveSelected(row));
+          case 'export':
+            unawaited(_exportSelected(row));
+          case 'delete':
+            unawaited(_deleteSelected(row));
+        }
+      },
+      itemBuilder: (context) => [
+        if (widget.onArchive != null)
+          const PopupMenuItem(value: 'archive', child: Text('archive')),
+        if (widget.onExport != null)
+          const PopupMenuItem(value: 'export', child: Text('export')),
+        if (widget.onDelete != null)
+          const PopupMenuItem(value: 'delete', child: Text('delete')),
+      ],
+    );
+  }
+
   Widget _body(bool showDate) {
     if (widget.loading && widget.sessions.isEmpty) {
       return const _LoadingState();
@@ -642,6 +678,7 @@ class _SessionsPageState extends State<SessionsPage> {
                     selected: isSelected,
                     showDate: showDate,
                     busy: _actionId == session.id,
+                    trailing: _rowMenu(index, session),
                     // One click is Enter: select the row and open it. A list
                     // where selection has no other purpose does not need the
                     // click-select/double-click-open dance (`ui-notes.md` §15).
@@ -679,6 +716,7 @@ class _SessionRowTile extends StatelessWidget {
     required this.selected,
     required this.showDate,
     this.busy = false,
+    this.trailing,
     this.onTap,
   });
 
@@ -690,6 +728,9 @@ class _SessionRowTile extends StatelessWidget {
   /// shows `working…` instead of its step count, so the user can see the core
   /// is running and the verbs are not offered twice.
   final bool busy;
+
+  /// The row's pointer verbs (a menu). Null draws nothing.
+  final Widget? trailing;
 
   /// Opens the row. Null keeps the tile inert (a read-only page).
   final VoidCallback? onTap;
@@ -858,6 +899,7 @@ class _SessionRowTile extends StatelessWidget {
                     ),
                   ),
           ),
+          if (trailing != null) ...[const SizedBox(width: 4), trailing!],
         ],
       ),
     );

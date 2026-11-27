@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lockedin_desktop/bridge/models.dart';
 import 'package:lockedin_desktop/features/chat/chat_page.dart';
 import 'package:lockedin_desktop/features/sessions/session_detail.dart';
+import 'package:lockedin_desktop/features/sessions/sessions_page.dart';
+import 'package:lockedin_desktop/features/skills/skills_page.dart';
 import 'package:lockedin_desktop/features/work/work_page.dart';
 import 'package:lockedin_desktop/shell/chrome.dart';
 import 'package:lockedin_desktop/theme/palette.dart';
@@ -73,6 +75,30 @@ Future<void> _pump(
   await tester.pumpWidget(_app(child));
   await tester.pumpAndSettle();
 }
+
+const _sessionRows = <SessionRow>[
+  SessionRow(
+    id: 'alpha',
+    name: 'Zoology',
+    date: '2026-11-01T14:30:00Z',
+    sources: 2,
+    stepsDone: 0,
+    stepsTotal: 2,
+    archived: false,
+  ),
+];
+
+const _skillRows = <SkillRow>[
+  SkillRow(
+    id: 'read-disassembly',
+    name: 'Read disassembly output',
+    stageDone: 0,
+    stageTotal: 1,
+    lastOpened: '2026-11-10T09:00:00Z',
+    chats: 0,
+    archived: false,
+  ),
+];
 
 const _project = WorkProjectDetail(
   id: 'my-app-4f2a1c',
@@ -194,6 +220,66 @@ void main() {
     expect(find.byKey(const ValueKey('figure-page')), findsNothing);
     expect(find.byKey(const ValueKey('figures-missing-pdf')), findsOneWidget);
     expect(find.textContaining('add one to crop a diagram'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a session row offers its verbs without opening it', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      SessionsPage(
+        sessions: _sessionRows,
+        loading: false,
+        onArchive: (_) async => 'folder',
+        onExport: (_) async => '/tmp/x.zip',
+        onDelete: (_) async {},
+      ),
+      size: const Size(1000, 700),
+    );
+
+    final menu = find.byKey(const ValueKey('session-row-menu-alpha'));
+    expect(menu, findsOneWidget);
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    expect(find.text('archive'), findsOneWidget);
+    expect(find.text('export'), findsOneWidget);
+    expect(find.text('delete'), findsOneWidget);
+
+    await tester.tap(find.text('archive'));
+    await tester.pumpAndSettle();
+    // The menu runs the same named confirmation the key runs.
+    expect(find.text('Archive “Zoology”?'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('session-archive-cancel')));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a goal row offers its verbs without opening it', (tester) async {
+    await _pump(
+      tester,
+      SkillsPage(
+        skills: _skillRows,
+        loading: false,
+        onArchive: (_) async => 'folder',
+        onExport: (_) async => '/tmp/x.zip',
+        onDelete: (_) async {},
+      ),
+      size: const Size(1000, 700),
+    );
+
+    final menu = find.byKey(const ValueKey('skill-row-menu-read-disassembly'));
+    expect(menu, findsOneWidget);
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('archive'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Archive “Read disassembly output”'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('skill-archive-cancel')));
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
 
