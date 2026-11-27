@@ -1502,6 +1502,11 @@ class FakeCore implements CoreConnection {
 
   /// The `mcp.list` answer: two servers, one with a read tool and one with a
   /// write tool, plus a stored policy for two commands.
+  /// A mutable copy for the server-editing methods.
+  late final _mcpServerRows = [
+    for (final row in _mcpServers) Map<String, dynamic>.from(row),
+  ];
+
   static const _mcpServers = <Map<String, dynamic>>[
     {
       'name': 'notes',
@@ -2961,8 +2966,58 @@ class FakeCore implements CoreConnection {
         ],
       };
     }
+    if (method == 'mcp.server.get') {
+      final name = params?['name'];
+      final index = _mcpServerRows.indexWhere((row) => row['name'] == name);
+      if (index < 0) {
+        throw RpcException(-32000, 'no MCP server named "$name" is configured');
+      }
+      final row = _mcpServerRows[index];
+      return {
+        'name': name,
+        'transport': 'stdio',
+        'command': 'mcp-$name',
+        'args': <String>[],
+        'enabled': row['enabled'] != false,
+      };
+    }
+    if (method == 'mcp.server.set') {
+      final name = params?['name'];
+      if (name is! String || name.trim().isEmpty) {
+        throw const RpcException(-32602, 'mcp.server.set requires a name');
+      }
+      final command = params?['command'];
+      if (command is! String || command.trim().isEmpty) {
+        throw const RpcException(-32602, 'mcp.server.set requires a command');
+      }
+      final row = <String, dynamic>{
+        'name': name.trim(),
+        'transport': 'stdio',
+        'enabled': params?['enabled'] != false,
+        'status': 'stopped',
+        'tools': <Object>[],
+      };
+      final index = _mcpServerRows.indexWhere(
+        (row) => row['name'] == name.trim(),
+      );
+      if (index < 0) {
+        _mcpServerRows.add(row);
+      } else {
+        _mcpServerRows[index] = row;
+      }
+      return {'servers': _mcpServerRows, 'policy': _mcpPolicy};
+    }
+    if (method == 'mcp.server.remove') {
+      final name = params?['name'];
+      final index = _mcpServerRows.indexWhere((row) => row['name'] == name);
+      if (index < 0) {
+        throw RpcException(-32000, 'no MCP server named "$name" is configured');
+      }
+      _mcpServerRows.removeAt(index);
+      return {'servers': _mcpServerRows, 'policy': _mcpPolicy};
+    }
     if (method == 'mcp.list') {
-      return {'servers': _mcpServers, 'policy': _mcpPolicy};
+      return {'servers': _mcpServerRows, 'policy': _mcpPolicy};
     }
     if (method == 'mcp.policy.set') {
       const commands = {
@@ -3009,7 +3064,7 @@ class FakeCore implements CoreConnection {
         });
       }
       final known =
-          _mcpServers.any((row) => row['name'] == server) ||
+          _mcpServerRows.any((row) => row['name'] == server) ||
           _mcpPolicy.values.any((row) => row.containsKey(server));
       if (!known) {
         final message = 'there is no configured plugin server "$server"';

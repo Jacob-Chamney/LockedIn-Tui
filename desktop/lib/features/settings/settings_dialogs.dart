@@ -663,3 +663,179 @@ class PromptNoteDialogState extends State<PromptNoteDialog> {
     );
   }
 }
+
+/// The add/edit form for one MCP server.
+///
+/// `args` is one argument per line, so an argument containing spaces survives.
+/// The name is fixed while editing: a rename is a remove plus an add, because
+/// the name is the config table key and every policy cell refers to it.
+class McpServerDialog extends StatefulWidget {
+  const McpServerDialog({super.key, this.initial, required this.onSave});
+
+  /// Null adds a server; non-null edits that stored definition.
+  final McpServerDefinition? initial;
+
+  final Future<void> Function(
+    String name,
+    String command,
+    List<String> args,
+    bool enabled,
+  )
+  onSave;
+
+  @override
+  State<McpServerDialog> createState() => _McpServerDialogState();
+}
+
+class _McpServerDialogState extends State<McpServerDialog> {
+  late final TextEditingController _name = TextEditingController(
+    text: widget.initial?.name ?? '',
+  );
+  late final TextEditingController _command = TextEditingController(
+    text: widget.initial?.command ?? '',
+  );
+  late final TextEditingController _args = TextEditingController(
+    text: (widget.initial?.args ?? const <String>[]).join('\n'),
+  );
+  late bool _enabled = widget.initial?.enabled ?? true;
+  var _busy = false;
+  String? _error;
+
+  bool get _editing => widget.initial != null;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _command.dispose();
+    _args.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_busy) return;
+    final name = _name.text.trim();
+    final command = _command.text.trim();
+    if (!_editing && !RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]*$').hasMatch(name)) {
+      setState(
+        () => _error = 'use letters, digits, dot, dash or underscore; start with a letter or digit',
+      );
+      return;
+    }
+    if (command.isEmpty) {
+      setState(() => _error = 'the command that starts the server is required');
+      return;
+    }
+    final args = [
+      for (final line in _args.text.split('\n'))
+        if (line.trim().isNotEmpty) line.trimRight(),
+    ];
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await widget.onSave(name, command, args, _enabled);
+      if (mounted) Navigator.of(context).pop();
+    } catch (failure) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = userMessage(failure);
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(_editing ? 'edit MCP server' : 'add MCP server'),
+      content: SizedBox(
+        width: 460,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                key: const ValueKey('mcp-server-name'),
+                controller: _name,
+                enabled: !_editing && !_busy,
+                decoration: const InputDecoration(
+                  hintText: 'name (the config table key)',
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                key: const ValueKey('mcp-server-command'),
+                controller: _command,
+                enabled: !_busy,
+                decoration: const InputDecoration(
+                  hintText: 'command, for example mcp-filesystem',
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                key: const ValueKey('mcp-server-args'),
+                controller: _args,
+                enabled: !_busy,
+                minLines: 2,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  hintText: 'arguments, one per line',
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'enabled',
+                      style: LockedInType.label.copyWith(
+                        color: LockedInColors.foreground,
+                      ),
+                    ),
+                  ),
+                  Switch(
+                    key: const ValueKey('mcp-server-enabled'),
+                    value: _enabled,
+                    onChanged: _busy
+                        ? null
+                        : (value) => setState(() => _enabled = value),
+                  ),
+                ],
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _error!,
+                  key: const ValueKey('mcp-server-error'),
+                  style: LockedInType.label.copyWith(
+                    color: LockedInColors.error,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 6),
+              Text(
+                'servers are stdio only; config.toml never stores a credential',
+                style: LockedInType.micro.copyWith(color: LockedInColors.muted),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          key: const ValueKey('mcp-server-cancel'),
+          onPressed: _busy ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const ValueKey('mcp-server-save'),
+          onPressed: _busy ? null : _save,
+          child: Text(_busy ? 'saving…' : 'Save'),
+        ),
+      ],
+    );
+  }
+}

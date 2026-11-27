@@ -544,7 +544,67 @@ export async function patchConfig(
   })
 }
 
-/** Current config without creating or writing anything. */
+/**
+ * Remove one `[plugins.servers.<name>]` table.
+ *
+ * A merge patch cannot delete a key, so this rewrites the document without the
+ * server. Unknown tables and keys survive; comments in `config.toml` do not
+ * (the document is re-serialized). Policy cells are kept, so re-adding the same
+ * server restores its stored policy. Nothing is written when the server is not
+ * configured or the result would be invalid.
+ */
+export async function removePluginServer(
+  paths: WorkspacePaths,
+  name: string,
+): Promise<Result<LoadedConfig, ConfigError>> {
+  const file = paths.config
+  return withFileLock(file, async () => {
+    let text: string
+    try {
+      text = await readFile(file, "utf8")
+    } catch (error) {
+      return err(
+        storageError(
+          file,
+          error,
+          "config.toml could not be read.",
+          "Check the file permissions and that the disk is readable.",
+        ),
+      )
+    }
+
+    const parsed = parseConfig(text, file)
+    if (!parsed.ok) return parsed
+    const document = structuredClone(parsed.value)
+    const plugins = document.plugins
+    const servers = isTable(plugins) ? plugins.servers : undefined
+    if (!isTable(servers) || !(name in servers)) {
+      return err({
+        kind: "config",
+        code: "invalid",
+        path: file,
+        key: `plugins.servers.${name}`,
+        message: `there is no MCP server “${name}” in config.toml.`,
+        next: "Refresh the list and choose a server that is still configured.",
+      })
+    }
+    delete servers[name]
+
+    const checked = checkDocument(document, file)
+    if (!checked.ok) return checked
+    const written = await writeAtomic(file, serializeDocument(document))
+    if (!written.ok) return written
+    return ok({
+      config: checked.value,
+      document,
+      path: file,
+      created: false,
+      migrated: false,
+    })
+  })
+}
+
+/** Current config without creating or writing anything. *//** Current config without creating or writing anything. */
 export async function readConfig(
   paths: WorkspacePaths,
 ): Promise<Result<LoadedConfig, ConfigError>> {

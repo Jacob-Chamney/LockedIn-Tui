@@ -194,6 +194,9 @@ export const CAPABILITIES = [
   "mcp.policy.get",
   "mcp.policy.set",
   "mcp.confirm",
+  "mcp.server.get",
+  "mcp.server.set",
+  "mcp.server.remove",
   "skill.list",
   "skill.open",
   "skill.chapter",
@@ -264,6 +267,20 @@ export type CoreServices = Pick<Booted, "workspace" | "settings"> & {
   researchFetch?: typeof fetch;
   /** Render one PDF page/crop; tests inject a fake, production spawns pdftoppm. */
   renderFigure?: typeof import("../services/lockin/figures").renderFigure;
+  /**
+   * Write one `[plugins.servers.<name>]` table and reload the plugin runtime.
+   *
+   * The protocol never serializes TOML; `main.ts` owns the config write and the
+   * runtime restart, and returns the refreshed rows.
+   */
+  saveMcpServer?: (
+    name: string,
+    server: import("../storage/config-schema").McpServerConfig,
+  ) => Promise<Result<import("../app/actions/plugins").PluginRow[], { message: string }>>;
+  /** Remove one server's table and reload the plugin runtime. */
+  removeMcpServer?: (
+    name: string,
+  ) => Promise<Result<import("../app/actions/plugins").PluginRow[], { message: string }>>;
   /** Present on a real boot; protocol tests may omit it. */
   controller?: Booted["controller"];
   /** A fresh controller using the current config, after a settings patch. */
@@ -801,7 +818,16 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       pendingPluginPermissions.get(requestId)?.finish(allow);
     },
   });
-  const { mcpList, mcpRefresh, mcpPolicyGet, mcpPolicySet, mcpConfirm } = mcpSurface.handlers;
+  const {
+    mcpList,
+    mcpRefresh,
+    mcpPolicyGet,
+    mcpPolicySet,
+    mcpConfirm,
+    mcpServerGet,
+    mcpServerSet,
+    mcpServerRemove,
+  } = mcpSurface.handlers;
 
   const chillChat = createChillChatHandlers({
     services,
@@ -1171,6 +1197,12 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       case "mcp.confirm":
         // Answers a pending in-memory prompt; it never boots the app.
         return mcpConfirm(id, params);
+      case "mcp.server.get":
+        return mcpServerGet(id, params);
+      case "mcp.server.set":
+        return mcpServerSet(id, params);
+      case "mcp.server.remove":
+        return mcpServerRemove(id, params);
       case "review.queue":
         return reviewQueueResponse(id, params);
       case "review.mark":

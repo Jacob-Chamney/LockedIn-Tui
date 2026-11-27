@@ -47,6 +47,9 @@ export function createMcpHandlers<C extends SessionServices>(
     mcpPolicyGet: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
     mcpPolicySet: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
     mcpConfirm: (id: RpcId, params: Record<string, unknown>) => JsonRpcResponse;
+    mcpServerGet: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
+    mcpServerSet: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
+    mcpServerRemove: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
   };
 } {
   const { services, policy, setPolicy, resolvePermission } = ctx;
@@ -69,6 +72,142 @@ export function createMcpHandlers<C extends SessionServices>(
     // to resolve and is still a success, never a replay of the tool call.
     resolvePermission(rawRequestId, allow);
     return success(id, { ok: true });
+  };
+
+  /** The shared success shape for a server write: the refreshed rows + policy. */
+  const serverReply = (id: RpcId, current: C, servers: PluginRow[]): JsonRpcResponse =>
+    success(id, { servers, policy: policy(current) });
+
+  const serverFailure = (id: RpcId, name: string, message: string): JsonRpcResponse =>
+    failure(
+      id,
+      BOOT_FAILED,
+      oneLine(message),
+      { kind: "plugin", server: name, message: oneLine(message) },
+      false,
+    );
+
+  /**
+   * Read one server's stored definition so the editor can prefill it.
+   *
+   * `command` and `args` are configuration, not credentials: config.toml
+   * refuses secret-bearing fields, so this leaks nothing the user cannot see
+   * in their own file.
+   */
+  const mcpServerGet = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const rawName = params.name;
+    if (typeof rawName !== "string" || rawName.trim() === "") {
+      return invalid(id, "mcp.server.get requires a server name");
+    }
+    const name = rawName.trim();
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const server = current.value.config?.plugins.servers[name];
+    if (!server) {
+      const message = `no MCP server named “${name}” is configured`;
+      return failure(id, BOOT_FAILED, message, { kind: "plugin", server: name, message }, false);
+    }
+    return success(id, {
+      name,
+      transport: "stdio",
+      command: server.command,
+      args: [...server.args],
+      enabled: server.enabled !== false,
+    });
+  };
+
+  /**
+   * Add or update one stdio server (`docs/product.md` §11).  /**
+   * Add or update one stdio server (`docs/product.md` §11).
+   *
+   * This writes configuration and restarts the runtime; it never calls a tool.
+   * The name is the config table key and the row id, so a rename is a remove
+   * plus an add.
+   */
+  const mcpServerSet = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const rawName = params.name;
+    if (
+      typeof rawName !== "string" ||
+      !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(rawName)
+    ) {
+      return invalid(
+        id,
+        "mcp.server.set requires a name matching [A-Za-z0-9][A-Za-z0-9._-]*",
+      );
+    }
+    const name = rawName;
+    const rawCommand = params.command;
+    if (typeof rawCommand !== "string" || rawCommand.trim() === "") {
+      return invalid(id, "mcp.server.set requires a non-empty command");
+    }
+    const rawArgs = params.args;
+    if (rawArgs !== undefined && !Array.isArray(rawArgs)) {
+      return invalid(id, "mcp.server.set: args must be an array of strings");
+    }
+    const args: string[] = [];
+    for (const entry of rawArgs ?? []) {
+      if (typeof entry !== "string") {
+        return invalid(id, "mcp.server.set: args must be an array of strings");
+      }
+      args.push(entry);
+    }
+    if (params.enabled !== undefined && typeof params.enabled !== "boolean") {
+      return invalid(id, "mcp.server.set: enabled must be a boolean");
+    }
+
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const save = current.value.saveMcpServer;
+    if (!save) {
+      return failure(
+        id,
+        -32601,
+        "MCP server editing is not available in this build",
+        undefined,
+        false,
+      );
+    }
+    const saved = await save(name, {
+      transport: "stdio",
+      command: rawCommand.trim(),
+      args,
+      enabled: params.enabled !== false,
+    });
+    if (!saved.ok) return serverFailure(id, name, saved.error.message);
+    return serverReply(id, current.value, saved.value);
+  };
+
+  /** Remove one server's config table; policy cells are kept. */
+  const mcpServerRemove = async (
+    id: RpcId,
+    params: Record<string, unknown>,
+  ): Promise<JsonRpcResponse> => {
+    const rawName = params.name;
+    if (typeof rawName !== "string" || rawName.trim() === "") {
+      return invalid(id, "mcp.server.remove requires a server name");
+    }
+    const name = rawName.trim();
+    const current = await services();
+    if (!current.ok) return bootFailureResponse(id, current.error);
+    const remove = current.value.removeMcpServer;
+    if (!remove) {
+      return failure(
+        id,
+        -32601,
+        "MCP server editing is not available in this build",
+        undefined,
+        false,
+      );
+    }
+    const removed = await remove(name);
+    if (!removed.ok) return serverFailure(id, name, removed.error.message);
+    return serverReply(id, current.value, removed.value);
   };
 
   const mcpList = async (id: RpcId): Promise<JsonRpcResponse> => {
@@ -183,6 +322,15 @@ export function createMcpHandlers<C extends SessionServices>(
     return success(id, { policy: saved.value });
   };
   return {
-    handlers: { mcpList, mcpRefresh, mcpPolicyGet, mcpPolicySet, mcpConfirm },
+    handlers: {
+      mcpList,
+      mcpRefresh,
+      mcpPolicyGet,
+      mcpPolicySet,
+      mcpConfirm,
+      mcpServerGet,
+      mcpServerSet,
+      mcpServerRemove,
+    },
   };
 }

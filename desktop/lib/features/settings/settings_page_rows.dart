@@ -107,6 +107,19 @@ extension _SettingsRows on _SettingsBodyState {
         }
         if (widget.mcpServers.isEmpty) widgets.add(const PluginsEmpty());
         widgets.add(const PluginsNote());
+        if (widget.onSetMcpServer != null || widget.onRemoveMcpServer != null) {
+          widgets.add(
+            McpServerActions(
+              servers: widget.mcpServers,
+              onAdd: widget.onSetMcpServer == null ? null : _addMcpServer,
+              onEdit: widget.onReadMcpServer == null ? null : _editMcpServer,
+              onRemove: widget.onRemoveMcpServer == null
+                  ? null
+                  : _removeMcpServer,
+              error: _mcpActionError,
+            ),
+          );
+        }
       }
       if (group.title == 'KEYBINDS') {
         widgets.add(KeybindFooter(editable: widget.onSetKeybind != null));

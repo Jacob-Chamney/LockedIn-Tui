@@ -8,7 +8,7 @@ to stderr.
 
 ```json
 → {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol":1,"client":"flutter"}}
-← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","session.deck.state","session.deck.grade","session.deck.reset","session.figure.list","session.figure.extract","session.figure.read","session.figure.annotate","session.figure.remove","session.mistake.list","session.mistake.record","session.mistake.promote","session.mistake.correct","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","keybinds.get","keybinds.set","chat.snapshot","chat.send","chat.cancel","chat.clear","session.chat.snapshot","session.chat.send","session.chat.cancel","session.chat.context","session.chat.compact","session.chat.uncompact","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","work.list","work.open","work.create","work.remove","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.instructions.save","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","work.swarm.verify","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","teach.state","teach.measure","teach.step","teach.check","teach.practice","teach.practice.result","teach.side.snapshot","teach.side.send","teach.side.clear","research.start","research.list","research.read","research.cancel","prompts.list","prompts.set","update.info","update.check","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read","knowledge.graph"]}}
+← {"jsonrpc":"2.0","id":1,"result":{"protocol":1,"server":"lockedin-core","capabilities":["workspace.info","session.list","session.open","session.coverage","session.create","session.toggleStep","session.generateSteps","session.document","session.instructions.get","session.instructions.save","session.instructions.import","session.instructions.reextract","session.archive","session.remove","session.export","session.output.build","session.output.read","session.output.mark","session.deck.state","session.deck.grade","session.deck.reset","session.figure.list","session.figure.extract","session.figure.read","session.figure.annotate","session.figure.remove","session.mistake.list","session.mistake.record","session.mistake.promote","session.mistake.correct","archive.list","archive.restore","archive.remove","source.list","source.add","stats.summary","stats.export","achievements.list","settings.get","decision.get","decision.set","keybinds.get","keybinds.set","chat.snapshot","chat.send","chat.cancel","chat.clear","session.chat.snapshot","session.chat.send","session.chat.cancel","session.chat.context","session.chat.compact","session.chat.uncompact","provider.list","provider.link","settings.patch","theme.custom.get","theme.custom.set","work.list","work.open","work.create","work.remove","work.templates.list","work.agent.save","work.agent.delete","work.defaultAgent","work.instructions.save","work.changes","work.write.propose","work.write.decide","work.command.propose","work.command.decide","work.permissions.get","work.permissions.set","work.approvals.list","work.chat.list","work.chat.open","work.chat.send","work.chat.cancel","work.swarm.run","work.swarm.board","work.swarm.runs","work.swarm.cancel","work.swarm.remove","work.swarm.retry","work.swarm.verify","activity.list","mcp.list","mcp.refresh","mcp.policy.get","mcp.policy.set","mcp.confirm","mcp.server.get","mcp.server.set","mcp.server.remove","skill.list","skill.open","skill.chapter","skill.create","skill.stages.save","skill.archive","skill.remove","skill.export","skill.lesson.build","skill.lesson.read","teach.state","teach.measure","teach.step","teach.check","teach.practice","teach.practice.result","teach.side.snapshot","teach.side.send","teach.side.clear","research.start","research.list","research.read","research.cancel","prompts.list","prompts.set","update.info","update.check","skill.sources.list","skill.sources.add","skill.chat.list","skill.chat.open","skill.chat.create","skill.chat.send","skill.chat.cancel","review.queue","review.mark","knowledge.search","knowledge.tree","knowledge.read","knowledge.graph"]}}
 ```
 
 - `protocol` is an integer. A mismatch is a blocking shell error, not a retry.
@@ -142,6 +142,9 @@ Implemented today (`src/server/protocol.ts`, capability names in the handshake):
 | `mcp.policy.get` | — | `{policy: PluginPolicy}` |
 | `mcp.policy.set` | `{command, server, value}` | `{policy: PluginPolicy}` |
 | `mcp.confirm` | `{requestId, allow}` | `{ok: true}` |
+| `mcp.server.get` | `{name}` | `{name, transport, command, args, enabled}` |
+| `mcp.server.set` | `{name, command, args?, enabled?}` | `{servers: PluginRow[], policy: PluginPolicy}` |
+| `mcp.server.remove` | `{name}` | `{servers: PluginRow[], policy: PluginPolicy}` |
 | `skill.list` | — | `{skills: SkillRow[]}` |
 | `skill.open` | `{id}` | `{skill: SkillDetail}` |
 | `skill.chapter` | `{id, chapterId, practical?}` | `{text, practical, chapter: {id, title}}` |
@@ -1658,7 +1661,25 @@ credential. Only `mcp.policy.set` writes, and it writes configuration only.
   succeeds. A blank/no-op refresh on a workspace with no servers returns `[]`.
 - `mcp.policy.get` → `{policy: PluginPolicy}`, the same matrix `mcp.list`
   carries.
-- `mcp.policy.set` `{command, server, value}` → `{policy: PluginPolicy}` writes
+- `mcp.server.get` `{name}` returns one server's stored definition for the
+  editor: `{name, transport: "stdio", command, args, enabled}`. These are
+  configuration, not credentials (config.toml refuses secret fields). An
+  unknown server is `-32000`, `data: {kind: "plugin", server, message}`.
+- `mcp.server.set` `{name, command, args?, enabled?}` and
+  `mcp.server.remove` `{name}` edit the configured stdio servers. `name` is the
+  `[plugins.servers.<name>]` table key and must match
+  `[A-Za-z0-9][A-Za-z0-9._-]*`; `command` is a non-empty string; `args` is an
+  array of strings (default empty); `enabled` defaults to true. The core writes
+  `config.toml`, restarts the plugin runtime so the next chat turn can use the
+  new set, and returns the refreshed rows plus the stored policy matrix. A
+  remove keeps that server's policy cells, so re-adding the same name restores
+  them; comments in `config.toml` are not preserved by the removal rewrite.
+  A bad shape is `-32602` naming the field, a build without a config writer is
+  `-32601`, and an unknown server or failed write is `-32000`,
+  `retryable: false`, `data: {kind: "plugin", server, message}`. Neither method
+  calls a tool or approves anything.
+
+- `mcp.policy.set` `{command, server, value}` → `{policy: PluginPolicy}` writes- `mcp.policy.set` `{command, server, value}` → `{policy: PluginPolicy}` writes
   **one** policy cell (`docs/product.md` §11). This is the Settings write; the
   per-call permission gate is `mcp.confirm`.
 

@@ -50,6 +50,9 @@ class SettingsPage extends StatelessWidget {
     this.mcpError,
     this.onRefreshMcp,
     this.onSetMcpPolicy,
+    this.onReadMcpServer,
+    this.onSetMcpServer,
+    this.onRemoveMcpServer,
     this.decision,
     this.decisionLoading = false,
     this.decisionError,
@@ -109,6 +112,21 @@ class SettingsPage extends StatelessWidget {
   /// server.
   final Future<void> Function(String command, String server, String value)?
   onSetMcpPolicy;
+
+  /// Read one server's stored definition for the editor (`mcp.server.get`).
+  final Future<McpServerDefinition?> Function(String name)? onReadMcpServer;
+
+  /// Add or update one server (`mcp.server.set`). Null hides add/edit.
+  final Future<void> Function({
+    required String name,
+    required String command,
+    List<String> args,
+    bool enabled,
+  })?
+  onSetMcpServer;
+
+  /// Remove one server's config table (`mcp.server.remove`). Null hides remove.
+  final Future<void> Function(String name)? onRemoveMcpServer;
 
   /// The decision layer's stored view (`decision.get`), read by the shell when
   /// Settings opens. Null before the first read: the group then says the layer
@@ -288,6 +306,9 @@ class SettingsPage extends StatelessWidget {
       mcpError: mcpError,
       onRefreshMcp: onRefreshMcp,
       onSetMcpPolicy: onSetMcpPolicy,
+      onReadMcpServer: onReadMcpServer,
+      onSetMcpServer: onSetMcpServer,
+      onRemoveMcpServer: onRemoveMcpServer,
       decision: decision,
       decisionLoading: decisionLoading,
       decisionError: decisionError,
@@ -330,6 +351,9 @@ class _SettingsBody extends StatefulWidget {
     this.mcpError,
     this.onRefreshMcp,
     this.onSetMcpPolicy,
+    this.onReadMcpServer,
+    this.onSetMcpServer,
+    this.onRemoveMcpServer,
     this.decision,
     this.decisionLoading = false,
     this.decisionError,
@@ -362,6 +386,21 @@ class _SettingsBody extends StatefulWidget {
   final Future<void> Function()? onRefreshMcp;
   final Future<void> Function(String command, String server, String value)?
   onSetMcpPolicy;
+
+  /// Read one server's stored definition for the editor.
+  final Future<McpServerDefinition?> Function(String name)? onReadMcpServer;
+
+  /// Add or update one server. Null hides add/edit.
+  final Future<void> Function({
+    required String name,
+    required String command,
+    List<String> args,
+    bool enabled,
+  })?
+  onSetMcpServer;
+
+  /// Remove one server's config table. Null hides remove.
+  final Future<void> Function(String name)? onRemoveMcpServer;
 
   /// The decision layer's stored view, or null before the first read.
   final DecisionView? decision;
@@ -425,6 +464,73 @@ class _SettingsBodyState extends State<_SettingsBody> {
   /// `setState` is protected, so a part-file extension cannot call it directly.
   void refresh(VoidCallback fn) => setState(fn);
 
+  Future<void> _addMcpServer() async {
+    final save = widget.onSetMcpServer;
+    if (save == null) return;
+    setState(() => _mcpActionError = null);
+    await showDialog<void>(
+      context: context,
+      builder: (_) => McpServerDialog(
+        onSave: (name, command, args, enabled) =>
+            save(name: name, command: command, args: args, enabled: enabled),
+      ),
+    );
+  }
+
+  Future<void> _editMcpServer(McpServerView server) async {
+    final read = widget.onReadMcpServer;
+    final save = widget.onSetMcpServer;
+    if (read == null || save == null) return;
+    setState(() => _mcpActionError = null);
+    final definition = await read(server.name);
+    if (!mounted || definition == null) return;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => McpServerDialog(
+        initial: definition,
+        onSave: (name, command, args, enabled) =>
+            save(name: name, command: command, args: args, enabled: enabled),
+      ),
+    );
+  }
+
+  Future<void> _removeMcpServer(McpServerView server) async {
+    final remove = widget.onRemoveMcpServer;
+    if (remove == null) return;
+    setState(() => _mcpActionError = null);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('remove MCP server'),
+        content: Text(
+          'Remove “${server.name}” from config.toml? Its per-command policy '
+          'cells stay, so adding the name back restores them. No server data '
+          'is deleted.',
+        ),
+        actions: [
+          TextButton(
+            key: const ValueKey('mcp-remove-cancel'),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: const ValueKey('mcp-remove-confirm'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await remove(server.name);
+    } catch (failure) {
+      if (mounted) {
+        setState(() => _mcpActionError = userMessage(failure));
+      }
+    }
+  }
+
   final _scroll = ScrollController();
   final _search = TextEditingController();
   final _searchFocus = FocusNode(debugLabel: 'settings-search');
@@ -447,6 +553,9 @@ class _SettingsBodyState extends State<_SettingsBody> {
   String? _notice;
   bool _refreshingMcp = false;
   String? _mcpFailure;
+
+  /// The last add/edit/remove failure, shown under the server actions.
+  String? _mcpActionError;
 
   /// The keybind row waiting for its next chord, or null.
   String? _capturingId;

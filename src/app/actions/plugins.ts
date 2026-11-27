@@ -49,6 +49,15 @@ export type PluginRuntime = {
   connect(id: string): Promise<PluginRow[]>
   close(id: string): Promise<PluginRow[]>
   setEnabled(id: string, enabled: boolean): Promise<PluginRow[]>
+  /**
+   * Replace the configured server set and start the enabled ones.
+   *
+   * Settings edits config.toml and then calls this: the runtime closes every
+   * old server, adopts the new list and refreshes. Chat controllers built by
+   * boot call `sourceFor` on this same runtime, so a new server is usable
+   * without restarting the app.
+   */
+  reload(configs: readonly McpServerConfig[]): Promise<PluginRow[]>
   /** Plugin tools for a mode; `explicitCall` is the `learning-web` opt-in. */
   sourceFor(
     mode: ChatMode,
@@ -86,6 +95,8 @@ export type PluginRuntimeOptions = {
    * never passes one, so a real runtime always talks to the configured servers.
    */
   host?: McpHost
+  /** Builds the host for each configured set; tests inject a fake factory. */
+  hostFactory?: (configs: readonly McpServerConfig[]) => McpHost
   /**
    * The stored policy cell for one command and server.
    *
@@ -117,13 +128,15 @@ function isWebServer(id: string): boolean {
 }
 
 export function createPluginRuntime(
-  configs: readonly McpServerConfig[],
+  initialConfigs: readonly McpServerConfig[],
   options: PluginRuntimeOptions = {},
 ): PluginRuntime {
-  const host: McpHost = options.host ?? createMcpHost(configs)
+  const makeHost = options.hostFactory ?? createMcpHost
+  let currentConfigs = initialConfigs
+  let host: McpHost = options.host ?? makeHost(initialConfigs)
   const tools = new Map<string, McpTool[]>()
   const failures = new Map<string, string>()
-  const byId = new Map(configs.map((config) => [config.id, config]))
+  let byId = new Map(initialConfigs.map((config) => [config.id, config]))
   /**
    * The installed per-call gate. It is deliberately not a list of approved
    * calls: `sourceFor` consults it on every write call, so a run of write tools
@@ -133,7 +146,7 @@ export function createPluginRuntime(
   const policyFor = options.policyFor
 
   const rows = (): PluginRow[] =>
-    configs.map((config) =>
+    currentConfigs.map((config) =>
       rowFor(
         config,
         host.state(config.id).alive,
@@ -158,7 +171,7 @@ export function createPluginRuntime(
   }
 
   const refresh = async (): Promise<PluginRow[]> => {
-    for (const config of configs) {
+    for (const config of currentConfigs) {
       if (config.enabled === false) continue
       await load(config.id)
     }
@@ -189,11 +202,30 @@ export function createPluginRuntime(
       else await load(id)
       return rows()
     },
+    async reload(next) {
+      for (const config of currentConfigs) {
+        try {
+          await host.close(config.id)
+        } catch {
+          // A server that cannot close is dropped with the rest: the new
+          // config is authoritative.
+        }
+      }
+      tools.clear()
+      failures.clear()
+      currentConfigs = next
+      byId = new Map(next.map((config) => [config.id, config]))
+      // An injected host (a test) is reused; production builds a fresh one for
+      // the new server set. Either way the enabled servers are started below.
+      if (!options.host) host = makeHost(next)
+      await refresh()
+      return rows()
+    },
     sourceFor(mode, sourceOptions) {
       const explicitCall = sourceOptions?.explicitCall === true
       const approveWrite = sourceOptions?.approveWrite ?? installedApproval ?? undefined
       const entries: Array<{ id: string; tool: McpTool }> = []
-      for (const config of configs) {
+      for (const config of currentConfigs) {
         const coreForMode = coreServersFor(mode).includes(config.id)
         if (config.enabled === false) continue
         if (!host.state(config.id).alive) continue
