@@ -19,6 +19,24 @@ export type SessionServices = {
   createChat?: Booted["createChat"];
   /** A test-injected swarm worker runner; production builds the read-only one. */
   swarmRunner?: import("../services/work/swarm").WorkerRunner;
+  /** The rest of the optional capabilities a Settings handler may use. */
+  linkedProviders?: Booted["linkedProviders"];
+  linkProvider?: Booted["linkProvider"];
+  updateCheck?: () => Promise<import("../services/update").UpdateCheck>;
+  savePrompt?: (
+    id: import("../domain/prompts").PromptId,
+    note: string,
+  ) => Promise<Result<void, { message: string }>>;
+  saveDecision?: (
+    input: import("./decision-types").DecisionSettings,
+  ) => Promise<Result<import("./decision-types").DecisionSettings, { message: string }>>;
+  saveKeybinds?: (
+    input: import("./keybinds").KeybindWrite,
+  ) => Promise<Result<import("./keybinds").KeybindMaps, { message: string }>>;
+  saveThemeTokens?: (
+    tokens: import("./theme-tokens").ThemeTokens,
+  ) => Promise<Result<import("./theme-tokens").ThemeTokens, { message: string }>>;
+  config?: import("../app/boot").Booted["config"];
   /** A test-injected PDF renderer for figures. */
   renderFigure?: typeof import("../services/lockin/figures").renderFigure;
   /** A test-injected fetch for research briefs. */
