@@ -17,6 +17,8 @@ export type SessionServices = {
   settings: { historyLimit: number };
   generate?: Booted["generate"];
   createChat?: Booted["createChat"];
+  /** A test-injected swarm worker runner; production builds the read-only one. */
+  swarmRunner?: import("../services/work/swarm").WorkerRunner;
   /** The standing note a generator's prompt is built with, when one is set. */
   promptNote?: (id: import("../domain/prompts").PromptId) => string;
 };
