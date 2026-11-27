@@ -78,6 +78,18 @@ export type BootOptions = {
   createService?: (context: BootServiceContext) => ChatService | null | Promise<ChatService | null>
   /** Keychain reader handed to `createService`; never called by boot itself. */
   readKey?: (ref: string) => Promise<string | null>
+  /**
+   * Test seam for `provider.link`: validates one key and stores it.
+   *
+   * Production leaves this unset, so the real path runs (one authenticated
+   * request, then the OS keychain). A test injects this to exercise the rebuild
+   * that follows a link without a keychain.
+   */
+  linkKey?: (input: {
+    providerId: string
+    key: string
+    baseUrl?: string
+  }) => Promise<LlmResult<LinkOutcome>>
   onUsageError?: (message: string) => void
   scope?: RunScope
 }
@@ -540,15 +552,19 @@ export async function boot(options: BootOptions = {}): Promise<Result<Booted, Bo
     if (!spec) {
       return { ok: false, error: { kind: "config", message: `unknown provider "${input.providerId}"` } }
     }
-    const { createSystemSecretStore } = await import("../security/keyring")
-    const store = await createSystemSecretStore()
-    const outcome = await linkProviderKey({
-      providerId: spec.id,
-      spec,
-      key: input.key,
-      ...(input.baseUrl === undefined ? {} : { baseUrl: input.baseUrl }),
-      store,
-    })
+    const outcome = options.linkKey
+      ? await options.linkKey(input)
+      : await (async () => {
+          const { createSystemSecretStore } = await import("../security/keyring")
+          const store = await createSystemSecretStore()
+          return linkProviderKey({
+            providerId: spec.id,
+            spec,
+            key: input.key,
+            ...(input.baseUrl === undefined ? {} : { baseUrl: input.baseUrl }),
+            store,
+          })
+        })()
     // A key that was missing is why `service` is the unavailable stub, and
     // `applyConfig` returns early when only the key changed. Rebuild for real
     // providers (a custom endpoint reads no key), so a relink recovers chat
