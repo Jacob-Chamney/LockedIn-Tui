@@ -24,6 +24,10 @@ requests merge.
 - A pending write or command proposal expires **ten minutes** after it is made:
   deciding it afterwards is one refusal and the proposal is gone, and the
   approvals list stops showing it.
+- Releases carry the **desktop app**, not only the core sidecar:
+  `lockedin-desktop-<version>-linux-x64.tar.gz`,
+  `lockedin-desktop-<version>-windows-x64.zip` and the Windows setup `.exe`, all
+  listed in `SHA256SUMS`. An installed app finally has a build to update to.
 
 ### Changed
 

@@ -192,9 +192,86 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  # The desktop app is what a person installs, so a release has to carry it. The
+  # core assets are the sidecar that bundle contains; shipping only those left an
+  # install with nothing to update to.
+  desktop:
+    name: Desktop ${{ matrix.artifact }}
+    needs: version
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            artifact: linux-x64
+            build: linux
+          - os: windows-2022
+            artifact: windows-x64
+            build: windows
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.50.0
+          cache: true
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - name: Core dependencies
+        run: bun install --frozen-lockfile
+      - name: Shell dependencies
+        working-directory: desktop
+        run: flutter pub get
+      - name: Build the bundle with the core sidecar
+        shell: bash
+        env:
+          LOCKEDIN_APP_VERSION: ${{ needs.version.outputs.version }}
+        run: ./scripts/desktop-build.sh ${{ matrix.build }}
+      - name: Package the Linux tarball
+        if: matrix.build == 'linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ needs.version.outputs.version }}"
+          ./scripts/desktop-package.sh --no-build
+          mkdir -p out
+          cp dist/lockedin-desktop-linux-x64.tar.gz \
+            "out/lockedin-desktop-$version-linux-x64.tar.gz"
+          ls -l out
+      - name: Install NSIS
+        if: matrix.build == 'windows'
+        shell: pwsh
+        run: |
+          $nsis = "C:\Program Files (x86)\NSIS"
+          if (-not (Test-Path (Join-Path $nsis "makensis.exe"))) {
+            choco install nsis --no-progress -y
+          }
+          Add-Content -Path $env:GITHUB_PATH -Value $nsis
+      - name: Package the Windows zip and installer
+        if: matrix.build == 'windows'
+        shell: pwsh
+        run: |
+          set -e
+          $version = "${{ needs.version.outputs.version }}"
+          ./scripts/desktop-package.ps1 -NoBuild
+          ./scripts/desktop-installer.ps1 -Verify
+          New-Item -ItemType Directory -Force -Path out | Out-Null
+          Copy-Item dist/lockedin-desktop-windows-x64.zip "out/lockedin-desktop-$version-windows-x64.zip"
+          Copy-Item dist/lockedin-desktop-windows-x64-setup.exe "out/lockedin-desktop-$version-windows-x64-setup.exe"
+          Get-ChildItem out | Format-Table Name,Length
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.artifact }}
+          path: out/*
+          if-no-files-found: error
+          retention-days: 7
+
   assemble:
     name: Assemble the release set
-    needs: [version, build]
+    needs: [version, build, desktop]
     runs-on: ubuntu-24.04
     # Writing is needed only to create the draft; the default of this workflow is
     # read-only, so the token is granted here and nowhere else.
@@ -207,12 +284,20 @@ jobs:
           pattern: bin-*
           path: assets
           merge-multiple: true
-      - name: Add the installer and the checksums
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: desktop
+          merge-multiple: true
+      - name: Add the desktop bundles, the installer and the checksums
         shell: bash
         run: |
           set -euo pipefail
           [ -f install.sh ] || { echo "install.sh is missing from the repository" >&2; exit 1; }
           cp install.sh assets/install.sh
+          # The app bundles are what a person updates with; the core binaries stay
+          # for the sidecar and for `install.sh`.
+          cp desktop/* assets/
           (cd assets && sha256sum -- * > SHA256SUMS)
           echo "release set for ${{ needs.version.outputs.version }}:"
           ls -l assets
@@ -231,8 +316,15 @@ jobs:
           [ -f "lockedin-$version-bun-windows-x64.exe" ] || { echo "missing windows-x64" >&2; exit 1; }
           [ -f install.sh ] || { echo "missing install.sh" >&2; exit 1; }
           [ -f SHA256SUMS ] || { echo "missing SHA256SUMS" >&2; exit 1; }
+          for bundle in \
+            "lockedin-desktop-$version-linux-x64.tar.gz" \
+            "lockedin-desktop-$version-windows-x64.zip" \
+            "lockedin-desktop-$version-windows-x64-setup.exe"; do
+            [ -f "$bundle" ] || { echo "missing $bundle" >&2; exit 1; }
+          done
+          # 7 core binaries, the two app zips, install.sh and SHA256SUMS.
           count=$(find . -maxdepth 1 -type f | wc -l | tr -d ' ')
-          [ "$count" = "9" ] || { echo "expected 9 files, found $count" >&2; ls -l >&2; exit 1; }
+          [ "$count" = "12" ] || { echo "expected 12 files, found $count" >&2; ls -l >&2; exit 1; }
           sha256sum -c SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
