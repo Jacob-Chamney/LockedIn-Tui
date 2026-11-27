@@ -290,7 +290,8 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           pattern: desktop-*
-          path: desktop
+          # Not `desktop`: that path is the source tree the job checks out.
+          path: bundles
           merge-multiple: true
       - name: Add the desktop bundles, the installer and the checksums
         shell: bash
@@ -300,7 +301,7 @@ jobs:
           cp install.sh assets/install.sh
           # The app bundles are what a person updates with; the core binaries stay
           # for the sidecar and for `install.sh`.
-          cp desktop/* assets/
+          cp bundles/* assets/
           (cd assets && sha256sum -- * > SHA256SUMS)
           echo "release set for ${{ needs.version.outputs.version }}:"
           ls -l assets
