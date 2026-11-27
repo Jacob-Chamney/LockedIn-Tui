@@ -748,7 +748,7 @@ Implemented today (`src/server/protocol.ts`, capability names in the handshake):
   `data: {kind: "archive", message}`. Nothing here writes config, starts a push
   or checks repository privacy — that check happens before every push.
 
-- `archive.remove`: delete one **archived** item.- `archive.remove`: delete one **archived** item. This is the picker's delete
+- `archive.remove`: delete one **archived** item. This is the picker's delete
   verb (`docs/product.md` §9) and it is **destructive**: the shell confirms
   first, naming the item and saying that the archive copy goes, and this method
   is the execution half of that confirmation. It never deletes the live session
@@ -1692,7 +1692,7 @@ credential. Only `mcp.policy.set` writes, and it writes configuration only.
   `retryable: false`, `data: {kind: "plugin", server, message}`. Neither method
   calls a tool or approves anything.
 
-- `mcp.policy.set` `{command, server, value}` → `{policy: PluginPolicy}` writes- `mcp.policy.set` `{command, server, value}` → `{policy: PluginPolicy}` writes
+- `mcp.policy.set` `{command, server, value}` → `{policy: PluginPolicy}` writes
   **one** policy cell (`docs/product.md` §11). This is the Settings write; the
   per-call permission gate is `mcp.confirm`.
 
