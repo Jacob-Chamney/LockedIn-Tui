@@ -29,7 +29,15 @@ import {
 import type { PluginRow, PluginWriteApprover, PluginWriteRequest } from "../app/actions/plugins";
 import { computeCoverage } from "../domain/coverage";
 import { loadSessionHome, loadSessionRows } from "../app/actions/sessions";
-import { err, ok, type Result } from "../domain/markdown";
+import type { Result } from "../domain/markdown";
+import type { ThemeTokens } from "./theme-tokens";
+export { THEME_TOKEN_NAMES, validateThemeTokens } from "./theme-tokens";
+export type { ThemeTokenName, ThemeTokens } from "./theme-tokens";
+import type { DecisionSettings } from "./decision-types";
+export type { DecisionSettings, DecisionView } from "./decision-types";
+export { DECISION_LOCAL_MODEL_REASON, DECISION_RULES_ONLY_REFUSAL } from "./decision-types";
+import type { KeybindMaps, KeybindWrite } from "./keybinds";
+export type { KeybindMaps, KeybindWrite } from "./keybinds";
 import { resolveArchiveBackend } from "./archive-backend";
 import {
 } from "./session-documents";
@@ -48,6 +56,7 @@ import { createSkillHandlers } from "./skill-handlers";
 import { createSessionLifecycleHandlers } from "./session-lifecycle-handlers";
 import { createSessionExtrasHandlers } from "./session-extras-handlers";
 import { createWorkspaceReadHandlers } from "./workspace-read-handlers";
+import { createSettingsHandlers } from "./settings-handlers";
 export {
   WORK_COMMAND_OPT_IN_OFF,
   WORK_WRITE_OPT_IN_OFF,
@@ -73,11 +82,7 @@ import {
 export * from "./chat-wire";
 export * from "./chat-memory";
 import {
-  KEYBIND_FORMS,
-  displayBinding,
-  keybindConflict,
   keybindTable,
-  normalizeKeybind,
 } from "./keybinds";
 import {
   BOOT_FAILED,
@@ -142,7 +147,6 @@ import {
   SESSION_FILES,
   sessionFromMeta,
 } from "../domain/session";
-import { listProviders } from "../llm/catalogue";
 import { listProjects } from "../services/work/register";
 import {
   listReportRuns,
@@ -157,15 +161,6 @@ import {
 } from "../services/skills/progress";
 import { restoreSession } from "../services/lockin/archive";
 import { loadLearningGraph } from "../services/knowledge/learning-graph";
-import {
-  PROMPT_DEFINITIONS,
-  isPromptId,
-  normalisePromptNote,
-  type PromptId,
-} from "../domain/prompts";
-
-import { UPDATE_REPO } from "../services/update";
-import { APP_VERSION } from "../version";
 import {
   openSession,
   sessionFolderFor,
@@ -320,158 +315,6 @@ export const CAPABILITIES = [
 ] as const;
 
 /** JSON-RPC error code for a boot refusal (server-defined range). */
-
-/**
- * The two stored keybind tables (`docs/data-model.md` §2).
- *
- * `ui.keybinds` holds leader chords (the space prefix plus a letter);
- * `ui.fixed_keybinds` holds the direct/fixed keys (`escape`, `j`, `ctrl+q`).
- * Both are `action id -> binding`, and neither carries a default: the default
- * action catalogue is the UI registry's, so this layer stores only what the
- * user changed.
- */
-export type KeybindMaps = {
-  keybinds: Record<string, string>;
-  fixedKeybinds: Record<string, string>;
-};
-
-/** One `keybinds.set` write, handed to `main.ts` as a config patch. */
-export type KeybindWrite = KeybindMaps & {
-  /**
-   * Actions whose override was removed, per table.
-   *
-   * A config patch merges tables, so a deletion is expressed as an empty
-   * binding; every read filters it out, which means "use the registry default".
-   */
-  cleared: { keybinds: string[]; fixedKeybinds: string[] };
-};
-
-/**
- * The twelve semantic theme tokens (`docs/design.md` §3.1).
- *
- * The **shell** owns the palette catalogue and every default: this list exists
- * only so the core can refuse a token name the editor could not have produced.
- * A token's meaning never changes (`success` is never repurposed), which is why
- * the set is closed rather than free-form.
- */
-export const THEME_TOKEN_NAMES = [
-  "background",
-  "surface",
-  "panel",
-  "foreground",
-  "muted",
-  "primary",
-  "secondary",
-  "accent",
-  "success",
-  "warning",
-  "error",
-  "line",
-] as const;
-
-export type ThemeTokenName = (typeof THEME_TOKEN_NAMES)[number];
-
-/** Stored `ui.custom_theme`: token name -> `#RRGGBB`. */
-export type ThemeTokens = Record<string, string>;
-
-/** `#RRGGBB`, exactly. A theme token is stored in this one form. */
-const THEME_COLOUR = /^#[0-9A-Fa-f]{6}$/;
-
-/**
- * Validate one `theme.custom.set` payload.
- *
- * An absent or non-object value is a malformed request; an unknown token name
- * and a value that is not `#RRGGBB` are refused *by name*, so the editor can say
- * which row is wrong. An empty object is valid and clears every override. Values
- * are normalised to upper case so one colour has one stored spelling; the read
- * path returns what the file holds.
- */
-export function validateThemeTokens(
-  input: unknown,
-): Result<ThemeTokens, { field: "tokens"; token?: string; message: string }> {
-  if (!isRecord(input)) {
-    return err({
-      field: "tokens",
-      message: "theme.custom.set requires a tokens object",
-    });
-  }
-  const tokens: ThemeTokens = {};
-  for (const [token, value] of Object.entries(input)) {
-    if (!(THEME_TOKEN_NAMES as readonly string[]).includes(token)) {
-      return err({
-        field: "tokens",
-        token,
-        message: `theme.custom.set: ${JSON.stringify(token)} is not a theme token; use ${THEME_TOKEN_NAMES.join(", ")}`,
-      });
-    }
-    if (typeof value !== "string" || !THEME_COLOUR.test(value)) {
-      return err({
-        field: "tokens",
-        token,
-        message: `theme.custom.set: ${token} must be a #RRGGBB colour (got ${JSON.stringify(value)})`,
-      });
-    }
-    tokens[token] = value.toUpperCase();
-  }
-  return ok(tokens);
-}
-
-/**
- * The stored optional decision layer (`docs/data-model.md` §2 `[decision_layer]`).
- *
- * Off by default, with no model. The layer's rules are always on; the local
- * model it could optionally rank search results with is not shipped, so a
- * stored `model` is only ever the empty string.
- */
-export type DecisionSettings = {
-  enabled: boolean;
-  model: string;
-};
-
-/**
- * The view every `decision.*` reply carries.
- *
- * `rulesOnly` is the literal `true` and `localModel.supported` the literal
- * `false`: this build runs the rules and nothing else, so a shell cannot render
- * a state that claims a local model is available. `localModel.reason` says why,
- * in one sentence, and is never a promise or a silent fallback
- * (`docs/product.md` §10.4).
- */
-export type DecisionView = DecisionSettings & {
-  rulesOnly: true;
-  localModel: { supported: false; reason: string };
-};
-
-/**
- * Why the optional local model is unavailable (`docs/product.md` §10.4).
- *
- * One sentence and always true: the app bundles no local model runtime, so
- * there is nothing to classify or rank with. It is not a setting the user can
- * close, which is why the view also carries `supported: false`.
- */
-export const DECISION_LOCAL_MODEL_REASON =
-  "No local model runtime is bundled in this build, so the decision layer runs rules only.";
-
-/**
- * The one refusal when a non-empty `decision_layer.model` would be stored.
- *
- * This build cannot run a local model, so storing a model name would be a
- * promise the app never keeps. Rules-only is the only mode, and the model stays
- * empty rather than being accepted and silently ignored.
- */
-export const DECISION_RULES_ONLY_REFUSAL =
-  "This build has no local model runtime, so the decision layer is rules-only; leave the model empty.";
-
-/**
- * The global Work write/command opt-in (`docs/product.md` §8.2).
- *
- * Both flags live in `config.toml` `[work]` and default to false. An approval
- * needs this flag **and** the resolved agent profile's own flag: the profile
- * cannot switch the global gate on, and the global gate cannot grant a
- * permission the profile does not have. The read is configuration, so a lower
- * layer (a tool call, a swarm worker, a plugin) cannot bypass it.
- */
-
 
 /** The slice of a booted app the protocol needs. `boot()` satisfies it. */
 export type CoreServices = Pick<Booted, "workspace" | "settings"> & {
@@ -1417,227 +1260,6 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     return success(id, chatSnapshot(controller.state(), controller.usage(), chatSeq));
   };
 
-  const settingsGet = async (id: RpcId): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    return success(id, (settingsOverride ?? current.value.settings) as unknown as Record<string, unknown>);
-  };
-
-  const providerList = async (id: RpcId): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    let linked: string[] = [];
-    if (current.value.linkedProviders) {
-      try {
-        linked = await current.value.linkedProviders();
-      } catch {
-        // A locked or missing keychain is not a catalogue failure: the list
-        // still renders and every row simply reads as not linked.
-        linked = [];
-      }
-    }
-    const providers = listProviders().map((spec) => ({
-      id: spec.id,
-      label: spec.label,
-      keyRequired: spec.keyRequired,
-      baseUrl: spec.baseUrl,
-      note: spec.note ?? "",
-      linked: linked.includes(spec.id),
-    }));
-    return success(id, { providers, linked });
-  };
-
-  const providerLink = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const providerId = params.providerId;
-    if (typeof providerId !== "string" || providerId.trim() === "") {
-      return invalid(id, "provider.link requires a provider id");
-    }
-    if (!listProviders().some((spec) => spec.id === providerId)) {
-      return invalid(id, `provider.link: unknown provider ${JSON.stringify(providerId)}`);
-    }
-    const key = params.key;
-    if (typeof key !== "string") {
-      return invalid(id, "provider.link requires a key string (empty only for a keyless endpoint)");
-    }
-    const baseUrl = params.baseUrl;
-    if (baseUrl !== undefined && typeof baseUrl !== "string") {
-      return invalid(id, "provider.link: baseUrl must be a string");
-    }
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    if (!current.value.linkProvider) {
-      return failure(id, -32601, "Provider linking is not available in this build", undefined, false);
-    }
-    const result = await current.value.linkProvider({
-      providerId,
-      key,
-      ...(baseUrl && baseUrl.trim() !== "" ? { baseUrl: baseUrl.trim() } : {}),
-    });
-    if (!result.ok) {
-      const error = result.error;
-      const message =
-        "message" in error && typeof error.message === "string"
-          ? error.message
-          : error.kind === "rate-limit"
-            ? `${error.provider} is rate limiting this key; try again later`
-            : "the provider rejected the key";
-      const hint =
-        "hint" in error && typeof error.hint === "string" ? error.hint : undefined;
-      return failure(
-        id,
-        BOOT_FAILED,
-        message,
-        {
-          kind: error.kind,
-          provider: providerId,
-          ...(hint === undefined ? {} : { hint }),
-        },
-        false,
-      );
-    }
-    return success(id, {
-      providerId,
-      models: result.value.models,
-      secretRef: result.value.secretRef,
-      requests: result.value.requests,
-      modelSelected: null,
-    });
-  };
-
-
-  const promptItems = (note: (id: PromptId) => string) =>
-    PROMPT_DEFINITIONS.map((definition) => {
-      const text = note(definition.id);
-      return { ...definition, note: text, custom: text.trim() !== "" };
-    });
-
-  const promptsList = async (id: RpcId): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    return success(id, { items: promptItems(current.value.promptNote ?? (() => "")) });
-  };
-
-  /**
-   * Set or clear one prompt note.
-   *
-   * The note is guidance appended to that generator; the reply's shape, its
-   * limits and the safety rules are unchanged. An omitted `text` clears it, as
-   * does an empty string.
-   */
-  const promptsSet = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const promptId = params.id;
-    if (!isPromptId(promptId)) {
-      return invalid(
-        id,
-        `prompts.set: unknown prompt ${JSON.stringify(promptId)}; expected one of ${PROMPT_DEFINITIONS.map((entry) => entry.id).join(", ")}`,
-      );
-    }
-    const normalised = normalisePromptNote(params.text ?? null);
-    if (!normalised.ok) return invalid(id, `prompts.set: ${normalised.message}`);
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const save = current.value.savePrompt;
-    if (!save) {
-      return failure(id, -32601, "Prompt editing is not available in this build", { kind: "prompt", id: promptId }, false);
-    }
-    const written = await save(promptId, normalised.note);
-    if (!written.ok) {
-      return failure(
-        id,
-        BOOT_FAILED,
-        oneLine(written.error.message),
-        { kind: "config", message: oneLine(written.error.message) },
-        false,
-      );
-    }
-    return success(id, { items: promptItems(current.value.promptNote ?? (() => "")) });
-  };
-
-  /** The running version and the public release repository. No network. */
-  const updateInfo = (id: RpcId): JsonRpcResponse =>
-    success(id, { current: APP_VERSION, repo: UPDATE_REPO });
-
-  /**
-   * Ask the release feed whether a newer build exists.
-   *
-   * A check is read-only and explicit: no background re-check, no automatic
-   * download and no retry. The desktop app cannot replace its own bundle from
-   * here, so the reply carries the release page for the user to open.
-   */
-  const updateCheck = async (id: RpcId): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const check = current.value.updateCheck;
-    if (!check) {
-      return failure(
-        id,
-        BOOT_FAILED,
-        "update checking is not available in this build",
-        { kind: "update", message: "update checking is not available in this build" },
-        false,
-      );
-    }
-    let result: import("../services/update").UpdateCheck;
-    try {
-      result = await check();
-    } catch (error) {
-      return failure(
-        id,
-        BOOT_FAILED,
-        oneLine(messageOf(error)),
-        { kind: "update", message: oneLine(messageOf(error)) },
-        false,
-      );
-    }
-    if (result.kind === "available") {
-      return success(id, {
-        current: result.current,
-        kind: "available",
-        version: result.info.version,
-        asset: result.info.asset,
-        url: result.info.releaseUrl,
-      });
-    }
-    if (result.kind === "current") {
-      return success(id, { current: result.current, kind: "current", latest: result.latest });
-    }
-    return success(id, {
-      current: result.current,
-      kind: "unavailable",
-      message: result.message,
-    });
-  };
-
-  /**
-   * The MCP surface.
-   *
-   * `mcp.list` projects the configured servers exactly as the TUI's Plugins pane
-   * does: name, transport, enabled flag, connection status and tool names. It
-   * never returns `command`, `args`, `env` or a credential, and it never starts
-   * a process — a server that is not connected simply reads as `stopped`.
-   *
-   * `mcp.refresh` is the only method that may spawn a stdio server, and only
-   * because the shell asked for it; boot's own background start stays the
-   * startup path. A server that fails carries its status on the row.
-   *
-   * `mcp.policy.get` returns the stored matrix verbatim. An absent policy is
-   * `{}`: the core never invents cells, and `DEFAULT_PLUGIN_POLICY` is applied
-   * by the policy engine, not by this transport.
-   *
-   * `mcp.policy.set` writes exactly one cell and is configuration only: it never
-   * starts a server, calls a tool or approves a plugin write.
-   *
-   * `mcp.confirm` answers one pending write prompt. It resolves an in-memory
-   * request only — it never boots the app, starts a server, writes config or
-   * remembers the answer — and an unknown or late request id is a benign no-op
-   * so a shell that raced a timeout is not punished with an error.
-   */
   const mcpPolicy = (current: CoreServices): PluginPolicy =>
     policyOverride ?? current.config?.plugins.policy ?? {};
 
@@ -1783,349 +1405,6 @@ export function createCoreServer(options: CoreOptions): CoreServer {
    * value is a cleared override — the same sentinel `ui.keybinds` uses — and is
    * filtered out, so clearing the palette reads back as `{}`.
    */
-  const themeTokensStored = (current: CoreServices): ThemeTokens => {
-    const stored = themeTokensOverride ?? current.config?.ui.custom_theme ?? {};
-    const tokens: ThemeTokens = {};
-    for (const [token, value] of Object.entries(stored)) {
-      if (typeof value === "string" && value.trim() !== "") tokens[token] = value;
-    }
-    return tokens;
-  };
-
-  /**
-   * Read the custom palette tokens (`docs/product.md` §12 Themes).
-   *
-   * This is a read: it writes nothing and boots no new state. `{}` is a valid
-   * answer (no overrides), not a failure, and no colour is filled in here.
-   */
-  const themeCustomGet = async (id: RpcId): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    return success(id, { tokens: themeTokensStored(current.value) });
-  };
-
-  /**
-   * Replace the custom palette tokens (`docs/product.md` §12 Themes).
-   *
-   * The map is a replacement, not a merge: a token the request omits is cleared,
-   * which is what "reset one token" means in the editor, and `{}` clears the
-   * palette. Names and colours are validated here (`-32602`, naming the token);
-   * a build without the config writer is `-32601`; a failed write is one
-   * `-32000` `data: {kind: "config", message}` that leaves the previous tokens
-   * in place. Nothing is retried.
-   *
-   * The core only stores and validates: it never decides what a colour means or
-   * pairs colour with meaning. A theme token keeps its semantic role, and the
-   * shell still pairs every colour with a label or a glyph.
-   */
-  const themeCustomSet = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const validated = validateThemeTokens(params.tokens);
-    if (!validated.ok) {
-      const message = validated.error.message;
-      return invalid(id, message);
-    }
-
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    if (!current.value.saveThemeTokens) {
-      return failure(
-        id,
-        -32601,
-        "Custom palette editing is not available in this build",
-        undefined,
-        false,
-      );
-    }
-
-    const saved = await current.value.saveThemeTokens(validated.value);
-    if (!saved.ok) {
-      const message = oneLine(saved.error.message);
-      return failure(id, BOOT_FAILED, message, { kind: "config", message }, false);
-    }
-    // The config write is the truth: report the filtered stored map, not our
-    // guess at what it merged.
-    const tokens: ThemeTokens = {};
-    for (const [token, value] of Object.entries(saved.value)) {
-      if (typeof value === "string" && value.trim() !== "") tokens[token] = value;
-    }
-    themeTokensOverride = tokens;
-    return success(id, { tokens });
-  };
-
-  /* ------------------------------------------------------------------------ */
-  /* Keybinds — read and write the two stored binding tables                  */
-  /* ------------------------------------------------------------------------ */
-
-  /**
-   * The stored keybind tables.
-   *
-   * `ui.keybinds` and `ui.fixed_keybinds` are the only source: the core never
-   * invents a default, so a fresh workspace reads `{}` and the UI registry
-   * supplies its own default table. An empty entry is a cleared override and is
-   * filtered out.
-   */
-  const keybindMaps = (current: CoreServices): KeybindMaps =>
-    keybindsOverride ?? {
-      keybinds: keybindTable(current.config?.ui.keybinds),
-      fixedKeybinds: keybindTable(current.config?.ui.fixed_keybinds),
-    };
-
-  const keybindsGet = async (id: RpcId): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    return success(id, { ...keybindMaps(current.value) });
-  };
-
-  /**
-   * Set or clear one action's binding (`docs/product.md` §2.5).
-   *
-   * This is the storage half of the keymap registry, not the registry: the core
-   * knows no action ids and no defaults. It validates the binding *form*,
-   * refuses a duplicate across **both** tables, writes one config patch and
-   * echoes the stored tables. `binding: null` (or an omitted `binding`) removes
-   * the override, so the action falls back to the registry default.
-   *
-   * `fixed` selects the table — `false`/absent means `ui.keybinds` (leader and
-   * direct chords), `true` means `ui.fixed_keybinds` (mode and navigation keys).
-   * With no `fixed` flag, an action already overridden in `fixed_keybinds` keeps
-   * its place rather than being silently moved by a rename.
-   */
-  const keybindsSet = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const rawAction = params.action;
-    if (typeof rawAction !== "string" || rawAction.trim() === "") {
-      return invalid(id, "keybinds.set requires a non-empty action id");
-    }
-    const action = rawAction.trim();
-
-    const rawFixed = params.fixed;
-    if (rawFixed !== undefined && typeof rawFixed !== "boolean") {
-      return invalid(id, "keybinds.set: fixed must be true or false");
-    }
-
-    // An omitted `binding` is the same request as `binding: null`: clear it.
-    const rawBinding = params.binding;
-    let binding: string | null = null;
-    if (rawBinding !== null && rawBinding !== undefined) {
-      if (typeof rawBinding !== "string") {
-        return invalid(id, `keybinds.set: a binding is ${KEYBIND_FORMS}`);
-      }
-      const normalized = normalizeKeybind(rawBinding);
-      if (normalized === null) {
-        return invalid(
-          id,
-          `keybinds.set: ${JSON.stringify(rawBinding)} is not a binding; use ${KEYBIND_FORMS}`,
-        );
-      }
-      binding = normalized;
-    }
-
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    if (!current.value.saveKeybinds) {
-      return failure(
-        id,
-        -32601,
-        "Keybinding editing is not available in this build",
-        undefined,
-        false,
-      );
-    }
-
-    const stored = keybindMaps(current.value);
-    const keybinds = { ...stored.keybinds };
-    const fixedKeybinds = { ...stored.fixedKeybinds };
-    const tables = { keybinds, fixedKeybinds };
-    const cleared = { keybinds: [] as string[], fixedKeybinds: [] as string[] };
-
-    if (binding === null) {
-      // Clearing removes the override from both tables: an action can only live
-      // in one, but a hand-edited config could once have carried it in both.
-      for (const name of ["keybinds", "fixedKeybinds"] as const) {
-        if (!(action in tables[name])) continue;
-        delete tables[name][action];
-        cleared[name].push(action);
-      }
-      // Nothing stored, nothing to write: the default already applies.
-      if (cleared.keybinds.length === 0 && cleared.fixedKeybinds.length === 0) {
-        return success(id, { keybinds, fixedKeybinds });
-      }
-    } else {
-      const conflict = keybindConflict(action, binding, [keybinds, fixedKeybinds]);
-      if (conflict !== null) {
-        const message = `${displayBinding(binding)} is already bound to ${conflict}.`;
-        return failure(
-          id,
-          BOOT_FAILED,
-          message,
-          { kind: "keybind", action, binding, conflict, message },
-          false,
-        );
-      }
-      const target =
-        rawFixed === undefined
-          ? action in fixedKeybinds
-            ? "fixedKeybinds"
-            : "keybinds"
-          : rawFixed
-            ? "fixedKeybinds"
-            : "keybinds";
-      // A move is a removal plus an insert; the other table must not keep a
-      // stale override that would shadow the new one.
-      for (const name of ["keybinds", "fixedKeybinds"] as const) {
-        if (name === target || !(action in tables[name])) continue;
-        delete tables[name][action];
-        cleared[name].push(action);
-      }
-      tables[target][action] = binding;
-    }
-
-    const saved = await current.value.saveKeybinds({ keybinds, fixedKeybinds, cleared });
-    if (!saved.ok) {
-      const message = oneLine(saved.error.message);
-      return failure(id, BOOT_FAILED, message, { kind: "keybind", action, message }, false);
-    }
-    // The config write is the truth: report what it stored, not our guess.
-    keybindsOverride = {
-      keybinds: keybindTable(saved.value.keybinds),
-      fixedKeybinds: keybindTable(saved.value.fixedKeybinds),
-    };
-    return success(id, { ...keybindsOverride });
-  };
-
-  /* ------------------------------------------------------------------------ */
-  /* Optional decision layer — off by default, rules-only in this build        */
-  /* ------------------------------------------------------------------------ */
-
-  /**
-   * The stored decision-layer values.
-   *
-   * `booted.config` is the boot snapshot, so the override wins after a write.
-   * A build whose boot carries no config falls back to the documented defaults
-   * (`docs/data-model.md` §2): disabled, no model.
-   */
-  const decisionSettings = (current: CoreServices): DecisionSettings =>
-    decisionOverride ?? {
-      enabled: current.config?.decision_layer?.enabled ?? false,
-      model: current.config?.decision_layer?.model ?? "",
-    };
-
-  /**
-   * The whole view: the stored values plus the two facts this build guarantees.
-   *
-   * `rulesOnly` and `localModel.supported` are literals, not read from config,
-   * because no config value can make a local runtime exist.
-   */
-  const decisionView = (stored: DecisionSettings): DecisionView => ({
-    enabled: stored.enabled,
-    model: stored.model,
-    rulesOnly: true,
-    localModel: { supported: false, reason: DECISION_LOCAL_MODEL_REASON },
-  });
-
-  /**
-   * Read the optional decision layer (`docs/product.md` §10.4).
-   *
-   * Off by default and rules-only in this build. The reply says both things in
-   * its own shape, so the shell never has to infer that a model is missing.
-   * This is a read: it writes nothing and boots no new state.
-   */
-  const decisionGet = async (id: RpcId): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    return success(id, { ...decisionView(decisionSettings(current.value)) });
-  };
-
-  /**
-   * Write the decision layer's two stored values.
-   *
-   * The rules are always on; `enabled` therefore records whether the optional
-   * ranking layer may run, not whether rules apply. Since this build bundles no
-   * local model runtime, **any request that would store a non-empty `model` is
-   * refused** — including enabling while a hand-edited model is already present.
-   * The alternative (storing the name and reporting `supported: false`) would
-   * leave a config value that claims a capability the app does not have, so the
-   * one rule is: `decision_layer.model` is only ever empty. Enabling with an
-   * empty model is allowed and is exactly the rules-only mode.
-   *
-   * A malformed shape is `-32602` and never boots; a build without the config
-   * writer is `-32601`; the refusal and a failed write are `-32000`, are
-   * reported once, and write nothing.
-   */
-  const decisionSet = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const rawEnabled = params.enabled;
-    if (rawEnabled !== undefined && typeof rawEnabled !== "boolean") {
-      return invalid(id, "decision.set: enabled must be true or false");
-    }
-    const rawModel = params.model;
-    if (rawModel !== undefined && typeof rawModel !== "string") {
-      return invalid(id, "decision.set: model must be a string");
-    }
-
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-
-    const stored = decisionSettings(current.value);
-    // Neither field asked for: no write, and the reply is the same view.
-    if (rawEnabled === undefined && rawModel === undefined) {
-      return success(id, { ...decisionView(stored) });
-    }
-
-    const next: DecisionSettings = {
-      enabled: rawEnabled ?? stored.enabled,
-      model: rawModel === undefined ? stored.model : rawModel.trim(),
-    };
-
-    // One rule, one message: a non-empty model is never stored in this build.
-    if (next.model !== "") {
-      return failure(
-        id,
-        BOOT_FAILED,
-        DECISION_RULES_ONLY_REFUSAL,
-        { kind: "decision", message: DECISION_RULES_ONLY_REFUSAL },
-        false,
-      );
-    }
-
-    if (!current.value.saveDecision) {
-      return failure(
-        id,
-        -32601,
-        "Decision-layer editing is not available in this build",
-        undefined,
-        false,
-      );
-    }
-
-    const saved = await current.value.saveDecision(next);
-    if (!saved.ok) {
-      const message = oneLine(saved.error.message);
-      return failure(id, BOOT_FAILED, message, { kind: "config", message }, false);
-    }
-    // The config write is the truth: echo what it stored, not our request.
-    decisionOverride = saved.value;
-    return success(id, { ...decisionView(saved.value) });
-  };
-
-  /* ------------------------------------------------------------------------ */
-  /* Global Work write/command opt-in — the outer approval gate               */
-  /* ------------------------------------------------------------------------ */
-
-  /**
-   * The stored global opt-in, with the post-write override winning.
-   *
-   * Both flags default to false (`docs/data-model.md` §2 `[work]`), so a build
-   * whose boot carries no config refuses every approval rather than granting one
-   * by omission.
-   */
   const workPermissionsStored = (current: CoreServices): WorkPermissions =>
     workPermissionsOverride ?? {
       allowWrite: current.config?.work?.allow_write ?? false,
@@ -2265,6 +1544,63 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     sourceList,
     sourceAdd,
   } = workspaceRead.handlers;
+
+  const settingsSurface = createSettingsHandlers({
+    services,
+    settingsView: (current) => settingsOverride ?? current.settings,
+    setSettings: (view) => {
+      settingsOverride = view;
+    },
+    keybinds: (current) =>
+      keybindsOverride ?? {
+        keybinds: keybindTable(current.config?.ui.keybinds),
+        fixedKeybinds: keybindTable(current.config?.ui.fixed_keybinds),
+      },
+    setKeybinds: (maps) => {
+      keybindsOverride = maps;
+    },
+    theme: (current) => themeTokensOverride ?? current.config?.ui.custom_theme ?? {},
+    setTheme: (tokens) => {
+      themeTokensOverride = tokens;
+    },
+    decision: (current) =>
+      decisionOverride ?? {
+        enabled: current.config?.decision_layer?.enabled ?? false,
+        model: current.config?.decision_layer?.model ?? "",
+      },
+    setDecision: (settings) => {
+      decisionOverride = settings;
+    },
+  });
+  const {
+    settingsGet,
+    providerList,
+    providerLink,
+    promptsList,
+    promptsSet,
+    updateInfo,
+    updateCheck,
+    themeCustomGet,
+    themeCustomSet,
+    keybindsGet,
+    keybindsSet,
+    decisionGet,
+    decisionSet,
+  } = settingsSurface.handlers as {
+    settingsGet: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
+    providerList: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
+    providerLink: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
+    promptsList: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
+    promptsSet: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
+    updateInfo: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
+    updateCheck: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
+    themeCustomGet: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
+    themeCustomSet: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
+    keybindsGet: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
+    keybindsSet: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
+    decisionGet: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
+    decisionSet: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
+  };
 
   const teach = createTeachHandlers({
     services,
@@ -3071,23 +2407,23 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       case "achievements.list":
         return achievementsList(id);
       case "settings.get":
-        return settingsGet(id);
+        return settingsGet(id, params);
       case "settings.patch":
         return settingsPatch(id, params);
       case "theme.custom.get":
-        return themeCustomGet(id);
+        return themeCustomGet(id, params);
       case "theme.custom.set":
         return themeCustomSet(id, params);
       case "decision.get":
-        return decisionGet(id);
+        return decisionGet(id, params);
       case "decision.set":
         return decisionSet(id, params);
       case "keybinds.get":
-        return keybindsGet(id);
+        return keybindsGet(id, params);
       case "keybinds.set":
         return keybindsSet(id, params);
       case "provider.list":
-        return providerList(id);
+        return providerList(id, params);
       case "provider.link":
         return providerLink(id, params);
       case "work.list":
@@ -3230,13 +2566,13 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       case "research.cancel":
         return researchCancel(id, params);
       case "prompts.list":
-        return promptsList(id);
+        return promptsList(id, params);
       case "prompts.set":
         return promptsSet(id, params);
       case "update.info":
-        return updateInfo(id);
+        return updateInfo(id, params);
       case "update.check":
-        return updateCheck(id);
+        return updateCheck(id, params);
       case "teach.side.snapshot":
         return teachSideSnapshot(id, params);
       case "teach.side.send":

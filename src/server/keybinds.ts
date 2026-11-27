@@ -70,3 +70,27 @@ export function keybindConflict(
   return null;
 }
 
+/**
+ * The two stored keybind tables (`docs/data-model.md` §2).
+ *
+ * `ui.keybinds` holds leader chords (the space prefix plus a letter);
+ * `ui.fixed_keybinds` holds the direct/fixed keys (`escape`, `j`, `ctrl+q`).
+ * Both are `action id -> binding`, and neither carries a default: the default
+ * action catalogue is the UI registry's, so this layer stores only what the
+ * user changed.
+ */
+export type KeybindMaps = {
+  keybinds: Record<string, string>;
+  fixedKeybinds: Record<string, string>;
+};
+
+/** One `keybinds.set` write, handed to `main.ts` as a config patch. */
+export type KeybindWrite = KeybindMaps & {
+  /**
+   * Actions whose override was removed, per table.
+   *
+   * A config patch merges tables, so a deletion is expressed as an empty
+   * binding; every read filters it out, which means "use the registry default".
+   */
+  cleared: { keybinds: string[]; fixedKeybinds: string[] };
+};
