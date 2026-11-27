@@ -11,26 +11,6 @@ struct _MyApplication {
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
-// Flutter 3.50's OpenGL compositor renders the frame offset by half the window
-// on NVIDIA's proprietary driver because glBlitFramebuffer is blocklisted
-// (flutter/flutter#195885, fixed in 3.50.1). The software renderer avoids that
-// compositor entirely. It is slower, so it is only selected when an NVIDIA
-// device is present; set LOCKEDIN_RENDERER=opengl to opt out, or set
-// FLUTTER_LINUX_RENDERER explicitly to choose any engine renderer.
-static gboolean use_software_renderer() {
-  const gchar* renderer = g_getenv("FLUTTER_LINUX_RENDERER");
-  if (renderer != nullptr) {
-    return g_strcmp0(renderer, "software") == 0;
-  }
-  if (g_strcmp0(g_getenv("LOCKEDIN_RENDERER"), "opengl") == 0) {
-    return FALSE;
-  }
-  // Either the device node or the driver proc entry is enough; some containers
-  // and secure-boot setups hide one of them.
-  return g_file_test("/dev/nvidiactl", G_FILE_TEST_EXISTS) ||
-         g_file_test("/proc/driver/nvidia/version", G_FILE_TEST_EXISTS);
-}
-
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
@@ -57,9 +37,10 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_set_size_request(GTK_WIDGET(window), 800, 600);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
-  if (use_software_renderer()) {
-    // The software renderer draws through Skia, so Impeller must be off too.
-    g_setenv("FLUTTER_LINUX_RENDERER", "software", TRUE);
+  // An explicit software choice is a Skia compositor; Impeller cannot draw to
+  // it. This is the engine's own override (useful under Xvfb), not the removed
+  // NVIDIA selection.
+  if (g_strcmp0(g_getenv("FLUTTER_LINUX_RENDERER"), "software") == 0) {
     fl_dart_project_set_enable_impeller(project, FALSE);
   }
   fl_dart_project_set_dart_entrypoint_arguments(

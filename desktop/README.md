@@ -52,13 +52,11 @@ The script compiles the Bun core with `bun build --compile` and copies
 `CoreStore` prefers that sidecar, so the packaged app needs no Bun install; in
 development it falls back to `bun run ../src/server/main.ts`.
 
-### NVIDIA renderer fallback
+### Linux renderer
 
-Flutter 3.50.0 renders offset on NVIDIA's proprietary driver
-(flutter/flutter#195885). The Linux runner switches to Flutter's software
-renderer when `/dev/nvidiactl` is present; it is slower but correct. Set
-`LOCKEDIN_RENDERER=opengl` to force the GPU path once you are on Flutter 3.50.1
-or newer, then delete the fallback from `linux/runner/my_application.cc`.
+The pinned Flutter is **3.50.1**, which fixes the NVIDIA OpenGL offset bug
+(flutter/flutter#195885). The runner uses the engine's default renderer;
+`FLUTTER_LINUX_RENDERER` is available as the engine's own override.
 
 ## Layout
 

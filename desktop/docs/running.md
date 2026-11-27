@@ -87,7 +87,6 @@ Useful environment variables (all optional, read by the core):
 | `LOCKEDIN_WORKSPACE` | use this folder as the workspace (created if empty) |
 | `LOCKEDIN_DATA_DIR` | put app data (usage, stats, logs, Chill history) here |
 | `LOCKEDIN_KEYRING_ADDON` | point at a bundled `@napi-rs/keyring` entry file |
-| `LOCKEDIN_RENDERER=opengl` | opt out of the NVIDIA software-renderer fallback |
 
 A machine with the v0.7 app installed has a `~/LockedIn` that this build must
 not touch. In that case it says so and uses `~/LockedIn-Tui` instead.

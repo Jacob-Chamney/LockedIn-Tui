@@ -81,20 +81,12 @@ Flutter paints charts itself; there is no Qt Charts/Graphs dependency.
   painter.
 - Charts must have an empty state and a text alternative (numbers in the cards).
 
-## Linux renderer selection
+## Linux renderer
 
-Flutter 3.50.0 has an OpenGL-compositor offset bug on NVIDIA's proprietary
-driver: the first layer is drawn at `(-width/2, -height/2)` when
-`glBlitFramebuffer` is blocklisted (flutter/flutter#195885, fixed in 3.50.1).
-
-`desktop/linux/runner/my_application.cc` therefore selects
-`FLUTTER_LINUX_RENDERER=software` and disables Impeller when
-`/dev/nvidiactl` exists, before the engine is created. The software compositor
-avoids the broken OpenGL path at a CPU-rendering cost.
-
-- `LOCKEDIN_RENDERER=opengl` opts out (use it to test a fixed engine).
-- An explicit `FLUTTER_LINUX_RENDERER` value always wins.
-- Delete the fallback when the pinned Flutter is 3.50.1 or newer.
+The pinned Flutter is **3.50.1**, which fixes the NVIDIA OpenGL compositor
+offset (flutter/flutter#195885). The app does not select a renderer: the engine
+default is used, and `FLUTTER_LINUX_RENDERER` is the engine's own override for a
+machine that needs one.
 
 ## Native integration
 
