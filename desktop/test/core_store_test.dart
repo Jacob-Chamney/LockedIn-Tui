@@ -228,4 +228,25 @@ void main() {
     expect(core.calls, contains('mcp.server.remove'));
     expect(store.mcpServers.any((server) => server.name == 'docs'), isFalse);
   });
+  test(
+    'the GitHub token status/link/clear round-trips without exposing it',
+    () async {
+      final core = FakeCore();
+      final store = CoreStore(connection: core);
+      addTearDown(store.dispose);
+      await store.start();
+
+      await store.refreshGithubToken();
+      expect(store.githubTokenLinked, isFalse);
+
+      final login = await store.linkGithubToken('ghp_${'a' * 36}');
+      expect(login, 'friend');
+      expect(store.githubTokenLinked, isTrue);
+      expect(core.calls, contains('archive.github.token.link'));
+
+      await store.clearGithubToken();
+      expect(store.githubTokenLinked, isFalse);
+      expect(core.calls, contains('archive.github.token.clear'));
+    },
+  );
 }

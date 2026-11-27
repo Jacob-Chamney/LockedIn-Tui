@@ -27,6 +27,9 @@ SettingsView settingsSnapshot({
   dataDir: '/tmp/lockedin-data',
   archiveBackend: 'folder',
   archiveFolder: '',
+  archiveGithubRepo: '',
+  archiveGithubBranch: "main",
+  archiveGithubConsent: false,
   historyLimit: 20,
   responseStyle: 'normal',
   tutorPolicy: 'direct',
@@ -70,11 +73,11 @@ const _policy = PluginPolicy(<String, Map<String, String>>{
 });
 
 /// Row indices in [settingsSnapshot] with two MCP servers and six policy
-/// commands: USER 0-1, MODELS 2-6, USAGE 7-10, STORAGE 11-14, PLUGINS 15-29.
+/// commands: USER 0-1, MODELS 2-6, USAGE 7-10, STORAGE 11-18, PLUGINS 19-33.
 const _rowIndex = <String, int>{
-  'mcp-servers': 15,
-  'mcp-server-notes': 16,
-  'mcp-server-wiki': 17,
+  'mcp-servers': 19,
+  'mcp-server-notes': 20,
+  'mcp-server-wiki': 21,
 };
 
 Future<void> pumpPage(

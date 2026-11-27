@@ -18,6 +18,12 @@ export type SettingsView = {
   dataDir: string
   archiveBackend: string
   archiveFolder: string
+  /** `archive.github.repo`: owner/name, empty until configured. */
+  archiveGithubRepo: string
+  /** `archive.github.branch`: the branch pushes target. */
+  archiveGithubBranch: string
+  /** `archive.github.consent`: one-time permission to leave the machine. */
+  archiveGithubConsent: boolean
   historyLimit: number
   responseStyle: string
   tutorPolicy: string

@@ -53,6 +53,12 @@ class SettingsPage extends StatelessWidget {
     this.onReadMcpServer,
     this.onSetMcpServer,
     this.onRemoveMcpServer,
+    this.githubTokenLinked,
+    this.githubTokenLoading = false,
+    this.githubTokenError,
+    this.onRefreshGithubToken,
+    this.onLinkGithubToken,
+    this.onClearGithubToken,
     this.decision,
     this.decisionLoading = false,
     this.decisionError,
@@ -127,6 +133,14 @@ class SettingsPage extends StatelessWidget {
 
   /// Remove one server's config table (`mcp.server.remove`). Null hides remove.
   final Future<void> Function(String name)? onRemoveMcpServer;
+
+  /// Whether a GitHub archive token is in the keychain; null before the read.
+  final bool? githubTokenLinked;
+  final bool githubTokenLoading;
+  final String? githubTokenError;
+  final Future<void> Function()? onRefreshGithubToken;
+  final Future<String> Function(String token)? onLinkGithubToken;
+  final Future<void> Function()? onClearGithubToken;
 
   /// The decision layer's stored view (`decision.get`), read by the shell when
   /// Settings opens. Null before the first read: the group then says the layer
@@ -309,6 +323,12 @@ class SettingsPage extends StatelessWidget {
       onReadMcpServer: onReadMcpServer,
       onSetMcpServer: onSetMcpServer,
       onRemoveMcpServer: onRemoveMcpServer,
+      githubTokenLinked: githubTokenLinked,
+      githubTokenLoading: githubTokenLoading,
+      githubTokenError: githubTokenError,
+      onRefreshGithubToken: onRefreshGithubToken,
+      onLinkGithubToken: onLinkGithubToken,
+      onClearGithubToken: onClearGithubToken,
       decision: decision,
       decisionLoading: decisionLoading,
       decisionError: decisionError,
@@ -354,6 +374,12 @@ class _SettingsBody extends StatefulWidget {
     this.onReadMcpServer,
     this.onSetMcpServer,
     this.onRemoveMcpServer,
+    this.githubTokenLinked,
+    this.githubTokenLoading = false,
+    this.githubTokenError,
+    this.onRefreshGithubToken,
+    this.onLinkGithubToken,
+    this.onClearGithubToken,
     this.decision,
     this.decisionLoading = false,
     this.decisionError,
@@ -401,6 +427,14 @@ class _SettingsBody extends StatefulWidget {
 
   /// Remove one server's config table. Null hides remove.
   final Future<void> Function(String name)? onRemoveMcpServer;
+
+  /// Whether a GitHub archive token is in the keychain; null before the read.
+  final bool? githubTokenLinked;
+  final bool githubTokenLoading;
+  final String? githubTokenError;
+  final Future<void> Function()? onRefreshGithubToken;
+  final Future<String> Function(String token)? onLinkGithubToken;
+  final Future<void> Function()? onClearGithubToken;
 
   /// The decision layer's stored view, or null before the first read.
   final DecisionView? decision;
@@ -463,6 +497,52 @@ class _SettingsBodyState extends State<_SettingsBody> {
   ///
   /// `setState` is protected, so a part-file extension cannot call it directly.
   void refresh(VoidCallback fn) => setState(fn);
+
+  Future<void> _linkGithubToken() async {
+    final link = widget.onLinkGithubToken;
+    if (link == null) return;
+    setState(() => _githubActionError = null);
+    await showDialog<void>(
+      context: context,
+      builder: (_) => GithubTokenDialog(onSave: link),
+    );
+  }
+
+  Future<void> _clearGithubToken() async {
+    final clear = widget.onClearGithubToken;
+    if (clear == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('clear GitHub token'),
+        content: const Text(
+          'Remove the stored GitHub archive token from the OS keychain? '
+          'Pushes will refuse until a token is linked again.',
+        ),
+        actions: [
+          TextButton(
+            key: const ValueKey('github-token-clear-cancel'),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: const ValueKey('github-token-clear-confirm'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _githubActionError = null);
+    try {
+      await clear();
+    } catch (failure) {
+      if (mounted) {
+        setState(() => _githubActionError = userMessage(failure));
+      }
+    }
+  }
 
   Future<void> _addMcpServer() async {
     final save = widget.onSetMcpServer;
@@ -557,6 +637,9 @@ class _SettingsBodyState extends State<_SettingsBody> {
   /// The last add/edit/remove failure, shown under the server actions.
   String? _mcpActionError;
 
+  /// The last GitHub-token link/clear failure, shown under the archive actions.
+  String? _githubActionError;
+
   /// The keybind row waiting for its next chord, or null.
   String? _capturingId;
 
@@ -574,6 +657,12 @@ class _SettingsBodyState extends State<_SettingsBody> {
   void initState() {
     super.initState();
     _rebuildRows();
+    // The token is a keychain read, not part of the settings snapshot. It is
+    // started after this frame: the read notifies the store, and a notification
+    // during build would mark the enclosing CoreScope dirty mid-frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onRefreshGithubToken?.call();
+    });
     _scroll.addListener(_syncActiveGroup);
     // The first group is active before any scroll; the post-frame callback only
     // confirms it once the rail and groups have a size.
@@ -613,6 +702,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
       updateChecking: widget.updateChecking,
       updateError: widget.updateError,
       prompts: widget.prompts,
+      githubTokenLinked: widget.githubTokenLinked,
     );
     _allGroups = _groups;
     final query = _query.trim().toLowerCase();

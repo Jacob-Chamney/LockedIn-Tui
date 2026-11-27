@@ -22,6 +22,9 @@ SettingsView populatedSettings() => const SettingsView(
   dataDir: '/home/friend/.local/share/lockedin',
   archiveBackend: 'github',
   archiveFolder: '/home/friend/LockedIn-archive',
+  archiveGithubRepo: 'me/lockedin-archive',
+  archiveGithubBranch: "main",
+  archiveGithubConsent: false,
   historyLimit: 20,
   responseStyle: 'normal',
   tutorPolicy: 'direct',
@@ -45,6 +48,9 @@ SettingsView emptySettings() => const SettingsView(
   dataDir: '',
   archiveBackend: '',
   archiveFolder: '',
+  archiveGithubRepo: '',
+  archiveGithubBranch: "main",
+  archiveGithubConsent: false,
   historyLimit: 0,
   responseStyle: '',
   tutorPolicy: '',
@@ -89,6 +95,9 @@ SettingsView editableSettings() => const SettingsView(
   dataDir: '/home/friend/.local/share/lockedin',
   archiveBackend: 'folder',
   archiveFolder: '/home/friend/LockedIn-archive',
+  archiveGithubRepo: '',
+  archiveGithubBranch: "main",
+  archiveGithubConsent: false,
   historyLimit: 20,
   responseStyle: 'normal',
   tutorPolicy: 'direct',
@@ -107,7 +116,11 @@ const _rowIndex = <String, int>{
   'period': 8,
   'warn-at': 9,
   'pause-at-limit': 10,
-  'history-limit': 14,
+  'archive-backend': 12,
+  'archive-github-repo': 14,
+  'archive-github-branch': 15,
+  'archive-github-consent': 16,
+  'history-limit': 17,
 };
 
 Future<void> selectRow(WidgetTester tester, String id) async {
@@ -933,6 +946,110 @@ void main() {
       findsNothing,
       reason: 'scrolling moves the active section',
     );
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('archive backend, repo and consent are editable', (tester) async {
+    final patches = <Map<String, dynamic>>[];
+    await pumpPage(
+      tester,
+      SettingsPage(
+        settings: populatedSettings(),
+        loading: false,
+        onSaveSettings: (patch) async => patches.add(patch),
+      ),
+    );
+
+    await selectRow(tester, 'archive-backend');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(patches.last, {
+      'archive': {'backend': 'folder'},
+    });
+
+    await selectRow(tester, 'archive-github-repo');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    await commitEdit(tester, 'me/lockedin-archive');
+    expect(patches.last, {
+      'archive': {
+        'github': {'repo': 'me/lockedin-archive'},
+      },
+    });
+
+    await selectRow(tester, 'archive-github-consent');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(patches.last, {
+      'archive': {
+        'github': {'consent': true},
+      },
+    });
+
+    // The values the page renders come from the snapshot.
+    expect(find.text('github'), findsWidgets);
+    expect(find.text('not given'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('a GitHub token is linked through the keychain flow', (
+    tester,
+  ) async {
+    String? saved;
+    await pumpPage(
+      tester,
+      SettingsPage(
+        settings: populatedSettings(),
+        loading: false,
+        githubTokenLinked: false,
+        onLinkGithubToken: (token) async {
+          saved = token;
+          return 'friend';
+        },
+        onClearGithubToken: () async {},
+      ),
+    );
+
+    await tester.ensureVisible(find.byKey(const ValueKey('github-token-link')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('github-token-link')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('github-token-field')),
+      'ghp_${'a' * 36}',
+    );
+    await tester.tap(find.byKey(const ValueKey('github-token-save')));
+    await tester.pumpAndSettle();
+
+    expect(saved, 'ghp_${'a' * 36}');
+    expect(find.byKey(const ValueKey('github-token-field')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('clearing a linked GitHub token asks first', (tester) async {
+    var cleared = 0;
+    await pumpPage(
+      tester,
+      SettingsPage(
+        settings: populatedSettings(),
+        loading: false,
+        githubTokenLinked: true,
+        onLinkGithubToken: (token) async => 'friend',
+        onClearGithubToken: () async => cleared += 1,
+      ),
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('github-token-clear')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('github-token-clear')));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Remove the stored GitHub archive token'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('github-token-clear-confirm')));
+    await tester.pumpAndSettle();
+    expect(cleared, 1);
     expect(tester.takeException(), isNull);
   });
 }

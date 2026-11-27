@@ -255,7 +255,66 @@ extension CoreStoreSettings on CoreStore {
     notifyListeners();
   }
 
-  /// Read the decision layer's stored view (`decision.get`).  /// Read the decision layer's stored view (`decision.get`).
+  /// Read whether a GitHub archive token is stored (`status`).
+  ///
+  /// The token is never returned; only the boolean. A keychain failure is
+  /// recorded in [githubTokenError] and leaves the previous value.
+  Future<void> refreshGithubToken() async {
+    githubTokenLoading = true;
+    githubTokenError = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call(CoreMethod.archiveGithubTokenStatus);
+      githubTokenLinked = json['linked'] == true;
+    } catch (failure) {
+      githubTokenError = _messageOf(failure);
+    } finally {
+      githubTokenLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Validate and store one GitHub token (`archive.github.token.link`).
+  ///
+  /// Returns the login on success; a refusal is thrown so the dialog can keep
+  /// the field and show the core's sentence. The token never leaves this call.
+  Future<String> linkGithubToken(String token) async {
+    githubTokenLoading = true;
+    githubTokenError = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call(CoreMethod.archiveGithubTokenLink, {
+        'token': token.trim(),
+      });
+      githubTokenLinked = true;
+      return json['login'] is String ? json['login'] as String : '';
+    } catch (failure) {
+      githubTokenError = _messageOf(failure);
+      rethrow;
+    } finally {
+      githubTokenLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Remove the stored GitHub token (`archive.github.token.clear`).
+  Future<void> clearGithubToken() async {
+    githubTokenLoading = true;
+    githubTokenError = null;
+    notifyListeners();
+    try {
+      await _connection.call(CoreMethod.archiveGithubTokenClear);
+      githubTokenLinked = false;
+    } catch (failure) {
+      githubTokenError = _messageOf(failure);
+      rethrow;
+    } finally {
+      githubTokenLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Read the decision layer's stored view (`decision.get`).  /// Read the decision layer's stored view (`decision.get`).  /// Read the decision layer's stored view (`decision.get`).
   ///
   /// This is a read: it writes no configuration, calls no model and starts no
   /// local runtime. The layer is off by default and rules-only in this build, so

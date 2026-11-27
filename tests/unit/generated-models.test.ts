@@ -121,7 +121,10 @@ describe("generated Dart models", () => {
     expect(types.get("pauseAtLimit")).toBe("bool");
     expect(types.get("pluginServers")).toBe("strings");
     expect(types.get("disabledPlugins")).toBe("strings");
-    expect(settings?.fields).toHaveLength(20);
+    expect(types.get("archiveGithubRepo")).toBe("string");
+    expect(types.get("archiveGithubBranch")).toBe("string");
+    expect(types.get("archiveGithubConsent")).toBe("bool");
+    expect(settings?.fields).toHaveLength(23);
     expect(read(MODELS_PATH)).toContain("class SettingsView");
   });
 

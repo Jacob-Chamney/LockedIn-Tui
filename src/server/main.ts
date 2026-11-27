@@ -55,6 +55,7 @@ const server = createCoreServer({
     // `boot()` reads LOCKEDIN_WORKSPACE / LOCKEDIN_DATA_DIR itself.
     const { boot, pluginServerConfigs, settingsViewFrom } = await import("../app/boot");
     const { patchConfig, removePluginServer } = await import("../storage/config");
+    const { validateGithubToken } = await import("../services/github-token");
     const result = await boot();
     if (!result.ok) return result;
     const booted = result.value;
@@ -131,6 +132,75 @@ const server = createCoreServer({
             pluginServerConfigs(written.value.config.plugins),
           );
           return { ok: true as const, value: servers };
+        },
+        // The GitHub archive token lives in the keychain only. Status never
+        // returns it; link validates once and stores it.
+        githubTokenStatus: async () => {
+          const [{ createSystemSecretStore }, { GITHUB_TOKEN_SECRET }] =
+            await Promise.all([
+              import("../security/keyring"),
+              import("../archive/github"),
+            ]);
+          try {
+            const secrets = await createSystemSecretStore();
+            const read = await secrets.get(GITHUB_TOKEN_SECRET);
+            if (!read.ok) {
+              return { ok: false as const, error: { message: read.error.message } };
+            }
+            return {
+              ok: true as const,
+              value: { linked: read.value !== null && read.value.trim() !== "" },
+            };
+          } catch (error) {
+            return {
+              ok: false as const,
+              error: { message: error instanceof Error ? error.message : String(error) },
+            };
+          }
+        },
+        linkGithubToken: async (token: string) => {
+          const checked = await validateGithubToken(token);
+          if (!checked.ok) {
+            return { ok: false as const, error: { message: checked.message } };
+          }
+          const [{ createSystemSecretStore }, { GITHUB_TOKEN_SECRET }] =
+            await Promise.all([
+              import("../security/keyring"),
+              import("../archive/github"),
+            ]);
+          try {
+            const secrets = await createSystemSecretStore();
+            const stored = await secrets.set(GITHUB_TOKEN_SECRET, token.trim());
+            if (!stored.ok) {
+              return { ok: false as const, error: { message: stored.error.message } };
+            }
+            return { ok: true as const, value: { login: checked.login } };
+          } catch (error) {
+            return {
+              ok: false as const,
+              error: { message: error instanceof Error ? error.message : String(error) },
+            };
+          }
+        },
+        clearGithubToken: async () => {
+          const [{ createSystemSecretStore }, { GITHUB_TOKEN_SECRET }] =
+            await Promise.all([
+              import("../security/keyring"),
+              import("../archive/github"),
+            ]);
+          try {
+            const secrets = await createSystemSecretStore();
+            const removed = await secrets.delete(GITHUB_TOKEN_SECRET);
+            if (!removed.ok) {
+              return { ok: false as const, error: { message: removed.error.message } };
+            }
+            return { ok: true as const, value: undefined };
+          } catch (error) {
+            return {
+              ok: false as const,
+              error: { message: error instanceof Error ? error.message : String(error) },
+            };
+          }
         },
         // Persist first, then apply to the live service, then report the view.
         // The protocol never sees TOML and never invents a settings shape.
