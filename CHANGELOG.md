@@ -1,10 +1,3 @@
-## 2026-11-25 — desktop only
-
-- The TUI frontend, its entrypoints, tests and OpenTUI/Solid dependencies are
-  removed. The Flutter desktop app is the only frontend.
-- The Bun core and the stdio JSON-RPC contract are unchanged; the core suite is
-  the gate.
-
 # Changelog
 
 User-visible changes, newest first. The wiki [Releases](https://github.com/Jacob-Chamney/LockedIn-Tui/wiki/Releases)
@@ -18,6 +11,45 @@ requests merge.
 - Group with `Added`, `Changed`, `Fixed`, `Security` or `Removed`.
 - Move `Unreleased` into the dated version when the release is published.
 - Preserve author credit. See [CONTRIBUTING.md](CONTRIBUTING.md#changelog-and-credit).
+
+## 2026.11.27
+
+### Added
+
+- The plugin policy matrix is **enforced**, not just stored: `off` hides a
+  server's tools for that command, `explicit` offers them only to a turn that
+  asks for the plugin by name, and `on` offers them whenever the server is
+  enabled. `work` is the sixth row (default `explicit`), so a project chat can
+  control plugins like every other surface.
+- A pending write or command proposal expires **ten minutes** after it is made:
+  deciding it afterwards is one refusal and the proposal is gone, and the
+  approvals list stops showing it.
+
+### Changed
+
+- The plugin write prompt **arms Allow** for 150 ms after it paints. A held `y`
+  or a stray click can no longer approve a write; `n` still denies immediately,
+  because a denial applies nothing.
+- Rebinding a key is validated by the keymap registry before anything is sent,
+  using the core's own sentence (`Space c is already bound to surface.chat.`).
+  The editor can also bind a **leader chord** now: activate a waiting row a
+  second time to switch it to `Space` plus a letter.
+- The command palette is generated from the keymap registry, so a new action or
+  a rebind appears there without a second list to edit.
+- The desktop app is the only frontend: the TUI, its entrypoints, tests and
+  OpenTUI/Solid dependencies are gone, and the Bun core plus the stdio JSON-RPC
+  contract are unchanged.
+
+### Fixed
+
+- `Ctrl+J` (and any other modified chord) no longer walks the sidebar rail: the
+  rail read the letter and ignored the modifier.
+- Every content write goes through one atomic helper — temp file, fsync, rename,
+  directory fsync — so a power loss cannot leave a half-written note, output or
+  archive, and a source guard fails if a future write skips it.
+- Linking a provider key is covered end to end: a rejected key stores nothing, a
+  locked keychain refuses before any request is sent, and a good key is stored
+  under `lockedin/<provider>` and used by the next turn without a restart.
 
 ## Unreleased
 

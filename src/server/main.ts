@@ -13,6 +13,39 @@ import { createInterface } from "node:readline";
 import { createCoreServer, isShutdown, parseRequest, type DecisionSettings, type KeybindWrite, type ThemeTokens, type WorkPermissions } from "./protocol";
 import type { PluginCommand, PluginPolicyCell } from "../storage/config-schema";
 
+/**
+ * The two flags a person runs, before the protocol starts.
+ *
+ * `install.sh` ends with `lockedin --version`, so the binary has to answer that
+ * without a shell attached: the stdio server would otherwise wait for JSON-RPC
+ * input forever. Anything else (including no argument) is the sidecar.
+ */
+// A compiled binary is `[executable, ...flags]`; `bun run main.ts` is
+// `[bun, main.ts, ...flags]`, so the flag is matched wherever it lands.
+const argv = new Set(process.argv.slice(1));
+if (argv.has("--version") || argv.has("-v")) {
+  const { APP_VERSION } = await import("../version");
+  process.stdout.write(`${APP_VERSION}\n`);
+  process.exit(0);
+}
+if (argv.has("--help") || argv.has("-h")) {
+  process.stdout.write(
+    [
+      "LockedIn core — the headless sidecar behind the desktop app.",
+      "",
+      "usage:",
+      "  lockedin            speak JSON-RPC 2.0 over stdin/stdout (the shell does this)",
+      "  lockedin --version  print the version and exit",
+      "  lockedin --help     print this text and exit",
+      "",
+      "The workspace comes from LOCKEDIN_WORKSPACE (default ~/LockedIn-Tui);",
+      "app data from LOCKEDIN_DATA_DIR. The desktop app starts this for you.",
+      "",
+    ].join("\n"),
+  );
+  process.exit(0);
+}
+
 const lines = createInterface({ input: process.stdin, terminal: false });
 let shuttingDown = false;
 
