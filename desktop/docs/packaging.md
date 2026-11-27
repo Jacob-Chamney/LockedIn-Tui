@@ -72,19 +72,12 @@ test -x "$tmp/lockedin-core" && echo "core executable"
 Run the extracted shell on a machine with GTK 3 present. The core uses the OS
 keychain; a missing keyring is a typed error, never a plaintext fallback.
 
-## Linux renderer note
+## Linux renderer
 
-The NVIDIA software-renderer fallback is **inside the binary**
-(`desktop/linux/runner/my_application.cc`). When `/dev/nvidiactl` exists the
-runner selects `FLUTTER_LINUX_RENDERER=software` and disables Impeller before
-the engine starts, avoiding the Flutter 3.50.0 OpenGL compositor offset bug on
-the proprietary driver. No environment variable or extra file is needed in the
-tarball.
-
-- `LOCKEDIN_RENDERER=opengl` opts out (useful once the pinned Flutter is
-  3.50.1+).
-- An explicit `FLUTTER_LINUX_RENDERER` always wins.
-- Remove the fallback when the pinned engine is fixed.
+The pinned Flutter is **3.50.1**, whose OpenGL compositor fixes the NVIDIA
+offset bug (flutter/flutter#195885). The runner no longer overrides the
+renderer; `FLUTTER_LINUX_RENDERER` remains the engine's own variable when a
+machine specifically needs a different backend.
 
 ## Windows
 
