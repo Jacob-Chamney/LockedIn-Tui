@@ -17,6 +17,10 @@ export type SessionServices = {
   settings: import("../types/settings").SettingsView;
   generate?: Booted["generate"];
   createChat?: Booted["createChat"];
+  /** The Chill controller the boot built. */
+  controller?: import("../app/chat-controller").ChatController;
+  /** The Chill history port the boot built. */
+  history?: Booted["history"];
   /** A test-injected swarm worker runner; production builds the read-only one. */
   swarmRunner?: import("../services/work/swarm").WorkerRunner;
   /** The rest of the optional capabilities a Settings handler may use. */
