@@ -171,3 +171,12 @@ lives in `desktop/lib`.
     maps a name to an `Effect` factory; a plugin can register one and the shell
     can play it without knowing what it is. Effects paint only: they cannot read
     files, reach the core or hold a key.
+
+## §32 — the plugin prompt arms Allow after ~150 ms
+
+The prompt accepts **Deny** immediately and lets **Allow** wait 150 ms after it
+paints. The risk is asymmetric: a denied call applies nothing, while an approved
+write runs. A held `y` (or a click aimed at the surface underneath) that lands
+with the prompt therefore cannot approve anything; the footer says
+`allow arms in a moment · n deny · Esc deny` until it does. Injected through
+`PluginPermissionModal.armDelay`, so the tests drive it instead of sleeping.

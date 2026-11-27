@@ -25,6 +25,9 @@ String selectedSessionTitle(WidgetTester tester) {
 Future<void> emitPermission(WidgetTester tester, FakeCore core) async {
   core.emitPermission();
   await tester.pumpAndSettle();
+  // Past the arming delay, so the prompt accepts Allow (a held key with the
+  // prompt is the case the dedicated test below covers).
+  await tester.pump(const Duration(milliseconds: 200));
 }
 
 void main() {
@@ -38,6 +41,7 @@ void main() {
       input: const {'path': 'notes/a.md', 'body': 'remember this'},
     );
     await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 200));
 
     expect(store.pendingPermission?.requestId, 'perm-1');
     expect(find.byType(PluginPermissionModal), findsOneWidget);
@@ -126,6 +130,7 @@ void main() {
 
     core.emitPermission(requestId: 'perm-2');
     await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 200));
     await tester.tap(find.byKey(PluginPermissionModal.allowKey));
     await tester.pumpAndSettle();
     expect(core.permissionConfirms.last, {
@@ -316,6 +321,77 @@ void main() {
     expect(find.byType(PluginPermissionModal), findsOneWidget);
   });
 
+  testWidgets('a y that lands with the prompt does not approve; n does', (
+    tester,
+  ) async {
+    final answers = <bool>[];
+    Widget modal({Duration delay = const Duration(milliseconds: 150)}) =>
+        MaterialApp(
+          theme: lockedInTheme(),
+          home: Scaffold(
+            body: PluginPermissionModal(
+              request: const PluginPermissionRequest(
+                requestId: 'perm-arm',
+                server: 'notes',
+                tool: 'write_note',
+                input: <String, dynamic>{'path': 'notes/a.md'},
+                write: true,
+              ),
+              armDelay: delay,
+              onConfirm: (allow) async {
+                answers.add(allow);
+              },
+            ),
+          ),
+        );
+
+    // A held `y` arriving with the prompt is ignored: the prompt is unarmed.
+    await tester.pumpWidget(modal());
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyY);
+    await tester.pump();
+    expect(answers, isEmpty, reason: 'an unarmed prompt must not allow');
+    expect(find.textContaining('allow arms in a moment'), findsOneWidget);
+    final allow = tester.widget<FilledButton>(
+      find.byKey(PluginPermissionModal.allowKey),
+    );
+    expect(allow.onPressed, isNull, reason: 'the button is disabled too');
+
+    // Deny is safe at any moment, so it answers immediately.
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+    await tester.pump();
+    expect(answers, [false]);
+  });
+
+  testWidgets('once armed, y allows the one call', (tester) async {
+    final answers = <bool>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: lockedInTheme(),
+        home: Scaffold(
+          body: PluginPermissionModal(
+            request: const PluginPermissionRequest(
+              requestId: 'perm-armed',
+              server: 'notes',
+              tool: 'write_note',
+              input: <String, dynamic>{'path': 'notes/a.md'},
+              write: true,
+            ),
+            onConfirm: (allow) async {
+              answers.add(allow);
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('y allow · n deny · Esc deny'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyY);
+    await tester.pump();
+    expect(answers, [true]);
+  });
+
   testWidgets('an in-flight answer disables both buttons and takes no second', (
     tester,
   ) async {
@@ -342,6 +418,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    // Past the arming delay: this test is about the in-flight lock, not arming.
+    await tester.pump(const Duration(milliseconds: 200));
 
     await tester.sendKeyEvent(LogicalKeyboardKey.keyY);
     await tester.pump();
