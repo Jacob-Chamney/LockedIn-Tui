@@ -1,12 +1,13 @@
 name: Desktop
 
 on:
+  # Every pull request runs both desktop jobs, whatever it touches.
+  #
+  # They are **required** status checks on `main`, and a path filter made that a
+  # trap: a PR that changed only a workflow or a doc reported neither check, so
+  # the merge button stayed blocked until someone touched `src/`. The jobs are a
+  # few minutes; the alternative is a bypassed branch rule.
   pull_request:
-    paths:
-      - "desktop/**"
-      - "src/**"
-      - "scripts/desktop-*"
-      - ".github/workflows/desktop.yml"
   push:
     branches: [main, dev]
     paths:
