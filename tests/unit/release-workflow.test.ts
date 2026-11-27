@@ -90,6 +90,20 @@ describe("release workflow", () => {
   test("the assembled set is verified before it is attached", () => {
     const assemble = job("assemble");
     expect(assemble).toContain("sha256sum -c SHA256SUMS");
-    expect(assemble).toContain("expected 9 files");
+    expect(assemble).toContain("expected 12 files");
+  });
+
+  test("ships the desktop app, not just the sidecar", () => {
+    // A release with only the core gives an installed app nothing to update to.
+    const desktop = job("desktop");
+    expect(desktop).toContain("subosito/flutter-action");
+    expect(desktop).toContain("desktop-build.sh");
+    expect(desktop).toContain("desktop-package.sh");
+    expect(desktop).toContain("desktop-installer.ps1");
+    expect(WORKFLOW_TEXT).toContain("lockedin-desktop-$version-linux-x64.tar.gz");
+    expect(WORKFLOW_TEXT).toContain("lockedin-desktop-$version-windows-x64.zip");
+    expect(WORKFLOW_TEXT).toContain("lockedin-desktop-$version-windows-x64-setup.exe");
+    // `assemble` waits for it, so a missing bundle cannot produce a release.
+    expect(job("assemble")).toContain("needs: [version, build, desktop]");
   });
 });
