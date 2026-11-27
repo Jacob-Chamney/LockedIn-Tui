@@ -14,7 +14,7 @@
  * - **stdout is protocol-only.** This module writes nothing; `main.ts` writes
  *   the returned lines and logs go to stderr.
  */
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { readFile, rm } from "node:fs/promises";
 import { basename, join, resolve, sep } from "node:path";
 export { parseSkillPlan } from "./skills";
@@ -33,13 +33,9 @@ import {
 import type { PluginRow, PluginWriteApprover, PluginWriteRequest } from "../app/actions/plugins";
 import {
   addSessionSources,
-  loadSessionPrompt,
-  loadSessionSteps,
-  regenerateSessionSteps,
-  toggleSessionStep,
 } from "../app/actions/lockin";
-import { loadSessionHome, loadSessionRows } from "../app/actions/sessions";
 import { computeCoverage } from "../domain/coverage";
+import { loadSessionHome, loadSessionRows } from "../app/actions/sessions";
 import {
   ACHIEVEMENTS,
   achievementUnlocked,
@@ -49,7 +45,6 @@ import {
 import { err, ok, type Result } from "../domain/markdown";
 import { resolveArchiveBackend } from "./archive-backend";
 import {
-  generationFailure,
 } from "./session-documents";
 import { createSessionInstructionHandlers } from "./session-instructions";
 import { createSessionChatHandlers } from "./session-chat-handlers";
@@ -63,6 +58,8 @@ import { createWorkChatHandlers } from "./work-chat-handlers";
 import { createWorkSwarmHandlers } from "./work-swarm-handlers";
 import { createTeachHandlers } from "./teach-handlers";
 import { createSkillHandlers } from "./skill-handlers";
+import { createSessionLifecycleHandlers } from "./session-lifecycle-handlers";
+import { createSessionExtrasHandlers } from "./session-extras-handlers";
 export {
   WORK_COMMAND_OPT_IN_OFF,
   WORK_WRITE_OPT_IN_OFF,
@@ -77,12 +74,9 @@ import {
   type MarkOutcome,
 } from "./review-mark";
 import {
-  sourceRows,
   type SessionCoverageRow,
-  type SessionDetailView,
 } from "./views";
-export * from "./views";
-import { memoryRow } from "./chat-memory";
+import { sourceRows } from "./views";export * from "./views";
 import {
   chatSnapshot,
   imageMediaType,
@@ -154,12 +148,10 @@ import {
 } from "./knowledge";
 export * from "./knowledge";
 import { MAX_IMAGES } from "../llm/chat";
-import { parseProgress } from "../domain/progress";
 import type {
   SwarmTaskEntry,
 } from "../domain/review";
 import {
-  MAX_SESSION_NAME,
   SESSION_FILES,
   sessionFromMeta,
 } from "../domain/session";
@@ -177,19 +169,6 @@ import {
   writeMeta as writeGoalMeta,
 } from "../services/skills/progress";
 import { restoreSession } from "../services/lockin/archive";
-import { readMemory } from "../services/lockin/memory";
-import { createLockInSession } from "../services/lockin/create";
-import {
-  addFigure,
-  annotateFigure,
-  confineSource,
-  figuresDir,
-  readFigureBytes,
-  readFigures,
-  removeFigure,
-  renderFigure as renderPdfFigure,
-  validateCrop,
-} from "../services/lockin/figures";
 import { loadLearningGraph } from "../services/knowledge/learning-graph";
 import {
   PROMPT_DEFINITIONS,
@@ -198,13 +177,6 @@ import {
   type PromptId,
 } from "../domain/prompts";
 
-import {
-  correctMistake,
-  listMistakes,
-  promoteMistake,
-  recordMistake,
-  type MistakeRow,
-} from "../services/lockin/mistakes";
 import { UPDATE_REPO } from "../services/update";
 import { APP_VERSION } from "../version";
 import {
@@ -979,358 +951,6 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     sessionDeckGrade,
     sessionDeckReset,
   } = createSessionOutputHandlers({ services, resolveSession });
-
-  const sessionOpen = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const resolved = await resolveSession(id, current.value, params.id);
-    if ("error" in resolved) return resolved.error;
-
-    const { session } = resolved.opened;
-    // `prompt.md` is the text the model reads; `meta.prompt` is the fallback for
-    // a folder that predates the file. Both are internal absolute reads: the
-    // shell only ever sends an id.
-    const prompt = (await loadSessionPrompt(current.value.workspace, session.id)) ?? session.prompt;
-    const markdown = (await loadSessionSteps(current.value.workspace, session.id)) ?? "";
-    const counts = parseProgress(markdown);
-    // Memory is labelled history, never a source (`docs/product.md` §4.5). A
-    // read failure is an absent memory block, not a session error: the session
-    // itself opened, and the reader simply has nothing to show yet. The key is
-    // omitted (rather than `null`) when nothing is stored, so an existing
-    // no-memory `session.open` shape is unchanged; the shell reads absent and
-    // `null` alike.
-    const memory = await readMemory(resolved.opened.folder, session.id);
-    const memoryView = memoryRow(memory.ok ? memory.value : null);
-
-    const detail: SessionDetailView = {
-      id: session.id,
-      name: session.name,
-      created: session.created,
-      archived: session.archived,
-      prompt,
-      sources: sourceRows(session),
-      steps: {
-        done: counts.ok ? counts.value.checked : 0,
-        total: counts.ok ? counts.value.total : 0,
-        exists: markdown.trim() !== "",
-        markdown,
-      },
-      ...(memoryView === null ? {} : { memory: memoryView }),
-    };
-    return success(id, { session: detail });
-  };
-
-  /**
-   * Source coverage for one lock-in session (`docs/product.md` §4.3).
-   *
-   * Pure read: the sources and the labelled documents are exactly what
-   * `loadSessionHome` reads for the session home, and the report is
-   * `computeCoverage` unchanged — this handler adds no rule of its own. Memory
-   * is one of the document kinds and is never a source, so a source mentioned
-   * only there keeps `fromMemoryOnly: true`.
-   *
-   * An unknown session is the shared session error shape; a blank id is
-   * `-32602`. Nothing is written and no model is contacted.
-   */
-  const sessionCoverage = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const resolved = await resolveSession(id, current.value, params.id);
-    if ("error" in resolved) return resolved.error;
-
-    const sessionId = resolved.opened.session.id;
-    const home = await loadSessionHome(current.value.workspace, sessionId);
-    if (home === null) {
-      const message = `session "${sessionId}" could not be read`;
-      return failure(
-        id,
-        BOOT_FAILED,
-        message,
-        { kind: "session", id: sessionId, message },
-        false,
-      );
-    }
-
-    return success(id, { coverage: computeCoverage(home.sources, home.documents) });
-  };
-
-  /**
-   * Create one lock-in session: the wizard's Review step.
-   *
-   * The service owns the transaction (copy sources, extract an instructions
-   * file, write `meta.json` and `prompt.md`, then rename), so this handler only
-   * validates the shapes, supplies the clock and maps the typed failure. The
-   * shell receives `{id, name}` and calls `session.open` for the detail; the
-   * response is deliberately not a second copy of it.
-   */
-  /**
-   * The result of one `session.create`, cached by the shell's request id.
-   *
-   * The shell gives an attempt an id so a timed-out retry can join the first
-   * create instead of starting a second one (`docs/decisions/0019`). Only
-   * successful results are kept: a validation or copy failure is dropped, so a
-   * corrected retry is a fresh attempt. The map is process state and is empty
-   * after a restart.
-   */
-  type SessionCreateOutcome =
-    | { ok: true; id: string; name: string }
-    | { ok: false; message: string; field?: string };
-
-  const sessionCreates = new Map<
-    string,
-    { promise: Promise<SessionCreateOutcome>; done?: SessionCreateOutcome }
-  >();
-
-  const createReply = (id: RpcId, outcome: SessionCreateOutcome): JsonRpcResponse =>
-    outcome.ok
-      ? success(id, { id: outcome.id, name: outcome.name })
-      : failure(
-          id,
-          BOOT_FAILED,
-          outcome.message,
-          {
-            kind: "session-create",
-            message: outcome.message,
-            ...(outcome.field === undefined ? {} : { field: outcome.field }),
-          },
-          false,
-        );
-
-  /** Keep the last 32 settled creates; older keys are only a retry aid. */
-  const trimCreates = (): void => {
-    while (sessionCreates.size > 32) {
-      const oldest = sessionCreates.keys().next().value;
-      if (oldest === undefined) break;
-      sessionCreates.delete(oldest);
-    }
-  };
-
-  const sessionCreate = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const rawName = params.name;
-    if (typeof rawName !== "string" || rawName.trim() === "") {
-      return invalid(id, "session.create requires a non-empty name string");
-    }
-    const name = rawName.trim();
-    if (name.length > MAX_SESSION_NAME) {
-      return invalid(
-        id,
-        `session.create: session names are capped at ${MAX_SESSION_NAME} characters`,
-      );
-    }
-    const prompt = params.prompt;
-    if (prompt !== undefined && typeof prompt !== "string") {
-      return invalid(id, "session.create: prompt must be a string");
-    }
-    const files = params.files;
-    if (
-      files !== undefined &&
-      (!Array.isArray(files) ||
-        !files.every((path) => typeof path === "string" && path.trim() !== ""))
-    ) {
-      return invalid(id, "session.create: files must be an array of non-empty path strings");
-    }
-    const instructionsFile = params.instructionsFile;
-    if (
-      instructionsFile !== undefined &&
-      (typeof instructionsFile !== "string" || instructionsFile.trim() === "")
-    ) {
-      return invalid(id, "session.create: instructionsFile must be a non-empty path string");
-    }
-    const steps = params.steps;
-    if (steps !== undefined && typeof steps !== "boolean") {
-      return invalid(id, "session.create: steps must be a boolean");
-    }
-    const rawRequestId = params.requestId;
-    if (rawRequestId !== undefined) {
-      if (
-        typeof rawRequestId !== "string" ||
-        rawRequestId.trim() === "" ||
-        rawRequestId.length > 128
-      ) {
-        return invalid(
-          id,
-          "session.create: requestId must be a non-empty string of at most 128 characters",
-        );
-      }
-    }
-    const requestId = typeof rawRequestId === "string" ? rawRequestId : undefined;
-
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    // The service is the single writer: a refusal leaves no session, no temp
-    // directory and no half-written `meta.json` (`AGENTS.md` §2.9).
-    const runCreate = async (): Promise<SessionCreateOutcome> => {
-      const created = await createLockInSession({
-        workspace: current.value.workspace,
-        created: new Date(),
-        name,
-        ...(prompt === undefined ? {} : { prompt }),
-        ...(files === undefined ? {} : { files: files as string[] }),
-        ...(instructionsFile === undefined ? {} : { instructionsFile }),
-        ...(steps === undefined ? {} : { steps }),
-      });
-      if (!created.ok) {
-        const error = created.error;
-        return {
-          ok: false,
-          message: oneLine(error.message),
-          ...(error.kind === "invalid-session" ? { field: error.field } : {}),
-        };
-      }
-      return {
-        ok: true,
-        id: created.value.session.id,
-        name: created.value.session.name,
-      };
-    };
-
-    if (requestId === undefined) return createReply(id, await runCreate());
-
-    const existing = sessionCreates.get(requestId);
-    if (existing?.done !== undefined) return createReply(id, existing.done);
-    if (existing !== undefined) {
-      const message = "still creating — check Sessions";
-      return failure(
-        id,
-        BOOT_FAILED,
-        message,
-        { kind: "session-create", requestId, status: "creating", message },
-        false,
-      );
-    }
-
-    const entry: {
-      promise: Promise<SessionCreateOutcome>;
-      done?: SessionCreateOutcome;
-    } = { promise: runCreate() };
-    sessionCreates.set(requestId, entry);
-    const outcome = await entry.promise;
-    entry.done = outcome;
-    if (!outcome.ok) {
-      // A failure is not an idempotent result: a corrected retry must run.
-      sessionCreates.delete(requestId);
-    } else {
-      trimCreates();
-    }
-    return createReply(id, outcome);
-  };
-
-  /**
-   * Toggle one assignment step: the steps reader's only write.
-   *
-   * The service rewrites exactly one bracket character and the progress line
-   * (`docs/product.md` §5.1, `src/domain/progress.ts`), so the response carries
-   * the whole file instead of a patch: the shell replaces its copy and renders
-   * the counts from this reply, never from a second read or a local guess.
-   */
-  const sessionToggleStep = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const rawId = params.id;
-    if (typeof rawId !== "string" || rawId.trim() === "") {
-      return invalid(id, "session.toggleStep requires a session id");
-    }
-    const index = params.index;
-    if (typeof index !== "number" || !Number.isInteger(index) || index < 0) {
-      return invalid(id, "session.toggleStep requires a non-negative integer index");
-    }
-
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    // Resolve first so an unknown id is the session error shape, not a steps
-    // failure for a folder that was never there.
-    const resolved = await resolveSession(id, current.value, rawId);
-    if ("error" in resolved) return resolved.error;
-    const sessionId = resolved.opened.session.id;
-
-    const toggled = await toggleSessionStep(current.value.workspace, sessionId, index);
-    if (!toggled.ok) {
-      const message = oneLine(toggled.error.message);
-      return failure(id, BOOT_FAILED, message, { kind: "steps", id: sessionId, message }, false);
-    }
-
-    // One document in, one document out: the counts and the hash describe the
-    // same bytes the shell is about to render.
-    const markdown = toggled.value;
-    const counts = parseProgress(markdown);
-    const items = counts.ok ? counts.value.items : [];
-    return success(id, {
-      index,
-      checked: items[index]?.checked ?? false,
-      done: counts.ok ? counts.value.checked : 0,
-      total: counts.ok ? counts.value.total : 0,
-      markdown,
-      hash: `sha256:${createHash("sha256").update(markdown).digest("hex")}`,
-    });
-  };
-
-  /**
-   * Build or rebuild one session's assignment steps from its own sources.
-   *
-   * The service owns the whole transaction: it reads the session context (steps
-   * and generated outputs excluded), asks the model for a plan, validates it,
-   * merges checked work by exact step text and writes the file atomically. This
-   * handler therefore supplies the one-shot completion and maps the failure; a
-   * provider error, an unreadable source or a rejected plan is one message and
-   * leaves the previous steps untouched (`AGENTS.md` §2.9).
-   *
-   * A workspace with no model has no completion to offer, so the reply is the
-   * one actionable sentence that fixes it; the shell does not retry.
-   */
-  const sessionGenerateSteps = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const rawId = params.id;
-    if (typeof rawId !== "string" || rawId.trim() === "") {
-      return invalid(id, "session.generateSteps requires a session id");
-    }
-
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    // Resolve first so an unknown id is the session error shape, like every
-    // other `session.*` method.
-    const resolved = await resolveSession(id, current.value, rawId);
-    if ("error" in resolved) return resolved.error;
-    const sessionId = resolved.opened.session.id;
-
-    const generate = current.value.generate;
-    if (!generate) {
-      const message = "link a model in Settings → Providers";
-      return generationFailure(id, sessionId, message);
-    }
-
-    const generated = await regenerateSessionSteps({
-      workspace: current.value.workspace,
-      id: sessionId,
-      generate,
-    });
-    if (!generated.ok) {
-      const message = oneLine(generated.error.message);
-      return generationFailure(id, sessionId, message);
-    }
-    // `kept`/`lost` describe the checked work the merge compared, so the shell
-    // can say "kept 2, dropped 1" without re-reading the old file.
-    return success(id, {
-      markdown: generated.value.markdown,
-      kept: generated.value.kept,
-      lost: generated.value.lost,
-    });
-  };
-
-  /* ------------------------------------------------------------------------ */
-  /* Session archive, delete and export                                       */
-  /* ------------------------------------------------------------------------ */
 
   /**
    * The archive/delete/export/restore failure shape: one session, one verb, one
@@ -2171,346 +1791,6 @@ export function createCoreServer(options: CoreOptions): CoreServer {
   };
 
 
-  const figureFailure = (id: RpcId, sessionId: string, message: string): JsonRpcResponse =>
-    failure(id, BOOT_FAILED, message, { kind: "figure", id: sessionId, message }, false);
-
-  /** The session's copied PDFs, and which one a request names. */
-  const pickPdf = (
-    opened: OpenResult,
-    rawSource: unknown,
-  ): { ok: true; source: string } | { ok: false; message: string } => {
-    const sources = opened.session.sources;
-    const pdfs = sources.filter(
-      (source) =>
-        source.kind === "pdf" || source.name.toLowerCase().endsWith(".pdf"),
-    );
-    if (typeof rawSource === "string" && rawSource.trim() !== "") {
-      const match = pdfs.find(
-        (source) =>
-          source.storedPath === rawSource.trim() ||
-          source.name === rawSource.trim() ||
-          source.storedPath.endsWith(`/${rawSource.trim()}`),
-      );
-      return match
-        ? { ok: true, source: match.storedPath }
-        : { ok: false, message: `"${rawSource.trim()}" is not a PDF copied into this session` };
-    }
-    const instructions = opened.session.instructions;
-    if (instructions && (instructions.kind === "pdf" || instructions.name.toLowerCase().endsWith(".pdf"))) {
-      return { ok: true, source: instructions.storedPath };
-    }
-    if (pdfs[0]) return { ok: true, source: pdfs[0].storedPath };
-    return { ok: false, message: "add a PDF to this session first; a figure is cropped from your own source" };
-  };
-
-  /** Save one figure cropped from the session's own PDF. */
-  const sessionFigureExtract = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const resolved = await resolveSession(id, current.value, params.id);
-    if ("error" in resolved) return resolved.error;
-    const sessionId = resolved.opened.session.id;
-
-    const page = params.page;
-    if (typeof page !== "number" || !Number.isInteger(page)) {
-      return invalid(id, "session.figure.extract requires a whole page number");
-    }
-    let cropInput: import("../services/lockin/figures").FigureCrop = { page };
-    for (const key of ["x", "y", "width", "height", "dpi"] as const) {
-      const value = params[key];
-      if (value === undefined) continue;
-      if (typeof value !== "number" || !Number.isInteger(value)) {
-        return invalid(id, `session.figure.extract: ${key} must be a whole number`);
-      }
-      cropInput = { ...cropInput, [key]: value };
-    }
-    if (params.caption !== undefined && typeof params.caption !== "string") {
-      return invalid(id, "session.figure.extract: caption must be a string");
-    }
-    if (params.note !== undefined && typeof params.note !== "string") {
-      return invalid(id, "session.figure.extract: note must be a string");
-    }
-    const caption = typeof params.caption === "string" ? params.caption.trim().slice(0, 300) : "";
-    const note = typeof params.note === "string" ? params.note.trim().slice(0, 2000) : "";
-    const checked = validateCrop(cropInput);
-    if (!checked.ok) return invalid(id, `session.figure.extract: ${checked.message}`);
-
-    const picked = pickPdf(resolved.opened, params.source);
-    if (!picked.ok) return figureFailure(id, sessionId, picked.message);
-    const confined = confineSource(resolved.opened.folder, picked.source);
-    if (!confined.ok) return figureFailure(id, sessionId, confined.message);
-
-    const render = current.value.renderFigure ?? renderPdfFigure;
-    const prefix = join(figuresDir(resolved.opened.folder), `.tmp-${crypto.randomUUID()}`);
-    const rendered = await render({
-      ...checked.crop,
-      sourcePath: confined.path,
-      outputPrefix: prefix,
-      dpi: checked.dpi,
-    });
-    if (!rendered.ok) {
-      return figureFailure(id, sessionId, rendered.error.message);
-    }
-    const added = await addFigure(resolved.opened.folder, {
-      source: picked.source,
-      crop: checked.crop,
-      caption,
-      note,
-      bytes: rendered.value,
-      now: new Date(),
-    });
-    if (!added.ok) return figureFailure(id, sessionId, added.error.message);
-    return success(id, { figure: added.value });
-  };
-
-  /**
-   * `session.mistake.correct` — write the right answer under a promoted note.
-   *
-   * Promotion is not one-way: this replaces only the `## Corrected understanding`
-   * section, keeps the provenance, and sets `status: corrected`, so the note
-   * settles and leaves the Review queue. The ledger entry itself is untouched.
-   */
-  const sessionMistakeCorrect = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const rawId = params.id;
-    if (typeof rawId !== "string" || rawId.trim() === "") {
-      return invalid(id, "session.mistake.correct requires a session id");
-    }
-    const index = params.index;
-    if (typeof index !== "number" || !Number.isInteger(index) || index < 0) {
-      return invalid(id, "session.mistake.correct requires a whole mistake index");
-    }
-    if (typeof params.correction !== "string") {
-      return invalid(id, "session.mistake.correct requires correction text");
-    }
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const resolved = await resolveSession(id, current.value, rawId);
-    if ("error" in resolved) return resolved.error;
-    const sessionId = resolved.opened.session.id;
-
-    const corrected = await correctMistake({
-      workspace: current.value.workspace,
-      sessionId,
-      index,
-      correction: params.correction,
-    });
-    if (!corrected.ok) {
-      const message =
-        corrected.error.kind === "invalid"
-          ? corrected.error.message
-          : "the correction could not be written";
-      return mistakeFailure(id, sessionId, message);
-    }
-    return success(id, { note: corrected.value.note });
-  };
-
-  /** The mistake ledger's failure shape: one session, one message. */
-  const mistakeFailure = (id: RpcId, sessionId: string, message: string): JsonRpcResponse =>
-    failure(id, BOOT_FAILED, message, { kind: "mistake", id: sessionId, message }, false);
-
-  const mistakeReply = (id: RpcId, entries: MistakeRow[]): JsonRpcResponse =>
-    success(id, { entries });
-
-  /**
-   * `session.mistake.list` — the session's misconception ledger.
-   *
-   * Read-only. Each row carries the note it was promoted into, when it has
-   * one, so the reader can show "promoted" without a second request.
-   */
-  const sessionMistakeList = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const rawId = params.id;
-    if (typeof rawId !== "string" || rawId.trim() === "") {
-      return invalid(id, "session.mistake.list requires a session id");
-    }
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const resolved = await resolveSession(id, current.value, rawId);
-    if ("error" in resolved) return resolved.error;
-    const sessionId = resolved.opened.session.id;
-
-    const listed = await listMistakes({ workspace: current.value.workspace, sessionId });
-    if (!listed.ok) return mistakeFailure(id, sessionId, listed.error.message);
-    return mistakeReply(id, listed.value.entries);
-  };
-
-  /**
-   * `session.mistake.record` — append one entry and return the ledger.
-   *
-   * The text is normalised to one line and bounded; an over-long entry is
-   * refused with its length rather than silently cut. The record is process
-   * history, never a source.
-   */
-  const sessionMistakeRecord = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const rawId = params.id;
-    if (typeof rawId !== "string" || rawId.trim() === "") {
-      return invalid(id, "session.mistake.record requires a session id");
-    }
-    if (typeof params.text !== "string") {
-      return invalid(id, "session.mistake.record requires mistake text");
-    }
-    if (params.step !== undefined && typeof params.step !== "string") {
-      return invalid(id, "session.mistake.record: step must be a string");
-    }
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const resolved = await resolveSession(id, current.value, rawId);
-    if ("error" in resolved) return resolved.error;
-    const sessionId = resolved.opened.session.id;
-
-    const recorded = await recordMistake({
-      workspace: current.value.workspace,
-      sessionId,
-      text: params.text,
-      ...(params.step === undefined ? {} : { step: params.step as string }),
-    });
-    if (!recorded.ok) {
-      const message =
-        recorded.error.kind === "invalid" ? recorded.error.message : "the mistake could not be recorded";
-      return mistakeFailure(id, sessionId, message);
-    }
-    return mistakeReply(id, recorded.value.entries);
-  };
-
-  /**
-   * `session.mistake.promote` — graduate one entry into a labelled note.
-   *
-   * The note lands in the school vault's `knowledge/` folder with its session,
-   * entry and step in the frontmatter, so it is searchable and readable like
-   * any other note and still labelled as the learner's own record. Promoting
-   * the same entry twice returns the existing note (`already: true`).
-   */
-  const sessionMistakePromote = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const rawId = params.id;
-    if (typeof rawId !== "string" || rawId.trim() === "") {
-      return invalid(id, "session.mistake.promote requires a session id");
-    }
-    const index = params.index;
-    if (typeof index !== "number" || !Number.isInteger(index) || index < 0) {
-      return invalid(id, "session.mistake.promote requires a whole mistake index");
-    }
-    if (params.correction !== undefined && typeof params.correction !== "string") {
-      return invalid(id, "session.mistake.promote: correction must be a string");
-    }
-    if (params.title !== undefined && typeof params.title !== "string") {
-      return invalid(id, "session.mistake.promote: title must be a string");
-    }
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const resolved = await resolveSession(id, current.value, rawId);
-    if ("error" in resolved) return resolved.error;
-    const sessionId = resolved.opened.session.id;
-
-    const promoted = await promoteMistake({
-      workspace: current.value.workspace,
-      sessionId,
-      index,
-      ...(params.correction === undefined ? {} : { correction: params.correction as string }),
-      ...(params.title === undefined ? {} : { title: params.title as string }),
-    });
-    if (!promoted.ok) {
-      const message =
-        promoted.error.kind === "invalid" ? promoted.error.message : "the note could not be written";
-      return mistakeFailure(id, sessionId, message);
-    }
-    return success(id, {
-      note: promoted.value.note,
-      already: promoted.value.already,
-    });
-  };
-
-  const sessionFigureList = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const resolved = await resolveSession(id, current.value, params.id);
-    if ("error" in resolved) return resolved.error;
-    const listed = await readFigures(resolved.opened.folder);
-    if (!listed.ok) return figureFailure(id, resolved.opened.session.id, listed.error.message);
-    return success(id, { figures: listed.value });
-  };
-
-  /** One figure's PNG as base64, for the shell's `Image.memory`. */
-  const sessionFigureRead = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const resolved = await resolveSession(id, current.value, params.id);
-    if ("error" in resolved) return resolved.error;
-    const figureId = typeof params.figureId === "string" ? params.figureId.trim() : "";
-    if (figureId === "") return invalid(id, "session.figure.read requires a figure id");
-    const listed = await readFigures(resolved.opened.folder);
-    if (!listed.ok) return figureFailure(id, resolved.opened.session.id, listed.error.message);
-    const figure = listed.value.find((entry) => entry.id === figureId);
-    if (!figure) {
-      return figureFailure(id, resolved.opened.session.id, `there is no figure "${figureId}"`);
-    }
-    const bytes = await readFigureBytes(resolved.opened.folder, figure);
-    if (!bytes.ok) return figureFailure(id, resolved.opened.session.id, bytes.error.message);
-    return success(id, {
-      figure,
-      base64: Buffer.from(bytes.value).toString("base64"),
-      mediaType: "image/png",
-    });
-  };
-
-  const sessionFigureAnnotate = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const resolved = await resolveSession(id, current.value, params.id);
-    if ("error" in resolved) return resolved.error;
-    const figureId = typeof params.figureId === "string" ? params.figureId.trim() : "";
-    if (figureId === "") return invalid(id, "session.figure.annotate requires a figure id");
-    if (params.caption !== undefined && typeof params.caption !== "string") {
-      return invalid(id, "session.figure.annotate: caption must be a string");
-    }
-    if (params.note !== undefined && typeof params.note !== "string") {
-      return invalid(id, "session.figure.annotate: note must be a string");
-    }
-    const written = await annotateFigure(resolved.opened.folder, figureId, {
-      ...(typeof params.caption === "string" ? { caption: params.caption.trim().slice(0, 300) } : {}),
-      ...(typeof params.note === "string" ? { note: params.note.trim().slice(0, 2000) } : {}),
-    });
-    if (!written.ok) return figureFailure(id, resolved.opened.session.id, written.error.message);
-    return success(id, { figure: written.value });
-  };
-
-  const sessionFigureRemove = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const resolved = await resolveSession(id, current.value, params.id);
-    if ("error" in resolved) return resolved.error;
-    const figureId = typeof params.figureId === "string" ? params.figureId.trim() : "";
-    if (figureId === "") return invalid(id, "session.figure.remove requires a figure id");
-    const removed = await removeFigure(resolved.opened.folder, figureId);
-    if (!removed.ok) return figureFailure(id, resolved.opened.session.id, removed.error.message);
-    return success(id, removed.value);
-  };
-
   const promptItems = (note: (id: PromptId) => string) =>
     PROMPT_DEFINITIONS.map((definition) => {
       const text = note(definition.id);
@@ -3231,6 +2511,28 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     skillExport: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
   };
   const { resetSkillChats } = skill;
+
+  const sessionLifecycle = createSessionLifecycleHandlers({ services, resolveSession });
+  const {
+    sessionOpen,
+    sessionCoverage,
+    sessionCreate,
+    sessionToggleStep,
+    sessionGenerateSteps,
+  } = sessionLifecycle.handlers;
+
+  const sessionExtras = createSessionExtrasHandlers({ services, resolveSession });
+  const {
+    sessionFigureList,
+    sessionFigureExtract,
+    sessionFigureRead,
+    sessionFigureAnnotate,
+    sessionFigureRemove,
+    sessionMistakeList,
+    sessionMistakeRecord,
+    sessionMistakePromote,
+    sessionMistakeCorrect,
+  } = sessionExtras.handlers;
 
   const teach = createTeachHandlers({
     services,
