@@ -23,6 +23,8 @@ part 'core_store_session_extras.dart';
 part 'core_store_outputs.dart';
 part 'core_store_documents.dart';
 part 'core_store_activity.dart';
+part 'core_store_skill_chat.dart';
+part 'core_store_projects.dart';
 part 'core_store_knowledge.dart';
 
 class CoreStore extends ChangeNotifier {
@@ -1283,279 +1285,6 @@ class CoreStore extends ChangeNotifier {
   ///
   /// Failure is recorded once in [error] and the previous [skills] list stays on
   /// screen: a broken read never invents an empty list, so the page can say the
-  /// list could not be refreshed instead of "no goals yet".
-  Future<bool> openSkillChat(String goalId, {String? chatId}) async {
-    // See [openWorkChat]: a reply for a goal that is no longer the open one is
-    // cached, never activated.
-    final owner = activeSkillId;
-    final Map<String, dynamic> json;
-    try {
-      json = await _connection.call(CoreMethod.skillChatOpen, {
-        'goalId': goalId,
-        if (chatId != null && chatId.trim().isNotEmpty) 'chatId': chatId.trim(),
-      });
-    } catch (failure) {
-      if (activeSkillId != owner) return false;
-      error = _messageOf(failure);
-      notifyListeners();
-      return false;
-    }
-
-    final rawChatId = json['chatId'];
-    final resolved = rawChatId is String && rawChatId.isNotEmpty
-        ? rawChatId
-        : chatId ?? '';
-    if (resolved.isEmpty) {
-      if (activeSkillId != owner) return false;
-      error = 'the core did not name the goal chat';
-      notifyListeners();
-      return false;
-    }
-
-    final raw = json['snapshot'];
-    final rawSnapshot = raw is Map
-        ? Map<String, dynamic>.from(raw)
-        : const <String, dynamic>{};
-    final skillKey = _skillChatKey(goalId, resolved);
-    if (_acceptChatSnapshot('skill:$skillKey', rawSnapshot['seq'])) {
-      _skillChats[skillKey] = ChatSnapshot.fromJson(rawSnapshot);
-    }
-    _skillChatErrors.remove(_skillChatKey(goalId, resolved));
-    if (activeSkillId != owner) return false;
-    activeSkillChatId = resolved;
-    if (!skillChats.any((chat) => chat.id == resolved)) {
-      skillChats = [
-        ...skillChats,
-        SkillChatRow(id: resolved, title: '', lastUsed: '', messages: 0),
-      ];
-    }
-    error = null;
-    notifyListeners();
-    return true;
-  }
-
-  /// Start a **new** goal chat, always.
-  ///
-  /// `skill.chat.open` resumes the newest transcript and a goal chat has many,
-  /// so without this a user could never get past `chat-1`. Refusals are kept on
-  /// the shell-wide [error] like [openSkillChat]; the caller decides whether to
-  /// open the chat layer.
-  Future<bool> createSkillChat(String goalId) async {
-    final owner = activeSkillId;
-    final Map<String, dynamic> json;
-    try {
-      json = await _connection.call(CoreMethod.skillChatCreate, {
-        'goalId': goalId,
-      });
-    } catch (failure) {
-      if (activeSkillId != owner) return false;
-      error = _messageOf(failure);
-      notifyListeners();
-      return false;
-    }
-
-    final rawChatId = json['chatId'];
-    if (rawChatId is! String || rawChatId.isEmpty) {
-      if (activeSkillId != owner) return false;
-      error = 'the core did not name the new goal chat';
-      notifyListeners();
-      return false;
-    }
-
-    final raw = json['snapshot'];
-    final rawSnapshot = raw is Map
-        ? Map<String, dynamic>.from(raw)
-        : const <String, dynamic>{};
-    final skillKey = _skillChatKey(goalId, rawChatId);
-    if (_acceptChatSnapshot('skill:$skillKey', rawSnapshot['seq'])) {
-      _skillChats[skillKey] = ChatSnapshot.fromJson(rawSnapshot);
-    }
-    _skillChatErrors.remove(_skillChatKey(goalId, rawChatId));
-    if (activeSkillId != owner) return false;
-    activeSkillChatId = rawChatId;
-    if (!skillChats.any((chat) => chat.id == rawChatId)) {
-      skillChats = [
-        ...skillChats,
-        SkillChatRow(id: rawChatId, title: '', lastUsed: '', messages: 0),
-      ];
-    }
-    error = null;
-    notifyListeners();
-    return true;
-  }
-
-  /// Send one turn to a goal chat. Never touches Chill, a session or a project.
-  ///
-  /// The transcript grows only from the core's `skill.chat.state` events. A
-  /// request failure is kept for that one chat in [skillChatErrorFor], so a goal
-  /// chat refusal never looks like a shell-wide transport failure.
-  Future<bool> sendSkillChat(String goalId, String chatId, String text) async {
-    final key = _skillChatKey(goalId, chatId);
-    try {
-      await _connection.call(CoreMethod.skillChatSend, {
-        'goalId': goalId,
-        'chatId': chatId,
-        'text': text,
-      });
-      if (_skillChatErrors.remove(key) != null) notifyListeners();
-      return true;
-    } catch (failure) {
-      _skillChatErrors[key] = _messageOf(failure);
-      notifyListeners();
-      return false;
-    }
-  }
-
-  /// Stop a goal chat's in-flight turn. Nothing running is a no-op.
-  Future<void> cancelSkillChat(String goalId, String chatId) async {
-    try {
-      await _connection.call(CoreMethod.skillChatCancel, {
-        'goalId': goalId,
-        'chatId': chatId,
-      });
-    } catch (failure) {
-      error = _messageOf(failure);
-      notifyListeners();
-    }
-  }
-
-  /// Collapse from the goal chat back to the goal page.
-  ///
-  /// The transcript and the chat id stay in the store, so reopening the chat
-  /// paints the previous conversation and does not reset it.
-  void closeSkillChat() {
-    if (activeSkillChatId == null) return;
-    activeSkillChatId = null;
-    notifyListeners();
-  }
-
-  void _clearChapter() {
-    // Closing the reader abandons a body still being read.
-    _skillChapterTicket += 1;
-    activeSkillChapter = null;
-    activeSkillChapterId = null;
-    activeSkillChapterPractical = false;
-    skillChapterLoading = false;
-    skillChapterError = null;
-  }
-
-  /// Register one folder as a Work project (`work.create`).
-  ///
-  /// [folder] is the path the **user typed or picked**; the core resolves it,
-  /// creates the leaf when it does not exist and writes only
-  /// `work/projects/<id>/meta.json`. The folder itself is never moved or
-  /// deleted.
-  ///
-  /// On success the list is refreshed and the new project opened, so the shell
-  /// lands on its detail. On failure the [RpcException] is rethrown untouched,
-  /// like [linkProvider]: the dialog shows the core's own message and stays
-  /// open, so a registration refusal never reaches [error].
-  Future<WorkCreateResult> createProject({
-    required String name,
-    required String folder,
-    required String mode,
-  }) async {
-    final json = await _connection.call(CoreMethod.workCreate, {
-      'name': name,
-      'folder': folder,
-      'mode': mode,
-    });
-    final result = WorkCreateResult.fromJson(json);
-    await refreshProjects();
-    await openProject(result.id);
-    return result;
-  }
-
-  static List<ProjectRow> _projectRows(Map<String, dynamic> json) {
-    final raw = json['projects'];
-    if (raw is! List) return const [];
-    return raw
-        .whereType<Map>()
-        .map((row) => ProjectRow.fromJson(Map<String, dynamic>.from(row)))
-        .toList();
-  }
-
-  /// Create or update one agent profile (`work.agent.save`).
-  ///
-  /// [agent] is the dialog's profile: an empty id creates a new one and a saved
-  /// id updates it in place. The core writes only
-  /// `work/projects/<id>/meta.json`; no file inside the project folder is read,
-  /// written, moved or deleted.
-  ///
-  /// On success the project list is refreshed so the agent count follows, and
-  /// the open project is re-read so the detail renders exactly what the core
-  /// stored (a delete may have cleared the default, a save may have renamed a
-  /// profile). On failure the [RpcException] is rethrown untouched, like
-  /// [createProject]: the dialog shows the core's own sentence and stays open,
-  /// so a refused save never reaches [error].
-  Future<String> saveAgent(String projectId, AgentProfileView agent) async {
-    final json = await _connection.call(CoreMethod.workAgentSave, {
-      'projectId': projectId,
-      'agent': agent.toSaveJson(),
-    });
-    final saved = json['id'];
-    await _reloadProjectAfterAgentChange(projectId);
-    return saved is String && saved.isNotEmpty ? saved : agent.id;
-  }
-
-  /// Replace a project's standing instructions (`work.instructions.save`).
-  ///
-  /// Only the project's metadata is written; nothing inside the registered
-  /// folder is read or changed. The open project and list are re-read so the
-  /// page renders what the core stored. Failure rethrows for the edit dialog's
-  /// inline message and keeps the previous text.
-  Future<void> saveProjectInstructions(
-    String projectId,
-    String instructions,
-  ) async {
-    await _connection.call(CoreMethod.workInstructionsSave, {
-      'projectId': projectId,
-      'instructions': instructions,
-    });
-    await _reloadProjectAfterAgentChange(projectId);
-  }
-
-  /// Delete one agent profile (`work.agent.delete`).
-  ///
-  /// Deleting the default leaves the project with no default; the re-read below
-  /// reports that state instead of promoting a neighbour. Failure rethrows the
-  /// [RpcException] for the page's inline message.
-  Future<void> deleteAgent(String projectId, String agentId) async {
-    await _connection.call(CoreMethod.workAgentDelete, {
-      'projectId': projectId,
-      'agentId': agentId,
-    });
-    await _reloadProjectAfterAgentChange(projectId);
-  }
-
-  /// Set the project default agent, or clear it with a null [agentId]
-  /// (`work.defaultAgent`). Failure rethrows for the page's inline message.
-  Future<void> setDefaultAgent(String projectId, String? agentId) async {
-    final id = agentId?.trim() ?? '';
-    await _connection.call(CoreMethod.workDefaultAgent, {
-      'projectId': projectId,
-      if (id.isNotEmpty) 'agentId': id,
-    });
-    await _reloadProjectAfterAgentChange(projectId);
-  }
-
-  /// Refresh the list and, when it is the open one, re-read the project.
-  ///
-  /// Both reads record their own failure in [error] and keep the previous
-  /// projection, so a metadata write that succeeded is never reported as a
-  /// failed write: only the follow-up read can fail here.
-  Future<void> _reloadProjectAfterAgentChange(String projectId) async {
-    await refreshProjects();
-    if (activeProjectId == projectId) await openProject(projectId);
-  }
-
-  /// Export the Stats view as a document (`stats.export`).
-  ///
-  /// [range] and [scope] are the chips the page is showing, and [format] is
-  /// `md` or `csv`. The core writes **no file**: it returns the whole document
-  /// text plus the format it produced, so saving or copying is the shell's job
-  /// and the workspace is left byte-identical. A refusal rethrows the
-  /// [RpcException] untouched for the page's inline message and retry; the
   /// store keeps no export projection because the reply is a snapshot.
   Future<StatsExportResult> exportStats({
     String range = 'all',
@@ -2069,6 +1798,15 @@ class CoreStore extends ChangeNotifier {
       if (match == null) continue;
       yield match.group(1)!.toLowerCase() == 'x';
     }
+  }
+
+  static List<ProjectRow> _projectRows(Map<String, dynamic> json) {
+    final raw = json['projects'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((row) => ProjectRow.fromJson(Map<String, dynamic>.from(row)))
+        .toList();
   }
 
   @override
