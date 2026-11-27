@@ -1,3 +1,4 @@
+import { fsyncDirectory } from "../../storage/atomic";
 /**
  * Archive, restore, delete and export for lock-in sessions.
  *
@@ -12,7 +13,7 @@
  */
 
 import { cp, mkdir, readdir, readFile, rename, rm, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { err, ok, type Result } from "../../domain/markdown";
 import { SESSION_FILES, sessionFromMeta, sessionToMeta } from "../../domain/session";
 import type { Workspace } from "../../storage/workspace";
@@ -134,6 +135,8 @@ export async function archiveSession(
     const written = await copySession(source, temporary, ARCHIVE_EXCLUDES)
     await writeMeta(temporary, { ...session, archived: true }, { chat_archived: false })
     await rename(temporary, destination)
+    await fsyncDirectory(dirname(destination))
+    await fsyncDirectory(dirname(destination))
     await rm(source, { recursive: true, force: true })
     options.emit?.({ type: "session.updated", id: options.id, action: "archive" })
     return ok({ archived: true, folder: destination, files: written.map((entry) => entry.name) })
@@ -189,6 +192,7 @@ export async function restoreSession(
     await copySession(source, temporary, [])
     await writeMeta(temporary, { ...session, archived: false })
     await rename(temporary, destination)
+    await fsyncDirectory(dirname(destination))
     // The archived chat was dropped on archive; say so rather than implying it.
     await rm(join(destination, SESSION_FILES.chat), { force: true })
     await rm(source, { recursive: true, force: true })
@@ -336,6 +340,7 @@ export async function exportSession(options: ActionOptions): Promise<Result<Expo
     const bytes = writeZip(entries)
     await Bun.write(temporary, bytes)
     await rename(temporary, target)
+    await fsyncDirectory(dirname(target))
     options.emit?.({ type: "session.updated", id: options.id, action: "export" })
     return ok({ path: target, bytes: bytes.length, entries: entries.map((entry) => entry.name).sort() })
   } catch (error) {

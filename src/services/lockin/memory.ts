@@ -1,3 +1,4 @@
+import { writeFileAtomic } from "../../storage/atomic";
 /**
  * Session memory: a compact, labelled record of what a session established.
  *
@@ -9,8 +10,8 @@
  * error, because the turn it describes already succeeded.
  */
 
-import { readFile, rename, rm } from "node:fs/promises"
-import { basename, join } from "node:path"
+import { readFile } from "node:fs/promises"
+import { join } from "node:path"
 
 import { err, ok, type Result } from "../../domain/markdown"
 import { parseDocument, patchFrontmatter, serializeDocument } from "../../domain/markdown"
@@ -158,7 +159,6 @@ export async function writeMemory(
   extraFrontmatter: Record<string, string> = {},
 ): Promise<Result<Memory, MemoryError>> {
   const target = memoryPath(folder)
-  const temporary = join(folder, `.${basename(target)}.tmp-${crypto.randomUUID()}`)
 
   let existing: string | null = null
   try {
@@ -186,11 +186,9 @@ export async function writeMemory(
   const text = serializeDocument(document.value.data, renderMemoryBody(memory), document.value.raw.eol)
 
   try {
-    await Bun.write(temporary, text)
-    await rename(temporary, target)
+    await writeFileAtomic(target, text)
     return ok(memory)
   } catch (error) {
-    await rm(temporary, { force: true }).catch(() => {})
     return err({
       kind: "storage",
       path: target,

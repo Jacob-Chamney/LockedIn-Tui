@@ -1,3 +1,5 @@
+import { dirname } from "node:path";
+import { writeFileAtomic, fsyncDirectory } from "../../storage/atomic";
 /**
  * Export a project's identity and staff as a small, deterministic zip.
  *
@@ -6,7 +8,7 @@
  * `project.json` for machines and `README.md` for a person. The live project is
  * never touched.
  */
-import { mkdir, rename, rm, writeFile } from "node:fs/promises"
+import { mkdir, rename, rm } from "node:fs/promises"
 import { join } from "node:path"
 
 import { err, ok, type Result } from "../../domain/markdown"
@@ -118,8 +120,9 @@ export async function exportProject(input: {
       { name: "project.json", data: encoder.encode(`${JSON.stringify(manifest, null, 2)}\n`) },
       { name: "README.md", data: encoder.encode(readmeFor(input.project)) },
     ]
-    await writeFile(temporary, writeZip(entries))
+    await writeFileAtomic(temporary, writeZip(entries))
     await rename(temporary, target)
+    await fsyncDirectory(dirname(target))
     return ok(target)
   } catch (error) {
     await rm(temporary, { force: true }).catch(() => {})

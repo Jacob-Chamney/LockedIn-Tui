@@ -1,3 +1,4 @@
+import { fsyncDirectory } from "../storage/atomic";
 /**
  * Folder archive backend (WP-128).
  *
@@ -58,6 +59,7 @@ async function renameWithRetry(from: string, to: string): Promise<void> {
   for (let attempt = 0; ; attempt++) {
     try {
       await rename(from, to)
+      await fsyncDirectory(dirname(to))
       return
     } catch (error) {
       const code = (error as { code?: string }).code

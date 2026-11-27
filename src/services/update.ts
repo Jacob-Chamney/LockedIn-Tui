@@ -1,3 +1,4 @@
+import { fsyncDirectory } from "../storage/atomic";
 /**
  * Release updates.
  *
@@ -262,6 +263,7 @@ export async function replaceBinary(
     await rename(target, previous)
     try {
       await rename(next, target)
+    await fsyncDirectory(dirname(target))
     } catch (error) {
       await rename(previous, target).catch(() => {})
       throw error

@@ -1,3 +1,4 @@
+import { fsyncDirectory } from "../../storage/atomic";
 /**
  * Lock-in session creation transaction.
  *
@@ -12,7 +13,7 @@
  */
 
 import { mkdir, open, readdir, realpath, rename, rm } from "node:fs/promises"
-import { basename, join, resolve } from "node:path"
+import { basename, dirname, join, resolve } from "node:path"
 
 import { err, ok, type Result } from "../../domain/markdown"
 import {
@@ -261,6 +262,7 @@ export async function createLockInSession(
     await fsyncFile(metaPath)
 
     await rename(temporary, folder)
+    await fsyncDirectory(dirname(folder))
     request.emit?.({ type: "session.updated", sessionId: id.value, at: new Date().toISOString() })
 
     return ok({ session: built, folder, copiedFiles: sources.length })

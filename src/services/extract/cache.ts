@@ -1,3 +1,4 @@
+import { writeFileAtomic } from "../../storage/atomic";
 /**
  * Extraction cache.
  *
@@ -12,7 +13,7 @@
  * cache must never be visible to the user as a failed search.
  */
 
-import { mkdir, readdir, readFile, rename, rm, stat } from "node:fs/promises"
+import { mkdir, readdir, readFile, rm, stat } from "node:fs/promises"
 import { join } from "node:path"
 
 /** Bump when extraction output changes shape; old entries then miss. */
@@ -198,9 +199,7 @@ export function createExtractionCache(options: CacheOptions): ExtractionCache {
 
       try {
         await mkdir(root, { recursive: true })
-        const temporary = `${path}.tmp-${crypto.randomUUID()}`
-        await Bun.write(temporary, JSON.stringify(entry))
-        await rename(temporary, path)
+        await writeFileAtomic(path, JSON.stringify(entry))
       } catch (error) {
         report({ kind: "cache", code: "write", path, message: messageOf(error) })
         return

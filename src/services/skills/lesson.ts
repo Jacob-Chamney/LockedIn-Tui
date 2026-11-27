@@ -1,3 +1,4 @@
+import { writeFileAtomic } from "../../storage/atomic";
 /**
  * Staged lessons: one stage at a time, every claim cited or labelled.
  *
@@ -9,7 +10,7 @@
  * Nothing is written on a validation failure, a refusal or a declined rebuild.
  */
 
-import { mkdir, readFile, rename } from "node:fs/promises"
+import { mkdir, readFile } from "node:fs/promises"
 import { join } from "node:path"
 
 import { err, ok, type Result } from "../../domain/markdown"
@@ -396,9 +397,7 @@ export async function buildLesson(input: BuildInput): Promise<Result<BuildOutcom
 
   try {
     await mkdir(lessonsDir, { recursive: true })
-    const temporary = `${path}.tmp-${crypto.randomUUID()}`
-    await Bun.write(temporary, markdown)
-    await rename(temporary, path)
+    await writeFileAtomic(path, markdown)
   } catch (error) {
     return err({
       kind: "storage",
