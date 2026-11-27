@@ -1,3 +1,4 @@
+import { fsyncDirectory } from "../../storage/atomic";
 /**
  * Goal creation and curriculum draft for skill sessions.
  *
@@ -10,7 +11,7 @@
  */
 
 import { readFile, rename, rm, mkdir, writeFile } from "node:fs/promises"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 
 import { err, ok, type Result } from "../../domain/markdown"
 import { slugify } from "../../domain/note"
@@ -84,6 +85,7 @@ async function renameWithRetry(from: string, to: string): Promise<void> {
   for (let attempt = 0; ; attempt++) {
     try {
       await rename(from, to)
+      await fsyncDirectory(dirname(to))
       return
     } catch (error) {
       const code = (error as { code?: string }).code

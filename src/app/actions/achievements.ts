@@ -1,5 +1,6 @@
+import { writeFileAtomic } from "../../storage/atomic";
 /** Lifetime counters and awarded dates for the achievement inventory. */
-import { mkdir, readFile, rename } from "node:fs/promises"
+import { mkdir, readFile } from "node:fs/promises"
 import { join } from "node:path"
 
 import {
@@ -42,10 +43,8 @@ async function readAwards(
 }
 
 async function writeAwards(path: string, awards: Record<string, string>): Promise<void> {
-  const temporary = `${path}.tmp-${crypto.randomUUID()}`
   await mkdir(join(path, ".."), { recursive: true }).catch(() => {})
-  await Bun.write(temporary, `${JSON.stringify(awards, null, 2)}\n`)
-  await rename(temporary, path)
+  await writeFileAtomic(path, `${JSON.stringify(awards, null, 2)}\n`)
 }
 
 export async function loadAchievementSnapshot(input: {

@@ -1,3 +1,4 @@
+import { writeFileAtomic } from "../../storage/atomic";
 /**
  * Source gathering for skill sessions.
  *
@@ -9,7 +10,7 @@
  * Extraction is WP-307's job; this module never adds a second extractor.
  */
 
-import { mkdir, readFile, realpath, rename, rm, stat } from "node:fs/promises"
+import { mkdir, readFile, realpath, rm, stat } from "node:fs/promises"
 import { lookup } from "node:dns/promises"
 import { request as httpRequest } from "node:http"
 import { request as httpsRequest } from "node:https"
@@ -346,9 +347,7 @@ async function writeGoalMeta(
   onWrite?: () => void,
 ): Promise<void> {
   const target = join(folder, GOAL_META_FILE)
-  const temporary = join(folder, `.${GOAL_META_FILE}.tmp-${crypto.randomUUID()}`)
-  await Bun.write(temporary, `${JSON.stringify({ ...meta, sources }, null, 2)}\n`)
-  await rename(temporary, target)
+  await writeFileAtomic(target, `${JSON.stringify({ ...meta, sources }, null, 2)}\n`)
   onWrite?.()
 }
 

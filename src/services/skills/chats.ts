@@ -1,3 +1,4 @@
+import { fsyncDirectory } from "../../storage/atomic";
 /**
  * Skill chats: several conversations per goal, one file each.
  *
@@ -7,7 +8,7 @@
  */
 
 import { appendFile, readFile, rename, rm } from "node:fs/promises"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import { confinedJoin } from "../../storage/paths"
 
 import { err, ok, type Result } from "../../domain/markdown"
@@ -143,6 +144,7 @@ export async function deleteChat(input: {
   const staged = `${target}.deleting-${crypto.randomUUID()}`
   try {
     await rename(target, staged)
+    await fsyncDirectory(dirname(target))
   } catch (error) {
     return err({ kind: "storage", path: target, message: messageOf(error) })
   }

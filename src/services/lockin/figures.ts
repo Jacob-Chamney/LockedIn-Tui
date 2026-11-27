@@ -1,3 +1,4 @@
+import { writeFileAtomic } from "../../storage/atomic";
 /**
  * Figures cropped out of a session's own PDF.
  *
@@ -293,9 +294,7 @@ export async function addFigure(
   const path = join(figuresDir(sessionFolder), file);
   try {
     await mkdir(figuresDir(sessionFolder), { recursive: true });
-    const temporary = `${path}.tmp-${crypto.randomUUID()}`;
-    await writeFile(temporary, input.bytes);
-    await rename(temporary, path);
+    await writeFileAtomic(path, input.bytes);
   } catch (error) {
     return { ok: false, error: { kind: "storage", path, message: messageOf(error) } };
   }

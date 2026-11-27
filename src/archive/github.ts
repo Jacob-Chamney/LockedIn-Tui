@@ -1,3 +1,4 @@
+import { fsyncDirectory } from "../storage/atomic";
 /**
  * GitHub archive backend (WP-601) — the second `ArchiveBackend` adapter.
  *
@@ -798,6 +799,7 @@ export function openGithubArchive(options: GithubArchiveOptions): Result<GithubA
           await rename(targetFolder, previous)
           try {
             await rename(temp, targetFolder)
+    await fsyncDirectory(dirname(targetFolder))
           } catch (error) {
             await rename(previous, targetFolder).catch(() => {})
             throw error
@@ -805,6 +807,7 @@ export function openGithubArchive(options: GithubArchiveOptions): Result<GithubA
           await rm(previous, { recursive: true, force: true }).catch(() => {})
         } else {
           await rename(temp, targetFolder)
+    await fsyncDirectory(dirname(targetFolder))
         }
         placed = true
       } catch (error) {

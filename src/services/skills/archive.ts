@@ -1,3 +1,4 @@
+import { fsyncDirectory, writeFileAtomic } from "../../storage/atomic";
 /** Archive and export one skill goal as a folder/zip. */
 import { mkdir, readFile, readdir, rename, rm } from "node:fs/promises"
 import { basename, join } from "node:path"
@@ -46,8 +47,9 @@ export async function exportGoal(input: {
   try {
     const entries = await collect(folder.value)
     await mkdir(input.workspace.paths.exports, { recursive: true })
-    await Bun.write(temporary, writeZip(entries))
+    await writeFileAtomic(temporary, writeZip(entries))
     await rename(temporary, target)
+    await fsyncDirectory(input.workspace.paths.exports)
     return ok(target)
   } catch (error) {
     await rm(temporary, { force: true }).catch(() => {})

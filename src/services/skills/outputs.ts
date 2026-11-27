@@ -1,3 +1,4 @@
+import { writeFileAtomic } from "../../storage/atomic";
 /**
  * Skill outputs: a study guide, its answers and a flashcard deck.
  *
@@ -9,7 +10,7 @@
  * model, and a cancelled or failed build writes nothing.
  */
 
-import { readFile, readdir, rename } from "node:fs/promises"
+import { readFile, readdir } from "node:fs/promises"
 import { join } from "node:path"
 
 import { err, ok, type Result } from "../../domain/markdown"
@@ -220,9 +221,7 @@ export async function buildStudyGuide(
 }
 
 async function writeAtomic(path: string, text: string): Promise<void> {
-  const temporary = `${path}.tmp-${crypto.randomUUID()}`
-  await Bun.write(temporary, text)
-  await rename(temporary, path)
+  await writeFileAtomic(path, text)
 }
 
 // ------------------------------------------------------------------ deck

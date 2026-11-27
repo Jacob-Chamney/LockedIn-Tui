@@ -1,3 +1,4 @@
+import { fsyncDirectory } from "../../storage/atomic";
 /**
  * Streaming source copy for the lock-in creation transaction.
  *
@@ -126,6 +127,7 @@ export async function copySource(
 
   try {
     await rename(partial, finalPath)
+    await fsyncDirectory(options.sourcesDir)
   } catch (error) {
     await rm(partial, { force: true })
     return err({

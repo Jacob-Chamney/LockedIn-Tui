@@ -1,3 +1,5 @@
+import { fsyncDirectory, writeFileAtomic } from "../../storage/atomic";
+import { dirname } from "node:path";
 /**
  * Skill courses.
  *
@@ -243,6 +245,7 @@ export async function createCourse(input: {
     }
     await writeFile(join(temporary, META_FILE), `${JSON.stringify(course, null, 2)}\n`, "utf8")
     await rename(temporary, folder)
+    await fsyncDirectory(dirname(folder))
     return { ok: true, value: course }
   } catch (error) {
     await rm(temporary, { recursive: true, force: true }).catch(() => {})
@@ -316,8 +319,9 @@ export async function markChapter(input: {
   const paths = coursePaths(input.workspace, next)
   const temporary = `${paths.meta}.tmp-${crypto.randomUUID()}`
   try {
-    await writeFile(temporary, `${JSON.stringify(next, null, 2)}\n`, "utf8")
+    await writeFileAtomic(temporary, `${JSON.stringify(next, null, 2)}\n`)
     await rename(temporary, paths.meta)
+    await fsyncDirectory(dirname(paths.meta))
     return { ok: true, value: next }
   } catch {
     await rm(temporary, { force: true }).catch(() => {})
