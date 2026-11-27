@@ -56,7 +56,7 @@ void main() {
     expect(find.text('nothing archived yet'), findsOneWidget);
     expect(
       find.text(
-        'archive one from Sessions or Skills with `a`; it appears here',
+        'archive one from Sessions or Teaching with a; it appears here',
       ),
       findsOneWidget,
     );

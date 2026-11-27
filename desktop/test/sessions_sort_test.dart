@@ -104,11 +104,8 @@ void main() {
       const SessionsPage(sessions: _sessions, loading: false),
     );
 
+    // The order is the header's one chip; the keys are in the status bar.
     expect(find.text('sort · date ↓'), findsOneWidget);
-    expect(
-      find.text('↑↓ move · Enter open · o sort · n new · / search'),
-      findsOneWidget,
-    );
 
     for (final label in ['date ↑', 'name A–Z', 'sources ↓', 'date ↓']) {
       await pressO(tester);

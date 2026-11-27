@@ -105,8 +105,11 @@ class _ArchivePageState extends State<ArchivePage> {
   bool _dialogOpen = false;
 
   /// The keys this page actually offers, generated rather than hard-coded so a
-  /// page rendered without a handler never advertises one.
+  /// page rendered without a handler never advertises one. An empty archive has
+  /// no row to act on, so it advertises nothing: the empty state names the way
+  /// to fill it instead.
   String get _hint {
+    if (widget.rows.isEmpty) return '';
     final parts = <String>['j/k move'];
     if (widget.onRestore != null) parts.add('Enter restore');
     if (widget.onDelete != null) parts.add('d delete');
@@ -383,15 +386,17 @@ class _ArchivePageState extends State<ArchivePage> {
                 children: [
                   _header(compact: compact),
                   const SizedBox(height: 12),
-                  Text(
-                    _hint,
-                    key: const ValueKey('archive-restore-hint'),
-                    style: TextStyle(
-                      color: LockedInColors.muted,
-                      fontSize: TypeScale.label,
+                  if (_hint.isNotEmpty) ...[
+                    Text(
+                      _hint,
+                      key: const ValueKey('archive-restore-hint'),
+                      style: TextStyle(
+                        color: LockedInColors.muted,
+                        fontSize: TypeScale.label,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
+                    const SizedBox(height: 8),
+                  ],
                   if (_actionError != null || _notice != null) ...[
                     _ActionBanner(
                       message: _actionError ?? _notice!,
@@ -1113,7 +1118,7 @@ class _EmptyState extends StatelessWidget {
           Text('nothing archived yet', style: theme.textTheme.titleMedium),
           const SizedBox(height: 6),
           Text(
-            'archive one from Sessions or Skills with `a`; it appears here',
+            'archive one from Sessions or Teaching with a; it appears here',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: LockedInColors.muted,

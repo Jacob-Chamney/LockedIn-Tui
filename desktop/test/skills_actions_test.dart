@@ -80,7 +80,8 @@ void main() {
         ),
       );
 
-      expect(find.text('a archive · d delete · x export'), findsOneWidget);
+      // The verbs are header buttons; the keys live in the status bar.
+      expect(find.byKey(const ValueKey('skills-archive')), findsOneWidget);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
       await tester.pumpAndSettle();
@@ -286,7 +287,8 @@ void main() {
         size: const Size(800, 600),
       );
 
-      expect(find.text('a archive · d delete · x export'), findsOneWidget);
+      // The verbs are header buttons; the keys live in the status bar.
+      expect(find.byKey(const ValueKey('skills-archive')), findsOneWidget);
       await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
       await tester.pumpAndSettle();
       expect(find.text('Archive “$_firstName”?'), findsOneWidget);
@@ -307,7 +309,8 @@ void main() {
         size: const Size(560, 640),
       );
       await tester.pumpAndSettle();
-      expect(find.text('a archive · d delete · x export'), findsOneWidget);
+      // The verbs are header buttons; the keys live in the status bar.
+      expect(find.byKey(const ValueKey('skills-archive')), findsOneWidget);
       await tester.sendKeyEvent(LogicalKeyboardKey.keyX);
       await tester.pumpAndSettle();
       expect(find.text('Export “$_firstName”?'), findsOneWidget);

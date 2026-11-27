@@ -551,6 +551,23 @@ ThemeData lockedInTheme() {
         ),
       ),
     ),
+    // Outlined was the one button the theme never named, so Material 3 drew a
+    // full capsule while every other control was square-with-a-hairline. One
+    // geometry for every button (`desktop/docs/redesign.md` §3.1).
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: LockedInColors.foreground,
+        textStyle: LockedInType.label,
+        side: BorderSide(color: LockedInColors.line, width: Stroke.hairline),
+        padding: const EdgeInsets.symmetric(
+          horizontal: Space.md,
+          vertical: Space.xs + Space.hair,
+        ),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(Radii.control)),
+        ),
+      ),
+    ),
     // One dialog shape for every confirm, picker and settings sheet: square,
     // one hairline, no elevation — the same frame as the palette and the
     // leader, so a floating layer looks the same wherever it opens.

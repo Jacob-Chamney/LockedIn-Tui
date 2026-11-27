@@ -35,22 +35,33 @@ class SectionCard extends StatelessWidget {
 
 /// A short value in a bordered chip: a count, a mode, an outcome.
 ///
-/// `tone` colours the value; the muted default is the common case. This is what
+/// `tone` colours the value; the muted default is the common case. `background`
+/// and `border` let a selected chip paint the accent fill itself, so the label
+/// and the fill can never disagree (the Stats filters used to paint the fill in
+/// a parent `Material` while this container stayed panel grey). This is what
 /// `_ValueChip` and `_CountChip` were, twice, in four files.
 class ValueChip extends StatelessWidget {
-  const ValueChip(this.text, {super.key, this.tone});
+  const ValueChip(
+    this.text, {
+    super.key,
+    this.tone,
+    this.background,
+    this.border,
+  });
 
   final String text;
   final Color? tone;
+  final Color? background;
+  final Color? border;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: LockedInColors.panel,
+        color: background ?? LockedInColors.panel,
         borderRadius: BorderRadius.circular(Radii.control),
-        border: Border.all(color: LockedInColors.line),
+        border: Border.all(color: border ?? LockedInColors.line),
       ),
       child: Text(
         text,

@@ -120,6 +120,6 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('knowledge-mode-notes')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('knowledge-list')), findsOneWidget);
-    expect(find.textContaining('g graph'), findsOneWidget);
+    expect(find.byKey(const ValueKey('knowledge-mode-graph')), findsOneWidget);
   });
 }

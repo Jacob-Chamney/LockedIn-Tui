@@ -95,7 +95,13 @@ void main() {
 
       expect(find.text('archive session'), findsNothing);
       expect(archived, isEmpty);
-      expect(find.text('Physics — Unit 4'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(SessionsPage),
+          matching: find.text('Physics — Unit 4'),
+        ),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     });
 
@@ -155,7 +161,13 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('session-delete-cancel')));
       await tester.pumpAndSettle();
       expect(deleted, isEmpty);
-      expect(find.text('Physics — Unit 4'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(SessionsPage),
+          matching: find.text('Physics — Unit 4'),
+        ),
+        findsOneWidget,
+      );
 
       await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
       await tester.pumpAndSettle();
@@ -228,7 +240,13 @@ void main() {
         find.byKey(const ValueKey('session-action-error')),
         findsOneWidget,
       );
-      expect(find.text('Physics — Unit 4'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(SessionsPage),
+          matching: find.text('Physics — Unit 4'),
+        ),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     });
 
@@ -323,7 +341,8 @@ void main() {
         size: const Size(800, 600),
       );
 
-      expect(find.text('a archive · d delete · x export'), findsOneWidget);
+      // The verbs are header buttons; the keys live in the status bar.
+      expect(find.byKey(const ValueKey('sessions-archive')), findsOneWidget);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
       await tester.pumpAndSettle();
@@ -414,8 +433,14 @@ void main() {
     await pumpShell(tester, core: core);
     await openSurface(tester, 2);
 
-    expect(find.text('Audit session'), findsOneWidget);
-    expect(find.text('a archive · d delete · x export'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(SessionsPage),
+        matching: find.text('Audit session'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('sessions-archive')), findsOneWidget);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
     await tester.pumpAndSettle();
@@ -426,7 +451,13 @@ void main() {
 
     expect(core.archiveCalls, [_listRowId]);
     expect(find.text('Audit session'), findsNothing);
-    expect(find.text('Physics — Unit 4'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(SessionsPage),
+        matching: find.text('Physics — Unit 4'),
+      ),
+      findsOneWidget,
+    );
     expect(
       find.text('archived “Audit session” to the folder archive'),
       findsOneWidget,

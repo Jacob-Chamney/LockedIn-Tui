@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lockedin_desktop/features/sessions/sessions_page.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'fake_core.dart';
@@ -40,8 +41,21 @@ void main() {
 
     await openSurface(tester, 2);
 
-    expect(find.text('Audit session'), findsOneWidget);
-    expect(find.text('Physics — Unit 4'), findsOneWidget);
+    // The `RECENT` rail lists the same names; the manager is the list.
+    expect(
+      find.descendant(
+        of: find.byType(SessionsPage),
+        matching: find.text('Audit session'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(SessionsPage),
+        matching: find.text('Physics — Unit 4'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('returning to Stats refetches usage after a chat turn', (

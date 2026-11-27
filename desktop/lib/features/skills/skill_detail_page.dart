@@ -105,6 +105,17 @@ extension _SkillDetailPage on _SkillDetailViewState {
       // this mode owns its letters, not the whole keyboard.
       return KeyEventResult.ignored;
     }
+    // Inline fields (research question, teaching answer and thinking, side
+    // question) own bare keys while they have the keyboard. Without the guard
+    // typing `1` jumped phases and `c` opened the chat. `Esc` leaves the field
+    // first; a second press leaves the goal.
+    if (textInputFocused) {
+      if (key == LogicalKeyboardKey.escape) {
+        FocusManager.instance.primaryFocus?.unfocus();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
     if (key == LogicalKeyboardKey.escape) {
       if (widget.onBack == null) return KeyEventResult.ignored;
       widget.onBack!();
@@ -254,9 +265,39 @@ extension _SkillDetailPage on _SkillDetailViewState {
     );
   }
 
+  /// The phase the record is actually at when the goal opens.
+  Phase _initialPhase() {
+    final teaching = widget.teaching;
+    if (teaching == null || !teaching.measured) return Phase.measure;
+    // Every planned step passed: there is nothing left to teach, so the rail
+    // marks practice. An open step is the teach phase.
+    if (teaching.plan.isNotEmpty &&
+        teaching.passedCount >= teaching.plan.length) {
+      return Phase.practice;
+    }
+    return Phase.teach;
+  }
+
   Widget _header() {
+    // Measured on the pane, not the window: the rail takes 176 px, so a
+    // `MediaQuery` check called a window "wide" while the header had 200 px
+    // less. The same rule the session header uses.
+    return LayoutBuilder(
+      builder: (context, constraints) => _headerAt(constraints.maxWidth),
+    );
+  }
+
+  Widget _headerAt(double width) {
     final theme = Theme.of(context);
     final detail = widget.detail;
+    final wide = width >= Breakpoints.hint;
+    // A goal's name is usually its statement, so the second line repeated the
+    // title verbatim. Show the counts instead when they are the same words.
+    final goal = detail.goal.trim();
+    final name = detail.name.trim();
+    final secondLine = goal.isEmpty || goal.toLowerCase() == name.toLowerCase()
+        ? _subtitle(detail)
+        : goal;
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 8, 14, 8),
       decoration: BoxDecoration(
@@ -287,7 +328,7 @@ extension _SkillDetailPage on _SkillDetailViewState {
                 // the north star, so it stays on screen through every phase. The
                 // plan/chapter/chat counts live in the rail and the panes.
                 Text(
-                  detail.goal.trim().isEmpty ? _subtitle(detail) : detail.goal,
+                  secondLine,
                   key: const ValueKey('skill-goal-line'),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -300,23 +341,39 @@ extension _SkillDetailPage on _SkillDetailViewState {
               ],
             ),
           ),
+          if (widget.onNewChat != null) ...[
+            const SizedBox(width: 8),
+            if (wide)
+              OutlinedButton.icon(
+                key: const ValueKey('skill-new-chat'),
+                onPressed: widget.onNewChat,
+                icon: const Icon(Icons.add_comment_outlined, size: 16),
+                label: const Text('New chat'),
+              )
+            else
+              IconButton(
+                key: const ValueKey('skill-new-chat'),
+                tooltip: 'New chat (Shift+N)',
+                onPressed: widget.onNewChat,
+                icon: const Icon(Icons.add_comment_outlined, size: 18),
+              ),
+          ],
           if (widget.onOpenChat != null) ...[
             const SizedBox(width: 8),
-            IconButton(
-              key: const ValueKey('skill-open-chat'),
-              tooltip: 'Open chat (c)',
-              onPressed: widget.onOpenChat,
-              icon: const Icon(Icons.forum_outlined, size: 18),
-            ),
-          ],
-          if (widget.onNewChat != null) ...[
-            const SizedBox(width: 4),
-            IconButton(
-              key: const ValueKey('skill-new-chat'),
-              tooltip: 'New chat (Shift+N)',
-              onPressed: widget.onNewChat,
-              icon: const Icon(Icons.add_comment_outlined, size: 18),
-            ),
+            if (wide)
+              FilledButton.icon(
+                key: const ValueKey('skill-open-chat'),
+                onPressed: widget.onOpenChat,
+                icon: const Icon(Icons.forum_outlined, size: 16),
+                label: const Text('Open chat'),
+              )
+            else
+              IconButton(
+                key: const ValueKey('skill-open-chat'),
+                tooltip: 'Open chat (c)',
+                onPressed: widget.onOpenChat,
+                icon: const Icon(Icons.forum_outlined, size: 18),
+              ),
           ],
         ],
       ),

@@ -741,28 +741,27 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // The same chip as every other surface: `ValueChip` with the accent when
-    // selected. A second container here was the last local chip in the app.
+    // The same chip as every other surface: `ValueChip` with the accent fill
+    // when selected. The fill belongs to the chip itself — a parent `Material`
+    // painted the red while the chip kept its panel grey, so the selected label
+    // was dark-on-grey and nearly invisible.
     final text = value == null ? label : '$label  $value';
+    final accent = LockedInColors.primary;
+    final onAccent = Theme.of(context).colorScheme.onPrimary;
     final chip = ValueChip(
       text,
-      tone: selected ? Theme.of(context).colorScheme.onPrimary : null,
+      tone: selected ? onAccent : null,
+      background: selected ? accent : null,
+      border: selected ? accent : null,
     );
     if (onTap == null && !selected) return chip;
     return Material(
-      color: selected ? LockedInColors.primary : Colors.transparent,
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(Radii.control),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(Radii.control),
-        child: selected
-            ? chip
-            : Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(Radii.control),
-                ),
-                child: chip,
-              ),
+        child: chip,
       ),
     );
   }

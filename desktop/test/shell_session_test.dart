@@ -1,6 +1,8 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lockedin_desktop/bridge/core_client.dart';
+import 'package:lockedin_desktop/features/sessions/session_detail.dart';
+import 'package:lockedin_desktop/features/sessions/sessions_page.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'fake_core.dart';
@@ -49,7 +51,13 @@ void main() {
       'phys',
     );
     await tester.pumpAndSettle();
-    expect(find.text('Physics — Unit 4'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(SessionsPage),
+        matching: find.text('Physics — Unit 4'),
+      ),
+      findsOneWidget,
+    );
 
     String selected() {
       final marker = find.byKey(const ValueKey('session-row-selected'));
@@ -187,6 +195,12 @@ void main() {
       find.byKey(const ValueKey('recent-session-2026-10-01-0900-chemistry')),
     );
     expect(newest.dy, lessThan(older.dy));
+    // The rail is too narrow for `name · date`; it showed `· 2…` on every row.
+    // The name is the text, and the date lives in the tooltip.
+    final recent = tester.widget<Text>(
+      find.byKey(const ValueKey('recent-session-${FakeCore.sessionId}')),
+    );
+    expect(recent.data, 'Physics — Unit 4');
     expect(tester.takeException(), isNull);
   });
 
@@ -265,7 +279,14 @@ void main() {
   testWidgets('Alt+2 shows the opened session detail', (tester) async {
     await openSession(tester);
 
-    expect(find.text('Physics — Unit 4'), findsOneWidget);
+    // The `RECENT` rail lists the same name; the detail is the page title.
+    expect(
+      find.descendant(
+        of: find.byType(SessionDetailView),
+        matching: find.text('Physics — Unit 4'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Explain the problem set.'), findsOneWidget);
     // The sources card and the coverage card both name each source.
     expect(find.text('lecture-4.md'), findsWidgets);
@@ -325,7 +346,13 @@ void main() {
 
     expect(store.activeSession, isNull);
     expect(store.activeSessionId, isNull);
-    expect(find.text('Audit session'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(SessionsPage),
+        matching: find.text('Audit session'),
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 

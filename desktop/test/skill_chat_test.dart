@@ -54,7 +54,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('skill-context-tab-chats')));
     await tester.pumpAndSettle();
     expect(find.text('2 chats'), findsOneWidget);
-    expect(find.text('Open chat'), findsOneWidget);
+    expect(find.byKey(const ValueKey('skill-open-chat-card')), findsOneWidget);
 
     await openGoalChat(tester);
 
