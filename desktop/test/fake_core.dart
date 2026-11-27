@@ -2827,6 +2827,11 @@ class FakeCore implements CoreConnection {
       }
       return _settings();
     }
+    if (method == 'chat.clear') {
+      _chatMessages.clear();
+      _events.add({'method': 'chat.state', 'params': _chat()});
+      return {'ok': true};
+    }
     if (method == 'chat.send') {
       final text = params?['text'] is String ? params!['text'] as String : '';
       final rawImages = params?['images'];

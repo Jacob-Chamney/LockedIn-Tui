@@ -54,6 +54,7 @@ abstract final class CoreMethod {
   static const String chatSnapshot = 'chat.snapshot';
   static const String chatSend = 'chat.send';
   static const String chatCancel = 'chat.cancel';
+  static const String chatClear = 'chat.clear';
   static const String sessionChatSnapshot = 'session.chat.snapshot';
   static const String sessionChatSend = 'session.chat.send';
   static const String sessionChatCancel = 'session.chat.cancel';
@@ -188,6 +189,7 @@ abstract final class CoreMethod {
     chatSnapshot,
     chatSend,
     chatCancel,
+    chatClear,
     sessionChatSnapshot,
     sessionChatSend,
     sessionChatCancel,

@@ -161,6 +161,9 @@ extension _ShellOverlays on _ShellState {
         unawaited(store.refreshAll());
       case 'retry':
         unawaited(store.retry());
+      case 'clear-chat':
+        // The core refuses mid-reply with its own sentence; the banner shows it.
+        unawaited(store.clearChat());
       case 'achievements':
         _openAchievements();
       case 'sidebar':

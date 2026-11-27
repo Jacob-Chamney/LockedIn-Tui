@@ -65,6 +65,8 @@ const commandAliases = <String, String>{
   'help': 'help',
   'refresh': 'refresh',
   'retry': 'retry',
+  // `:clear` is the product's name for emptying Chill (`docs/product.md` §3.1).
+  'clear': 'clear-chat',
   'close': 'close',
   // `:q` is the dismissal every editor trains a person to reach for.
   'q': 'close',

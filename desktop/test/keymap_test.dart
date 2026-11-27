@@ -5,6 +5,7 @@ import 'package:lockedin_desktop/bridge/protocol.dart';
 import 'package:lockedin_desktop/features/settings/settings_page.dart';
 import 'package:lockedin_desktop/keymap/binding.dart';
 import 'package:lockedin_desktop/keymap/registry.dart';
+import 'package:lockedin_desktop/shell/command_line.dart';
 import 'package:lockedin_desktop/shell/shell.dart';
 import 'package:lockedin_desktop/theme/palette.dart';
 import 'package:material_ui/material_ui.dart';
@@ -160,7 +161,7 @@ void main() {
   group('registry', () {
     test('the defaults are real chords and cover every surface', () {
       final registry = KeymapRegistry();
-      expect(registry.actions.length, 17);
+      expect(registry.actions.length, 18);
       expect(surfaceActionIds, [
         for (final surface in Surface.values) surface.name,
       ], reason: 'the shell surfaces and the registry key table must agree');
@@ -354,6 +355,18 @@ void main() {
   });
 
   group('settings keybinds', () {
+    test('clear-chat is one action with a :clear command', () {
+      final registry = KeymapRegistry();
+      final action = registry.actions.firstWhere(
+        (spec) => spec.id == 'clear-chat',
+      );
+      expect(action.defaultBinding.display.toLowerCase(), 'ctrl+l');
+
+      final clear = commandEntries(registry)
+          .firstWhere((entry) => entry.name == 'clear');
+      expect(clear.actionId, 'clear-chat');
+    });
+
     testWidgets('the KEYBINDS group lists every action with its binding', (
       tester,
     ) async {

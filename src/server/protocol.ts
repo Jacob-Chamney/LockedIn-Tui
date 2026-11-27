@@ -148,6 +148,7 @@ export const CAPABILITIES = [
   "chat.snapshot",
   "chat.send",
   "chat.cancel",
+  "chat.clear",
   "session.chat.snapshot",
   "session.chat.send",
   "session.chat.cancel",
@@ -806,7 +807,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     services,
     notify: (notification) => options.notify?.(notification),
   });
-  const { chatSnapshot, chatSend, chatCancel } = chillChat.handlers;
+  const { chatSnapshot, chatSend, chatCancel, chatClear } = chillChat.handlers;
 
   const reviewKnowledge = createReviewKnowledgeHandlers({
     services,
@@ -1009,6 +1010,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         return chatSend(id, params);
       case "chat.cancel":
         return chatCancel(id);
+      case "chat.clear":
+        return chatClear(id);
       case "session.open":
         return sessionOpen(id, params);
       case "session.coverage":

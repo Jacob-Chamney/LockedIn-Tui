@@ -182,4 +182,21 @@ void main() {
     expect(store.projects.any((row) => row.id == FakeCore.projectId), isFalse);
     expect(store.projects.length, before - 1);
   });
+  test('clearChat empties the transcript and clears the banner', () async {
+    final core = FakeCore();
+    final store = CoreStore(connection: core);
+    addTearDown(store.dispose);
+    await store.start();
+    await store.sendChat('hello');
+    await Future<void>.delayed(Duration.zero);
+    expect(store.chat?.messages, isNotEmpty);
+
+    final cleared = await store.clearChat();
+
+    expect(cleared, isTrue);
+    expect(core.calls, contains('chat.clear'));
+    await Future<void>.delayed(Duration.zero);
+    expect(store.chat?.messages, isEmpty);
+    expect(store.chatSendError, isNull);
+  });
 }

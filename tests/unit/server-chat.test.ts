@@ -15,7 +15,7 @@ type Listener = (state: Record<string, unknown>) => void;
 
 function fakeController() {
   const listeners: Listener[] = [];
-  const calls = { load: 0, send: [] as string[], cancel: 0 };
+  const calls = { load: 0, send: [] as string[], cancel: 0, clear: 0 };
   let state: Record<string, unknown> = {
     status: "idle",
     model: null,
@@ -70,6 +70,12 @@ function fakeController() {
       calls.cancel += 1;
       state = { ...state, status: "idle" };
       emit();
+    },
+    clearTranscript: () => {
+      calls.clear += 1;
+      state = { ...state, messages: [], streamed: "", status: "idle", error: null };
+      emit();
+      return { ok: true as const };
     },
   } as unknown as NonNullable<CoreServices["controller"]>;
   return { controller, calls };
@@ -187,6 +193,23 @@ describe("chat protocol", () => {
     const server = makeServer(controller, []);
     expect(await server.handle(req(3, "chat.cancel"))).toMatchObject({ id: 3, result: { ok: true } });
     expect(calls.cancel).toBe(1);
+  });
+
+  test("clear empties the transcript and emits the empty state", async () => {
+    const notifications: CoreNotification[] = [];
+    const { controller, calls } = fakeController();
+    const server = makeServer(controller, notifications);
+
+    expect(await server.handle(req(5, "chat.clear"))).toMatchObject({
+      id: 5,
+      result: { ok: true },
+    });
+    expect(calls.clear).toBe(1);
+
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    const states = notifications.filter((entry) => entry.method === "chat.state");
+    expect(states.length).toBeGreaterThanOrEqual(1);
+    expect((states.at(-1)!.params as { messages: unknown[] }).messages).toEqual([]);
   });
 
   test("an empty message is refused", async () => {
