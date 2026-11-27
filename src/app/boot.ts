@@ -90,6 +90,14 @@ export type BootOptions = {
     key: string
     baseUrl?: string
   }) => Promise<LlmResult<LinkOutcome>>
+  /**
+   * The secret store `provider.link` writes through.
+   *
+   * Production leaves this unset, so the real OS keychain is used. A test
+   * injects the in-memory adapter, which runs the **whole** link path — format
+   * check, one authenticated request, then the store — without a keyring.
+   */
+  secretStore?: import("../security/secret-store").SecretStore
   onUsageError?: (message: string) => void
   scope?: RunScope
 }
@@ -555,8 +563,9 @@ export async function boot(options: BootOptions = {}): Promise<Result<Booted, Bo
     const outcome = options.linkKey
       ? await options.linkKey(input)
       : await (async () => {
-          const { createSystemSecretStore } = await import("../security/keyring")
-          const store = await createSystemSecretStore()
+          const store =
+            options.secretStore ??
+            (await (await import("../security/keyring")).createSystemSecretStore())
           return linkProviderKey({
             providerId: spec.id,
             spec,
