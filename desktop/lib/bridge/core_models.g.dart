@@ -441,6 +441,9 @@ class SettingsView {
     required this.dataDir,
     required this.archiveBackend,
     required this.archiveFolder,
+    required this.archiveGithubRepo,
+    required this.archiveGithubBranch,
+    required this.archiveGithubConsent,
     required this.historyLimit,
     required this.responseStyle,
     required this.tutorPolicy,
@@ -476,6 +479,15 @@ class SettingsView {
 
   final String archiveFolder;
 
+  /// `archive.github.repo`: owner/name, empty until configured.
+  final String archiveGithubRepo;
+
+  /// `archive.github.branch`: the branch pushes target.
+  final String archiveGithubBranch;
+
+  /// `archive.github.consent`: one-time permission to leave the machine.
+  final bool archiveGithubConsent;
+
   final int historyLimit;
 
   final String responseStyle;
@@ -508,6 +520,9 @@ class SettingsView {
     dataDir: _string(json['dataDir']),
     archiveBackend: _string(json['archiveBackend']),
     archiveFolder: _string(json['archiveFolder']),
+    archiveGithubRepo: _string(json['archiveGithubRepo']),
+    archiveGithubBranch: _string(json['archiveGithubBranch']),
+    archiveGithubConsent: _bool(json['archiveGithubConsent']),
     historyLimit: _int(json['historyLimit']),
     responseStyle: _string(json['responseStyle']),
     tutorPolicy: _string(json['tutorPolicy']),

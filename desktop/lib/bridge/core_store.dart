@@ -1013,6 +1013,16 @@ class CoreStore extends ChangeNotifier {
   /// True while a deck schedule read or grade is in flight.
   bool deckScheduleLoading = false;
 
+  /// True when a GitHub archive token is in the keychain, or null before the
+  /// first status read. The token itself never reaches the shell.
+  bool? githubTokenLinked;
+
+  /// True while the token status, link or clear request is in flight.
+  bool githubTokenLoading = false;
+
+  /// The last GitHub-token failure, shown under the archive actions.
+  String? githubTokenError;
+
   /// The last deck schedule failure, shown beside the deck.
   String? deckScheduleError;
 

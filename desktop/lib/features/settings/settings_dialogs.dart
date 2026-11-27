@@ -839,3 +839,107 @@ class _McpServerDialogState extends State<McpServerDialog> {
     );
   }
 }
+
+/// The GitHub archive token form.
+///
+/// The field is masked and the token is sent once to the core, which validates
+/// it with one request and stores it in the OS keychain. It is never written to
+/// config, a log or this dialog after a failure.
+class GithubTokenDialog extends StatefulWidget {
+  const GithubTokenDialog({super.key, required this.onSave});
+
+  final Future<String> Function(String token) onSave;
+
+  @override
+  State<GithubTokenDialog> createState() => _GithubTokenDialogState();
+}
+
+class _GithubTokenDialogState extends State<GithubTokenDialog> {
+  final _token = TextEditingController();
+  var _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _token.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_busy) return;
+    if (_token.text.trim().isEmpty) {
+      setState(() => _error = 'paste a GitHub token first');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final login = await widget.onSave(_token.text.trim());
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      final who = login.trim();
+      if (who.isNotEmpty) {
+        // The page can say who the token belongs to on its next build.
+      }
+    } catch (failure) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = userMessage(failure);
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('link a GitHub token'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              key: const ValueKey('github-token-field'),
+              controller: _token,
+              enabled: !_busy,
+              obscureText: true,
+              decoration: const InputDecoration(
+                hintText: 'paste a token with repository access',
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'stored in the OS keychain only; never in config.toml',
+              style: LockedInType.micro.copyWith(color: LockedInColors.muted),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                key: const ValueKey('github-token-error'),
+                style: LockedInType.label.copyWith(color: LockedInColors.error),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          key: const ValueKey('github-token-cancel'),
+          onPressed: _busy ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const ValueKey('github-token-save'),
+          onPressed: _busy ? null : _save,
+          child: Text(_busy ? 'checking…' : 'Link'),
+        ),
+      ],
+    );
+  }
+}

@@ -29,6 +29,7 @@ List<SettingGroup> buildGroups(
   bool updateChecking = false,
   String? updateError,
   List<PromptNoteView> prompts = const <PromptNoteView>[],
+  bool? githubTokenLinked,
 }) {
   return [
     SettingGroup(
@@ -220,13 +221,94 @@ List<SettingGroup> buildGroups(
           id: 'archive-backend',
           label: 'archive backend',
           value: _text(settings.archiveBackend),
-          hint: 'folder or private GitHub',
+          hint: 'Enter switches folder ↔ GitHub',
+          edit: SettingEdit(
+            kind: EditKind.toggle,
+            label: 'archive backend',
+            help: 'folder or a private GitHub repository',
+            togglePatch: () => {
+              'archive': {
+                'backend': settings.archiveBackend == 'github'
+                    ? 'folder'
+                    : 'github',
+              },
+            },
+          ),
         ),
         SettingRow(
           id: 'archive-folder',
           label: 'archive folder',
           value: _text(settings.archiveFolder),
           hint: 'local archive destination',
+          edit: SettingEdit(
+            kind: EditKind.text,
+            label: 'archive folder',
+            help: 'absolute path; required by the folder backend',
+            initial: settings.archiveFolder,
+            valuePatch: (input) => {
+              'archive': {'folder': input.trim()},
+            },
+          ),
+        ),
+        SettingRow(
+          id: 'archive-github-repo',
+          label: 'github repo',
+          value: _text(settings.archiveGithubRepo),
+          hint: 'owner/name; checked private before every push',
+          edit: SettingEdit(
+            kind: EditKind.text,
+            label: 'GitHub archive repository',
+            help: 'owner/name, for example me/lockedin-archive',
+            initial: settings.archiveGithubRepo,
+            valuePatch: (input) => {
+              'archive': {
+                'github': {'repo': input.trim()},
+              },
+            },
+          ),
+        ),
+        SettingRow(
+          id: 'archive-github-branch',
+          label: 'github branch',
+          value: _text(settings.archiveGithubBranch),
+          hint: 'branch the archive pushes to',
+          edit: SettingEdit(
+            kind: EditKind.text,
+            label: 'GitHub archive branch',
+            help: 'a branch name, usually main',
+            initial: settings.archiveGithubBranch,
+            valuePatch: (input) => {
+              'archive': {
+                'github': {'branch': input.trim()},
+              },
+            },
+          ),
+        ),
+        SettingRow(
+          id: 'archive-github-consent',
+          label: 'github consent',
+          value: settings.archiveGithubConsent ? 'given' : 'not given',
+          hint: 'one-time permission before anything leaves the machine',
+          edit: SettingEdit(
+            kind: EditKind.toggle,
+            label: 'GitHub archive consent',
+            help: 'revocable; a push never implies consent',
+            togglePatch: () => {
+              'archive': {
+                'github': {'consent': !settings.archiveGithubConsent},
+              },
+            },
+          ),
+        ),
+        SettingRow(
+          id: 'archive-github-token',
+          label: 'github token',
+          value: githubTokenLinked == null
+              ? 'no status'
+              : githubTokenLinked
+              ? 'linked'
+              : 'not linked',
+          hint: 'stored in the OS keychain; link or clear below',
         ),
         SettingRow(
           id: 'history-limit',

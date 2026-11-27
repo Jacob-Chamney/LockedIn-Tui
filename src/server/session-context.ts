@@ -41,6 +41,14 @@ export type SessionServices = {
   ) => Promise<
     Result<import("../app/actions/plugins").PluginRow[], { message: string }>
   >;
+  /** Whether a GitHub archive token is in the keychain (never the token). */
+  githubTokenStatus?: () => Promise<Result<{ linked: boolean }, { message: string }>>;
+  /** Validate one token and store it in the keychain. */
+  linkGithubToken?: (
+    token: string,
+  ) => Promise<Result<{ login: string }, { message: string }>>;
+  /** Remove the stored GitHub token. */
+  clearGithubToken?: () => Promise<Result<void, { message: string }>>;
   savePolicy?: (input: {
     command: import("../storage/config-schema").PluginCommand;
     server: string;

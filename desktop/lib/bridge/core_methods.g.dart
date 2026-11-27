@@ -41,6 +41,9 @@ abstract final class CoreMethod {
   static const String archiveList = 'archive.list';
   static const String archiveRestore = 'archive.restore';
   static const String archiveRemove = 'archive.remove';
+  static const String archiveGithubTokenStatus = 'archive.github.token.status';
+  static const String archiveGithubTokenLink = 'archive.github.token.link';
+  static const String archiveGithubTokenClear = 'archive.github.token.clear';
   static const String sourceList = 'source.list';
   static const String sourceAdd = 'source.add';
   static const String statsSummary = 'stats.summary';
@@ -179,6 +182,9 @@ abstract final class CoreMethod {
     archiveList,
     archiveRestore,
     archiveRemove,
+    archiveGithubTokenStatus,
+    archiveGithubTokenLink,
+    archiveGithubTokenClear,
     sourceList,
     sourceAdd,
     statsSummary,
