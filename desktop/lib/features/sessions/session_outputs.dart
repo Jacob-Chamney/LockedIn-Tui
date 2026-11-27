@@ -913,7 +913,7 @@ class _SessionOutputViewState extends State<SessionOutputView> {
             TextButton(
               key: const ValueKey('deck-reset'),
               onPressed: () => setState(deck.reset),
-              child: const Text('shuffle back r'),
+              child: const Text('original order r'),
             ),
           ],
         ),
