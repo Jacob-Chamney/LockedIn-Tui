@@ -252,6 +252,35 @@ class KeymapRegistry {
     return null;
   }
 
+  /// One rebind, validated against the whole table.
+  ///
+  /// This is the registry **owning the write path**: a duplicate is refused here
+  /// (with the core's own copy) before anything is sent, so the editor and the
+  /// core cannot disagree about what a free chord is, and rebinding onto another
+  /// action's *default* is caught exactly like rebinding onto a stored override.
+  KeymapRebind rebind(String actionId, Binding? binding) {
+    final row = rowFor(actionId);
+    if (row == null) {
+      return KeymapRebind.refused(
+        KeymapConflict(
+          actionId: actionId,
+          otherId: actionId,
+          binding: binding ?? row?.binding ?? const Binding.direct(''),
+        ),
+        'no action "$actionId" in the catalogue',
+      );
+    }
+    if (binding == null) return KeymapRebind.cleared(this, actionId);
+    final conflict = conflictFor(actionId, binding);
+    if (conflict != null) {
+      return KeymapRebind.refused(conflict, conflict.message);
+    }
+    final overrides = <String, String>{
+      for (final entry in rows) entry.id: entry.binding.format(),
+    }..[actionId] = binding.format();
+    return KeymapRebind.accepted(this, actionId, binding, overrides);
+  }
+
   /// The action a key event runs, or null. Leader chords (`space+e`) are not
   /// resolved here: they are the overlay's second key.
   KeymapRow? resolve(KeyEvent event) {
@@ -281,6 +310,66 @@ class KeymapRegistry {
     }
     return null;
   }
+}
+
+/// The outcome of one [KeymapRegistry.rebind].
+class KeymapRebind {
+  const KeymapRebind._({
+    required this.accepted,
+    required this.actionId,
+    required this.binding,
+    this.conflict,
+    this.message = '',
+    this.overrides,
+  });
+
+  factory KeymapRebind.accepted(
+    KeymapRegistry registry,
+    String actionId,
+    Binding binding,
+    Map<String, String> overrides,
+  ) => KeymapRebind._(
+    accepted: true,
+    actionId: actionId,
+    binding: binding,
+    overrides: Map<String, String>.unmodifiable(overrides),
+  );
+
+  /// Clearing an action back to its default is always accepted.
+  factory KeymapRebind.cleared(KeymapRegistry registry, String actionId) {
+    final row = registry.rowFor(actionId);
+    return KeymapRebind._(
+      accepted: true,
+      actionId: actionId,
+      binding: row?.spec.defaultBinding,
+      overrides: Map<String, String>.unmodifiable({
+        for (final entry in registry.rows)
+          if (entry.id != actionId) entry.id: entry.binding.format(),
+      }),
+    );
+  }
+
+  factory KeymapRebind.refused(KeymapConflict conflict, String message) =>
+      KeymapRebind._(
+        accepted: false,
+        actionId: conflict.actionId,
+        binding: conflict.binding,
+        conflict: conflict,
+        message: message,
+      );
+
+  final bool accepted;
+  final String actionId;
+  final Binding? binding;
+
+  /// The collision that refused it, or null when accepted.
+  final KeymapConflict? conflict;
+
+  /// One sentence the editor shows; the core's copy for a collision.
+  final String message;
+
+  /// Every effective binding after the write, by action id (null when refused).
+  final Map<String, String>? overrides;
 }
 
 /// The built-in catalogue: the ten surfaces, then the shell verbs.
