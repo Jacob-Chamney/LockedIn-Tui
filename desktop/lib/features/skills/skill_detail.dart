@@ -22,7 +22,8 @@ import 'skill_widgets.dart';
 part 'skill_detail_actions.dart';
 part 'skill_detail_page.dart';
 
-part 'skill_cards.dart';
+part 'skill_teaching_cards.dart';
+part 'skill_material_cards.dart';
 
 /// Returns the files the user chose, or an empty list when they cancelled.
 typedef SkillSourcePicker = Future<List<String>> Function();
