@@ -1,6 +1,6 @@
 {
   "name": "lockedin-desktop",
-  "version": "2026.11.12",
+  "version": "2026.11.27",
   "private": true,
   "type": "module",
   "description": "A keyboard-first desktop workspace for learning and focused work.",

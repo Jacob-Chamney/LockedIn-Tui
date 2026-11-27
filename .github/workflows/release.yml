@@ -1,0 +1,232 @@
+name: Release
+
+# Builds the release artifact set for one version and, when asked, attaches it
+# to a **draft** GitHub release (`docs/release.md` §3–§4).
+#
+# The build jobs are read-only: no token is available to them, so a compromised
+# build step cannot publish anything. Only `assemble` can write, and only when
+# `draft_release` is true — and it creates a draft, never a published release:
+# publishing is the owner's manual step.
+on:
+  workflow_dispatch:
+    inputs:
+      draft_release:
+        description: "Create a draft GitHub release with the built assets"
+        type: boolean
+        default: false
+      version:
+        description: "Override the version (default: package.json)"
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+      tag: ${{ steps.read.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: read
+        name: Read the version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ inputs.version }}"
+          if [ -z "$version" ]; then
+            version=$(python3 -c 'import json;print(json.load(open("package.json"))["version"])')
+          fi
+          case "$version" in
+            [0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "version '$version' is not YYYY.MM.DD or semver" >&2; exit 1 ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.artifact }}
+    needs: version
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # `smoke` is true only where the runner can execute the artifact: an
+          # arm64 binary does not run on an x64 host, so its build is verified by
+          # the hash and the host-native targets are executed here.
+          - target: bun-linux-x64
+            os: ubuntu-24.04
+            artifact: linux-x64
+            smoke: true
+          - target: bun-linux-x64-musl
+            os: ubuntu-24.04
+            artifact: linux-x64-musl
+            smoke: true
+          - target: bun-linux-arm64
+            os: ubuntu-24.04
+            artifact: linux-arm64
+            smoke: false
+          - target: bun-linux-arm64-musl
+            os: ubuntu-24.04
+            artifact: linux-arm64-musl
+            smoke: false
+          - target: bun-darwin-x64
+            os: macos-14
+            artifact: darwin-x64
+            smoke: false
+          - target: bun-darwin-arm64
+            os: macos-14
+            artifact: darwin-arm64
+            smoke: true
+          - target: bun-windows-x64
+            os: windows-2022
+            artifact: windows-x64
+            smoke: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Compile the core
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ needs.version.outputs.version }}"
+          name="lockedin-$version-bun-${{ matrix.artifact }}"
+          case "${{ matrix.target }}" in
+            *windows*) name="$name.exe" ;;
+          esac
+          mkdir -p dist
+          # The same recipe as scripts/desktop-build.sh: a release build (so the
+          # achievement catalogue is earned, not unlocked) and a compiled-in
+          # version, because `--version` must report what the asset is called.
+          bun build --compile \
+            --target="${{ matrix.target }}" \
+            --define 'process.env.LOCKEDIN_RELEASE="1"' \
+            --define "process.env.LOCKEDIN_APP_VERSION=\"$version\"" \
+            src/server/main.ts --outfile "dist/$name"
+          echo "built dist/$name"
+          ls -l dist
+      - name: Smoke test the artifact
+        if: matrix.smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ needs.version.outputs.version }}"
+          case "${{ matrix.target }}" in
+            *windows*) binary="dist/lockedin-$version-bun-${{ matrix.artifact }}.exe" ;;
+            *) binary="dist/lockedin-$version-bun-${{ matrix.artifact }}" ;;
+          esac
+          chmod +x "$binary"
+          reported=$("$binary" --version)
+          echo "$binary reports: $reported"
+          case "$reported" in
+            *"$version"*) ;;
+            *) echo "the artifact reports '$reported', not '$version'" >&2; exit 1 ;;
+          esac
+      - name: Check the artifact is a single executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=$(find dist -maxdepth 1 -type f | wc -l | tr -d ' ')
+          [ "$count" = "1" ] || { echo "expected one file in dist, found $count" >&2; ls -l dist >&2; exit 1; }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bin-${{ matrix.artifact }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  assemble:
+    name: Assemble the release set
+    needs: [version, build]
+    runs-on: ubuntu-24.04
+    # Writing is needed only to create the draft; the default of this workflow is
+    # read-only, so the token is granted here and nowhere else.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: bin-*
+          path: assets
+          merge-multiple: true
+      - name: Add the installer and the checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ -f install.sh ] || { echo "install.sh is missing from the repository" >&2; exit 1; }
+          cp install.sh assets/install.sh
+          (cd assets && sha256sum -- * > SHA256SUMS)
+          echo "release set for ${{ needs.version.outputs.version }}:"
+          ls -l assets
+          cat assets/SHA256SUMS
+      - name: Verify the set is complete
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ needs.version.outputs.version }}"
+          cd assets
+          for artifact in \
+            linux-x64 linux-x64-musl linux-arm64 linux-arm64-musl \
+            darwin-x64 darwin-arm64; do
+            [ -f "lockedin-$version-bun-$artifact" ] || { echo "missing $artifact" >&2; exit 1; }
+          done
+          [ -f "lockedin-$version-bun-windows-x64.exe" ] || { echo "missing windows-x64" >&2; exit 1; }
+          [ -f install.sh ] || { echo "missing install.sh" >&2; exit 1; }
+          [ -f SHA256SUMS ] || { echo "missing SHA256SUMS" >&2; exit 1; }
+          count=$(find . -maxdepth 1 -type f | wc -l | tr -d ' ')
+          [ "$count" = "9" ] || { echo "expected 9 files, found $count" >&2; ls -l >&2; exit 1; }
+          sha256sum -c SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: assets/*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Create the draft release
+        if: inputs.draft_release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="${{ needs.version.outputs.version }}"
+          tag="v$version"
+          notes=$(mktemp)
+          # The CHANGELOG section for this version is the release body; the wiki
+          # page is the user-facing summary (`docs/release.md` §2).
+          awk -v v="$version" '
+            $0 ~ "^## " v "([[:space:]]|$)" { inside = 1; next }
+            inside && /^## / { exit }
+            inside { print }
+          ' CHANGELOG.md > "$notes"
+          if [ ! -s "$notes" ]; then
+            printf 'See the wiki Releases page for %s.\n' "$version" > "$notes"
+          fi
+          {
+            printf '\n---\n\n'
+            printf 'Estimates, not a bill. Install with `install.sh`; the wiki Releases page has the full notes.\n'
+          } >> "$notes"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "draft $tag already exists; uploading the assets to it"
+            gh release upload "$tag" assets/* --clobber
+          else
+            gh release create "$tag" assets/* \
+              --draft \
+              --target "${{ github.sha }}" \
+              --title "$version" \
+              --notes-file "$notes"
+          fi
+          gh release view "$tag" --json isDraft,url --jq '"draft: \(.isDraft) \(.url)"'
