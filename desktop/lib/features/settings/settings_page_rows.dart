@@ -33,21 +33,39 @@ extension _SettingsRows on _SettingsBodyState {
               ),
               onTap: () {
                 final target = _groupKeys[group.title]?.currentContext;
+                refresh(() => _activeGroup = group.title);
                 if (target != null) {
                   Scrollable.ensureVisible(target, alignment: 0.04);
                 }
               },
               child: Container(
+                key: group.title == _activeGroup
+                    ? const ValueKey('settings-section-active')
+                    : null,
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  border: Border.all(color: LockedInColors.line),
+                  color: group.title == _activeGroup
+                      ? LockedInColors.panel
+                      : null,
+                  border: Border.all(
+                    color: group.title == _activeGroup
+                        ? LockedInColors.primary
+                        : LockedInColors.line,
+                  ),
                   borderRadius: BorderRadius.circular(Radii.control),
                 ),
                 child: Text(
                   group.title.toLowerCase(),
                   style: TextStyle(
-                    color: LockedInColors.muted,
+                    color: group.title == _activeGroup
+                        ? LockedInColors.foreground
+                        : LockedInColors.muted,
                     fontSize: TypeScale.micro,
+                    // Weight as well as colour: the active chip is legible
+                    // without relying on the accent alone.
+                    fontWeight: group.title == _activeGroup
+                        ? FontWeight.w700
+                        : FontWeight.w400,
                     letterSpacing: 0.6,
                   ),
                 ),

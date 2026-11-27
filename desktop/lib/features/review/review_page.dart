@@ -790,6 +790,12 @@ class _ReviewRow extends StatelessWidget {
                 TextButton(
                   key: ValueKey('review-known-${item.id}'),
                   onPressed: onKnown,
+                  // The two verdicts are not the same weight: known is the
+                  // success tone, missed warns. Before, `known` and the row's
+                  // trailing label were both muted grey.
+                  style: TextButton.styleFrom(
+                    foregroundColor: LockedInColors.success,
+                  ),
                   child: const Text('known'),
                 ),
                 TextButton(
@@ -866,6 +872,36 @@ class _NudgeStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final intensity = nudge.intensity.isEmpty ? 'balanced' : nudge.intensity;
+    // Nothing due is a fact, not a task: one muted line instead of a bordered
+    // card that competed with the queue for attention.
+    if (nudge.due.isEmpty) {
+      return Padding(
+        key: const ValueKey('review-nudge'),
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Icon(
+              Icons.tips_and_updates_outlined,
+              size: 13,
+              color: LockedInColors.muted,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'nudge $intensity · nothing due · threshold ${nudge.threshold}',
+                key: const ValueKey('review-nudge-quiet'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: LockedInColors.muted,
+                  fontSize: TypeScale.label,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Container(
       key: const ValueKey('review-nudge'),
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),

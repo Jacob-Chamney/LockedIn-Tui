@@ -375,10 +375,9 @@ void main() {
       const SessionDetailView(detail: _detail, loading: false),
     );
 
-    final button = tester.widget<OutlinedButton>(
-      find.byKey(const ValueKey('study-contract')),
-    );
-    expect(button.onPressed, isNull);
+    // With no handler the section is not drawn at all: the page never paints
+    // a button that cannot run or advertises a key for it.
+    expect(find.byKey(const ValueKey('study-contract')), findsNothing);
 
     // The digits are inert when the shell did not wire the action.
     await tester.sendKeyEvent(LogicalKeyboardKey.digit1);

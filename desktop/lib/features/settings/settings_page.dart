@@ -434,6 +434,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
   late List<GlobalKey> _rowKeys;
   final _groupKeys = <String, GlobalKey>{};
   String _query = '';
+  String? _activeGroup;
   int _selected = 0;
   String? _savingId;
   String? _rowErrorId;
@@ -464,6 +465,29 @@ class _SettingsBodyState extends State<_SettingsBody> {
   void initState() {
     super.initState();
     _rebuildRows();
+    _scroll.addListener(_syncActiveGroup);
+    // The first group is active before any scroll; the post-frame callback only
+    // confirms it once the rail and groups have a size.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncActiveGroup());
+  }
+
+  /// Mark the group whose header has last passed the top of the scroll pane.
+  ///
+  /// The rail used to be ten jump chips with no current state: the user could
+  /// not tell which section the page was showing. A group is active from the
+  /// moment its header reaches the top until the next header replaces it.
+  void _syncActiveGroup() {
+    if (!mounted || _allGroups.isEmpty) return;
+    String? active;
+    for (final group in _allGroups) {
+      final context = _groupKeys[group.title]?.currentContext;
+      final box = context?.findRenderObject();
+      if (box is! RenderBox || !box.hasSize) continue;
+      final top = box.localToGlobal(Offset.zero).dy;
+      if (top <= 170) active = group.title;
+    }
+    active ??= _allGroups.first.title;
+    if (active != _activeGroup) setState(() => _activeGroup = active);
   }
 
   void _rebuildRows() {
@@ -581,6 +605,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
 
   @override
   void dispose() {
+    _scroll.removeListener(_syncActiveGroup);
     _scroll.dispose();
     _search.dispose();
     _searchFocus.dispose();

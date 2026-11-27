@@ -31,12 +31,14 @@ const _session = SessionDetail(
   archived: false,
   prompt: 'Explain the problem set.',
   sources: [
+    // A PDF source keeps the figure crop form on screen; without one the
+    // session hides it behind a one-line pointer.
     SessionSource(
-      name: 'lecture-4.md',
-      originalPath: '/home/me/input/lecture-4.md',
-      storedPath: 'sources/lecture-4.md',
+      name: 'lecture-4.pdf',
+      originalPath: '/home/me/input/lecture-4.pdf',
+      storedPath: 'sources/lecture-4.pdf',
       hash: 'sha256:0badf00d5678',
-      kind: 'markdown',
+      kind: 'pdf',
     ),
   ],
   steps: SessionSteps(done: 0, total: 0, exists: false, markdown: ''),

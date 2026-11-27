@@ -236,6 +236,35 @@ extension CoreStoreSessionExtras on CoreStore {
     }
   }
 
+  /// Forget the deck's spaced-repetition schedule (`session.deck.reset`).
+  ///
+  /// The Markdown's `M:`/`K:` flags are untouched: this resets when cards are
+  /// shown, not what the learner knew. The reply is the whole schedule with
+  /// every card due now, so the deck replaces its view.
+  Future<void> resetDeckSchedule(String sessionId) async {
+    final id = sessionId.trim();
+    if (id.isEmpty) return;
+    final ticket = ++_deckTicket;
+    deckScheduleLoading = true;
+    deckScheduleError = null;
+    notifyListeners();
+    try {
+      final json = await _connection.call(CoreMethod.sessionDeckReset, {
+        'id': id,
+      });
+      if (ticket != _deckTicket) return;
+      deckSchedule = DeckSchedule.fromJson(json);
+    } catch (failure) {
+      if (ticket != _deckTicket) return;
+      deckScheduleError = _messageOf(failure);
+    } finally {
+      if (ticket == _deckTicket) {
+        deckScheduleLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
   /// Grade one card (`session.deck.grade`).
   ///
   /// One write, atomic. The reply is the whole schedule, so the deck replaces

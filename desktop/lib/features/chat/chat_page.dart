@@ -592,20 +592,13 @@ class _ChatPageState extends State<ChatPage> {
                 const SizedBox(height: Space.md),
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: TextButton(
+                  // The one action a first run needs, as a button: a warning
+                  // TextButton read as a link and sat outside the visual flow.
+                  child: FilledButton.icon(
                     key: const ValueKey('chat-link-model'),
                     onPressed: widget.onLinkModel,
-                    style: TextButton.styleFrom(
-                      foregroundColor: LockedInColors.warning,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: Space.xs,
-                        vertical: Space.xxs,
-                      ),
-                    ),
-                    child: const Text(
-                      'connect a model',
-                      style: TextStyle(fontSize: TypeScale.label),
-                    ),
+                    icon: const Icon(Icons.link, size: 16),
+                    label: const Text('connect a model'),
                   ),
                 ),
               ],
@@ -802,8 +795,13 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                   ),
                   const SizedBox(width: Space.xxs),
+                  // One send control on every chat surface: the arrow, then
+                  // `Send`. The composer used a hand-built `↵ Send` row here
+                  // while the session, goal and project chats used
+                  // `FilledButton.icon`, so the same verb looked different on
+                  // each surface.
                   if (streaming)
-                    OutlinedButton(
+                    OutlinedButton.icon(
                       onPressed: widget.onCancel,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: LockedInColors.warning,
@@ -811,59 +809,15 @@ class _ChatPageState extends State<ChatPage> {
                           color: LockedInColors.warning.withValues(alpha: 0.5),
                           width: Stroke.hairline,
                         ),
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(Radii.control),
-                          ),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: Space.sm,
-                          vertical: Space.xs + 2,
-                        ),
-                        textStyle: LockedInType.label,
                       ),
-                      // The glyph and the word are separate Texts so the label
-                      // stays exactly `Stop` for a test and a screen reader.
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('■'),
-                          SizedBox(width: Space.xs - 2),
-                          Text('Stop'),
-                        ],
-                      ),
+                      icon: const Icon(Icons.stop, size: 16),
+                      label: const Text('Stop'),
                     )
                   else
-                    FilledButton(
+                    FilledButton.icon(
                       onPressed: canSend && !_sending ? _send : null,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: LockedInColors.primary,
-                        foregroundColor: Theme.of(context)
-                            .colorScheme
-                            .onPrimary,
-                        disabledBackgroundColor: LockedInColors.panel,
-                        disabledForegroundColor: LockedInColors.muted,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(Radii.control),
-                          ),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: Space.sm,
-                          vertical: Space.xs + 2,
-                        ),
-                        textStyle: LockedInType.label.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('↵'),
-                          SizedBox(width: Space.xs - 2),
-                          Text('Send'),
-                        ],
-                      ),
+                      icon: const Icon(Icons.arrow_upward, size: 16),
+                      label: const Text('Send'),
                     ),
                 ],
               ),
