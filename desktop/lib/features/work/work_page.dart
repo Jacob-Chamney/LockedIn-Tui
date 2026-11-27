@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../keys.dart';
+import '../../shell/chrome.dart';
 import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
@@ -243,19 +244,17 @@ class _WorkPageState extends State<WorkPage> {
               ? '${widget.projects.length}'
               : '${_visible.length} of ${widget.projects.length}',
         ),
-        if (!compact) ...[
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '↑↓ move · Enter open · n new project · / search',
-              textAlign: TextAlign.right,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: LockedInColors.muted,
-                fontSize: TypeScale.label,
-              ),
-            ),
+        const Spacer(),
+        if (widget.onCreate != null) ...[
+          const SizedBox(width: Space.xs),
+          HeaderAction(
+            key: const ValueKey('work-new'),
+            label: 'new',
+            keyLabel: 'n',
+            icon: Icons.add,
+            primary: true,
+            iconOnly: compact,
+            onPressed: () => unawaited(_create()),
           ),
         ],
       ],
@@ -967,7 +966,7 @@ class _WorkDetailViewState extends State<WorkDetailView> {
             const SizedBox(height: 4),
           ],
           Text(
-            'read-only summary · approve writes in Approvals (`p`)',
+            'read-only summary · approve writes in Approvals (p)',
             style: TextStyle(
               color: LockedInColors.muted,
               fontSize: TypeScale.micro,

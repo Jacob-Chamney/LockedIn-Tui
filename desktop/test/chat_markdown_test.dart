@@ -3,6 +3,7 @@ import 'package:lockedin_desktop/bridge/models.dart';
 import 'package:lockedin_desktop/features/chat/chat_page.dart';
 import 'package:lockedin_desktop/features/chat/markdown.dart';
 import 'package:lockedin_desktop/theme/palette.dart';
+import 'package:lockedin_desktop/theme/tokens.dart';
 import 'package:material_ui/material_ui.dart';
 
 const _usage = ChatUsageView(tokens: 12, costMicroUsd: 400, durationMs: 900);
@@ -83,7 +84,7 @@ void main() {
     final spans = _spans(tester);
     final code = _spanWith(spans, 'code');
     expect(code, isNotNull);
-    expect(code!.style?.fontFamily, 'monospace');
+    expect(code!.style?.fontFamily, LockedInType.mono);
 
     final bold = _spanWith(spans, 'bold');
     expect(bold?.style?.fontWeight, FontWeight.w700);
@@ -111,7 +112,7 @@ void main() {
           (widget) =>
               widget.textSpan?.toPlainText() == 'final x = 1;\nfinal y = 2;',
         );
-    expect(code.textSpan?.style?.fontFamily, 'monospace');
+    expect(code.textSpan?.style?.fontFamily, LockedInType.mono);
     expect(code.textSpan?.toPlainText(), 'final x = 1;\nfinal y = 2;');
   });
 

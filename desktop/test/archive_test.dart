@@ -195,7 +195,6 @@ void main() {
     expect(schoolY, lessThan(skillsY));
 
     // This page has no handlers, so it advertises no verb and no dead key.
-    expect(find.text('read-only'), findsOneWidget);
     expect(find.byKey(const ValueKey('archive-restore-hint')), findsOneWidget);
     expect(find.text('Restore'), findsNothing);
     expect(find.text('Delete'), findsNothing);
@@ -210,11 +209,15 @@ void main() {
     expect(find.text('nothing archived yet'), findsOneWidget);
     expect(
       find.text(
-        'archive one from Sessions or Skills with `a`; it appears here',
+        'archive one from Sessions or Teaching with a; it appears here',
       ),
       findsOneWidget,
     );
-    expect(find.text('read-only'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('archive-restore-hint')),
+      findsNothing,
+      reason: 'no row has a verb to offer',
+    );
     expect(find.byKey(const ValueKey('archive-error')), findsNothing);
     expect(tester.takeException(), isNull);
   });

@@ -5,6 +5,7 @@ import 'package:lockedin_desktop/shell/command_line.dart';
 import 'package:lockedin_desktop/shell/leader.dart';
 import 'package:lockedin_desktop/shell/palette.dart';
 import 'package:lockedin_desktop/bridge/core_client.dart';
+import 'package:lockedin_desktop/features/sessions/sessions_page.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'support/shell.dart';
@@ -122,7 +123,13 @@ void main() {
   ) async {
     await pumpShell(tester);
     await openSurface(tester, 2);
-    expect(find.text('Physics — Unit 4'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(SessionsPage),
+        matching: find.text('Physics — Unit 4'),
+      ),
+      findsOneWidget,
+    );
 
     await pressColon(tester);
     expect(find.byType(CommandLine), findsOneWidget);
@@ -132,7 +139,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(CommandLine), findsNothing);
-    expect(find.text('Physics — Unit 4'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(SessionsPage),
+        matching: find.text('Physics — Unit 4'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('TOKENS'), findsNothing);
   });
 
@@ -167,7 +180,13 @@ void main() {
 
     expect(find.byType(CommandLine), findsNothing);
     // `Esc`-equivalent: the session list is still the surface.
-    expect(find.text('Physics — Unit 4'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(SessionsPage),
+        matching: find.text('Physics — Unit 4'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a rebound surface changes the command row hint', (tester) async {

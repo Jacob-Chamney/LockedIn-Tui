@@ -105,7 +105,12 @@ class _ShellState extends State<Shell> {
             Column(
               children: [
                 TopBar(
-                  surfaceLabel: _surface.label,
+                  // The Achievements layer lives over Stats but is its own
+                  // destination; the breadcrumb names what is on screen, like
+                  // the rail and the status bar.
+                  surfaceLabel: _achievementsOpen
+                      ? 'Achievements'
+                      : _surface.label,
                   store: store,
                   sidebarExpanded: _sidebarMode == SidebarMode.expanded,
                   toggleHint: _sidebarToggleLabel(keymap),

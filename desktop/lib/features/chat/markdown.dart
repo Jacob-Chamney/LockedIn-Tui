@@ -29,14 +29,12 @@ class ChatMarkdown extends StatelessWidget {
     final blocks = _parse(text);
     if (blocks.isEmpty) return const SizedBox.shrink();
 
+    // Reading prose is Plex; the theme's `bodyMedium` is the mono UI face, and
+    // a paragraph in it was the reason a long answer felt like a terminal dump
+    // (`desktop/docs/redesign.md` §3).
     final base =
         style ??
-        Theme.of(context).textTheme.bodyMedium ??
-        TextStyle(
-          color: LockedInColors.foreground,
-          fontSize: TypeScale.proseSmall,
-          height: 1.45,
-        );
+        LockedInType.proseSmall.copyWith(color: LockedInColors.foreground);
 
     final children = <Widget>[];
     for (var index = 0; index < blocks.length; index++) {
@@ -122,9 +120,8 @@ class ChatMarkdown extends StatelessWidget {
   }
 
   Widget _codePanel(_MdCode block) {
-    final codeStyle = TextStyle(
+    final codeStyle = LockedInType.code.copyWith(
       color: LockedInColors.foreground,
-      fontFamily: 'monospace',
       fontSize: TypeScale.key,
       height: 1.4,
     );
@@ -303,7 +300,8 @@ List<InlineSpan> _inline(String source, TextStyle base) {
         TextSpan(
           text: source.substring(index + 1, end),
           style: base.copyWith(
-            fontFamily: 'monospace',
+            fontFamily: LockedInType.mono,
+            fontSize: TypeScale.key,
             color: LockedInColors.primary,
             backgroundColor: LockedInColors.background.withValues(alpha: 0.55),
           ),

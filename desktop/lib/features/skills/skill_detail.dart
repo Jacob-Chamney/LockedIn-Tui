@@ -316,7 +316,11 @@ class _SkillDetailViewState extends State<SkillDetailView> {
   String? _notice;
 
   /// Which phase the rail marks as current (the one last navigated to).
-  Phase _phase = Phase.teach;
+  ///
+  /// The opening mark is the phase the record is actually at: `measure` before
+  /// a plan exists, `teach` once it does, `practice` when every step passed.
+  /// A hard-coded `teach` marked step 3 while step 1 still said "not measured".
+  late Phase _phase = _initialPhase();
 
   /// The context tab under the learning surface. Sources is the default: the
   /// material every lesson and check is built from. Goal metadata, chats and

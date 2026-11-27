@@ -550,23 +550,8 @@ class _KnowledgePageState extends State<KnowledgePage> {
           key: const ValueKey('knowledge-mode-graph'),
           onTap: () => _setGraphMode(true),
         ),
-        if (!compact)
-          // The hint shares the row with the summary. A bare Text here
-          // overflowed at 600 once the header stopped shortening at 620.
-          Flexible(
-            child: Padding(
-              padding: const EdgeInsets.only(left: 10),
-              child: Text(
-                '/ search · g graph · j/k move · Enter open · Esc back',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: LockedInColors.muted,
-                  fontSize: TypeScale.label,
-                ),
-              ),
-            ),
-          ),
+        // The modes are the batch of buttons on this header; the keys are
+        // named in the status bar, not recited here a second time.
       ],
     );
   }

@@ -517,7 +517,7 @@ class _GoalWizardState extends State<GoalWizard> {
             'The curriculum uses your configured model to write a chapter plan '
             'when one is available; otherwise it starts from the built-in '
             'template. A model call uses your configured provider and budget. '
-            'You can edit these stages from the goal page (`e`).',
+            'You can edit these stages from the goal page with e.',
             key: ValueKey('goal-wizard-template-note'),
             style: TextStyle(
               color: LockedInColors.muted,

@@ -491,16 +491,6 @@ class _SessionsPageState extends State<SessionsPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  if (_hasActions) ...[
-                    Text(
-                      'a archive · d delete · x export',
-                      style: TextStyle(
-                        color: LockedInColors.muted,
-                        fontSize: TypeScale.label,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
                   if (_actionError != null || _notice != null) ...[
                     _ActionBanner(
                       message: _actionError ?? _notice!,
@@ -545,25 +535,55 @@ class _SessionsPageState extends State<SessionsPage> {
             key: const ValueKey('sessions-sort'),
           ),
         ),
-        if (compact)
-          const Spacer()
-        else ...[
-          // One ellipsised line: four key caps in a Row overflowed by 2 px at
-          // 800 px, and a truncated sentence still names every key.
-          Expanded(
-            child: Text(
-              widget.sessions.length > 1
-                  ? '↑↓ move · Enter open · o sort · n new · / search'
-                  : '↑↓ move · Enter open · n new · / search',
-              textAlign: TextAlign.right,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: LockedInType.micro.copyWith(
-                color: LockedInColors.muted,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0,
-              ),
-            ),
+        const Spacer(),
+        // The verbs are buttons with their real chord beside the label; the
+        // passive hint line lives in the status bar. A narrow header keeps the
+        // icons, so the row never overflows.
+        if (widget.onCreate != null) ...[
+          const SizedBox(width: Space.xs),
+          HeaderAction(
+            key: const ValueKey('sessions-new'),
+            label: 'new',
+            keyLabel: 'n',
+            icon: Icons.add,
+            primary: true,
+            iconOnly: compact,
+            onPressed: widget.onCreate,
+          ),
+        ],
+        if (_hasActions) ...[
+          const SizedBox(width: Space.xs),
+          HeaderAction(
+            key: const ValueKey('sessions-archive'),
+            label: 'archive',
+            keyLabel: 'a',
+            icon: Icons.archive_outlined,
+            iconOnly: true,
+            onPressed: _selectedRow == null || _actionId != null
+                ? null
+                : () => unawaited(_archiveSelected()),
+          ),
+          const SizedBox(width: Space.xs),
+          HeaderAction(
+            key: const ValueKey('sessions-export'),
+            label: 'export',
+            keyLabel: 'x',
+            icon: Icons.download_outlined,
+            iconOnly: true,
+            onPressed: _selectedRow == null || _actionId != null
+                ? null
+                : () => unawaited(_exportSelected()),
+          ),
+          const SizedBox(width: Space.xs),
+          HeaderAction(
+            key: const ValueKey('sessions-delete'),
+            label: 'delete',
+            keyLabel: 'd',
+            icon: Icons.delete_outline,
+            iconOnly: true,
+            onPressed: _selectedRow == null || _actionId != null
+                ? null
+                : () => unawaited(_deleteSelected()),
           ),
         ],
       ],

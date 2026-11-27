@@ -288,27 +288,29 @@ class Sidebar extends StatelessWidget {
   }
 }
 
-/// One `RECENT` row: a session name and its date, opening on click.
+/// One `RECENT` row: a session name, opening on click.
 ///
 /// It is deliberately not a `SidebarRow`: a recent entry is a *destination*
 /// inside Sessions, not a surface, so it carries no shortcut chip and no
 /// selected state — the surface row already shows that Sessions is open.
 ///
-/// The name and the date are one text node so the row reads as a destination
-/// (`Physics — Unit 4 · 2026-11-15`) rather than a second copy of the title the
-/// open session shows.
+/// The name is the row's one text node. The date used to be appended
+/// (`Physics — Unit 4 · 2026-11-15`) in a rail that cannot fit it: every row
+/// ended in `· 2…`. The date is still available, in the tooltip, so the rail
+/// reads as destinations instead of truncated IDs.
 class _RecentItem extends StatelessWidget {
   const _RecentItem({required this.row, required this.onTap});
 
   final SessionRow row;
   final VoidCallback onTap;
 
+  String get _name => row.name.isEmpty ? row.id : row.name;
+
   /// `name · YYYY-MM-DD`, or just the name when the core sent no date.
-  String get _label {
-    final name = row.name.isEmpty ? row.id : row.name;
-    if (row.date.isEmpty) return name;
+  String get _tooltip {
+    if (row.date.isEmpty) return _name;
     final day = row.date.length >= 10 ? row.date.substring(0, 10) : row.date;
-    return '$name · $day';
+    return '$_name · $day';
   }
 
   @override
@@ -321,30 +323,34 @@ class _RecentItem extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(Radii.layer),
           onTap: onTap,
-          child: Container(
-            height: 32,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.chevron_right,
-                  size: 14,
-                  color: LockedInColors.muted,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    _label,
-                    key: ValueKey('recent-session-${row.id}'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: LockedInColors.muted,
-                      fontSize: TypeScale.label,
+          child: Tooltip(
+            message: _tooltip,
+            waitDuration: const Duration(milliseconds: 500),
+            child: Container(
+              height: 32,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.chevron_right,
+                    size: 14,
+                    color: LockedInColors.muted,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      _name,
+                      key: ValueKey('recent-session-${row.id}'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: LockedInColors.muted,
+                        fontSize: TypeScale.label,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

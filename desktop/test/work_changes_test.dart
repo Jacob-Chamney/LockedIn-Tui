@@ -143,7 +143,7 @@ void main() {
       expect(find.text('unstaged'), findsOneWidget);
       expect(find.text('staged'), findsOneWidget);
       expect(
-        find.text('read-only summary · approve writes in Approvals (`p`)'),
+        find.text('read-only summary · approve writes in Approvals (p)'),
         findsOneWidget,
       );
       expect(tester.takeException(), isNull);

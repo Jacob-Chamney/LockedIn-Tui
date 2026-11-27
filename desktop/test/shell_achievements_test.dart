@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lockedin_desktop/shell/bars.dart';
 import 'package:lockedin_desktop/shell/palette.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -39,6 +40,15 @@ void main() {
     expect(find.byKey(const ValueKey('achievement-detail')), findsOneWidget);
     expect(find.text('First Light'), findsWidgets);
     expect(statusHint(tester), startsWith('hjkl / arrows move · Enter detail'));
+    // The breadcrumb names the layer that is actually on screen, not the
+    // surface it is layered over.
+    expect(
+      find.descendant(
+        of: find.byType(TopBar),
+        matching: find.text('Achievements'),
+      ),
+      findsOneWidget,
+    );
     // The dashboard is gone while the layer owns the surface.
     expect(find.text('TOKENS'), findsNothing);
 

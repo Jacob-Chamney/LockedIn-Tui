@@ -732,9 +732,16 @@ class _MessageBubble extends StatelessWidget {
             if (text.isEmpty && streaming)
               Text('…', style: theme.textTheme.bodyMedium)
             else if (user)
+              // A typed question is chrome-adjacent, so it keeps the mono face;
+              // the answer is prose and reads in Plex.
               Text(text, style: theme.textTheme.bodyMedium)
             else
-              ChatMarkdown(text: text, style: theme.textTheme.bodyMedium),
+              ChatMarkdown(
+                text: text,
+                style: LockedInType.proseSmall.copyWith(
+                  color: LockedInColors.foreground,
+                ),
+              ),
             if (streaming) ...[
               const SizedBox(height: 6),
               Text(

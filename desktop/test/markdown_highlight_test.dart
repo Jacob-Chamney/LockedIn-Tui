@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lockedin_desktop/features/chat/code_highlight.dart';
 import 'package:lockedin_desktop/features/chat/markdown.dart';
 import 'package:lockedin_desktop/theme/palette.dart';
+import 'package:lockedin_desktop/theme/tokens.dart';
 import 'package:material_ui/material_ui.dart';
 
 Widget _app(Widget child) => MaterialApp(
@@ -177,7 +178,7 @@ void main() {
 
     expect(find.text('let x = 1;'), findsOneWidget);
     final code = tester.widget<Text>(find.text('let x = 1;'));
-    expect(code.style?.fontFamily, 'monospace');
+    expect(code.style?.fontFamily, LockedInType.mono);
     expect(code.style?.color, LockedInColors.foreground);
     expect(tester.takeException(), isNull);
   });
@@ -205,7 +206,7 @@ void main() {
             (widget) =>
                 widget.textSpan?.toPlainText() == 'final x = 1;\nfinal y = 2;',
           );
-      expect(text.textSpan?.style?.fontFamily, 'monospace');
+      expect(text.textSpan?.style?.fontFamily, LockedInType.mono);
       expect(tester.takeException(), isNull);
     },
   );

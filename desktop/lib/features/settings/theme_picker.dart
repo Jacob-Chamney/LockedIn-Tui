@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../keys.dart';
 import '../../theme/palette.dart';
 import '../../theme/tokens.dart';
 
@@ -67,6 +68,9 @@ class _ThemePickerDialogState extends State<ThemePickerDialog> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    // Modified chords belong to the shell's registry (`Ctrl+K` palette,
+    // `Ctrl+R` reconnect). A bare `j`/`k` here must never read them.
+    if (modifierHeld) return KeyEventResult.ignored;
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.escape) {
       Navigator.of(context).pop();
@@ -134,11 +138,11 @@ class _ThemePickerDialogState extends State<ThemePickerDialog> {
                 const SizedBox(height: 8),
                 Text(
                   widget.overrideTokens.isEmpty
-                      ? 'The custom palette is edited in Settings with `e`; '
+                      ? 'The custom palette is edited in Settings with e; '
                             'twelve tokens, crimson filling any gap.'
                       : '${widget.overrideTokens.length} colour override'
                             '${widget.overrideTokens.length == 1 ? '' : 's'} apply '
-                            'on top of every palette. Edit with `e`, export with `x`.',
+                            'on top of every palette. Edit with e, export with x.',
                   style: TextStyle(
                     color: LockedInColors.muted,
                     fontSize: TypeScale.label,

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../keys.dart';
+import '../../shell/chrome.dart';
 import '../../bridge/models.dart';
 import '../../bridge/errors.dart';
 import '../../theme/palette.dart';
@@ -401,16 +402,6 @@ class _SkillsPageState extends State<SkillsPage> {
                       ),
                     ),
                   ),
-                  if (_hasActions) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      'a archive · d delete · x export',
-                      style: TextStyle(
-                        color: LockedInColors.muted,
-                        fontSize: TypeScale.label,
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 12),
                   Expanded(
                     child: _body(
@@ -447,19 +438,52 @@ class _SkillsPageState extends State<SkillsPage> {
               ? '${widget.skills.length}'
               : '${_visible.length} of ${widget.skills.length}',
         ),
-        if (!compact) ...[
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '↑↓ move · Enter open · n new goal · / search',
-              textAlign: TextAlign.right,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: LockedInColors.muted,
-                fontSize: TypeScale.label,
-              ),
-            ),
+        const Spacer(),
+        if (widget.onCreate != null) ...[
+          const SizedBox(width: Space.xs),
+          HeaderAction(
+            key: const ValueKey('skills-new'),
+            label: 'new',
+            keyLabel: 'n',
+            icon: Icons.add,
+            primary: true,
+            iconOnly: compact,
+            onPressed: widget.onCreate,
+          ),
+        ],
+        if (_hasActions) ...[
+          const SizedBox(width: Space.xs),
+          HeaderAction(
+            key: const ValueKey('skills-archive'),
+            label: 'archive',
+            keyLabel: 'a',
+            icon: Icons.archive_outlined,
+            iconOnly: true,
+            onPressed: _selectedRow == null || _actionId != null
+                ? null
+                : () => unawaited(_archiveSelected()),
+          ),
+          const SizedBox(width: Space.xs),
+          HeaderAction(
+            key: const ValueKey('skills-export'),
+            label: 'export',
+            keyLabel: 'x',
+            icon: Icons.download_outlined,
+            iconOnly: true,
+            onPressed: _selectedRow == null || _actionId != null
+                ? null
+                : () => unawaited(_exportSelected()),
+          ),
+          const SizedBox(width: Space.xs),
+          HeaderAction(
+            key: const ValueKey('skills-delete'),
+            label: 'delete',
+            keyLabel: 'd',
+            icon: Icons.delete_outline,
+            iconOnly: true,
+            onPressed: _selectedRow == null || _actionId != null
+                ? null
+                : () => unawaited(_deleteSelected()),
           ),
         ],
       ],
@@ -735,7 +759,10 @@ class _SkillRowTile extends StatelessWidget {
               if (showOpened) ...[
                 const SizedBox(width: 12),
                 SizedBox(
-                  width: 104,
+                  // `opened 2026-11-15` is 17 mono cells at 11.5 px (~117 px).
+                  // The old 104 px column ellipsised the year on a wide window
+                  // while the row had hundreds of pixels of empty space.
+                  width: 132,
                   child: Text(
                     _openedLabel,
                     textAlign: TextAlign.right,

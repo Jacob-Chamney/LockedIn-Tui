@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lockedin_desktop/bridge/core_client.dart';
+import 'package:lockedin_desktop/features/sessions/sessions_page.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'fake_core.dart';
@@ -105,7 +106,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('New lock-in'), findsNothing);
-    expect(find.text('Audit session'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(SessionsPage),
+        matching: find.text('Audit session'),
+      ),
+      findsOneWidget,
+    );
     expect(store.activeSession, isNull);
     expect(find.text('SESSIONS'), findsOneWidget);
     expect(tester.takeException(), isNull);

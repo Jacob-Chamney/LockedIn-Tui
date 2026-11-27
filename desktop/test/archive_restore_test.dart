@@ -4,6 +4,7 @@ import 'package:lockedin_desktop/bridge/core_client.dart';
 import 'package:lockedin_desktop/bridge/models.dart';
 import 'package:lockedin_desktop/bridge/protocol.dart';
 import 'package:lockedin_desktop/features/archive/archive_page.dart';
+import 'package:lockedin_desktop/features/sessions/sessions_page.dart';
 import 'package:lockedin_desktop/theme/palette.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -306,7 +307,13 @@ void main() {
     final core = FakeCore();
     await pumpShell(tester, core: core);
     await openSurface(tester, 8);
-    expect(find.text('Chemistry — Bonding'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(ArchivePage),
+        matching: find.text('Chemistry — Bonding'),
+      ),
+      findsOneWidget,
+    );
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
@@ -314,13 +321,26 @@ void main() {
 
     expect(core.archiveRestores.length, 1);
     expect(callsTo(core, 'archive.restore'), 1);
-    // The row leaves the archive list after the refresh.
-    expect(find.text('Chemistry — Bonding'), findsNothing);
+    // The row leaves the archive list after the refresh. The `RECENT` rail
+    // now lists the restored session by name, so the archive page is scoped.
+    expect(
+      find.descendant(
+        of: find.byType(ArchivePage),
+        matching: find.text('Chemistry — Bonding'),
+      ),
+      findsNothing,
+    );
     expect(find.text('Read disassembly output'), findsOneWidget);
 
     // It is live again, so the Sessions surface reports it.
     await openSurface(tester, 2);
-    expect(find.text('Chemistry — Bonding'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(SessionsPage),
+        matching: find.text('Chemistry — Bonding'),
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 

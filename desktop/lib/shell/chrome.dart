@@ -146,10 +146,14 @@ class SectionLabel extends StatelessWidget {
 /// Keys are the shell's most repeated glyph, so they are one widget: `Space`,
 /// `Esc`, `Ctrl+K`, `Shift+N`.
 class KeyCap extends StatelessWidget {
-  const KeyCap(this.keyLabel, {super.key, this.tone});
+  const KeyCap(this.keyLabel, {super.key, this.tone, this.border});
 
   final String keyLabel;
   final Color? tone;
+
+  /// The cap's hairline. A cap inside an accent fill passes the readable
+  /// foreground, because `line` disappears on primary.
+  final Color? border;
 
   @override
   Widget build(BuildContext context) {
@@ -157,7 +161,7 @@ class KeyCap extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
-        border: Border.all(color: LockedInColors.line),
+        border: Border.all(color: border ?? LockedInColors.line),
         borderRadius: BorderRadius.circular(Radii.control),
       ),
       child: Text(
@@ -168,6 +172,101 @@ class KeyCap extends StatelessWidget {
           fontSize: TypeScale.label,
         ),
       ),
+    );
+  }
+}
+
+/// A surface-header action: the button for a verb, with the key it answers to.
+///
+/// The managers used to print one static line of key hints (`a archive · d
+/// delete · x export`) and offer no pointer path to any of them. A header
+/// action is that verb as a button; the passive hint line is left to the status
+/// bar, so the header describes what the surface can do rather than reciting
+/// the keyboard.
+class HeaderAction extends StatelessWidget {
+  const HeaderAction({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.keyLabel,
+    this.icon,
+    this.primary = false,
+    this.iconOnly = false,
+    this.tooltip,
+  });
+
+  /// The lowercase verb (`new session`, `archive`).
+  final String label;
+
+  /// Null renders the action disabled, so a caller never invents a click target
+  /// for a verb the page cannot run.
+  final VoidCallback? onPressed;
+
+  /// The cap the action answers to, or null when it has no chord.
+  final String? keyLabel;
+
+  final IconData? icon;
+
+  /// One primary action per surface: a filled button. Everything else is a
+  /// hairline outline, so the accent stays scarce.
+  final bool primary;
+
+  /// True in a narrow header: the icon alone, with the label and chord in the
+  /// tooltip.
+  final bool iconOnly;
+
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    final message =
+        tooltip ?? (keyLabel == null ? label : '$label ($keyLabel)');
+    if (iconOnly) {
+      final button = IconButton(
+        onPressed: onPressed,
+        icon: Icon(icon ?? Icons.circle_outlined, size: 16),
+        tooltip: message,
+        style: primary
+            ? IconButton.styleFrom(
+                backgroundColor: LockedInColors.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                disabledBackgroundColor: LockedInColors.panel,
+                disabledForegroundColor: LockedInColors.muted,
+              )
+            : null,
+      );
+      return button;
+    }
+    final foreground = primary
+        ? Theme.of(context).colorScheme.onPrimary
+        : LockedInColors.foreground;
+    final content = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (icon != null) ...[
+          Icon(icon, size: 15, color: enabled ? foreground : null),
+          const SizedBox(width: 6),
+        ],
+        Text(label),
+        if (keyLabel != null && keyLabel!.isNotEmpty) ...[
+          const SizedBox(width: 8),
+          KeyCap(
+            keyLabel!,
+            tone: primary && enabled ? foreground : null,
+            border: primary && enabled
+                ? foreground.withValues(alpha: 0.45)
+                : null,
+          ),
+        ],
+      ],
+    );
+    return Tooltip(
+      message: message,
+      waitDuration: const Duration(milliseconds: 500),
+      child: primary
+          ? FilledButton(onPressed: onPressed, child: content)
+          : OutlinedButton(onPressed: onPressed, child: content),
     );
   }
 }

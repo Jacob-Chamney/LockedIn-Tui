@@ -777,6 +777,17 @@ class _SessionDetailViewState extends State<SessionDetailView> {
       // behind it, and they are not shell actions, so ignoring them is enough.
       return KeyEventResult.ignored;
     }
+    // Inline fields (figures, mistakes) own bare keys while they have the
+    // keyboard. This page's letters and digits are actions, so without the
+    // guard typing `1` here started a study document and `c` opened the chat.
+    // `Esc` leaves the field first; the next press leaves the session.
+    if (textInputFocused) {
+      if (key == LogicalKeyboardKey.escape) {
+        FocusManager.instance.primaryFocus?.unfocus();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
     if (key == LogicalKeyboardKey.escape) {
       if (widget.onBack == null) return KeyEventResult.ignored;
       widget.onBack!();
