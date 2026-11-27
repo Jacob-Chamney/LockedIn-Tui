@@ -26,22 +26,9 @@ import {
   runSessionAction,
   type SessionAction,
 } from "../app/actions/archive";
-import {
-  loadAchievementSnapshot,
-  type AchievementSnapshot,
-} from "../app/actions/achievements";
 import type { PluginRow, PluginWriteApprover, PluginWriteRequest } from "../app/actions/plugins";
-import {
-  addSessionSources,
-} from "../app/actions/lockin";
 import { computeCoverage } from "../domain/coverage";
 import { loadSessionHome, loadSessionRows } from "../app/actions/sessions";
-import {
-  ACHIEVEMENTS,
-  achievementUnlocked,
-  achievementValue,
-  difficultyLabel,
-} from "../domain/achievements";
 import { err, ok, type Result } from "../domain/markdown";
 import { resolveArchiveBackend } from "./archive-backend";
 import {
@@ -60,6 +47,7 @@ import { createTeachHandlers } from "./teach-handlers";
 import { createSkillHandlers } from "./skill-handlers";
 import { createSessionLifecycleHandlers } from "./session-lifecycle-handlers";
 import { createSessionExtrasHandlers } from "./session-extras-handlers";
+import { createWorkspaceReadHandlers } from "./workspace-read-handlers";
 export {
   WORK_COMMAND_OPT_IN_OFF,
   WORK_WRITE_OPT_IN_OFF,
@@ -76,7 +64,7 @@ import {
 import {
   type SessionCoverageRow,
 } from "./views";
-import { sourceRows } from "./views";export * from "./views";
+export * from "./views";
 import {
   chatSnapshot,
   imageMediaType,
@@ -100,7 +88,6 @@ import {
   messageOf,
   oneLine,
   pathExists,
-  providerOf,
   success,
   type JsonRpcFailure,
   type JsonRpcRequest,
@@ -186,15 +173,6 @@ import {
   type OpenResult,
 } from "../services/lockin/manager";
 import { reviewQueue, type ReviewQueueResult } from "../services/review/queue";
-import { createStatsService } from "../stats/summary";
-import {
-  RANGES,
-  SCOPES,
-  type StatsExportFormat,
-  type StatsRange,
-  type StatsScope,
-  type StatsSummary,
-} from "../stats/types";
 import {
   NEVER_PLUGIN_COMMANDS,
   PLUGIN_COMMANDS,
@@ -674,25 +652,6 @@ async function normaliseRestoredSession(
 }
 
 
-function isRange(value: unknown): value is StatsRange {
-  return typeof value === "string" && (RANGES as readonly string[]).includes(value);
-}
-
-function isScope(value: unknown): value is StatsScope {
-  return typeof value === "string" && (SCOPES as readonly string[]).includes(value);
-}
-
-/**
- * The export formats the stats service can write (`src/stats/types.ts`).
- *
- * `md` is the default so a shell that only knows "export" does not have to
- * choose; both values map to the service's own `StatsExportFormat`.
- */
-const STATS_EXPORT_FORMATS: readonly StatsExportFormat[] = ["md", "csv"];
-
-function isExportFormat(value: unknown): value is StatsExportFormat {
-  return typeof value === "string" && (STATS_EXPORT_FORMATS as readonly string[]).includes(value);
-}
 
 /* -------------------------------------------------------------------------- */
 /* Review marking: the three writable item kinds                               */
@@ -1450,254 +1409,12 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     return success(id, { action: "restore", side: "school", id: wantedId });
   };
 
-  const sourceList = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const resolved = await resolveSession(id, current.value, params.sessionId, "sessionId");
-    if ("error" in resolved) return resolved.error;
-    return success(id, { sources: sourceRows(resolved.opened.session) });
-  };
-
-  /**
-   * Copy user-picked files into one session's `sources/`.
-   *
-   * The paths are the user's files, never a destination: the manager copies
-   * them under `sources/`, de-duplicates by hash and refuses anything that
-   * belongs to the skills side. A path that cannot be copied is one typed
-   * failure — nothing half-written survives.
-   */
-  const sourceAdd = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const sessionId = params.sessionId;
-    if (typeof sessionId !== "string" || sessionId.trim() === "") {
-      return invalid(id, "source.add requires a session id");
-    }
-    const paths = params.paths;
-    if (!Array.isArray(paths) || paths.length === 0) {
-      return invalid(id, "source.add requires a non-empty array of file paths");
-    }
-    if (!paths.every((path) => typeof path === "string" && path.trim() !== "")) {
-      return invalid(id, "source.add: every entry in paths must be a non-empty string");
-    }
-    const files = paths as string[];
-
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    // Resolve first so an unknown id is a session error naming the id, not a
-    // generic copy failure. The manager then copies into that session only.
-    const resolved = await resolveSession(id, current.value, sessionId, "sessionId");
-    if ("error" in resolved) return resolved.error;
-    const added = await addSessionSources({
-      workspace: current.value.workspace,
-      id: resolved.opened.session.id,
-      files,
-    });
-    if (!added.ok) {
-      const resolvedId = resolved.opened.session.id;
-      const message = oneLine(added.error.message);
-      return failure(
-        id,
-        BOOT_FAILED,
-        message,
-        { kind: "source", sessionId: resolvedId, message },
-        false,
-      );
-    }
-    return success(id, { added: added.value.added, skipped: added.value.skipped });
-  };
-
   const chatSnapshotResponse = async (id: RpcId): Promise<JsonRpcResponse> => {
     const current = await services();
     if (!current.ok) return bootFailureResponse(id, current.error);
     const controller = await ensureChat(current.value);
     if (!controller) return failure(id, -32601, "Chat is not available in this build", undefined, false);
     return success(id, chatSnapshot(controller.state(), controller.usage(), chatSeq));
-  };
-
-  const workspaceInfo = async (id: RpcId): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const view = settingsOverride ?? current.value.settings;
-    const model = view.chatModel.trim();
-    return success(id, {
-      path: current.value.workspace.root,
-      dataDir: view.dataDir,
-      configured: model !== "",
-      model,
-      provider: providerOf(model),
-    });
-  };
-
-  const sessionList = async (id: RpcId, params: Record<string, unknown>): Promise<JsonRpcResponse> => {
-    const query = params.query;
-    if (query !== undefined && typeof query !== "string") {
-      return invalid(id, `session.list: query must be a string, not ${typeof query}`);
-    }
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const rows = await loadSessionRows(current.value.workspace);
-    const needle = (query ?? "").trim().toLowerCase();
-    const sessions =
-      needle === ""
-        ? rows
-        : rows.filter(
-            (row) => row.id.toLowerCase().includes(needle) || row.name.toLowerCase().includes(needle),
-          );
-    return success(id, { sessions });
-  };
-
-  const statsSummary = async (id: RpcId, params: Record<string, unknown>): Promise<JsonRpcResponse> => {
-    const { range, scope } = params;
-    if (range === undefined || scope === undefined) {
-      return invalid(
-        id,
-        `stats.summary requires range (${RANGES.join(", ")}) and scope (${SCOPES.join(", ")})`,
-      );
-    }
-    if (!isRange(range)) {
-      return invalid(
-        id,
-        `stats.summary: unknown range ${JSON.stringify(range)}; expected one of ${RANGES.join(", ")}`,
-      );
-    }
-    if (!isScope(scope)) {
-      return invalid(
-        id,
-        `stats.summary: unknown scope ${JSON.stringify(scope)}; expected one of ${SCOPES.join(", ")}`,
-      );
-    }
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const service = createStatsService({ dir: current.value.settings.dataDir });
-    const summary: StatsSummary = await service.summary(range, scope);
-    return success(id, summary as unknown as Record<string, unknown>);
-  };
-
-  /**
-   * Stats as a document the shell can save or copy (`docs/product.md` §6.1).
-   *
-   * The core returns text, never a path: writing a file is the shell's job, so
-   * this method cannot touch the filesystem and the selection of where the
-   * export goes stays in the UI. `range` and `scope` are validated exactly as
-   * `stats.summary`, so a view that can be shown can always be exported. `format`
-   * is optional and defaults to `md`; the reply repeats it so the shell can pick
-   * an extension and the "estimates, not a bill" caveat stays attached to the
-   * numbers (the Markdown carries that line itself).
-   */
-  const statsExport = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const { range, scope } = params;
-    if (range === undefined || scope === undefined) {
-      return invalid(
-        id,
-        `stats.export requires range (${RANGES.join(", ")}) and scope (${SCOPES.join(", ")})`,
-      );
-    }
-    if (!isRange(range)) {
-      return invalid(
-        id,
-        `stats.export: unknown range ${JSON.stringify(range)}; expected one of ${RANGES.join(", ")}`,
-      );
-    }
-    if (!isScope(scope)) {
-      return invalid(
-        id,
-        `stats.export: unknown scope ${JSON.stringify(scope)}; expected one of ${SCOPES.join(", ")}`,
-      );
-    }
-    const rawFormat = params.format;
-    if (rawFormat !== undefined && !isExportFormat(rawFormat)) {
-      return invalid(
-        id,
-        `stats.export: unknown format ${JSON.stringify(rawFormat)}; expected one of ${STATS_EXPORT_FORMATS.join(", ")}`,
-      );
-    }
-    // Optional with a default: an omitted format is Markdown, not a refusal.
-    const format: StatsExportFormat = rawFormat ?? "md";
-
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    try {
-      const service = createStatsService({ dir: current.value.settings.dataDir });
-      const text = await service.export(range, scope, format);
-      return success(id, { text, format });
-    } catch (error) {
-      // The readers tolerate a missing or corrupt counter file, so this is a
-      // genuine failure (unexpected IO). It is reported once and never retried.
-      const message = oneLine(messageOf(error));
-      return failure(id, BOOT_FAILED, message, { kind: "stats", message }, false);
-    }
-  };
-
-  /**
-   * The achievements inventory (`docs/product.md` §2.2, Explorer → Achievements).
-   *
-   * One row per catalogue entry, in catalogue order, carrying the counter the
-   * achievement measures, the clamped bar value and the raw `progress`. This is
-   * the **one read that can write**: `loadAchievementSnapshot` records the UTC
-   * day each achievement was first seen unlocked in
-   * `<dataDir>/achievements.json`. That file lives in the platform data
-   * directory, never in the workspace, and a write failure only costs the award
-   * dates — it never fails the reply.
-   *
-   * `warning` is the snapshot's own sentence about an unreadable awards file: a
-   * note beside the rows, not an error. A read failure is one `-32000` with
-   * `data.kind: "achievements"` and `retryable: false`. The method takes no
-   * parameters, so it never answers `-32602`.
-   *
-   * Dev and test builds unlock the whole catalogue on purpose
-   * (`UNLOCK_ALL_ACHIEVEMENTS` in `src/domain/achievements.ts`); a release build
-   * lets the counters decide. Both shapes are the domain's rule, not this
-   * handler's, so the rows and `earned` always agree.
-   */
-  const achievementsList = async (id: RpcId): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const view = settingsOverride ?? current.value.settings;
-    let snapshot: AchievementSnapshot;
-    try {
-      snapshot = await loadAchievementSnapshot({
-        dataDir: view.dataDir,
-        workspace: current.value.workspace,
-      });
-    } catch (error) {
-      // The snapshot tolerates a missing awards file, a corrupt one and any
-      // unreadable session or project folder, so this is a genuine failure.
-      const message = oneLine(messageOf(error));
-      return failure(id, BOOT_FAILED, message, { kind: "achievements", message }, false);
-    }
-    const achievements = ACHIEVEMENTS.map((achievement) => {
-      const progress = achievementValue(achievement, snapshot.metrics);
-      const unlocked = achievementUnlocked(achievement, snapshot.metrics);
-      const awardedAt = snapshot.awards[achievement.id];
-      return {
-        id: achievement.id,
-        name: achievement.name,
-        task: achievement.task,
-        category: achievement.category,
-        metric: achievement.metric,
-        target: achievement.target,
-        // `value` fills the bar (clamped); `progress` is the raw counter.
-        value: Math.min(achievement.target, progress),
-        progress,
-        unlocked,
-        difficulty: difficultyLabel(achievement.target),
-        ...(awardedAt === undefined ? {} : { awardedAt }),
-      };
-    });
-    return success(id, {
-      achievements,
-      earned: achievements.filter((row) => row.unlocked).length,
-      total: achievements.length,
-      warning: snapshot.warning,
-    });
   };
 
   const settingsGet = async (id: RpcId): Promise<JsonRpcResponse> => {
@@ -2533,6 +2250,21 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     sessionMistakePromote,
     sessionMistakeCorrect,
   } = sessionExtras.handlers;
+
+  const workspaceRead = createWorkspaceReadHandlers({
+    services,
+    resolveSession,
+    settingsView: (current) => settingsOverride ?? current.settings,
+  });
+  const {
+    workspaceInfo,
+    sessionList,
+    statsSummary,
+    statsExport,
+    achievementsList,
+    sourceList,
+    sourceAdd,
+  } = workspaceRead.handlers;
 
   const teach = createTeachHandlers({
     services,
