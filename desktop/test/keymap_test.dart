@@ -76,6 +76,7 @@ Future<void> _pressCtrl(WidgetTester tester, LogicalKeyboardKey key) async {
 }
 
 void main() {
+  rebindGroup();
   group('binding', () {
     test('parses and formats every documented form round-trip', () {
       for (final raw in const [
@@ -393,10 +394,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('press a key…'), findsOneWidget);
 
-      await _pressCtrl(tester, LogicalKeyboardKey.keyK);
+      // A chord no default holds: `ctrl+k` belongs to the palette, and the
+      // registry now refuses a collision before anything is sent.
+      await _pressCtrl(tester, LogicalKeyboardKey.keyG);
 
       expect(actions, ['refresh']);
-      expect(writes, ['ctrl+k']);
+      expect(writes, ['ctrl+g']);
       expect(find.text('press a key…'), findsNothing);
     });
 
@@ -433,6 +436,71 @@ void main() {
         expect(find.text('Space z'), findsOneWidget);
       },
     );
+
+    testWidgets('Enter, then Space and a letter, binds a leader chord', (
+      tester,
+    ) async {
+      final actions = <String>[];
+      final writes = <String?>[];
+      await _pumpSettings(
+        tester,
+        keymap: KeymapRegistry(),
+        onSetKeybind: (action, binding, {fixed = false}) async {
+          actions.add(action);
+          writes.add(binding);
+        },
+      );
+
+      // `close` defaults to Esc; the editor could not produce a leader chord at
+      // all before, because capture only built direct bindings. The chevron
+      // starts the capture, and a second press switches it to the leader.
+      final chevron = find.byKey(
+        const ValueKey('settings-activate-keybind-close'),
+      );
+      await tester.ensureVisible(chevron);
+      await tester.tap(chevron);
+      await tester.pumpAndSettle();
+      await tester.tap(chevron);
+      await tester.pumpAndSettle();
+      expect(find.text('Space …'), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyQ);
+      await tester.pumpAndSettle();
+
+      expect(actions, ['close']);
+      expect(writes, ['space+q']);
+    });
+
+    testWidgets('a leader chord onto a taken letter is refused in the editor', (
+      tester,
+    ) async {
+      final writes = <String?>[];
+      await _pumpSettings(
+        tester,
+        keymap: KeymapRegistry(),
+        onSetKeybind: (action, binding, {fixed = false}) async {
+          writes.add(binding);
+        },
+      );
+
+      // `Space c` is the chat surface's default; the registry names it instead
+      // of sending a write the core would refuse.
+      final chevron = find.byKey(
+        const ValueKey('settings-activate-keybind-close'),
+      );
+      await tester.ensureVisible(chevron);
+      await tester.tap(chevron);
+      await tester.pumpAndSettle();
+      await tester.tap(chevron);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+      await tester.pumpAndSettle();
+
+      expect(writes, isEmpty);
+      expect(
+        find.textContaining('Space c is already bound to'),
+        findsOneWidget,
+      );
+    });
 
     testWidgets('Backspace clears one row back to its default', (tester) async {
       final actions = <String>[];
@@ -512,6 +580,61 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.keyR);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+    });
+  });
+}
+
+void rebindGroup() {
+  group('registry-owned rebinding', () {
+    test('a free chord is accepted and reports the whole table', () {
+      final registry = KeymapRegistry();
+      final decision = registry.rebind('close', const Binding.direct('q'));
+      expect(decision.accepted, isTrue);
+      expect(decision.overrides?['close'], 'q');
+      expect(decision.overrides, hasLength(registry.rows.length));
+    });
+
+    test('a duplicate is refused with the core copy, and changes nothing', () {
+      final registry = KeymapRegistry(catalogue: shellActionCatalogue());
+      final held = registry.rowFor('work-swarms')!;
+      final decision = registry.rebind('close', held.binding);
+      expect(decision.accepted, isFalse);
+      expect(decision.conflict?.otherId, 'work-swarms');
+      expect(
+        decision.message,
+        '${held.binding.display} is already bound to work-swarms.',
+      );
+      // Nothing moved: the registry is immutable and `close` keeps its Esc.
+      expect(registry.rowFor('close')!.binding.format(), 'escape');
+    });
+
+    test("rebinding onto another action's default is caught too", () {
+      final registry = KeymapRegistry(catalogue: shellActionCatalogue());
+      // `help` has never been overridden; its default still owns the chord.
+      final target = registry.rowFor('help')!;
+      expect(target.custom, isFalse);
+      final decision = registry.rebind('close', target.binding);
+      expect(decision.accepted, isFalse);
+      expect(decision.conflict?.otherId, 'help');
+    });
+
+    test('a direct action can become a leader chord and back', () {
+      final registry = KeymapRegistry();
+      final toLeader = registry.rebind('close', const Binding.leader('q'));
+      expect(toLeader.accepted, isTrue);
+      expect(toLeader.overrides?['close'], 'space+q');
+      final back = registry.rebind('close', null);
+      expect(back.accepted, isTrue);
+      expect(back.overrides?.containsKey('close'), isFalse);
+    });
+
+    test('an unknown action is refused by name', () {
+      final decision = KeymapRegistry().rebind(
+        'no-such-action',
+        const Binding.direct('q'),
+      );
+      expect(decision.accepted, isFalse);
+      expect(decision.message, contains('no-such-action'));
     });
   });
 }

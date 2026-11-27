@@ -56,11 +56,20 @@ List<KeybindSettingRow> keybindSettingRows(KeymapRegistry registry) => [
 ///
 /// A bare modifier is not a chord: the editor ignores those presses while it
 /// waits, so Control, then K, captures `ctrl+k` rather than an unbindable
-/// "control".
-Binding? captureBinding(KeyEvent event) {
+/// "control". [leader] is the second half of `Space`, `key`: the editor waits
+/// for one key and binds it under the leader prefix, which is how a direct
+/// action becomes a leader chord (and back).
+Binding? captureBinding(KeyEvent event, {bool leader = false}) {
   if (event is! KeyDownEvent && event is! KeyRepeatEvent) return null;
   if (Binding.isModifierKey(event.logicalKey)) return null;
   final keyboard = HardwareKeyboard.instance;
+  // A leader chord's second key is never itself a chord: `Space`, then `Ctrl+K`
+  // is not storable, and the editor reports that rather than guessing.
+  if (leader) {
+    if (keyboard.isControlPressed || keyboard.isAltPressed) return null;
+    final token = Binding.keyToken(event.logicalKey, event.character);
+    return token == null || token.isEmpty ? null : Binding.leader(token);
+  }
   return Binding.fromKey(
     logical: event.logicalKey,
     character: event.character,
@@ -81,6 +90,7 @@ class KeybindValue extends StatelessWidget {
     required this.binding,
     required this.custom,
     this.capturing = false,
+    this.capturingLeader = false,
   });
 
   final Binding binding;
@@ -89,11 +99,14 @@ class KeybindValue extends StatelessWidget {
   /// True while the row waits for the next chord.
   final bool capturing;
 
+  /// True once `Space` was pressed: the row waits for the leader's letter.
+  final bool capturingLeader;
+
   @override
   Widget build(BuildContext context) {
     if (capturing) {
       return Text(
-        'press a key…',
+        capturingLeader ? 'Space …' : 'press a key…',
         key: const ValueKey('keybind-capturing'),
         style: TextStyle(
           color: LockedInColors.warning,

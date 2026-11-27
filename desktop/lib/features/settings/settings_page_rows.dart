@@ -356,6 +356,8 @@ extension _SettingsRows on _SettingsBodyState {
       binding: cell.binding,
       custom: cell.custom,
       capturing: _capturingId == row.id,
+      // A leader capture says so, so `Space` does not look like a dropped key.
+      capturingLeader: _capturingId == row.id && _capturingLeader,
     );
   }
 

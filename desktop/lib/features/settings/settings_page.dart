@@ -450,6 +450,9 @@ class _SettingsBodyState extends State<_SettingsBody> {
   /// The keybind row waiting for its next chord, or null.
   String? _capturingId;
 
+  /// True once `Space` was pressed while capturing: the next key joins the leader.
+  bool _capturingLeader = false;
+
   /// True when `c` switched this page to the custom theme in this session.
   ///
   /// The stored `ui.theme` arrives through [widget.settings]; a page rendered
@@ -693,6 +696,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
           key == LogicalKeyboardKey.numpadEnter) {
         setState(() {
           _capturingId = row!.id;
+          _capturingLeader = false;
           _rowErrorId = null;
           _rowError = null;
         });
@@ -787,7 +791,21 @@ class _SettingsBodyState extends State<_SettingsBody> {
     }
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.escape) {
-      setState(() => _capturingId = null);
+      setState(() {
+        _capturingId = null;
+        _capturingLeader = false;
+      });
+      return;
+    }
+    // `Space` starts a leader chord: a direct action can become `Space x` and a
+    // leader action can move to another letter. With no registry-owned path
+    // before, the editor could only ever produce direct chords.
+    if (!_capturingLeader &&
+        !keybind.binding.isLeader &&
+        key == LogicalKeyboardKey.space &&
+        !HardwareKeyboard.instance.isControlPressed &&
+        !HardwareKeyboard.instance.isAltPressed) {
+      setState(() => _capturingLeader = true);
       return;
     }
     if (key == LogicalKeyboardKey.backspace ||
@@ -796,7 +814,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
       unawaited(_writeKeybind(keybind, null));
       return;
     }
-    final binding = captureBinding(event);
+    final binding = captureBinding(event, leader: _capturingLeader);
     if (binding == null) {
       if (Binding.isModifierKey(key)) return;
       setState(() {
@@ -818,7 +836,20 @@ class _SettingsBodyState extends State<_SettingsBody> {
       });
       return;
     }
-    setState(() => _capturingId = null);
+    setState(() {
+      _capturingId = null;
+      _capturingLeader = false;
+    });
+    // The registry owns the decision: a duplicate is refused here, in words the
+    // core uses too, before any write is sent. The core still re-checks it.
+    final decision = widget.keymap.rebind(keybind.actionId, binding);
+    if (!decision.accepted) {
+      setState(() {
+        _rowErrorId = row.id;
+        _rowError = decision.message;
+      });
+      return;
+    }
     unawaited(_writeKeybind(keybind, binding.format()));
   }
 
@@ -947,8 +978,16 @@ class _SettingsBodyState extends State<_SettingsBody> {
     final keybind = row.keybind;
     if (keybind != null) {
       if (widget.onSetKeybind == null) return;
+      // A second activation while this row waits switches to the leader: the
+      // row is already listening, so `Space` cannot both start a capture and be
+      // the chord's first half without a second, discoverable door.
       setState(() {
-        _capturingId = row.id;
+        if (_capturingId == row.id) {
+          _capturingLeader = !_capturingLeader;
+        } else {
+          _capturingId = row.id;
+          _capturingLeader = false;
+        }
         _rowErrorId = null;
         _rowError = null;
       });
