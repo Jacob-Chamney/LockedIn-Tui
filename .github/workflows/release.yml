@@ -80,14 +80,20 @@ jobs:
             os: ubuntu-24.04
             artifact: linux-arm64-musl
             smoke: false
+          # The core is a bun-compiled binary with no native addon, so darwin is
+          # cross-compiled here rather than on a macOS runner: those jobs queued
+          # and were cancelled without ever being provisioned, and the artifact is
+          # identical. It is verified as a Mach-O of the right architecture.
           - target: bun-darwin-x64
-            os: macos-14
+            os: ubuntu-24.04
             artifact: darwin-x64
+            arch: x86_64
             smoke: false
           - target: bun-darwin-arm64
-            os: macos-14
+            os: ubuntu-24.04
             artifact: darwin-arm64
-            smoke: true
+            arch: arm64
+            smoke: false
           - target: bun-windows-x64
             os: windows-2022
             artifact: windows-x64
@@ -136,6 +142,24 @@ jobs:
             *"$version"*) ;;
             *) echo "the artifact reports '$reported', not '$version'" >&2; exit 1 ;;
           esac
+      - name: Verify the darwin artifacts are Mach-O for their architecture
+        if: contains(matrix.target, 'darwin')
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ needs.version.outputs.version }}"
+          binary="dist/lockedin-$version-bun-${{ matrix.artifact }}"
+          file "$binary"
+          description="$(file -b "$binary")"
+          case "$description" in
+            *Mach-O*64-bit*) ;;
+            *) echo "$binary is not a 64-bit Mach-O" >&2; exit 1 ;;
+          esac
+          case "$description" in
+            *${{ matrix.arch }}*) ;;
+            *) echo "$binary is not ${{ matrix.arch }}" >&2; exit 1 ;;
+          esac
+
       - name: Verify the musl artifacts are static musl ELF
         if: contains(matrix.target, 'musl')
         shell: bash
