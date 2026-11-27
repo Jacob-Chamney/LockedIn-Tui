@@ -122,7 +122,7 @@ export const FIRST_CLASS_PROVIDERS: readonly ProviderSpec[] = [
       example: "sk-ant-spike-" + "placeholder",
     },
     discovery: { kind: "models-endpoint", path: "/models" },
-    note: "Requires the anthropic-version header.",
+    note: "No Anthropic adapter in this build; link OpenRouter for Claude models.",
   },
   {
     id: "google",
@@ -130,6 +130,7 @@ export const FIRST_CLASS_PROVIDERS: readonly ProviderSpec[] = [
     wire: "native",
     auth: "google-api-key",
     baseUrl: "https://generativelanguage.googleapis.com/v1beta",
+    note: "No Google adapter in this build; link OpenRouter for Gemini models.",
     keyRequired: true,
     keyFormat: {
       pattern: /^AIza[0-9A-Za-z_-]{35}$/,

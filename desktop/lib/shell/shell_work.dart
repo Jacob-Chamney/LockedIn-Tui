@@ -34,6 +34,9 @@ extension _ShellWork on _ShellState {
               if (opened != null) unawaited(store.refreshWorkChanges(opened));
               return created;
             },
+        onRemove: (id) async {
+          await store.removeProject(id);
+        },
       );
     }
     final projectId = store.activeProjectId;

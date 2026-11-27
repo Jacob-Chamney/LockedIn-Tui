@@ -162,6 +162,7 @@ export const CAPABILITIES = [
   "work.list",
   "work.open",
   "work.create",
+  "work.remove",
   "work.templates.list",
   "work.agent.save",
   "work.agent.delete",
@@ -853,6 +854,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     workAgentDelete,
     workDefaultAgent,
     workChanges,
+    workRemove,
   } = workProject;
 
 
@@ -1103,6 +1105,8 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         return workOpen(id, params);
       case "work.create":
         return workCreate(id, params);
+      case "work.remove":
+        return workRemove(id, params);
       case "work.instructions.save":
         return workInstructionsSave(id, params);
       case "work.templates.list":

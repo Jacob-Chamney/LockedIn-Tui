@@ -245,6 +245,19 @@ export async function linkProviderKey(input: LinkInput): Promise<LlmResult<LinkO
   const { spec, store } = input
   const key = input.key?.trim() ? input.key.trim() : null
 
+  // A provider whose wire family is not OpenAI-compatible needs its own
+  // adapter, and this build has none. Refuse before the keychain or the
+  // network: validating a key this build cannot use ended with the key stored
+  // and every chat turn failing at send time.
+  if (spec.wire !== "openai-compatible") {
+    return fail({
+      kind: "config",
+      message:
+        `${spec.label} needs its own protocol, and this build has no adapter for it. ` +
+        "Link an OpenAI-compatible provider instead — OpenRouter serves Claude and Gemini models.",
+    })
+  }
+
   const format = checkKeyFormat(spec, key ?? "")
   if (!format.ok) return fail({ kind: "config", message: format.message })
 

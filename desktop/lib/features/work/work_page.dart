@@ -31,6 +31,7 @@ class WorkPage extends StatefulWidget {
     this.onRefresh,
     this.onOpen,
     this.onCreate,
+    this.onRemove,
   });
 
   final List<ProjectRow> projects;
@@ -43,6 +44,10 @@ class WorkPage extends StatefulWidget {
 
   /// Registers a project through `work.create`. Null keeps the list read-only.
   final ProjectCreator? onCreate;
+
+  /// Removes one project's metadata through `work.remove`. Null hides the
+  /// row's remove verb. The page confirms by name first; files stay.
+  final Future<void> Function(String id)? onRemove;
 
   @override
   State<WorkPage> createState() => _WorkPageState();
@@ -261,6 +266,38 @@ class _WorkPageState extends State<WorkPage> {
     );
   }
 
+  /// Confirm and remove one project's metadata.
+  Future<void> _removeProject(ProjectRow project) async {
+    final remove = widget.onRemove;
+    if (remove == null || _dialogOpen) return;
+    final confirmed = await confirmProjectRemove(
+      context,
+      name: project.name,
+      root: project.folder,
+    );
+    if (!confirmed || !mounted) return;
+    await remove(project.id);
+  }
+
+  /// The row's pointer verbs.
+  Widget _rowMenu(int index, ProjectRow project) {
+    if (widget.onRemove == null) return const SizedBox.shrink();
+    return PopupMenuButton<String>(
+      key: ValueKey('project-row-menu-${project.id}'),
+      tooltip: 'row actions',
+      iconSize: 16,
+      padding: EdgeInsets.zero,
+      onSelected: (value) {
+        if (value != 'remove') return;
+        setState(() => _selectedIndex = index);
+        unawaited(_removeProject(project));
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: 'remove', child: Text('remove')),
+      ],
+    );
+  }
+
   Widget _body({required bool showMode}) {
     if (widget.loading && widget.projects.isEmpty) {
       return const _LoadingState(label: 'loading projects…');
@@ -329,6 +366,7 @@ class _WorkPageState extends State<WorkPage> {
                   project: project,
                   selected: isSelected,
                   showMode: showMode,
+                  trailing: _rowMenu(index, project),
                   onTap: () {
                     setState(() => _selectedIndex = index);
                     widget.onOpen?.call(project);
@@ -2008,6 +2046,37 @@ String _writeSummary(WorkWriteProposal write) {
   };
 }
 
+/// Remove a project's registration, never its files.
+Future<bool> confirmProjectRemove(
+  BuildContext context, {
+  required String name,
+  required String root,
+}) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('remove project'),
+      content: Text(
+        'Remove “${name.isEmpty ? 'this project' : name}” from LockedIn? '
+        'Its files stay at $root. Only the project metadata is deleted.',
+      ),
+      actions: [
+        TextButton(
+          key: const ValueKey('project-remove-cancel'),
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const ValueKey('project-remove-confirm'),
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Remove'),
+        ),
+      ],
+    ),
+  );
+  return confirmed == true;
+}
+
 class _ProjectRowTile extends StatelessWidget {
   const _ProjectRowTile({
     super.key,
@@ -2015,11 +2084,15 @@ class _ProjectRowTile extends StatelessWidget {
     required this.selected,
     required this.showMode,
     required this.onTap,
+    this.trailing,
   });
 
   final ProjectRow project;
   final bool selected;
   final bool showMode;
+
+  /// The row's pointer verbs (a menu). Null draws nothing.
+  final Widget? trailing;
   final VoidCallback onTap;
 
   @override
@@ -2113,6 +2186,7 @@ class _ProjectRowTile extends StatelessWidget {
                   ),
                 ),
               ),
+              if (trailing != null) ...[const SizedBox(width: 4), trailing!],
             ],
           ),
         ),

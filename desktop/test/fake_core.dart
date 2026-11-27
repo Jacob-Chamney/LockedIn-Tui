@@ -2903,6 +2903,37 @@ class FakeCore implements CoreConnection {
       }
       return {'added': added, 'skipped': skipped};
     }
+    if (method == 'work.remove') {
+      final raw = params?['id'];
+      if (raw is! String || raw.trim().isEmpty) {
+        throw const RpcException(-32602, 'work.remove requires a project id');
+      }
+      final id = raw.trim();
+      final index = _projects.indexWhere((project) => project['id'] == id);
+      if (index < 0) {
+        throw RpcException(-32000, 'there is no project "$id"');
+      }
+      final row = _projects[index];
+      if (params?['confirmed'] != true) {
+        return {
+          'removed': false,
+          'id': id,
+          'name': row['name'],
+          'root': row['folder'],
+          'message': 'Remove this project? Its files stay.',
+        };
+      }
+      _projects.removeAt(index);
+      _projectDetails.remove(id);
+      _projectChats.remove(id);
+      return {
+        'removed': true,
+        'id': id,
+        'name': row['name'],
+        'root': row['folder'],
+        'message': 'Removed.',
+      };
+    }
     if (method == 'work.list') {
       return {'projects': _projects};
     }

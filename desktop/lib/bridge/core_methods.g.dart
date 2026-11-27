@@ -68,6 +68,7 @@ abstract final class CoreMethod {
   static const String workList = 'work.list';
   static const String workOpen = 'work.open';
   static const String workCreate = 'work.create';
+  static const String workRemove = 'work.remove';
   static const String workTemplatesList = 'work.templates.list';
   static const String workAgentSave = 'work.agent.save';
   static const String workAgentDelete = 'work.agent.delete';
@@ -201,6 +202,7 @@ abstract final class CoreMethod {
     workList,
     workOpen,
     workCreate,
+    workRemove,
     workTemplatesList,
     workAgentSave,
     workAgentDelete,

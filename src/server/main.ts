@@ -104,7 +104,7 @@ const server = createCoreServer({
             import("../services/update"),
             import("../version"),
           ]);
-          return checkForUpdate({ current: APP_VERSION });
+          return checkForUpdate({ current: APP_VERSION, app: "desktop" });
         },
         // Persist first, then apply to the live service, then report the view.
         // The protocol never sees TOML and never invents a settings shape.

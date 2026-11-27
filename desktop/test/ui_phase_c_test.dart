@@ -283,6 +283,46 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a project row removes its metadata after a named confirmation', (
+    tester,
+  ) async {
+    String? removed;
+    await _pump(
+      tester,
+      WorkPage(
+        projects: const [
+          ProjectRow(
+            id: 'my-app',
+            name: 'My app',
+            folder: '/home/me/Projects/my-app',
+            mode: 'chat',
+            swarmName: '',
+            archived: false,
+            agents: [],
+          ),
+        ],
+        loading: false,
+        onRemove: (id) async => removed = id,
+      ),
+      size: const Size(1000, 700),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('project-row-menu-my-app')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('remove'));
+    await tester.pumpAndSettle();
+
+    // The confirmation names the project and says its files stay.
+    expect(
+      find.textContaining('Its files stay at /home/me/Projects/my-app'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('project-remove-confirm')));
+    await tester.pumpAndSettle();
+    expect(removed, 'my-app');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the project detail offers its layers as one row', (
     tester,
   ) async {

@@ -166,4 +166,20 @@ void main() {
     expect(store.researchRunning, isFalse);
     expect(store.researchRunId, isNull);
   });
+  test('removeProject deletes metadata and drops the row', () async {
+    final core = FakeCore();
+    final store = CoreStore(connection: core);
+    addTearDown(store.dispose);
+    await store.start();
+    await store.refreshProjects();
+    final before = store.projects.length;
+    expect(store.projects.any((row) => row.id == FakeCore.projectId), isTrue);
+
+    final removed = await store.removeProject(FakeCore.projectId);
+
+    expect(removed, isTrue);
+    expect(core.calls, contains('work.remove'));
+    expect(store.projects.any((row) => row.id == FakeCore.projectId), isFalse);
+    expect(store.projects.length, before - 1);
+  });
 }

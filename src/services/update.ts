@@ -24,6 +24,15 @@ const USER_AGENT = "lockedin-updater"
 
 export type Libc = "glibc" | "musl"
 
+/**
+ * Which artifact the check is for.
+ *
+ * `core` is the headless sidecar the installer downloads; `desktop` is the
+ * Flutter bundle a person runs. They are different release assets with
+ * different platforms, so a viewer must say which one it is asking about.
+ */
+export type UpdateApp = "core" | "desktop"
+
 export type UpdateInfo = {
   /** Version without the leading `v`. */
   version: string
@@ -57,6 +66,8 @@ type Options = {
   libc?: Libc
   execPath?: string
   fetch?: typeof fetch
+  /** Defaults to `core`, the CLI sidecar's artifact. */
+  app?: UpdateApp
 }
 
 type Resolved = {
@@ -67,6 +78,7 @@ type Resolved = {
   libc?: Libc
   execPath: string
   fetch: typeof fetch
+  app: UpdateApp
 }
 
 function resolve(options: Options): Resolved {
@@ -82,6 +94,7 @@ function resolve(options: Options): Resolved {
         : { libc: "glibc" as const }),
     execPath: options.execPath ?? process.execPath,
     fetch: options.fetch ?? fetch,
+    app: options.app ?? "core",
   }
 }
 
@@ -114,6 +127,29 @@ export function updateAssetName(
   const suffix = os === "linux" && libc === "musl" ? "-musl" : ""
   const extension = os === "windows" ? ".exe" : ""
   return `lockedin-${version}-bun-${os}-${arch}${suffix}${extension}`
+}
+
+/**
+ * The desktop bundle's release name, or null when this platform has none.
+ *
+ * The desktop app ships a Linux x64 tarball and a Windows x64 installer; the
+ * macOS bundle is not built yet, and arm64 has no desktop artifact. Reporting
+ * a core binary as the desktop app's update was the old bug: the app could
+ * never install it, and the version it named was the CLI's.
+ */
+export function desktopAssetName(
+  version: string,
+  platform: NodeJS.Platform,
+  arch: string,
+): string | null {
+  const os = platform === "win32" ? "windows" : platform
+  if (os === "linux" && arch === "x64") {
+    return `lockedin-desktop-${version}-linux-x64.tar.gz`
+  }
+  if (os === "windows" && arch === "x64") {
+    return `lockedin-desktop-${version}-windows-x64-setup.exe`
+  }
+  return null
 }
 
 /** Alpine and musl distributions keep their loader under /lib. */
@@ -196,12 +232,19 @@ export async function checkForUpdate(options: Options): Promise<UpdateCheck> {
     }
 
     const libc = resolved.libc ?? detectLibc()
-    const assetName = updateAssetName(version, resolved.platform, resolved.arch, libc)
+    const assetName =
+      resolved.app === "desktop"
+        ? desktopAssetName(version, resolved.platform, resolved.arch)
+        : updateAssetName(version, resolved.platform, resolved.arch, libc)
     if (!assetName) {
       return {
         kind: "unavailable",
         current: resolved.current,
-        message: `no update build for ${resolved.platform}-${resolved.arch}`,
+        message:
+          resolved.app === "desktop"
+            ? `release ${version} has no desktop app for ${resolved.platform}-${resolved.arch}; ` +
+              "the core installer and a source build are still available"
+            : `no update build for ${resolved.platform}-${resolved.arch}`,
       }
     }
     const assets = Array.isArray(latest.assets) ? (latest.assets as ReleaseAsset[]) : []
@@ -292,6 +335,16 @@ export async function cleanupOldBinaries(execPath = process.execPath): Promise<v
 
 export async function installUpdate(info: UpdateInfo, options: Options): Promise<UpdateResult> {
   const resolved = resolve(options)
+  if (resolved.app === "desktop") {
+    // The desktop app never replaces its own bundle; Settings only checks and
+    // links to the release. This guard keeps a caller from treating a tarball
+    // as a binary and rewriting the core with it.
+    return {
+      kind: "unavailable",
+      message:
+        "the desktop app does not install its own bundle; download the new bundle from the release page",
+    }
+  }
   const target = resolved.execPath
   const temporary = join(dirname(target), `.${basename(target)}.new-${process.pid}`)
   try {
