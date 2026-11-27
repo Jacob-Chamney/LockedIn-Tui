@@ -22,6 +22,13 @@ export type SessionServices = {
   /** The rest of the optional capabilities a Settings handler may use. */
   linkedProviders?: Booted["linkedProviders"];
   linkProvider?: Booted["linkProvider"];
+  createGithubArchive?: Booted["createGithubArchive"];
+  pluginRuntime?: Booted["pluginRuntime"];
+  savePolicy?: (input: {
+    command: import("../storage/config-schema").PluginCommand;
+    server: string;
+    value: import("../storage/config-schema").PluginPolicyCell;
+  }) => Promise<Result<import("../storage/config-schema").PluginPolicy, { message: string }>>;
   updateCheck?: () => Promise<import("../services/update").UpdateCheck>;
   savePrompt?: (
     id: import("../domain/prompts").PromptId,

@@ -15,21 +15,19 @@
  *   the returned lines and logs go to stderr.
  */
 import { randomUUID } from "node:crypto";
-import { readFile, rm } from "node:fs/promises";
-import { basename, join, resolve, sep } from "node:path";
+import { basename } from "node:path";
 export { parseSkillPlan } from "./skills";
 
-import type { ArchiveRef } from "../archive/types";
 import type { Booted, BootFailure } from "../app/boot";
-import {
-  loadArchiveRows,
-  runSessionAction,
-  type SessionAction,
-} from "../app/actions/archive";
-import type { PluginRow, PluginWriteApprover, PluginWriteRequest } from "../app/actions/plugins";
+import type { PluginWriteApprover, PluginWriteRequest } from "../app/actions/plugins";
 import { computeCoverage } from "../domain/coverage";
 import { loadSessionHome, loadSessionRows } from "../app/actions/sessions";
 import type { Result } from "../domain/markdown";
+
+type ChatController = NonNullable<CoreServices["controller"]>;
+
+/** How long one plugin write waits for the shell's answer. */
+export const PLUGIN_PERMISSION_TIMEOUT_MS = 120_000;
 import type { ThemeTokens } from "./theme-tokens";
 export { THEME_TOKEN_NAMES, validateThemeTokens } from "./theme-tokens";
 export type { ThemeTokenName, ThemeTokens } from "./theme-tokens";
@@ -38,7 +36,6 @@ export type { DecisionSettings, DecisionView } from "./decision-types";
 export { DECISION_LOCAL_MODEL_REASON, DECISION_RULES_ONLY_REFUSAL } from "./decision-types";
 import type { KeybindMaps, KeybindWrite } from "./keybinds";
 export type { KeybindMaps, KeybindWrite } from "./keybinds";
-import { resolveArchiveBackend } from "./archive-backend";
 import {
 } from "./session-documents";
 import { createSessionInstructionHandlers } from "./session-instructions";
@@ -57,6 +54,8 @@ import { createSessionLifecycleHandlers } from "./session-lifecycle-handlers";
 import { createSessionExtrasHandlers } from "./session-extras-handlers";
 import { createWorkspaceReadHandlers } from "./workspace-read-handlers";
 import { createSettingsHandlers } from "./settings-handlers";
+import { createArchiveHandlers } from "./archive-handlers";
+import { createMcpHandlers } from "./mcp-handlers";
 export {
   WORK_COMMAND_OPT_IN_OFF,
   WORK_WRITE_OPT_IN_OFF,
@@ -92,7 +91,6 @@ import {
   isRecord,
   messageOf,
   oneLine,
-  pathExists,
   success,
   type JsonRpcFailure,
   type JsonRpcRequest,
@@ -143,10 +141,6 @@ import { MAX_IMAGES } from "../llm/chat";
 import type {
   SwarmTaskEntry,
 } from "../domain/review";
-import {
-  SESSION_FILES,
-  sessionFromMeta,
-} from "../domain/session";
 import { listProjects } from "../services/work/register";
 import {
   listReportRuns,
@@ -154,27 +148,16 @@ import {
   verifyReportTaskFile,
 } from "../services/work/report";
 import type { WorkerRunner } from "../services/work/swarm";
-import {
-  goalFolderFor,
-  readMeta as readGoalMeta,
-  writeMeta as writeGoalMeta,
-} from "../services/skills/progress";
-import { restoreSession } from "../services/lockin/archive";
 import { loadLearningGraph } from "../services/knowledge/learning-graph";
 import {
   openSession,
-  sessionFolderFor,
-  writeMeta as writeSessionMeta,
   type OpenResult,
 } from "../services/lockin/manager";
 import { reviewQueue, type ReviewQueueResult } from "../services/review/queue";
-import {
-  NEVER_PLUGIN_COMMANDS,
-  PLUGIN_COMMANDS,
-  PLUGIN_POLICY_VALUES,
-  type PluginCommand,
-  type PluginPolicy,
-  type PluginPolicyCell,
+import type {
+  PluginCommand,
+  PluginPolicy,
+  PluginPolicyCell,
 } from "../storage/config-schema";
 import type { SettingsView } from "../types/settings";
 
@@ -472,67 +455,6 @@ export type CoreServer = {
 };
 
 /**
- * Normalise a session folder a **remote** backend just restored.
- *
- * The GitHub adapter copies files down; it does not know the session's metadata
- * rules. A restored session must be live: `archived: false`, no
- * `chat_archived` claim, and no `chat.jsonl` even if a remote copy held one.
- * The session's own files are left alone.
- */
-async function normaliseRestoredSession(
-  folder: string,
-): Promise<{ ok: true } | { ok: false; message: string }> {
-  try {
-    const raw: unknown = JSON.parse(await readFile(join(folder, SESSION_FILES.meta), "utf8"));
-    const parsed = sessionFromMeta(raw);
-    if (!parsed.ok) return { ok: false, message: parsed.error.message };
-    await writeSessionMeta(folder, { ...parsed.value, archived: false });
-    await rm(join(folder, SESSION_FILES.chat), { force: true });
-    return { ok: true };
-  } catch (error) {
-    return { ok: false, message: messageOf(error) };
-  }
-}
-
-
-
-/* -------------------------------------------------------------------------- */
-/* Review marking: the three writable item kinds                               */
-/* -------------------------------------------------------------------------- */
-
-type ChatController = NonNullable<CoreServices["controller"]>;
-
-/* -------------------------------------------------------------------------- */
-/* Keybinds — the storage half of the rebindable keymap registry               */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The named keys `keybinds.set` accepts besides one printable character.
- *
- * Deliberately a short, documented list (`docs/design.md` §7.1,
- * `docs/data-model.md` §2): the core does not own a key catalogue, so it
- * validates the string *form* and refuses anything it cannot describe back to
- * the user. The default action table and the set of legal action ids live in the
- * UI registry.
- */
-/* -------------------------------------------------------------------------- */
-/* Swarm workers                                                              */
-/* -------------------------------------------------------------------------- */
-
-/**
- * How long one plugin write waits for the shell's answer.
- *
- * A prompt the user never sees must not wedge a chat turn: the wait denies on
- * timeout with the same typed message a refusal produces. The timer is unref'd,
- * so an idle process is not kept alive by a forgotten prompt.
- */
-export const PLUGIN_PERMISSION_TIMEOUT_MS = 120_000;
-
-/* -------------------------------------------------------------------------- */
-/* Knowledge base: read-only search and topic tree                            */
-/* -------------------------------------------------------------------------- */
-
-/**
  * One core, one boot.
  *
  * The first data method boots the app and every later call reuses the result.
@@ -754,643 +676,12 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     sessionDeckReset,
   } = createSessionOutputHandlers({ services, resolveSession });
 
-  /**
-   * The archive/delete/export/restore failure shape: one session, one verb, one
-   * line.
-   *
-   * The shell has already asked the user; a failure here is the core reporting
-   * that the action did not happen, and the reply is never retried.
-   */
-  const sessionActionFailure = (
-    id: RpcId,
-    sessionId: string,
-    action: SessionAction | "restore",
-    message: string,
-  ): JsonRpcFailure =>
-    failure(id, BOOT_FAILED, message, { kind: "session-action", id: sessionId, action, message }, false);
-
-  /**
-   * Archive one session to the configured backend.
-   *
-   * The backend choice is configuration, never a parameter: a folder archive
-   * needs `archive.folder` and a GitHub archive needs a working backend. With
-   * neither there is nowhere to put the session, so the refusal happens before
-   * the session is read — one actionable line, nothing touched, and the live
-   * folder is never deleted in place of an archive.
-   *
-   * The service owns the move (copy to a temp folder, rename, then remove the
-   * live copy) and it always receives `confirmed: true`: the Flutter manager
-   * asks the user, so this layer is the execution half of that confirmation.
-   */
-  const sessionArchive = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const rawId = params.id;
-    if (typeof rawId !== "string" || rawId.trim() === "") {
-      return invalid(id, "session.archive requires a session id");
-    }
-    const wantedId = rawId.trim();
-
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const view = settingsOverride ?? current.value.settings;
-    let github: CoreServices["createGithubArchive"];
-    if (view.archiveBackend === "github") {
-      if (!current.value.createGithubArchive) {
-        const message = "the GitHub archive backend is not available in this build";
-        return failure(id, BOOT_FAILED, message, { kind: "archive", id: wantedId, message }, false);
-      }
-      // Building the backend is configuration, not a transfer: it refuses an
-      // unconfigured repo or a missing keychain token with one sentence. That
-      // refusal is the archive's own blocked state, not a failed session action.
-      const ready = await current.value.createGithubArchive();
-      if (!ready.ok) {
-        const message = oneLine(ready.error.message);
-        return failure(id, BOOT_FAILED, message, { kind: "archive", id: wantedId, message }, false);
-      }
-      github = async () => ready;
-    } else if (view.archiveFolder.trim() === "") {
-      const message = "set an archive folder in Settings → Storage and archive first";
-      return failure(id, BOOT_FAILED, message, { kind: "archive", id: wantedId, message }, false);
-    }
-
-    const resolved = await resolveSession(id, current.value, wantedId);
-    if ("error" in resolved) return resolved.error;
-    const sessionId = resolved.opened.session.id;
-
-    const outcome = await runSessionAction({
-      workspace: current.value.workspace,
-      id: sessionId,
-      action: "archive",
-      archiveRoot: view.archiveFolder,
-      ...(github === undefined ? {} : { createGithubArchive: github }),
-    });
-    if (!outcome.ok) {
-      return sessionActionFailure(id, sessionId, "archive", oneLine(outcome.message));
-    }
-    if (outcome.action !== "archive") {
-      return sessionActionFailure(
-        id,
-        sessionId,
-        "archive",
-        "the archive did not report an archived session",
-      );
-    }
-    dropSessionChat(sessionId);
-    return success(id, { action: "archive", backend: outcome.backend });
-  };
-
-  /**
-   * Delete one session folder.
-   *
-   * The shell confirms first (`docs/product.md` §4.4) and this method executes
-   * the confirmed delete; `deleteSession` receives `confirmed: true` through the
-   * action adapter. Nothing else is removed: no note, no work project and no
-   * archive entry, so an archived copy survives a delete of the live folder.
-   */
-  const sessionRemove = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    if (typeof params.id !== "string" || params.id.trim() === "") {
-      return invalid(id, "session.remove requires a session id");
-    }
-
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const resolved = await resolveSession(id, current.value, params.id);
-    if ("error" in resolved) return resolved.error;
-    const sessionId = resolved.opened.session.id;
-
-    // No `archiveRoot`: a delete removes the live folder, and an archived copy
-    // of the same id survives (`archive.remove` is the only verb that deletes
-    // one).
-    const outcome = await runSessionAction({
-      workspace: current.value.workspace,
-      id: sessionId,
-      action: "delete",
-    });
-    if (!outcome.ok) {
-      return sessionActionFailure(id, sessionId, "delete", oneLine(outcome.message));
-    }
-    if (outcome.action !== "delete") {
-      return sessionActionFailure(
-        id,
-        sessionId,
-        "delete",
-        "the delete did not report a deleted session",
-      );
-    }
-    dropSessionChat(sessionId);
-    return success(id, { action: "delete" });
-  };
-
-  /**
-   * Export one session as a zip in this workspace's `exports/` folder.
-   *
-   * There is no destination parameter: the service writes
-   * `exports/session-<id>.zip` itself, so the shell cannot point an export at a
-   * path it does not own. The reply is that path, and the containment check
-   * below keeps the invariant even if the service ever changed.
-   */
-  const sessionExport = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    if (typeof params.id !== "string" || params.id.trim() === "") {
-      return invalid(id, "session.export requires a session id");
-    }
-
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const resolved = await resolveSession(id, current.value, params.id);
-    if ("error" in resolved) return resolved.error;
-    const sessionId = resolved.opened.session.id;
-
-    const outcome = await runSessionAction({
-      workspace: current.value.workspace,
-      id: sessionId,
-      action: "export",
-      archiveRoot: (settingsOverride ?? current.value.settings).archiveFolder,
-    });
-    if (!outcome.ok) {
-      return sessionActionFailure(id, sessionId, "export", oneLine(outcome.message));
-    }
-    if (outcome.action !== "export") {
-      return sessionActionFailure(id, sessionId, "export", "the export did not produce a file");
-    }
-
-    const exportsRoot = resolve(current.value.workspace.paths.exports);
-    const target = resolve(outcome.path);
-    if (target !== exportsRoot && !target.startsWith(exportsRoot + sep)) {
-      return sessionActionFailure(
-        id,
-        sessionId,
-        "export",
-        "the export was written outside this workspace's exports folder",
-      );
-    }
-    return success(id, { action: "export", path: outcome.path });
-  };
-
-  /**
-   * List the archive, read-only, for both sides of the wall.
-   *
-   * This is the picker's read half only: it never restores, deletes, exports or
-   * writes a byte. The backend is configuration, exactly as for
-   * `session.archive`: a folder backend with no folder configured has nowhere
-   * to look and is therefore `{rows: []}`, while a GitHub backend this build
-   * cannot build — no repo, no token or no backend at all — is one actionable
-   * refusal instead of an empty lie.
-   *
-   * Rows come from the backends themselves. The local `archive-index/*.json`
-   * files are a cache, so a missing or corrupt index still lists the archived
-   * folders rather than failing the request.
-   */
-  const archiveList = async (id: RpcId): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const view = settingsOverride ?? current.value.settings;
-    const backend = view.archiveBackend === "github" ? "github" : "folder";
-
-    const loaded = await loadArchiveRows({
-      archiveRoot: view.archiveFolder,
-      backend,
-      workspaceRoot: current.value.workspace.root,
-      ...(current.value.createGithubArchive === undefined
-        ? {}
-        : { createGithubArchive: current.value.createGithubArchive }),
-    });
-    if (!loaded.ok) {
-      const message = oneLine(loaded.message);
-      return failure(id, BOOT_FAILED, message, { kind: "archive", message }, false);
-    }
-    return success(id, { rows: loaded.rows });
-  };
-
-  /**
-   * The configured archive backend, resolved exactly as `archive.list` does.
-   *
-   * The backend choice is configuration, never a parameter. A GitHub backend is
-   * built on demand; a folder backend needs an absolute `archive.folder`. Both
-   * refusals are one actionable sentence naming Settings, because there is no
-   * retry that can fix a missing setting.
-   */
-  /** One archive verb, one item, one line — never a retry. */
-  const archiveItemFailure = (
-    id: RpcId,
-    item: { id: string; side: "school" | "skills" },
-    message: string,
-  ): JsonRpcFailure =>
-    failure(
-      id,
-      BOOT_FAILED,
-      message,
-      { kind: "archive", id: item.id, side: item.side, message },
-      false,
-    );
-
-  /**
-   * Delete one **archived** item; the live copy is never touched.
-   *
-   * This is the archive picker's delete verb (`docs/product.md` §9) and it is
-   * destructive: the shell asks first, naming the item, and this method is the
-   * execution half of that confirmation. `ArchiveBackend.remove` only ever
-   * resolves a folder inside the archive root (a symlinked or escaping location
-   * is refused by the backend), so a live session or goal cannot be deleted by
-   * this path — `session.remove` owns that, with its own confirmation.
-   *
-   * An item that is not in the archive is a typed refusal naming the id, not a
-   * silent success: the picker was showing a row that is no longer there.
-   */
-  const archiveRemove = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const rawId = params.id;
-    if (typeof rawId !== "string" || rawId.trim() === "") {
-      return invalid(id, "archive.remove requires an archived item id");
-    }
-    const wantedId = rawId.trim();
-
-    const rawSide = params.side;
-    if (rawSide !== "school" && rawSide !== "skills") {
-      return invalid(id, 'archive.remove: side must be "school" or "skills"');
-    }
-    const side = rawSide;
-
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const view = settingsOverride ?? current.value.settings;
-
-    const resolved = await resolveArchiveBackend(current.value, view);
-    if (!resolved.ok) return archiveItemFailure(id, { id: wantedId, side }, resolved.message);
-
-    // The side decides the kind: a school row is a session, a skills row is a
-    // goal. `project` archives are not produced by either side's manager yet.
-    const kind: "session" | "goal" = side === "school" ? "session" : "goal";
-    const ref: ArchiveRef = { side, id: wantedId, backend: resolved.backend.id, kind };
-
-    // `confirm: true` is the shell's confirmation; the GitHub adapter refuses a
-    // remote delete without it, and the folder adapter ignores it.
-    const removed = await resolved.backend.remove(ref, { confirm: true });
-    if (!removed.ok) {
-      return archiveItemFailure(id, { id: wantedId, side }, oneLine(removed.error.message));
-    }
-    if (!removed.value.removed) {
-      return archiveItemFailure(
-        id,
-        { id: wantedId, side },
-        `there is no archived ${kind} "${wantedId}" on the ${side} side`,
-      );
-    }
-    return success(id, { action: "delete", side, id: wantedId });
-  };
-
-  /**
-   * Bring one archived **skill goal** back into `skills/goals/<id>`.
-   *
-   * The archive port's `restore` copies an archived item into a destination and
-   * `remove` drops the archived copy, so the same composition serves both
-   * backends: a folder archive's `restore` stages and renames locally, and the
-   * GitHub archive downloads the item's files into the destination:
-   *
-   * 1. the backend copies the archived goal into `skills/goals/<id>`;
-   * 2. the goal's `archived` flag is cleared when the archived copy carried it;
-   * 3. the archived copy is removed, making the restore a move.
-   *
-   * Any failure after step 1 removes the freshly restored folder, so a failed
-   * restore leaves the archive and the live goals folder exactly as they were.
-   * A goal that is already open is refused rather than overwritten, and the id
-   * is confined to the goals root: it is a folder name, never a path.
-   */
-  const restoreArchivedGoal = async (
-    id: RpcId,
-    current: CoreServices,
-    view: SettingsView,
-    wantedId: string,
-  ): Promise<JsonRpcResponse> => {
-    const refused = (message: string): JsonRpcFailure =>
-      archiveItemFailure(id, { id: wantedId, side: "skills" }, message);
-
-    const resolved = await resolveArchiveBackend(current, view);
-    if (!resolved.ok) return refused(resolved.message);
-
-    const destination = goalFolderFor(current.workspace, wantedId);
-    if (basename(destination) !== wantedId) {
-      return refused(`"${wantedId}" is not a goal id in this workspace`);
-    }
-    if (await pathExists(destination)) {
-      return refused(`"${wantedId}" is already open in this workspace; delete or archive it first`);
-    }
-
-    const ref: ArchiveRef = {
-      side: "skills",
-      id: wantedId,
-      backend: resolved.backend.id,
-      kind: "goal",
-    };
-
-    const restored = await resolved.backend.restore(ref, destination);
-    if (!restored.ok) return refused(oneLine(restored.error.message));
-
-    const loaded = await readGoalMeta(destination);
-    if (!loaded.ok) {
-      await rm(destination, { recursive: true, force: true }).catch(() => {});
-      return refused(oneLine(loaded.error.message));
-    }
-    // Only rewrite when the archived copy actually carried the flag: a course
-    // `meta.json` that never had one is left byte-identical.
-    if (loaded.value.meta.archived === true) {
-      const written = await writeGoalMeta(
-        destination,
-        { ...loaded.value.meta, archived: false },
-        loaded.value.goal.stages,
-      );
-      if (!written.ok) {
-        await rm(destination, { recursive: true, force: true }).catch(() => {});
-        return refused(oneLine(written.error.message));
-      }
-    }
-
-    // The restore is a move: drop the archived copy now that the live goal
-    // exists. `removed: false` means it was already gone — the same end state —
-    // so only a backend error rolls the restore back.
-    const removed = await resolved.backend.remove(ref);
-    if (!removed.ok) {
-      await rm(destination, { recursive: true, force: true }).catch(() => {});
-      return refused(oneLine(removed.error.message));
-    }
-    return success(id, { action: "restore", side: "skills", id: wantedId });
-  };
-
-  /**
-   * Bring one archived item back into the live workspace.
-   *
-   * The **school** side is a session restore. With the folder backend,
-   * `restoreSession` moves the archived session back through the same service
-   * the TUI uses. With the GitHub backend, the port copies the item's files
-   * into `school/sessions/<id>` and the composed path here normalises the
-   * metadata and drops the remote copy, so a restore is a move on both.
-   *
-   * Either way the restored session keeps its sources, steps, progress and
-   * outputs and — like `archive` — carries **no chat history** (`chat.jsonl` is
-   * removed; the archive never stored one).
-   *
-   * The **skills** side is a goal restore for either backend, composed from the
-   * archive port and the goal metadata writer (`restoreArchivedGoal`).
-   */
-  const archiveRestore = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const rawId = params.id;
-    if (typeof rawId !== "string" || rawId.trim() === "") {
-      return invalid(id, "archive.restore requires a session id");
-    }
-    const wantedId = rawId.trim();
-
-    const rawSide = params.side;
-    if (rawSide !== "school" && rawSide !== "skills") {
-      return invalid(id, 'archive.restore: side must be "school" or "skills"');
-    }
-
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const view = settingsOverride ?? current.value.settings;
-
-    if (rawSide === "skills") {
-      return restoreArchivedGoal(id, current.value, view, wantedId);
-    }
-
-    const refusedBuild = (message: string): JsonRpcFailure =>
-      failure(
-        id,
-        BOOT_FAILED,
-        message,
-        { kind: "archive", id: wantedId, side: "school", message },
-        false,
-      );
-
-    if (view.archiveBackend === "github") {
-      if (!current.value.createGithubArchive) {
-        return refusedBuild("the GitHub archive backend is not available in this build");
-      }
-      // Building the backend is configuration, not a transfer: an unconfigured
-      // repo or a missing keychain token is one sentence naming Settings.
-      // Nothing is read from the archive before this refusal.
-      const made = await current.value.createGithubArchive();
-      if (!made.ok) return refusedBuild(oneLine(made.error.message));
-      const backend = made.value;
-
-      const destination = sessionFolderFor(current.value.workspace, wantedId);
-      if (basename(destination) !== wantedId) {
-        return refusedBuild(`"${wantedId}" is not a session id in this workspace`);
-      }
-      if (await pathExists(destination)) {
-        return refusedBuild(
-          `"${wantedId}" is already open in this workspace; delete or archive it first`,
-        );
-      }
-
-      const ref: ArchiveRef = {
-        side: "school",
-        id: wantedId,
-        backend: backend.id,
-        kind: "session",
-      };
-      const restored = await backend.restore(ref, destination);
-      if (!restored.ok) {
-        return sessionActionFailure(id, wantedId, "restore", oneLine(restored.error.message));
-      }
-
-      // The adapter copies files; the session's own rules are ours. A failure
-      // here removes the fresh folder so the archive is the only copy left.
-      const normalised = await normaliseRestoredSession(destination);
-      if (!normalised.ok) {
-        await rm(destination, { recursive: true, force: true }).catch(() => {});
-        return sessionActionFailure(id, wantedId, "restore", oneLine(normalised.message));
-      }
-
-      // The restore is a move: drop the archived copy now that the live copy
-      // exists. A backend error rolls the fresh folder back.
-      const removed = await backend.remove(ref);
-      if (!removed.ok) {
-        await rm(destination, { recursive: true, force: true }).catch(() => {});
-        return sessionActionFailure(id, wantedId, "restore", oneLine(removed.error.message));
-      }
-
-      dropSessionChat(wantedId);
-      return success(id, { action: "restore", side: "school", id: wantedId });
-    }
-
-    if (view.archiveFolder.trim() === "") {
-      return refusedBuild("set an archive folder in Settings → Storage and archive first");
-    }
-
-    // `restoreSession` owns the move: it finds the archived copy, stages the
-    // restore, renames it into `school/sessions/<id>` and drops `chat.jsonl`, so
-    // a failure leaves the archive and the live folder exactly as they were.
-    const restored = await restoreSession({
-      workspace: current.value.workspace,
-      id: wantedId,
-      archiveRoot: view.archiveFolder,
-      confirmed: true,
-    });
-    if (!restored.ok) {
-      return sessionActionFailure(id, wantedId, "restore", oneLine(restored.error.message));
-    }
-    if (!restored.value.restored) {
-      return sessionActionFailure(
-        id,
-        wantedId,
-        "restore",
-        "the restore did not report a restored session",
-      );
-    }
-    return success(id, { action: "restore", side: "school", id: wantedId });
-  };
-
-  const chatSnapshotResponse = async (id: RpcId): Promise<JsonRpcResponse> => {
+    const chatSnapshotResponse = async (id: RpcId): Promise<JsonRpcResponse> => {
     const current = await services();
     if (!current.ok) return bootFailureResponse(id, current.error);
     const controller = await ensureChat(current.value);
     if (!controller) return failure(id, -32601, "Chat is not available in this build", undefined, false);
     return success(id, chatSnapshot(controller.state(), controller.usage(), chatSeq));
-  };
-
-  const mcpPolicy = (current: CoreServices): PluginPolicy =>
-    policyOverride ?? current.config?.plugins.policy ?? {};
-
-  const mcpUnavailable = (id: RpcId): JsonRpcFailure =>
-    failure(id, -32601, "The plugin host is not available in this build", undefined, false);
-
-  const mcpConfirm = (id: RpcId, params: Record<string, unknown>): JsonRpcResponse => {
-    const rawRequestId = params.requestId;
-    if (typeof rawRequestId !== "string" || rawRequestId.trim() === "") {
-      return invalid(id, "mcp.confirm requires a requestId");
-    }
-    const allow = params.allow;
-    if (typeof allow !== "boolean") {
-      return invalid(id, "mcp.confirm: allow must be true or false");
-    }
-    // Consume the prompt: one answer, one call. A late answer has nothing left
-    // to resolve and is still a success, never a replay of the tool call.
-    pendingPluginPermissions.get(rawRequestId)?.finish(allow);
-    return success(id, { ok: true });
-  };
-
-  const mcpList = async (id: RpcId): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const runtime = current.value.pluginRuntime;
-    if (!runtime) return mcpUnavailable(id);
-    const servers: PluginRow[] = runtime.rows();
-    return success(id, { servers, policy: mcpPolicy(current.value) });
-  };
-
-  const mcpRefresh = async (id: RpcId): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    const runtime = current.value.pluginRuntime;
-    if (!runtime) return mcpUnavailable(id);
-    // Explicit only: this may connect every enabled stdio server. A failure is
-    // recorded on that server's row, never as a retry or a second attempt.
-    const servers: PluginRow[] = await runtime.refresh();
-    return success(id, { servers });
-  };
-
-  const mcpPolicyGet = async (id: RpcId): Promise<JsonRpcResponse> => {
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-    return success(id, { policy: mcpPolicy(current.value) });
-  };
-
-  /**
-   * Write one policy cell for one command and server (`docs/product.md` §11).
-   *
-   * Validation happens before the boot so a malformed request never opens a
-   * workspace. The cell's server must already be configured in
-   * `plugins.servers` (or appear in the stored matrix): a cell for a server that
-   * does not exist is a typo, not a policy, and silently storing it would make
-   * the matrix claim a capability the app cannot have.
-   *
-   * `on` is refused for the two generation commands with the same copy the
-   * config loader uses, so a hand-edited cell and a Settings click cannot
-   * disagree about a rule that is a product invariant rather than a preference.
-   */
-  const mcpPolicySet = async (
-    id: RpcId,
-    params: Record<string, unknown>,
-  ): Promise<JsonRpcResponse> => {
-    const rawCommand = params.command;
-    if (
-      typeof rawCommand !== "string" ||
-      !(PLUGIN_COMMANDS as readonly string[]).includes(rawCommand)
-    ) {
-      return invalid(
-        id,
-        `mcp.policy.set: unknown command ${JSON.stringify(rawCommand)}; expected one of ${PLUGIN_COMMANDS.join(", ")}`,
-      );
-    }
-    const command = rawCommand as PluginCommand;
-
-    const rawServer = params.server;
-    if (typeof rawServer !== "string" || rawServer.trim() === "") {
-      return invalid(id, "mcp.policy.set requires a non-empty server name");
-    }
-    const server = rawServer.trim();
-
-    const rawValue = params.value;
-    if (
-      typeof rawValue !== "string" ||
-      !(PLUGIN_POLICY_VALUES as readonly string[]).includes(rawValue)
-    ) {
-      return invalid(
-        id,
-        `mcp.policy.set: unknown value ${JSON.stringify(rawValue)}; expected one of ${PLUGIN_POLICY_VALUES.join(", ")}`,
-      );
-    }
-    const value = rawValue as PluginPolicyCell;
-
-    if (value === "on" && (NEVER_PLUGIN_COMMANDS as readonly string[]).includes(command)) {
-      return invalid(
-        id,
-        `${command} never calls plugins, so plugins.policy.${command}.${server} cannot be "on". Set it to "off"; this command never calls a plugin.`,
-      );
-    }
-
-    const current = await services();
-    if (!current.ok) return bootFailureResponse(id, current.error);
-
-    const knownServers = new Set(Object.keys(current.value.config?.plugins.servers ?? {}));
-    for (const row of Object.values(mcpPolicy(current.value))) {
-      for (const name of Object.keys(row)) knownServers.add(name);
-    }
-    if (!knownServers.has(server)) {
-      const message = `no MCP server named “${server}” is configured; add it in Settings → Plugins`;
-      return failure(id, BOOT_FAILED, message, { kind: "plugin", command, server, message }, false);
-    }
-
-    if (!current.value.savePolicy) {
-      return failure(
-        id,
-        -32601,
-        "MCP policy editing is not available in this build",
-        undefined,
-        false,
-      );
-    }
-    const saved = await current.value.savePolicy({ command, server, value });
-    if (!saved.ok) {
-      const message = oneLine(saved.error.message);
-      return failure(id, BOOT_FAILED, message, { kind: "config", message }, false);
-    }
-    // The stored matrix is the truth, not our guess at the merged cell: a
-    // config write is the only place the value can land.
-    policyOverride = saved.value;
-    return success(id, { policy: saved.value });
   };
 
   /* ------------------------------------------------------------------------ */
@@ -1601,6 +892,33 @@ export function createCoreServer(options: CoreOptions): CoreServer {
     decisionGet: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
     decisionSet: (id: RpcId, params: Record<string, unknown>) => Promise<JsonRpcResponse>;
   };
+  const archiveSurface = createArchiveHandlers({
+    services,
+    settingsView: (current) => settingsOverride ?? current.settings,
+    dropSessionChat,
+    resolveSession,
+  });
+  const {
+    sessionArchive,
+    sessionRemove,
+    sessionExport,
+    archiveList,
+    archiveRestore,
+    archiveRemove,
+  } = archiveSurface.handlers;
+
+  const mcpSurface = createMcpHandlers({
+    services,
+    policy: (current) => policyOverride ?? current.config?.plugins.policy ?? {},
+    setPolicy: (next) => {
+      policyOverride = next;
+    },
+    resolvePermission: (requestId, allow) => {
+      pendingPluginPermissions.get(requestId)?.finish(allow);
+    },
+  });
+  const { mcpList, mcpRefresh, mcpPolicyGet, mcpPolicySet, mcpConfirm } = mcpSurface.handlers;
+
 
   const teach = createTeachHandlers({
     services,
@@ -2375,7 +1693,7 @@ export function createCoreServer(options: CoreOptions): CoreServer {
         case "session.output.mark":
           return sessionOutputMark(id, params);
       case "archive.list":
-        return archiveList(id);
+        return archiveList(id, params);
       case "archive.restore":
         return archiveRestore(id, params);
       case "archive.remove":
@@ -2483,11 +1801,11 @@ export function createCoreServer(options: CoreOptions): CoreServer {
       case "activity.list":
         return activityList(id, params);
       case "mcp.list":
-        return mcpList(id);
+        return mcpList(id, params);
       case "mcp.refresh":
-        return mcpRefresh(id);
+        return mcpRefresh(id, params);
       case "mcp.policy.get":
-        return mcpPolicyGet(id);
+        return mcpPolicyGet(id, params);
       case "mcp.policy.set":
         return mcpPolicySet(id, params);
       case "mcp.confirm":
