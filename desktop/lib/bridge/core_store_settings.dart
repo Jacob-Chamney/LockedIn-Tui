@@ -200,7 +200,62 @@ extension CoreStoreSettings on CoreStore {
     notifyListeners();
   }
 
-  /// Read the decision layer's stored view (`decision.get`).
+  /// Read one server's stored definition (`mcp.server.get`).
+  ///
+  /// A failure is recorded in [mcpError] and returns null; the page keeps the
+  /// list it has and shows the message.
+  Future<McpServerDefinition?> readMcpServer(String name) async {
+    try {
+      final json = await _connection.call(CoreMethod.mcpServerGet, {
+        'name': name.trim(),
+      });
+      return McpServerDefinition.fromJson(json);
+    } catch (failure) {
+      mcpError = _messageOf(failure);
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Add or update one stdio MCP server (`mcp.server.set`).  /// Add or update one stdio MCP server (`mcp.server.set`).
+  ///
+  /// The core validates the name, command and arguments, writes
+  /// `[plugins.servers.<name>]`, restarts its plugin runtime and returns the
+  /// refreshed rows plus the stored policy. A refusal is thrown unchanged so
+  /// the Settings dialog can keep it inline and let the user correct the field.
+  Future<void> saveMcpServer({
+    required String name,
+    required String command,
+    List<String> args = const [],
+    bool enabled = true,
+  }) async {
+    final json = await _connection.call(CoreMethod.mcpServerSet, {
+      'name': name.trim(),
+      'command': command.trim(),
+      'args': args,
+      'enabled': enabled,
+    });
+    mcpServers = _mcpRows(json);
+    mcpPolicy = PluginPolicy.fromJson(json['policy']);
+    mcpError = null;
+    notifyListeners();
+  }
+
+  /// Remove one server's config table (`mcp.server.remove`).
+  ///
+  /// The server's policy cells are kept by the core, so re-adding the same name
+  /// restores them. A refusal is thrown unchanged for the page's inline error.
+  Future<void> removeMcpServer(String name) async {
+    final json = await _connection.call(CoreMethod.mcpServerRemove, {
+      'name': name.trim(),
+    });
+    mcpServers = _mcpRows(json);
+    mcpPolicy = PluginPolicy.fromJson(json['policy']);
+    mcpError = null;
+    notifyListeners();
+  }
+
+  /// Read the decision layer's stored view (`decision.get`).  /// Read the decision layer's stored view (`decision.get`).
   ///
   /// This is a read: it writes no configuration, calls no model and starts no
   /// local runtime. The layer is off by default and rules-only in this build, so

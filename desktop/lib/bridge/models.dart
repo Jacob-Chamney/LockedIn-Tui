@@ -1711,6 +1711,35 @@ class McpToolView {
 /// `command`, `args`, `env` or a credential, so there is nothing here to hide.
 /// A failed connect is [status] `failed` plus the core's raw [failure] message;
 /// the page prints that message and keeps every other row on screen.
+/// One configured server's stored definition (`mcp.server.get`).
+///
+/// This is the editor's prefill: command and arguments are configuration, not
+/// credentials (config.toml refuses secret-bearing fields).
+class McpServerDefinition {
+  const McpServerDefinition({
+    required this.name,
+    required this.transport,
+    required this.command,
+    required this.args,
+    required this.enabled,
+  });
+
+  final String name;
+  final String transport;
+  final String command;
+  final List<String> args;
+  final bool enabled;
+
+  factory McpServerDefinition.fromJson(Map<String, dynamic> json) =>
+      McpServerDefinition(
+        name: _string(json['name']),
+        transport: _string(json['transport']),
+        command: _string(json['command']),
+        args: _strings(json['args']),
+        enabled: _bool(json['enabled']),
+      );
+}
+
 class McpServerView {
   const McpServerView({
     required this.name,

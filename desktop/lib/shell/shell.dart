@@ -879,6 +879,20 @@ class _ShellState extends State<Shell> {
         onRefreshMcp: store.refreshMcpServers,
         onSetMcpPolicy: (command, server, value) =>
             store.setMcpPolicy(command, server, value),
+        onReadMcpServer: store.readMcpServer,
+        onSetMcpServer:
+            ({
+              required name,
+              required command,
+              args = const [],
+              enabled = true,
+            }) => store.saveMcpServer(
+              name: name,
+              command: command,
+              args: args,
+              enabled: enabled,
+            ),
+        onRemoveMcpServer: store.removeMcpServer,
         keymap: keymap,
         onSetKeybind: store.setKeybind,
         decision: store.decision,

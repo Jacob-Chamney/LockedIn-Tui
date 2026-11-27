@@ -12,7 +12,7 @@ import { chmodSync, existsSync, readFileSync, readdirSync } from "node:fs";
 import { chmod, cp, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CONFIG_MIGRATIONS, loadConfig, patchConfig, readConfig, serializeDocument, type ConfigError, type LoadedConfig } from "../../src/storage/config";
+import { CONFIG_MIGRATIONS, loadConfig, patchConfig, readConfig, removePluginServer, serializeDocument, type ConfigError, type LoadedConfig } from "../../src/storage/config";
 import { CONFIG_VERSION, DEFAULT_CONFIG, defaultDocument, findSecretKey, validateDocument } from "../../src/storage/config-schema";
 import { createWorkspace, type Workspace } from "../../src/storage/workspace";
 import type { Result } from "../../src/domain/markdown";
@@ -427,3 +427,47 @@ describe("config", () => {
     if (!badId.ok) expect(badId.error.key).toBe("ui.plugins.disabled")
   })
 })
+describe("MCP server removal", () => {
+  test("removes one table, keeps unknown keys and policy, and touches nothing else", async () => {
+    const workspace = await tempWorkspace("mcp-remove");
+    unwrap(
+      await patchConfig(workspace.paths, {
+        experimental_search: { model: "local" },
+        plugins: {
+          servers: {
+            notes: { transport: "stdio", command: "mcp-notes", args: [], enabled: true },
+            docs: { transport: "stdio", command: "mcp-docs", args: ["--x"], enabled: false },
+          },
+          policy: { lockin: { notes: "explicit", docs: "off" } },
+        },
+      } as never),
+    );
+
+    const removed = unwrap(await removePluginServer(workspace.paths, "notes"));
+    expect(removed.config.plugins.servers.notes).toBeUndefined();
+    expect(removed.config.plugins.servers.docs.command).toBe("mcp-docs");
+    expect(removed.config.plugins.servers.docs.enabled).toBe(false);
+    // Policy cells are kept: re-adding the same server restores them.
+    expect(removed.config.plugins.policy.lockin?.notes).toBe("explicit");
+
+    const text = readFileSync(workspace.paths.config, "utf8");
+    expect(text).toContain("[plugins.servers.docs]");
+    expect(text).not.toContain("[plugins.servers.notes]");
+    expect(text).toContain("experimental_search");
+    expect(text).toContain("notes = \"explicit\"");
+  });
+
+  test("an unknown server is a config error and the file is untouched", async () => {
+    const workspace = await tempWorkspace("mcp-remove-missing");
+    unwrap(await loadConfig(workspace.paths));
+    const before = readFileSync(workspace.paths.config, "utf8");
+    const error = expectErr(await removePluginServer(workspace.paths, "nope"));
+    expect(error.kind).toBe("config");
+    if (error.kind === "config") {
+      expect(error.message).toContain("nope");
+      expect(error.key).toContain("plugins.servers.nope");
+    }
+    expect(readFileSync(workspace.paths.config, "utf8")).toBe(before);
+  });
+});
+

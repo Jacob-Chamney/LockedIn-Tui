@@ -141,3 +141,30 @@ test("an off cell also refuses a call the runtime is asked to make directly", as
   const source = runtime.sourceFor("chill", { explicitCall: true })
   expect(source).toBeNull()
 })
+test("reload adopts a new server set without a process restart", async () => {
+  runtime = make()
+  await runtime.start()
+  expect(runtime.rows().map((row) => row.name)).toEqual(["notes"])
+
+  await runtime.reload([
+    { id: "notes", command: process.execPath, args: [SERVER], enabled: false },
+    { id: "second", command: process.execPath, args: [SERVER], enabled: true },
+  ])
+
+  const rows = runtime.rows()
+  expect(rows.map((row) => row.name)).toEqual(["notes", "second"])
+  expect(rows[0]?.status).toBe("stopped")
+  expect(rows[1]?.status).toBe("connected")
+  // The new server is offered to the next turn on the same runtime.
+  const chill = runtime.sourceFor("chill")
+  if (chill === null) throw new Error("expected tools from the new server")
+  expect(chill.specs.map((spec) => spec.name).sort()).toEqual([
+    "read_note",
+    "slow_tool",
+  ])
+
+  await runtime.reload([])
+  expect(runtime.rows()).toEqual([])
+  expect(runtime.sourceFor("chill")).toBeNull()
+});
+

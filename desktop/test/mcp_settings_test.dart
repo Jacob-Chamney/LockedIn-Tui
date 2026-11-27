@@ -479,4 +479,217 @@ void main() {
     expect(store.mcpError, 'the plugin host is not available in this build');
     expect(store.mcpServers, hasLength(2));
   });
+
+  group("MCP server editing", () {
+    testWidgets("add server validates and writes through the host", (
+      tester,
+    ) async {
+      final saves = <Map<String, Object?>>[];
+      await pumpPage(
+        tester,
+        SettingsPage(
+          settings: settingsSnapshot(),
+          loading: false,
+          mcpServers: const [_notesServer],
+          onSetMcpServer:
+              ({
+                required name,
+                required command,
+                args = const [],
+                enabled = true,
+              }) async {
+                saves.add({
+                  "name": name,
+                  "command": command,
+                  "args": args,
+                  "enabled": enabled,
+                });
+              },
+          onReadMcpServer: (_) async => null,
+          onRemoveMcpServer: (_) async {},
+        ),
+      );
+
+      await tester.ensureVisible(find.byKey(const ValueKey("mcp-add-server")));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey("mcp-add-server")));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey("mcp-server-name")),
+        "docs",
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey("mcp-server-command")),
+        "mcp-docs",
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey("mcp-server-args")),
+        "--stdio\n--root /tmp",
+      );
+      await tester.tap(find.byKey(const ValueKey("mcp-server-save")));
+      await tester.pumpAndSettle();
+
+      expect(saves, [
+        {
+          "name": "docs",
+          "command": "mcp-docs",
+          "args": ["--stdio", "--root /tmp"],
+          "enabled": true,
+        },
+      ]);
+      expect(find.byKey(const ValueKey("mcp-server-name")), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets("edit prefills the stored definition and saves it", (
+      tester,
+    ) async {
+      final saves = <Map<String, Object?>>[];
+      await pumpPage(
+        tester,
+        SettingsPage(
+          settings: settingsSnapshot(),
+          loading: false,
+          mcpServers: const [_notesServer],
+          onSetMcpServer:
+              ({
+                required name,
+                required command,
+                args = const [],
+                enabled = true,
+              }) async {
+                saves.add({
+                  "name": name,
+                  "command": command,
+                  "enabled": enabled,
+                });
+              },
+          onReadMcpServer: (name) async => McpServerDefinition(
+            name: name,
+            transport: "stdio",
+            command: "mcp-notes",
+            args: const ["-y"],
+            enabled: false,
+          ),
+          onRemoveMcpServer: (_) async {},
+        ),
+      );
+
+      await tester.ensureVisible(find.byKey(const ValueKey("mcp-edit-notes")));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey("mcp-edit-notes")));
+      await tester.pumpAndSettle();
+      expect(find.text("edit MCP server"), findsOneWidget);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey("mcp-server-command")))
+            .controller
+            ?.text,
+        "mcp-notes",
+      );
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey("mcp-server-args")))
+            .controller
+            ?.text,
+        "-y",
+      );
+      // The name is the config key: it is not editable.
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey("mcp-server-name")))
+            .enabled,
+        isFalse,
+      );
+
+      await tester.tap(find.byKey(const ValueKey("mcp-server-save")));
+      await tester.pumpAndSettle();
+      expect(saves, [
+        {"name": "notes", "command": "mcp-notes", "enabled": false},
+      ]);
+    });
+
+    testWidgets("a failed save keeps the dialog and shows the core message", (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        SettingsPage(
+          settings: settingsSnapshot(),
+          loading: false,
+          mcpServers: const [_notesServer],
+          onSetMcpServer:
+              ({
+                required name,
+                required command,
+                args = const [],
+                enabled = true,
+              }) async {
+                throw const RpcException(-32000, "config.toml is not writable");
+              },
+          onReadMcpServer: (_) async => null,
+          onRemoveMcpServer: (_) async {},
+        ),
+      );
+
+      await tester.ensureVisible(find.byKey(const ValueKey("mcp-add-server")));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey("mcp-add-server")));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey("mcp-server-name")),
+        "docs",
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey("mcp-server-command")),
+        "mcp-docs",
+      );
+      await tester.tap(find.byKey(const ValueKey("mcp-server-save")));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey("mcp-server-error")), findsOneWidget);
+      expect(find.textContaining("not writable"), findsOneWidget);
+      expect(find.byKey(const ValueKey("mcp-server-name")), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets("remove asks by name and calls the host", (tester) async {
+      final removed = <String>[];
+      await pumpPage(
+        tester,
+        SettingsPage(
+          settings: settingsSnapshot(),
+          loading: false,
+          mcpServers: const [_notesServer],
+          onSetMcpServer: ({
+            required name,
+            required command,
+            args = const [],
+            enabled = true,
+          }) async {},
+          onReadMcpServer: (_) async => null,
+          onRemoveMcpServer: (name) async => removed.add(name),
+        ),
+      );
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey("mcp-remove-notes")),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey("mcp-remove-notes")));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining("Remove “notes” from config.toml?"),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining("per-command policy cells stay"),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey("mcp-remove-confirm")));
+      await tester.pumpAndSettle();
+      expect(removed, ["notes"]);
+      expect(tester.takeException(), isNull);
+    });
+  });
 }

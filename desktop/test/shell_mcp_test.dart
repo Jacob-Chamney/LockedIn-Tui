@@ -19,6 +19,12 @@ Future<void> selectPlugins(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+Finder serverName(String name) => find.descendant(
+  // The name appears in the row and again beside its edit/remove buttons.
+  of: find.byKey(ValueKey('settings-row-mcp-server-$name')),
+  matching: find.text(name),
+);
+
 void main() {
   testWidgets('opening Settings reads the Work permissions once', (
     tester,
@@ -55,8 +61,8 @@ void main() {
     await openSettings(tester);
 
     expect(callsTo(core, 'mcp.list'), 1);
-    expect(find.text('notes'), findsOneWidget);
-    expect(find.text('wiki'), findsOneWidget);
+    expect(serverName('notes'), findsOneWidget);
+    expect(serverName('wiki'), findsOneWidget);
     expect(find.textContaining('read_note'), findsOneWidget);
     expect(find.textContaining('write_note (write)'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -90,7 +96,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('failed: connection refused'), findsOneWidget);
-    expect(find.text('notes'), findsOneWidget);
+    expect(serverName('notes'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -125,7 +131,7 @@ void main() {
 
     // The page heading and the status-bar scope both read SETTINGS.
     expect(find.text('SETTINGS'), findsWidgets);
-    expect(find.text('notes'), findsOneWidget);
+    expect(serverName('notes'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

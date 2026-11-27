@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../bridge/models.dart';
 import '../../theme/palette.dart';
 import '../../theme/tokens.dart';
 
@@ -457,3 +458,86 @@ class PluginsRefreshing extends StatelessWidget {
 ///
 /// Validation is local and happens before the callback: an out-of-range value
 /// never reaches [onSave]. A core rejection keeps the dialog open with the
+
+/// The pointer controls for the configured MCP servers.
+///
+/// The rows above it are read-only projections; this block is where a person
+/// adds, edits or removes a server without hand-editing `config.toml`. Every
+/// button is a consequence of a core write, so a failure is shown here in the
+/// core's own sentence rather than in a second dialog.
+class McpServerActions extends StatelessWidget {
+  const McpServerActions({
+    super.key,
+    required this.servers,
+    this.onAdd,
+    this.onEdit,
+    this.onRemove,
+    this.error,
+  });
+
+  final List<McpServerView> servers;
+  final VoidCallback? onAdd;
+  final ValueChanged<McpServerView>? onEdit;
+  final ValueChanged<McpServerView>? onRemove;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final server in servers)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    server.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: LockedInType.label.copyWith(
+                      color: LockedInColors.secondary,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  key: ValueKey('mcp-edit-${server.name}'),
+                  onPressed: onEdit == null ? null : () => onEdit!(server),
+                  child: const Text('edit'),
+                ),
+                TextButton(
+                  key: ValueKey('mcp-remove-${server.name}'),
+                  onPressed: onRemove == null ? null : () => onRemove!(server),
+                  style: TextButton.styleFrom(
+                    foregroundColor: LockedInColors.warning,
+                  ),
+                  child: const Text('remove'),
+                ),
+              ],
+            ),
+          if (onAdd != null) ...[
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.icon(
+                key: const ValueKey('mcp-add-server'),
+                onPressed: onAdd,
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('add server'),
+              ),
+            ),
+          ],
+          if (error != null && error!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              error!,
+              key: const ValueKey('mcp-action-error'),
+              style: LockedInType.label.copyWith(color: LockedInColors.error),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}

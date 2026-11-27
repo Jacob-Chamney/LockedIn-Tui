@@ -28,6 +28,19 @@ export type SessionServices = {
   linkProvider?: Booted["linkProvider"];
   createGithubArchive?: Booted["createGithubArchive"];
   pluginRuntime?: Booted["pluginRuntime"];
+  /** Write one MCP server table and reload the runtime. */
+  saveMcpServer?: (
+    name: string,
+    server: import("../storage/config-schema").McpServerConfig,
+  ) => Promise<
+    Result<import("../app/actions/plugins").PluginRow[], { message: string }>
+  >;
+  /** Remove one MCP server table and reload the runtime. */
+  removeMcpServer?: (
+    name: string,
+  ) => Promise<
+    Result<import("../app/actions/plugins").PluginRow[], { message: string }>
+  >;
   savePolicy?: (input: {
     command: import("../storage/config-schema").PluginCommand;
     server: string;

@@ -199,4 +199,33 @@ void main() {
     expect(store.chat?.messages, isEmpty);
     expect(store.chatSendError, isNull);
   });
+  test('save/remove/read MCP servers keep the rows in sync', () async {
+    final core = FakeCore();
+    final store = CoreStore(connection: core);
+    addTearDown(store.dispose);
+    await store.start();
+    await store.refreshMcp();
+    expect(store.mcpServers.any((server) => server.name == 'docs'), isFalse);
+
+    await store.saveMcpServer(
+      name: 'docs',
+      command: 'mcp-docs',
+      args: const ['--stdio'],
+      enabled: false,
+    );
+    expect(core.calls, contains('mcp.server.set'));
+    final added = store.mcpServers.firstWhere(
+      (server) => server.name == 'docs',
+    );
+    expect(added.enabled, isFalse);
+
+    final definition = await store.readMcpServer('docs');
+    expect(definition?.command, 'mcp-docs');
+    expect(definition?.args, isEmpty); // the fake stores no args
+    expect(definition?.enabled, isFalse);
+
+    await store.removeMcpServer('docs');
+    expect(core.calls, contains('mcp.server.remove'));
+    expect(store.mcpServers.any((server) => server.name == 'docs'), isFalse);
+  });
 }

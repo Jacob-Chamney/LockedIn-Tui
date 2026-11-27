@@ -100,6 +100,9 @@ abstract final class CoreMethod {
   static const String mcpPolicyGet = 'mcp.policy.get';
   static const String mcpPolicySet = 'mcp.policy.set';
   static const String mcpConfirm = 'mcp.confirm';
+  static const String mcpServerGet = 'mcp.server.get';
+  static const String mcpServerSet = 'mcp.server.set';
+  static const String mcpServerRemove = 'mcp.server.remove';
   static const String skillList = 'skill.list';
   static const String skillOpen = 'skill.open';
   static const String skillChapter = 'skill.chapter';
@@ -235,6 +238,9 @@ abstract final class CoreMethod {
     mcpPolicyGet,
     mcpPolicySet,
     mcpConfirm,
+    mcpServerGet,
+    mcpServerSet,
+    mcpServerRemove,
     skillList,
     skillOpen,
     skillChapter,

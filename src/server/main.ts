@@ -53,8 +53,8 @@ const server = createCoreServer({
   boot: async () => {
     // Imported on first use so the handshake never waits on provider glue.
     // `boot()` reads LOCKEDIN_WORKSPACE / LOCKEDIN_DATA_DIR itself.
-    const { boot, settingsViewFrom } = await import("../app/boot");
-    const { patchConfig } = await import("../storage/config");
+    const { boot, pluginServerConfigs, settingsViewFrom } = await import("../app/boot");
+    const { patchConfig, removePluginServer } = await import("../storage/config");
     const result = await boot();
     if (!result.ok) return result;
     const booted = result.value;
@@ -105,6 +105,32 @@ const server = createCoreServer({
             import("../version"),
           ]);
           return checkForUpdate({ current: APP_VERSION, app: "desktop" });
+        },
+        // MCP server edits write config and restart the runtime so the next
+        // chat turn can use the new set. Nothing here calls a tool.
+        saveMcpServer: async (name, server) => {
+          const written = await patchConfig(booted.workspace.paths, {
+            plugins: { servers: { [name]: server } },
+          } as never);
+          if (!written.ok) {
+            return { ok: false as const, error: { message: written.error.message } };
+          }
+          await booted.updateConfig(written.value.config);
+          const servers = await booted.pluginRuntime.reload(
+            pluginServerConfigs(written.value.config.plugins),
+          );
+          return { ok: true as const, value: servers };
+        },
+        removeMcpServer: async (name: string) => {
+          const written = await removePluginServer(booted.workspace.paths, name);
+          if (!written.ok) {
+            return { ok: false as const, error: { message: written.error.message } };
+          }
+          await booted.updateConfig(written.value.config);
+          const servers = await booted.pluginRuntime.reload(
+            pluginServerConfigs(written.value.config.plugins),
+          );
+          return { ok: true as const, value: servers };
         },
         // Persist first, then apply to the live service, then report the view.
         // The protocol never sees TOML and never invents a settings shape.
